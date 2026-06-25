@@ -1,0 +1,2 @@
+2026-06-24: Scaffolded Next.js 15 foundation - config/tooling, enums/constants, Tailwind v4 theme tokens, Drizzle schema + Postgres, NextAuth v5 (split edge-safe config), AI schema/prompt, stub utils, and skeleton pages/API routes; verified with typecheck, lint, db:push, and clean build.
+2026-06-24: Expanded .gitignore with standard Next.js entries (.next/, *.tsbuildinfo, next-env.d.ts, .env*.local, .vercel, build/test/log/OS noise).
