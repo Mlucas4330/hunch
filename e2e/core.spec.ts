@@ -11,14 +11,10 @@ test.describe('core features', () => {
     await context.close()
   })
 
-  test('renders the landing page hero and pricing tiers', async ({ page }) => {
+  test('renders the dashboard at the index route', async ({ page }) => {
     await page.goto('/')
-    await expect(
-      page.getByRole('heading', { name: 'Stop guessing what to A/B test' })
-    ).toBeVisible()
-    await expect(page.getByText('$0/mo', { exact: false })).toBeVisible()
-    await expect(page.getByText('$29/mo', { exact: false })).toBeVisible()
-    await expect(page.getByText('$79/mo', { exact: false })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Your analyses' })).toBeVisible()
+    await expect(page.locator('input[name="url"]')).toBeVisible()
   })
 
   test('shows the team plan in the account menu', async ({ page }) => {
@@ -32,23 +28,28 @@ test.describe('core features', () => {
     const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' })
     const page = await context.newPage()
 
-    await page.goto('/dashboard')
+    await page.goto('/')
     await page.getByTestId('account-menu').locator('summary').click()
     await Promise.all([
-      page.waitForURL((url) => !url.pathname.startsWith('/dashboard')),
+      page.waitForURL(/\/auth\/signin/),
       page.getByRole('button', { name: 'Sign out' }).click()
     ])
 
     // Signed out: the protected route now redirects to sign-in
-    await page.goto('/dashboard')
+    await page.goto('/')
     await expect(page).toHaveURL(/\/auth\/signin/)
 
     await context.close()
   })
 
-  test('hides the free-tier usage counter for paid plans', async ({ page }) => {
+  test('shows pricing tiers and hides the free-tier usage counter for paid plans', async ({
+    page
+  }) => {
     await page.goto('/billing')
-    await expect(page.getByRole('heading', { name: 'Billing' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Plans & usage' })).toBeVisible()
+    await expect(page.getByText('$0/mo', { exact: false })).toBeVisible()
+    await expect(page.getByText('$29/mo', { exact: false })).toBeVisible()
+    await expect(page.getByText('$79/mo', { exact: false })).toBeVisible()
     await expect(page.getByTestId('usage-counter')).toHaveCount(0)
   })
 

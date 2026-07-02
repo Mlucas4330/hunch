@@ -1,44 +1,59 @@
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { desc, eq } from 'drizzle-orm'
+import { db } from '@/db'
+import { analyses } from '@/db/schema'
+import { getCurrentUser } from '@/lib/current-user'
+import { UrlInputForm } from '@/components/url-input-form'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { PLAN_PRICES, PLAN_SEATS } from '@/lib/constants'
-import { SUBSCRIPTION_PLAN } from '@/lib/enums'
 
-export default function HomePage() {
+export default async function DashboardPage() {
+  const user = await getCurrentUser()
+
+  const rows = user
+    ? await db
+        .select()
+        .from(analyses)
+        .where(eq(analyses.userId, user.id))
+        .orderBy(desc(analyses.createdAt))
+    : []
+
   return (
-    <div className="animate-fade-up space-y-12">
-      <section className="space-y-5 py-8 text-center">
-        <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
-          Stop guessing what to{' '}
-          <span className="text-gradient-brand">A/B test</span>
-        </h1>
-        <p className="mx-auto max-w-2xl text-balance text-lg text-muted-foreground">
-          Paste your SaaS landing page URL. Get a prioritized list of A/B test hypotheses, each with
-          a rationale, predicted impact, and suggested variant copy.
+    <div className="animate-fade-up space-y-6">
+      <div className="space-y-1">
+        <p className="panel-label text-[0.7rem] text-muted-foreground">Dashboard</p>
+        <h1 className="font-display text-2xl font-bold tracking-tight">Your analyses</h1>
+        <p className="text-sm text-muted-foreground">
+          Paste a landing page URL to generate ranked A/B test hypotheses.
         </p>
-        <Button asChild size="lg" className="bg-gradient-brand text-primary-foreground hover:opacity-90">
-          <Link href="/dashboard">Analyze your landing page</Link>
-        </Button>
-      </section>
+      </div>
 
-      <section className="grid gap-4 sm:grid-cols-3">
-        {SUBSCRIPTION_PLAN.map((plan) => (
-          <Card key={plan} className="transition-shadow hover:shadow-md">
-            <CardHeader>
-              <CardTitle className="capitalize">{plan}</CardTitle>
-              <CardDescription>
-                ${PLAN_PRICES[plan]}/mo &middot; {PLAN_SEATS[plan]} seat
-                {PLAN_SEATS[plan] > 1 ? 's' : ''}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild variant={plan === 'solo' ? 'default' : 'outline'} className="w-full">
-                <Link href="/billing">Choose {plan}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
+      <UrlInputForm />
+
+      {rows.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display tracking-tight">No analyses yet</CardTitle>
+            <CardDescription>
+              Paste a landing page URL above to run your first analysis.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <div className="space-y-3" data-testid="analysis-history">
+          {rows.map((analysis) => (
+            <Link key={analysis.id} href={`/analyses/${analysis.id}`} className="block">
+              <Card className="transition-all hover:-translate-y-0.5 hover:border-foreground/20">
+                <CardContent className="flex items-center justify-between gap-4 p-4">
+                  <span className="truncate font-mono text-sm">{analysis.url}</span>
+                  <span className="panel-label shrink-0 text-[0.65rem] text-muted-foreground">
+                    {analysis.createdAt.toLocaleDateString()}
+                  </span>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

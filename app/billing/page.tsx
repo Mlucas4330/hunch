@@ -9,12 +9,17 @@ export default async function BillingPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold">Billing</h1>
+      <div className="space-y-1">
+        <p className="panel-label text-[0.7rem] text-muted-foreground">Billing</p>
+        <h1 className="font-display text-2xl font-bold tracking-tight">Plans &amp; usage</h1>
+      </div>
 
       {user?.plan === 'free' && (
         <Card data-testid="usage-counter">
           <CardContent className="p-4 text-sm">
-            {user.analysesCount} of {FREE_ANALYSES_LIMIT} analyses used this month
+            <span className="font-mono font-semibold tabular-nums">{user.analysesCount}</span> of{' '}
+            <span className="font-mono font-semibold tabular-nums">{FREE_ANALYSES_LIMIT}</span>{' '}
+            analyses used this month
           </CardContent>
         </Card>
       )}
@@ -25,8 +30,8 @@ export default async function BillingPage() {
           return (
             <Card key={plan}>
               <CardHeader>
-                <CardTitle className="capitalize">{plan}</CardTitle>
-                <CardDescription>
+                <CardTitle className="font-display capitalize tracking-tight">{plan}</CardTitle>
+                <CardDescription className="font-mono tabular-nums">
                   ${PLAN_PRICES[plan]}/mo &middot; {PLAN_SEATS[plan]} seat
                   {PLAN_SEATS[plan] > 1 ? 's' : ''}
                 </CardDescription>

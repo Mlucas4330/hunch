@@ -29,17 +29,15 @@ export function OptionCard({
       disabled={disabled}
       onClick={onSelect}
       className={cn(
-        'w-full rounded-lg border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
+        'w-full rounded-lg border bg-card p-4 text-left transition-all hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60',
         selected ? cn(SECTION_SELECTED_CLASS[section], 'animate-pop-in') : 'border-border'
       )}
     >
-      <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1 text-sm">{copy}</p>
+      <p className="panel-label text-[0.6rem] text-muted-foreground">{label}</p>
+      <p className="mt-1.5 text-sm leading-relaxed">{copy}</p>
       {evidence && (
         <p className="mt-2 text-xs text-muted-foreground" data-testid="option-evidence">
-          Why: {evidence}
+          <span className="panel-label text-[0.6rem]">Why</span> {evidence}
         </p>
       )}
     </button>

@@ -126,8 +126,8 @@ export function AnalysisCircuit({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <SectionBadge section={current.section} />
-              <span className="text-xs font-medium text-muted-foreground">
-                Section {stepIndex + 1} of {total}
+              <span className="panel-label text-[0.7rem] text-muted-foreground">
+                Section {String(stepIndex + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
               </span>
             </div>
             <div className="flex gap-2">
@@ -136,8 +136,10 @@ export function AnalysisCircuit({
             </div>
           </div>
 
-          <h2 className="text-lg font-semibold leading-snug">{current.problem}</h2>
-          <p className="text-sm text-muted-foreground">Select one to go to the next section.</p>
+          <h2 className="font-display text-xl font-semibold leading-snug tracking-tight">
+            {current.problem}
+          </h2>
+          <p className="text-sm text-muted-foreground">Pick one to advance to the next section.</p>
 
           <div className="grid gap-3 sm:grid-cols-2">
             {current.variants.map((variant, i) => (
@@ -211,28 +213,28 @@ function CircuitPath({
               aria-label={`Go to section ${i + 1}`}
               onClick={() => onJump(i)}
               className={cn(
-                'h-4 w-4 shrink-0 rounded-full transition-all',
+                'h-4 w-4 shrink-0 rounded-full border transition-all',
                 active ? SECTION_DOT_CLASS[h.section] : 'bg-muted',
                 isCurrent && 'ring-2 ring-offset-2 ring-ring'
               )}
             />
             {i < total - 1 && (
               <div
-                className={cn('mx-1 h-0.5 flex-1', i < stepIndex ? 'bg-gradient-sections' : 'bg-border')}
+                className={cn('mx-1 h-px flex-1', i < stepIndex ? 'bg-foreground' : 'bg-border')}
               />
             )}
           </div>
         )
       })}
-      <div className="mx-1 h-0.5 flex-1 bg-border" />
+      <div className={cn('mx-1 h-px flex-1', stepIndex >= total ? 'bg-foreground' : 'bg-border')} />
       <button
         type="button"
         data-testid="circuit-node"
         aria-label="Go to summary"
         onClick={() => onJump(total)}
         className={cn(
-          'h-4 w-4 shrink-0 rounded-full transition-all',
-          stepIndex >= total ? 'bg-gradient-brand' : 'bg-muted',
+          'h-4 w-4 shrink-0 rounded-full border transition-all',
+          stepIndex >= total ? 'bg-foreground' : 'bg-muted',
           stepIndex >= total && 'ring-2 ring-offset-2 ring-ring'
         )}
       />

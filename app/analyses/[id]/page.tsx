@@ -24,8 +24,9 @@ export default async function AnalysisDetailPage({
   return (
     <div className="animate-fade-up space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold">Pick your winners</h1>
-        <p className="truncate text-sm text-muted-foreground">{analysis.url}</p>
+        <p className="panel-label text-[0.7rem] text-muted-foreground">Circuit</p>
+        <h1 className="font-display text-2xl font-bold tracking-tight">Pick your winners</h1>
+        <p className="truncate font-mono text-sm text-muted-foreground">{analysis.url}</p>
       </div>
 
       <AnalysisCircuit

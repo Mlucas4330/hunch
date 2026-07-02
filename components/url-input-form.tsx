@@ -66,13 +66,19 @@ export function UrlInputForm() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           disabled={pending}
+          className="font-mono"
+          aria-invalid={error ? true : undefined}
           required
         />
-        <Button type="submit" disabled={pending}>
-          {pending ? phase : 'Analyze'}
+        <Button type="submit" disabled={pending} className="shrink-0">
+          {pending ? <span className="panel-label text-[0.7rem]">{phase}</span> : 'Analyze'}
         </Button>
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
     </form>
   )
 }

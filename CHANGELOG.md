@@ -1,8 +1,0 @@
-2026-06-24: Scaffolded Next.js 15 foundation - config/tooling, enums/constants, Tailwind v4 theme tokens, Drizzle schema + Postgres, NextAuth v5 (split edge-safe config), AI schema/prompt, stub utils, and skeleton pages/API routes; verified with typecheck, lint, db:push, and clean build.
-2026-06-24: Expanded .gitignore with standard Next.js entries (.next/, *.tsbuildinfo, next-env.d.ts, .env*.local, .vercel, build/test/log/OS noise).
-- 2026-06-25: Add admin credentials login (NextAuth Credentials provider, team-plan admin via env vars) alongside Google OAuth
-- 2026-06-25: Implement core analysis pipeline (scrape + Claude + persistence, with E2E_FIXTURES test seam), wire dashboard/analysis/billing UI, and add Playwright e2e suite covering the core features
-- 2026-06-25: Support 3 separately-trackable variants per hypothesis (new variants table + VARIANT_STATUS enum, /api/variants/[id] PATCH) and restyle the hypothesis card so the headline, impact/effort score pills, and status controls stand out
-- 2026-06-25: Reframe the analysis page as a guided 'circuit' (step through sections, pick a winning variant per section via color-filling cards, end on a copyable/downloadable Markdown summary), plus brand gradients, CSS motion, and tighter spacing across the app
-- 2026-06-25: Add a navbar account menu with sign out, and ground variant generation in real competitor landing pages via Anthropic web search (each variant now cites the competitor pattern it borrows; analyses store the benchmarked competitors)
-- 2026-06-25: Reframe generated variants as adaptable templates (bracketed [placeholders], no fabricated stats/quotes, no competitor names in the copy); the competitor strategy now lives only in each variant's Why line

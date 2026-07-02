@@ -1,5 +1,7 @@
-import { effortScoreBadgeClass, impactScoreBadgeClass } from '@/lib/constants'
+import { effortScoreFillClass, impactScoreFillClass } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+
+const SEGMENTS = Array.from({ length: 10 }, (_, i) => i)
 
 export function ScoreIndicator({
   label,
@@ -10,15 +12,23 @@ export function ScoreIndicator({
   score: number
   kind: 'impact' | 'effort'
 }) {
-  const badgeClass = kind === 'impact' ? impactScoreBadgeClass(score) : effortScoreBadgeClass(score)
+  const fill = kind === 'impact' ? impactScoreFillClass(score) : effortScoreFillClass(score)
 
   return (
-    <div className={cn('flex items-baseline gap-1.5 rounded-md px-2.5 py-1', badgeClass)}>
-      <span className="text-[0.65rem] font-semibold uppercase tracking-wide opacity-80">
-        {label}
+    <div className="flex items-center gap-2" aria-label={`${label} ${score} of 10`}>
+      <span className="panel-label text-[0.6rem] text-muted-foreground">{label}</span>
+      <div className="flex items-end gap-0.5" aria-hidden>
+        {SEGMENTS.map((i) => (
+          <span
+            key={i}
+            className={cn('h-3.5 w-1 rounded-[1px]', i < score ? fill : 'bg-muted')}
+          />
+        ))}
+      </div>
+      <span className="font-mono text-xs font-semibold tabular-nums">
+        {score}
+        <span className="text-muted-foreground">/10</span>
       </span>
-      <span className="text-base font-bold leading-none tabular-nums">{score}</span>
-      <span className="text-xs opacity-70">/10</span>
     </div>
   )
 }

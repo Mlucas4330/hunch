@@ -1,4 +1,4 @@
-# Landing Page A/B Idea Generator
+# Hunch
 
 ## Overview
 

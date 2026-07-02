@@ -1,27 +1,24 @@
 import Link from 'next/link'
 import { auth } from '@/auth'
 import { AccountMenu } from '@/components/account-menu'
+import { NavLinks } from '@/components/nav-links'
+import { Wordmark } from '@/components/wordmark'
 import { Button } from '@/components/ui/button'
 
 export async function Navbar() {
   const session = await auth()
 
   return (
-    <header className="border-b">
+    <header className="sticky top-0 z-40 border-b bg-paper/80 backdrop-blur">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="font-semibold">
-          LP A/B
+        <Link href="/" aria-label="Hunch home">
+          <Wordmark />
         </Link>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           {session?.user ? (
             <>
-              <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
-                Dashboard
-              </Link>
-              <Link href="/billing" className="text-sm text-muted-foreground hover:text-foreground">
-                Billing
-              </Link>
+              <NavLinks />
               <AccountMenu user={session.user} />
             </>
           ) : (

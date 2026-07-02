@@ -4,7 +4,7 @@ import type { SubscriptionPlan } from '@/lib/enums'
 
 async function signOutAction() {
   'use server'
-  await signOut({ redirectTo: '/' })
+  await signOut({ redirectTo: '/auth/signin' })
 }
 
 export function AccountMenu({
@@ -17,14 +17,14 @@ export function AccountMenu({
 
   return (
     <details className="group relative" data-testid="account-menu">
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border px-2 py-1 text-sm [&::-webkit-details-marker]:hidden">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-sm border px-2 py-1 text-sm transition-colors hover:bg-muted [&::-webkit-details-marker]:hidden">
+        <span className="flex h-6 w-6 items-center justify-center rounded-sm bg-primary font-mono text-xs font-semibold text-primary-foreground">
           {initial}
         </span>
         <span className="max-w-[8rem] truncate">{label}</span>
       </summary>
 
-      <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border bg-card p-3 shadow-md">
+      <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border bg-card p-3 shadow-sm">
         <div className="space-y-1">
           {user.name && <p className="text-sm font-medium">{user.name}</p>}
           {user.email && <p className="truncate text-xs text-muted-foreground">{user.email}</p>}

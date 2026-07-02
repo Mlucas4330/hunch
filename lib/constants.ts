@@ -111,3 +111,16 @@ export function effortScoreBadgeClass(score: number): string {
   if (score <= 6) return 'bg-amber/15 text-amber'
   return 'bg-red/15 text-red'
 }
+
+// Solid channel color for the segmented gauge fill (mirrors the badge score ranges).
+export function impactScoreFillClass(score: number): string {
+  if (score >= 8) return 'bg-coral'
+  if (score >= 5) return 'bg-amber'
+  return 'bg-neutral'
+}
+
+export function effortScoreFillClass(score: number): string {
+  if (score <= 3) return 'bg-green'
+  if (score <= 6) return 'bg-amber'
+  return 'bg-red'
+}

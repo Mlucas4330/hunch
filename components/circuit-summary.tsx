@@ -39,7 +39,7 @@ export function CircuitSummary({
     <div className="animate-fade-up space-y-6" data-testid="summary">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold">Your A/B test plan</h2>
+          <h2 className="font-display text-xl font-semibold tracking-tight">Your A/B test plan</h2>
           <p className="text-sm text-muted-foreground">
             The copy you picked for each section, ready to ship.
           </p>
