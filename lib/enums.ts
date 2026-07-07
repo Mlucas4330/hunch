@@ -22,3 +22,21 @@ export type VariantStatus = (typeof VARIANT_STATUS)[number]
 
 export const SUBSCRIPTION_STATUS = ['active', 'canceled', 'past_due'] as const
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUS)[number]
+
+export const EXPERIMENT_STATUS = ['running', 'stopped', 'completed'] as const
+export type ExperimentStatus = (typeof EXPERIMENT_STATUS)[number]
+
+export const EXPERIMENT_ARM = ['control', 'variant'] as const
+export type ExperimentArm = (typeof EXPERIMENT_ARM)[number]
+
+export const TRACK_EVENT = ['impression', 'conversion'] as const
+export type TrackEvent = (typeof TRACK_EVENT)[number]
+
+export const EXPERIMENT_ACTION = ['stop', 'declare_winner', 'discard'] as const
+export type ExperimentAction = (typeof EXPERIMENT_ACTION)[number]
+
+export const EXPERIMENT_DURATIONS = [7, 14, 30] as const
+export type ExperimentDuration = (typeof EXPERIMENT_DURATIONS)[number]
+
+export const EXPERIMENT_RECOMMENDATION = ['ship_variant', 'keep_control', 'inconclusive'] as const
+export type ExperimentRecommendation = (typeof EXPERIMENT_RECOMMENDATION)[number]

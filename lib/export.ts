@@ -1,44 +1,40 @@
-import { SECTION_LABEL } from '@/lib/constants'
+import { EXPERIMENT_RECOMMENDATION_LABEL, SECTION_LABEL } from '@/lib/constants'
 import type { Section } from '@/lib/enums'
+import type { ExperimentResult } from '@/lib/stats'
 
-export interface PlanStep {
+export interface ReportInput {
+  url: string
   section: Section
   problem: string
-  currentCopy: string
-  chosenCopy: string | null
-  chosenEvidence: string | null
+  controlCopy: string
+  variantCopy: string
+  durationDays: number
+  result: ExperimentResult
 }
 
-export interface PlanCompetitor {
-  name: string
-  url: string
-}
+export function buildReportMarkdown(input: ReportInput): string {
+  const { control, variant, upliftPct, pValue, recommendation } = input.result
+  const rate = (arm: { rate: number }) => `${(arm.rate * 100).toFixed(1)}%`
 
-export function buildPlanMarkdown(
-  url: string,
-  steps: PlanStep[],
-  competitors: PlanCompetitor[]
-): string {
-  const lines = [`# A/B test plan`, ``, `Source: ${url}`]
-
-  if (competitors.length > 0) {
-    lines.push(``, `Benchmarked against: ${competitors.map((c) => `${c.name} (${c.url})`).join(', ')}`)
-  }
-
-  for (const step of steps) {
-    const chosen = step.chosenCopy ?? 'Keep current copy'
-    lines.push(
-      ``,
-      `## ${SECTION_LABEL[step.section]}`,
-      ``,
-      `**Problem:** ${step.problem}`,
-      ``,
-      `**Current:** ${step.currentCopy}`,
-      ``,
-      `**Chosen:** ${chosen}`
-    )
-    if (step.chosenEvidence) lines.push(``, `**Why:** ${step.chosenEvidence}`)
-  }
-
-  return lines.join('\n')
+  return [
+    `# A/B test report`,
+    ``,
+    `Source: ${input.url}`,
+    `Section: ${SECTION_LABEL[input.section]}`,
+    `Duration: ${input.durationDays} days`,
+    ``,
+    `## Recommendation: ${EXPERIMENT_RECOMMENDATION_LABEL[recommendation]}`,
+    ``,
+    `**Problem:** ${input.problem}`,
+    ``,
+    `## Result`,
+    ``,
+    `| Arm | Copy | Conversions / Visitors | Rate |`,
+    `| --- | --- | --- | --- |`,
+    `| Control | ${input.controlCopy} | ${control.conversions} / ${control.n} | ${rate(control)} |`,
+    `| Variant | ${input.variantCopy} | ${variant.conversions} / ${variant.n} | ${rate(variant)} |`,
+    ``,
+    `**Uplift:** ${upliftPct === null ? 'n/a' : `${upliftPct.toFixed(1)}%`}`,
+    `**p-value:** ${pValue === null ? 'n/a' : pValue.toFixed(3)}`
+  ].join('\n')
 }

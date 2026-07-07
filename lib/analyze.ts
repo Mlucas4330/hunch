@@ -1,29 +1,99 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { generateObject } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
-import { AnalysisOutputSchema, type AnalysisOutput } from '@/lib/ai/schema'
+import {
+  AnalysisOutputSchema,
+  type AnalysisOutput,
+  type HypothesisOutput
+} from '@/lib/ai/schema'
 import { COMPETITOR_RESEARCH_PROMPT, SYSTEM_PROMPT } from '@/lib/ai/prompt'
 import { FIXTURE_ANALYSIS } from '@/lib/ai/fixtures'
-import { preprocessHtml, scrapePage } from '@/lib/scrape'
+import { findSelector, preprocessHtml, scrapePage } from '@/lib/scrape'
 
 const MODEL = 'claude-sonnet-4-6'
 
-export async function analyzeLandingPage(url: string): Promise<AnalysisOutput> {
-  if (process.env.E2E_FIXTURES === '1') return FIXTURE_ANALYSIS
+export type AnalyzedHypothesis = HypothesisOutput & { selector: string | null }
 
-  const { html } = await scrapePage(url)
+export type AnalysisResult = {
+  competitors: AnalysisOutput['competitors']
+  hypotheses: AnalyzedHypothesis[]
+}
+
+export type AnalyzeOptions = {
+  brief?: string
+  competitorUrls?: string[]
+}
+
+export async function analyzeLandingPage(
+  url: string,
+  options: AnalyzeOptions = {}
+): Promise<AnalysisResult> {
+  if (process.env.E2E_FIXTURES === '1') return withSelectors(FIXTURE_ANALYSIS, [])
+
+  const { html, elements } = await scrapePage(url)
   const content = preprocessHtml(html)
 
-  const research = await researchCompetitors(content)
+  // Paid "Competitor mode": ground on the pages the user supplied instead of auto web-search.
+  const provided = options.competitorUrls?.length
+    ? await researchProvidedCompetitors(options.competitorUrls)
+    : null
+  const research = provided ?? (await researchCompetitors(content))
+
+  const briefSection = options.brief
+    ? `\n\nBusiness details from the founder (use these real facts to write finished copy):\n\n${options.brief}`
+    : ''
 
   const { object } = await generateObject({
     model: anthropic(MODEL),
     schema: AnalysisOutputSchema,
     system: SYSTEM_PROMPT,
-    prompt: `Landing page copy:\n\n${content}\n\nCompetitive research brief:\n\n${research || 'No competitor research available.'}`
+    prompt: `Landing page copy:\n\n${content}\n\nCompetitive research brief:\n\n${research || 'No competitor research available.'}${briefSection}`
   })
 
-  return object
+  const competitors = options.competitorUrls?.length
+    ? options.competitorUrls.map((competitorUrl) => ({
+        name: hostnameOf(competitorUrl),
+        url: competitorUrl
+      }))
+    : object.competitors
+
+  return withSelectors({ ...object, competitors }, elements)
+}
+
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+// Builds a competitor brief from user-supplied landing pages (scrape + clean, no web search).
+// Degrades to null so generation can fall back to the auto research path.
+async function researchProvidedCompetitors(urls: string[]): Promise<string | null> {
+  const parts: string[] = []
+  for (const url of urls) {
+    try {
+      const { html } = await scrapePage(url)
+      parts.push(`Competitor: ${hostnameOf(url)} (${url})\n${preprocessHtml(html).slice(0, 2500)}`)
+    } catch {
+      continue
+    }
+  }
+  return parts.length ? parts.join('\n\n---\n\n') : null
+}
+
+function withSelectors(
+  output: AnalysisOutput,
+  elements: { text: string; selector: string }[]
+): AnalysisResult {
+  return {
+    competitors: output.competitors,
+    hypotheses: output.hypotheses.map((h) => ({
+      ...h,
+      selector: findSelector(h.current_copy, elements)
+    }))
+  }
 }
 
 // Uses the official Anthropic SDK's web search server tool to find and read competitor

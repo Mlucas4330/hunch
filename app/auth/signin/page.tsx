@@ -25,7 +25,7 @@ export default async function SignInPage({
           <form
             action={async () => {
               'use server'
-              await signIn('google', { redirectTo: '/' })
+              await signIn('google', { redirectTo: '/dashboard' })
             }}
           >
             <Button type="submit" className="w-full">
@@ -46,7 +46,7 @@ export default async function SignInPage({
                 await signIn('credentials', {
                   email: formData.get('email'),
                   password: formData.get('password'),
-                  redirectTo: '/'
+                  redirectTo: '/dashboard'
                 })
               } catch (err) {
                 if (err instanceof AuthError) redirect('/auth/signin?error=credentials')

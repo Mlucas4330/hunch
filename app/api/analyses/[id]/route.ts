@@ -19,3 +19,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   return NextResponse.json({ analysis })
 }
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  const { id } = await params
+
+  const [deleted] = await db
+    .delete(analyses)
+    .where(and(eq(analyses.id, id), eq(analyses.userId, user.id)))
+    .returning({ id: analyses.id })
+
+  if (!deleted) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+
+  return NextResponse.json({ ok: true })
+}

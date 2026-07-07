@@ -1,6 +1,18 @@
-import type { HypothesisStatus, Section, SubscriptionPlan, VariantStatus } from '@/lib/enums'
+import type {
+  ExperimentArm,
+  ExperimentRecommendation,
+  ExperimentStatus,
+  HypothesisStatus,
+  Section,
+  SubscriptionPlan,
+  VariantStatus
+} from '@/lib/enums'
 
 export const FREE_ANALYSES_LIMIT = 3
+
+export const FREE_EXPERIMENTS_LIMIT = 1
+
+export const DEFAULT_EXPERIMENT_DURATION = 14
 
 export const PLAN_PRICES: Record<SubscriptionPlan, number> = {
   free: 0,
@@ -98,6 +110,35 @@ export const VARIANT_STATUS_BADGE_CLASS: Record<VariantStatus, string> = {
   testing: 'bg-amber/15 text-amber',
   winner: 'bg-green/15 text-green',
   rejected: 'bg-red/15 text-red'
+}
+
+export const EXPERIMENT_STATUS_LABEL: Record<ExperimentStatus, string> = {
+  running: 'Running',
+  stopped: 'Stopped',
+  completed: 'Completed'
+}
+
+export const EXPERIMENT_STATUS_BADGE_CLASS: Record<ExperimentStatus, string> = {
+  running: 'bg-amber/15 text-amber',
+  stopped: 'bg-neutral/15 text-neutral',
+  completed: 'bg-green/15 text-green'
+}
+
+export const EXPERIMENT_ARM_LABEL: Record<ExperimentArm, string> = {
+  control: 'Control',
+  variant: 'Variant'
+}
+
+export const EXPERIMENT_RECOMMENDATION_LABEL: Record<ExperimentRecommendation, string> = {
+  ship_variant: 'Ship the variant',
+  keep_control: 'Keep current copy',
+  inconclusive: 'Inconclusive - not enough traffic'
+}
+
+export const EXPERIMENT_RECOMMENDATION_BADGE_CLASS: Record<ExperimentRecommendation, string> = {
+  ship_variant: 'bg-green/15 text-green',
+  keep_control: 'bg-neutral/15 text-neutral',
+  inconclusive: 'bg-amber/15 text-amber'
 }
 
 export function impactScoreBadgeClass(score: number): string {

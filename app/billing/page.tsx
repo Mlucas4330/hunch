@@ -1,8 +1,9 @@
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PLAN_PRICES, PLAN_SEATS, FREE_ANALYSES_LIMIT } from '@/lib/constants'
 import { SUBSCRIPTION_PLAN } from '@/lib/enums'
 import { getCurrentUser } from '@/lib/current-user'
+import { UpgradeButton } from '@/components/upgrade-button'
+import { ManageBillingButton } from '@/components/manage-billing-button'
 
 export default async function BillingPage() {
   const user = await getCurrentUser()
@@ -37,18 +38,18 @@ export default async function BillingPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button
-                  variant={isCurrent ? 'outline' : 'default'}
-                  className="w-full"
-                  disabled={isCurrent || plan === 'free'}
-                >
-                  {isCurrent ? 'Current plan' : `Upgrade to ${plan}`}
-                </Button>
+                <UpgradeButton plan={plan} isCurrent={isCurrent} />
               </CardContent>
             </Card>
           )
         })}
       </div>
+
+      {user && user.plan !== 'free' && (
+        <div>
+          <ManageBillingButton />
+        </div>
+      )}
     </div>
   )
 }

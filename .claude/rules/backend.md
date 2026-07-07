@@ -24,7 +24,9 @@ analyses
 - id          (uuid, PK)
 - user_id     (FK -> users.id)
 - url         (text)
+- brief       (text, nullable: optional business details the founder supplied for finished copy)
 - competitors (jsonb, nullable: { name, url }[] benchmarked against)
+- embed_key   (uuid, unique: public opaque key the snippet uses; never expose analyses.id)
 - created_at  (timestamp)
 
 hypotheses
@@ -36,6 +38,7 @@ hypotheses
 - impact_score   (int, 1-10)
 - effort_score   (int, 1-10)
 - rationale      (text)
+- selector       (text, nullable: DOM anchor captured during scrape for client-side apply)
 - status         (enum: HYPOTHESIS_STATUS, default: pending)
 - created_at     (timestamp)
 
@@ -46,6 +49,31 @@ variants
 - evidence       (text, nullable: competitor pattern this variant borrows/beats)
 - status         (enum: VARIANT_STATUS, default: proposed)
 - created_at     (timestamp)
+
+experiments
+- id            (uuid, PK)
+- analysis_id   (FK -> analyses.id)
+- hypothesis_id (FK -> hypotheses.id)
+- variant_id    (FK -> variants.id: the single challenger against the control copy)
+- status        (enum: EXPERIMENT_STATUS, default: running)
+- selector      (text, nullable: snapshot from hypothesis at launch)
+- control_copy  (text: snapshot of original copy)
+- variant_copy  (text: snapshot of challenger copy)
+- goal_selector (text, nullable: element whose click counts as a conversion)
+- split_percent (int, default 50: % of visitors bucketed into the variant arm)
+- duration_days (int, default 14: fixed test window, one of EXPERIMENT_DURATIONS 7/14/30)
+- started_at    (timestamp)
+- ends_at       (timestamp, nullable: started_at + duration_days; cron finalizes past this)
+- stopped_at    (timestamp, nullable)
+- created_at    (timestamp)
+
+experiment_stats
+- id            (uuid, PK)
+- experiment_id (FK -> experiments.id)
+- arm           (enum: EXPERIMENT_ARM)
+- impressions   (int, default 0)
+- conversions   (int, default 0)
+- unique(experiment_id, arm)   <- one row per arm, counters incremented atomically
 ```
 
 **Relations**
@@ -53,7 +81,9 @@ variants
 ```
 users       1 -> N  analyses
 analyses    1 -> N  hypotheses
+analyses    1 -> N  experiments
 hypotheses  1 -> N  variants
+experiments 1 -> N  experiment_stats
 users       1 -> 1  subscriptions
 ```
 
@@ -67,13 +97,20 @@ Standard NextAuth catch-all. Handles Google OAuth callback, session creation, an
 ### Analyses
 
 `POST /api/analyses`
-Core route. Chain: check usage gate -> Puppeteer scrape -> preprocess HTML -> Claude API -> persist -> return.
+Core route. Chain: check usage gate -> Puppeteer scrape -> preprocess HTML -> competitor research
+-> Claude API -> persist -> return.
 
 Request:
 
 ```json
-{ "url": "https://example.com" }
+{ "url": "https://example.com", "brief": "optional business details", "competitorUrls": ["https://rival.com"] }
 ```
+
+`brief` (optional, all plans) is stored on the analysis and passed into generation so variants come
+back as finished copy instead of `[placeholders]`. `competitorUrls` (optional, max 3) is the paid
+**Competitor mode**: honored only when `user.plan !== 'free'` (free users' URLs are dropped
+server-side and it auto-searches instead). When provided, `analyzeLandingPage` scrapes those pages
+for the competitive brief instead of web search, and `analyses.competitors` is set to them.
 
 Response:
 
@@ -134,19 +171,64 @@ Request:
 
 Response: updated hypothesis row.
 
-### Variants
+### Experiments (live A/B tests)
 
-`PATCH /api/variants/[id]`
-Updates `status` only. Validates against `VARIANT_STATUS` enum. Ownership enforced by joining
-`variants -> hypotheses -> analyses` on the requesting user.
+`POST /api/experiments`
+Launches a live test for a chosen `(hypothesis, variant)`. Ownership via
+`hypotheses -> analyses`. **Gate**: free users may have only `FREE_EXPERIMENTS_LIMIT` (1)
+experiment with `status='running'` at a time -> `403 limit_reached`. In a transaction:
+snapshots `control_copy` / `variant_copy` / `selector`, inserts the experiment + its two
+`experiment_stats` rows, and flips the variant and hypothesis to `testing`.
 
 Request:
 
 ```json
-{ "status": "winner" }
+{ "hypothesisId": "uuid", "variantId": "uuid", "goalSelector": "a.cta", "splitPercent": 50, "durationDays": 14, "variantCopy": "edited copy" }
 ```
 
-Response: updated variant row.
+`durationDays` must be 7, 14, or 30 (default 14); `endsAt` is set to `now + durationDays`.
+`variantCopy` (optional) lets the user edit the copy at launch; when present it is snapshotted as the
+experiment's `variant_copy` instead of the stored variant copy (control copy is never editable).
+
+Response: `{ experiment: ExperimentWithResult, embedKey }`.
+
+`GET /api/experiments?analysisId=<uuid>`
+Lists the user's experiments (optionally scoped to one analysis), each with a computed
+`result` (two-proportion z-test from `lib/stats.ts`). `result.recommendation` is one of
+`EXPERIMENT_RECOMMENDATION` (`ship_variant` | `keep_control` | `inconclusive`), derived from
+significance + leader.
+
+`GET /api/experiments/[id]`
+Returns one experiment with its live `result`. `404` if not owned.
+
+`PATCH /api/experiments/[id]`
+Body `{ action: 'stop' | 'declare_winner' | 'discard' }`. `stop` -> `stopped`;
+`declare_winner` -> `completed` + variant `winner` + hypothesis `completed`;
+`discard` -> `stopped` + variant `rejected`.
+
+### Tracking (public - snippet)
+
+**Unauthenticated + CORS `*`; excluded from auth middleware (`/api/track` in the matcher).**
+Both routes are best-effort and answer even on bad input so the host page never breaks.
+
+`GET /api/track/config?key=<embedKey>`
+Returns the analysis's `running` experiments as
+`[{ experimentId, selector, controlCopy, variantCopy, splitPercent, goalSelector }]`.
+
+`POST /api/track/event`
+Body `{ key, experimentId, arm, type }` (`arm` in `EXPERIMENT_ARM`, `type` in `TRACK_EVENT`),
+sent via `navigator.sendBeacon` as a `text/plain` blob (stays a CORS simple request).
+Verifies the experiment belongs to `key` and is `running`, then increments the matching
+`experiment_stats` counter. Returns `204`.
+
+### Cron (auto-finalize)
+
+`GET /api/cron/finalize-experiments`
+Triggered daily by Vercel Cron (`vercel.json`). Authenticates via
+`Authorization: Bearer <CRON_SECRET>` -> `401` otherwise. Marks every `running` experiment with
+`ends_at <= now()` as `completed` (+ `stopped_at`) and its hypothesis `completed`, then returns
+`{ finalized: n }`. Excluded from auth middleware (`api/cron` in the matcher). Sub-daily schedules
+require a paid Vercel plan.
 
 ### Billing
 
@@ -252,6 +334,11 @@ into `generateObject` so variants are grounded in competitors, and each variant 
 `evidence` line naming the competitor pattern it borrows. Degrades gracefully to an empty brief
 (no `ANTHROPIC_API_KEY` / failure) so generation still succeeds. Skipped when `E2E_FIXTURES=1`.
 
+When the user supplies `competitorUrls` (paid Competitor mode), this web-search step is skipped:
+`analyzeLandingPage` scrapes those pages and concatenates the cleaned copy into the brief instead.
+A founder `brief` (when present) is appended to the generation prompt so variants use those real
+facts and come back finished rather than as `[placeholder]` templates.
+
 ### 3. Call
 
 ```typescript
@@ -269,7 +356,9 @@ const { competitors, hypotheses } = result.object
 
 Focus on: grounding every hypothesis/variant in the competitor brief, specificity of claims, CTA
 strength, social proof quality, value proposition clarity, friction reduction. Return 5-8
-hypotheses ranked by impact score descending, each with 3 evidence-bearing variants.
+hypotheses ranked by impact score descending, each with 3 evidence-bearing variants **ordered
+strongest-first** so `variants[0]` is the recommended challenger (there is no manual variant-picking
+circuit; the UI proposes `variants[0]` and the user approves/swaps before launching a test).
 
 ---
 
@@ -277,3 +366,5 @@ hypotheses ranked by impact score descending, each with 3 evidence-bearing varia
 
 Protect all `/dashboard`, `/analyses`, and `/billing` routes with NextAuth session check.
 Exclude `/api/billing/webhook` from auth middleware - Stripe calls it directly.
+Exclude `/api/track` and `/embed.js` too - the snippet on the customer's site calls them
+cross-origin without a session.

@@ -10,7 +10,9 @@ import { analyzeLandingPage } from '@/lib/analyze'
 import { ScrapeError } from '@/lib/scrape'
 
 const BodySchema = z.object({
-  url: z.string().url()
+  url: z.string().url(),
+  brief: z.string().trim().max(2000).optional(),
+  competitorUrls: z.array(z.string().url()).max(3).optional()
 })
 
 export async function POST(request: Request) {
@@ -24,9 +26,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'limit_reached' }, { status: 403 })
   }
 
+  const brief = parsed.data.brief || undefined
+  // Competitor mode is a paid feature: free users always fall back to auto web-search.
+  const competitorUrls = user.plan === 'free' ? undefined : parsed.data.competitorUrls
+
   let output
   try {
-    output = await analyzeLandingPage(parsed.data.url)
+    output = await analyzeLandingPage(parsed.data.url, { brief, competitorUrls })
   } catch (error) {
     if (error instanceof ScrapeError) {
       return NextResponse.json({ error: 'scrape_failed' }, { status: 502 })
@@ -40,7 +46,12 @@ export async function POST(request: Request) {
     const analysis = await db.transaction(async (tx) => {
       const [created] = await tx
         .insert(analyses)
-        .values({ userId: user.id, url: parsed.data.url, competitors: output.competitors })
+        .values({
+          userId: user.id,
+          url: parsed.data.url,
+          brief: brief ?? null,
+          competitors: output.competitors
+        })
         .returning()
 
       const rows = await tx
@@ -53,7 +64,8 @@ export async function POST(request: Request) {
             currentCopy: h.current_copy,
             impactScore: h.impact_score,
             effortScore: h.effort_score,
-            rationale: h.rationale
+            rationale: h.rationale,
+            selector: h.selector
           }))
         )
         .returning()

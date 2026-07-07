@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
 const LINKS = [
-  { href: '/', label: 'Dashboard' },
+  { href: '/dashboard', label: 'Dashboard' },
   { href: '/billing', label: 'Billing' }
 ] as const
 
@@ -15,7 +15,7 @@ export function NavLinks() {
   return (
     <>
       {LINKS.map((link) => {
-        const active = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href)
+        const active = pathname.startsWith(link.href)
         return (
           <Link
             key={link.href}

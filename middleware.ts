@@ -7,8 +7,7 @@ const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/billing']
 
 export default auth((req) => {
   const { pathname } = req.nextUrl
-  const isProtected =
-    pathname === '/' || PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
   if (isProtected && !req.auth) {
     const signInUrl = new URL('/auth/signin', req.nextUrl.origin)
@@ -18,5 +17,7 @@ export default auth((req) => {
 })
 
 export const config = {
-  matcher: ['/((?!api/billing/webhook|api/auth|_next/static|_next/image|favicon.ico).*)']
+  matcher: [
+    '/((?!api/billing/webhook|api/auth|api/track|api/cron|embed.js|_next/static|_next/image|favicon.ico).*)'
+  ]
 }
