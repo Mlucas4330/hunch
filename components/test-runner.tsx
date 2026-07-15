@@ -8,7 +8,7 @@ import { ExperimentPanel, type PanelExperiment } from '@/components/experiment-p
 import { DEFAULT_EXPERIMENT_DURATION } from '@/lib/constants'
 import { EXPERIMENT_DURATIONS } from '@/lib/enums'
 import type { ExperimentDuration, Section } from '@/lib/enums'
-import { cn } from '@/lib/utils'
+import { cn, hasPlaceholders } from '@/lib/utils'
 
 const textareaClass =
   'flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50'
@@ -53,6 +53,7 @@ function LaunchForm({
   const [duration, setDuration] = useState<ExperimentDuration>(DEFAULT_EXPERIMENT_DURATION)
   const [pending, setPending] = useState(false)
   const [gated, setGated] = useState(false)
+  const [manualTarget, setManualTarget] = useState(false)
   const [error, setError] = useState(false)
 
   function selectVariant(id: string) {
@@ -63,6 +64,7 @@ function LaunchForm({
   async function launch() {
     setPending(true)
     setGated(false)
+    setManualTarget(false)
     setError(false)
     try {
       const res = await fetch('/api/experiments', {
@@ -77,6 +79,15 @@ function LaunchForm({
       })
       if (res.status === 403) {
         setGated(true)
+        return
+      }
+      if (res.status === 422) {
+        const body = await res.json().catch(() => null)
+        if (body?.error === 'manual_target') {
+          setManualTarget(true)
+          return
+        }
+        setError(true)
         return
       }
       if (!res.ok) {
@@ -146,6 +157,12 @@ function LaunchForm({
             className={textareaClass}
             data-testid="challenger-copy"
           />
+          {hasPlaceholders(copy) && (
+            <p className="text-xs text-amber" data-testid="placeholder-warning">
+              This copy still has [placeholders] like [trial length]. Replace them with your real
+              details before launching, or your visitors will see the brackets.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -181,6 +198,13 @@ function LaunchForm({
             Upgrade
           </Link>{' '}
           to run more.
+        </p>
+      )}
+      {manualTarget && (
+        <p className="text-sm text-amber">
+          This idea is a manual setup: its copy does not map to a single element we can swap
+          automatically, so it cannot run as a live text test. Apply the recommended copy on your
+          page by hand.
         </p>
       )}
       {error && (

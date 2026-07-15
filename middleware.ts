@@ -18,6 +18,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    '/((?!api/billing/webhook|api/auth|api/track|api/cron|embed.js|_next/static|_next/image|favicon.ico).*)'
+    '/((?!api/billing/webhook|api/auth|api/track|api/cron|api/waitlist|api/report|embed.js|_next/static|_next/image|favicon.ico).*)'
   ]
 }

@@ -13,6 +13,7 @@ import {
   EXPERIMENT_ARM,
   EXPERIMENT_STATUS,
   HYPOTHESIS_STATUS,
+  HYPOTHESIS_TARGET,
   SECTIONS,
   SUBSCRIPTION_PLAN,
   SUBSCRIPTION_STATUS,
@@ -23,6 +24,7 @@ export const subscriptionPlanEnum = pgEnum('subscription_plan', SUBSCRIPTION_PLA
 export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUS)
 export const sectionEnum = pgEnum('section', SECTIONS)
 export const hypothesisStatusEnum = pgEnum('hypothesis_status', HYPOTHESIS_STATUS)
+export const hypothesisTargetEnum = pgEnum('hypothesis_target', HYPOTHESIS_TARGET)
 export const variantStatusEnum = pgEnum('variant_status', VARIANT_STATUS)
 export const experimentStatusEnum = pgEnum('experiment_status', EXPERIMENT_STATUS)
 export const experimentArmEnum = pgEnum('experiment_arm', EXPERIMENT_ARM)
@@ -74,6 +76,7 @@ export const hypotheses = pgTable('hypotheses', {
   effortScore: integer('effort_score').notNull(),
   rationale: text('rationale').notNull(),
   selector: text('selector'),
+  target: hypothesisTargetEnum('target').notNull().default('manual'),
   status: hypothesisStatusEnum('status').notNull().default('pending'),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
@@ -85,7 +88,9 @@ export const variants = pgTable('variants', {
     .references(() => hypotheses.id, { onDelete: 'cascade' }),
   copy: text('copy').notNull(),
   evidence: text('evidence'),
+  position: integer('position').notNull().default(0),
   status: variantStatusEnum('status').notNull().default('proposed'),
+  screenshotUrl: text('screenshot_url'),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
@@ -110,6 +115,14 @@ export const experiments = pgTable('experiments', {
   startedAt: timestamp('started_at').notNull().defaultNow(),
   endsAt: timestamp('ends_at'),
   stoppedAt: timestamp('stopped_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+})
+
+export const waitlist = pgTable('waitlist', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique(),
+  phone: text('phone'),
+  embedKey: uuid('embed_key'),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
@@ -196,3 +209,4 @@ export type Hypothesis = typeof hypotheses.$inferSelect
 export type Variant = typeof variants.$inferSelect
 export type Experiment = typeof experiments.$inferSelect
 export type ExperimentStat = typeof experimentStats.$inferSelect
+export type Waitlist = typeof waitlist.$inferSelect

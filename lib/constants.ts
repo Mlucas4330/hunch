@@ -14,6 +14,15 @@ export const FREE_EXPERIMENTS_LIMIT = 1
 
 export const DEFAULT_EXPERIMENT_DURATION = 14
 
+// Public outreach report: how many top hypotheses are shown in full before the
+// remaining ones are blurred behind the waitlist wall.
+export const REPORT_PREVIEW_LIMIT = 3
+
+// Variant targeting: a hypothesis is only "auto" (safe to swap in a screenshot or live test) when
+// its current copy resolves to a single element whose word count is within this ratio of the copy.
+// Guards against snapping a long merged string onto a tiny element (e.g. a 3-word badge).
+export const TARGET_MATCH_MAX_WORD_RATIO = 1.3
+
 export const PLAN_PRICES: Record<SubscriptionPlan, number> = {
   free: 0,
   solo: 29,

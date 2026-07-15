@@ -17,6 +17,11 @@ export type Section = (typeof SECTIONS)[number]
 export const HYPOTHESIS_STATUS = ['pending', 'testing', 'completed', 'skipped'] as const
 export type HypothesisStatus = (typeof HYPOTHESIS_STATUS)[number]
 
+// How a hypothesis's copy change can be applied: `auto` resolves to a single element and can be
+// swapped by the embed snippet / screenshot; `manual` needs the founder to place it by hand.
+export const HYPOTHESIS_TARGET = ['auto', 'manual'] as const
+export type HypothesisTarget = (typeof HYPOTHESIS_TARGET)[number]
+
 export const VARIANT_STATUS = ['proposed', 'testing', 'winner', 'rejected'] as const
 export type VariantStatus = (typeof VARIANT_STATUS)[number]
 

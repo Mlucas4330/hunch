@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       embedKey: analyses.embedKey,
       currentCopy: hypotheses.currentCopy,
       selector: hypotheses.selector,
+      applyMode: hypotheses.target,
       variantCopy: variants.copy
     })
     .from(hypotheses)
@@ -49,6 +50,12 @@ export async function POST(request: Request) {
     )
 
   if (!target) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+
+  // The embed snippet can only auto-swap a single-element target; manual/structural ideas must be
+  // applied by hand and can't be measured as a live text test.
+  if (target.applyMode !== 'auto') {
+    return NextResponse.json({ error: 'manual_target' }, { status: 422 })
+  }
 
   const running = await db
     .select({ id: experiments.id })

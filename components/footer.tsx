@@ -1,6 +1,6 @@
 export function Footer() {
   return (
-    <footer className="mt-auto border-t">
+    <footer className="mt-auto border-t print:hidden">
       <div className="mx-auto flex max-w-6xl items-center justify-center px-4 py-6">
         <p className="panel-label text-[0.65rem] text-muted-foreground">
           Powered by{' '}

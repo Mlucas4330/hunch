@@ -10,7 +10,7 @@ import { EmbedSnippet } from '@/components/embed-snippet'
 import { EXPERIMENT_STATUS_BADGE_CLASS, EXPERIMENT_STATUS_LABEL } from '@/lib/constants'
 import type { ExperimentStatus } from '@/lib/enums'
 import type { Hypothesis, Variant } from '@/db/schema'
-import { cn } from '@/lib/utils'
+import { cn, hasPlaceholders } from '@/lib/utils'
 
 export type HypothesisWithVariants = Hypothesis & { variants: Variant[] }
 
@@ -81,6 +81,11 @@ function HypothesisCard({
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0">
         <div className="flex items-center gap-2">
           <SectionBadge section={hypothesis.section} />
+          {hypothesis.target === 'manual' && (
+            <span className="rounded-full bg-neutral/15 px-2 py-0.5 text-xs font-medium text-neutral">
+              Manual setup
+            </span>
+          )}
           {isTop && !status && (
             <span className="panel-label text-[0.6rem] text-coral">Test this first</span>
           )}
@@ -108,6 +113,12 @@ function HypothesisCard({
           <div className="space-y-1 rounded-md bg-muted p-3">
             <p className="panel-label text-[0.6rem] text-muted-foreground">Recommended challenger</p>
             <p className="text-sm">{recommended.copy}</p>
+            {hasPlaceholders(recommended.copy) && (
+              <p className="text-xs text-amber">
+                Has [placeholders] - you&apos;ll replace them with your real details when you set up
+                the test.
+              </p>
+            )}
           </div>
         )}
         <div className="flex justify-end">

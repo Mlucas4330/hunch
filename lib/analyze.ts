@@ -8,11 +8,18 @@ import {
 } from '@/lib/ai/schema'
 import { COMPETITOR_RESEARCH_PROMPT, SYSTEM_PROMPT } from '@/lib/ai/prompt'
 import { FIXTURE_ANALYSIS } from '@/lib/ai/fixtures'
-import { findSelector, preprocessHtml, scrapePage } from '@/lib/scrape'
+import { type PageElement, preprocessHtml, resolveTarget, scrapePage } from '@/lib/scrape'
+import type { HypothesisTarget } from '@/lib/enums'
 
 const MODEL = 'claude-sonnet-4-6'
 
-export type AnalyzedHypothesis = HypothesisOutput & { selector: string | null }
+// Cap the element list passed to generation so it grounds targeting without blowing the token budget.
+const MAX_PROMPT_ELEMENTS = 150
+
+export type AnalyzedHypothesis = HypothesisOutput & {
+  selector: string | null
+  target: HypothesisTarget
+}
 
 export type AnalysisResult = {
   competitors: AnalysisOutput['competitors']
@@ -28,7 +35,16 @@ export async function analyzeLandingPage(
   url: string,
   options: AnalyzeOptions = {}
 ): Promise<AnalysisResult> {
-  if (process.env.E2E_FIXTURES === '1') return withSelectors(FIXTURE_ANALYSIS, [])
+  if (process.env.E2E_FIXTURES === '1') {
+    // Synthesize one element per fixture hypothesis so its current_copy resolves to `auto` (the
+    // fixtures represent an idealized clean page), keeping the deterministic launch-a-test flow live.
+    const fixtureElements: PageElement[] = FIXTURE_ANALYSIS.hypotheses.map((h, i) => ({
+      text: h.current_copy,
+      selector: `[data-hunch-fixture="${i}"]`,
+      tag: 'p'
+    }))
+    return resolveTargets(FIXTURE_ANALYSIS, fixtureElements)
+  }
 
   const { html, elements } = await scrapePage(url)
   const content = preprocessHtml(html)
@@ -43,11 +59,20 @@ export async function analyzeLandingPage(
     ? `\n\nBusiness details from the founder (use these real facts to write finished copy):\n\n${options.brief}`
     : ''
 
+  const elementList = elements
+    .slice(0, MAX_PROMPT_ELEMENTS)
+    .map((e) => `(${e.tag}) "${e.text}"`)
+    .join('\n')
+  const elementsSection = elementList
+    ? `\n\nPage elements (each line is one real on-page element; current_copy must quote exactly one of these verbatim, and the variant must match its length and role):\n\n${elementList}`
+    : ''
+
   const { object } = await generateObject({
     model: anthropic(MODEL),
     schema: AnalysisOutputSchema,
+    maxTokens: 16000,
     system: SYSTEM_PROMPT,
-    prompt: `Landing page copy:\n\n${content}\n\nCompetitive research brief:\n\n${research || 'No competitor research available.'}${briefSection}`
+    prompt: `Landing page copy:\n\n${content}${elementsSection}\n\nCompetitive research brief:\n\n${research || 'No competitor research available.'}${briefSection}`
   })
 
   const competitors = options.competitorUrls?.length
@@ -57,7 +82,7 @@ export async function analyzeLandingPage(
       }))
     : object.competitors
 
-  return withSelectors({ ...object, competitors }, elements)
+  return resolveTargets({ ...object, competitors }, elements)
 }
 
 function hostnameOf(url: string): string {
@@ -83,16 +108,20 @@ async function researchProvidedCompetitors(urls: string[]): Promise<string | nul
   return parts.length ? parts.join('\n\n---\n\n') : null
 }
 
-function withSelectors(
-  output: AnalysisOutput,
-  elements: { text: string; selector: string }[]
-): AnalysisResult {
+function resolveTargets(output: AnalysisOutput, elements: PageElement[]): AnalysisResult {
   return {
     competitors: output.competitors,
-    hypotheses: output.hypotheses.map((h) => ({
-      ...h,
-      selector: findSelector(h.current_copy, elements)
-    }))
+    hypotheses: output.hypotheses.map((h) => {
+      const resolved = resolveTarget(h.current_copy, elements)
+      return {
+        ...h,
+        // Snap current_copy to the matched element's real on-page text so the report shows exactly
+        // what a visitor sees, never a paraphrase or a merge of adjacent elements.
+        current_copy: resolved.text ?? h.current_copy,
+        selector: resolved.selector,
+        target: resolved.mode
+      }
+    })
   }
 }
 

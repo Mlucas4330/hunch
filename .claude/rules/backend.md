@@ -47,6 +47,7 @@ variants
 - hypothesis_id  (FK -> hypotheses.id)
 - copy           (text)
 - evidence       (text, nullable: competitor pattern this variant borrows/beats)
+- position       (int: AI rank within the hypothesis; position 0 = recommended challenger)
 - status         (enum: VARIANT_STATUS, default: proposed)
 - created_at     (timestamp)
 

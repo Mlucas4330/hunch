@@ -65,7 +65,8 @@ export async function POST(request: Request) {
             impactScore: h.impact_score,
             effortScore: h.effort_score,
             rationale: h.rationale,
-            selector: h.selector
+            selector: h.selector,
+            target: h.target
           }))
         )
         .returning()
@@ -74,10 +75,11 @@ export async function POST(request: Request) {
         .insert(variants)
         .values(
           rows.flatMap((row, i) =>
-            ranked[i].variants.map((variant) => ({
+            ranked[i].variants.map((variant, position) => ({
               hypothesisId: row.id,
               copy: variant.copy,
-              evidence: variant.evidence
+              evidence: variant.evidence,
+              position
             }))
           )
         )

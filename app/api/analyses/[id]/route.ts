@@ -12,7 +12,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const analysis = await db.query.analyses.findFirst({
     where: and(eq(analyses.id, id), eq(analyses.userId, user.id)),
-    with: { hypotheses: { with: { variants: { orderBy: (v, { asc }) => asc(v.id) } } } }
+    with: { hypotheses: { with: { variants: { orderBy: (v, { asc }) => asc(v.position) } } } }
   })
 
   if (!analysis) return NextResponse.json({ error: 'not_found' }, { status: 404 })

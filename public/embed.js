@@ -34,23 +34,50 @@
     )
   }
 
+  var SKIP = { script: 1, style: 1, noscript: 1, svg: 1, head: 1, meta: 1, link: 1, title: 1 }
+  var INLINE = {
+    span: 1, a: 1, strong: 1, em: 1, b: 1, i: 1, u: 1, s: 1, mark: 1, small: 1, sub: 1, sup: 1,
+    code: 1, abbr: 1, time: 1, cite: 1, q: 1, kbd: 1, samp: 1, var: 1, ins: 1, del: 1, wbr: 1,
+    br: 1, bdi: 1, bdo: 1, font: 1, svg: 1, img: 1, picture: 1, label: 1
+  }
+
+  function normalize(text) {
+    return (text || '').replace(/\s+/g, ' ').trim().toLowerCase()
+  }
+
+  // A "text unit" is a block-level element whose only element children are inline formatting, so its
+  // full text is one coherent string -- mirroring how the scraper captured it.
+  function isTextUnit(el) {
+    var kids = el.children
+    for (var i = 0; i < kids.length; i++) {
+      if (!INLINE[kids[i].tagName.toLowerCase()]) return false
+    }
+    return true
+  }
+
   function findByText(text) {
-    var target = text.replace(/\s+/g, ' ').trim()
-    var nodes = document.querySelectorAll('h1,h2,h3,h4,p,a,button,span,li')
+    var target = normalize(text)
+    if (!target) return null
+    var nodes = document.querySelectorAll('*')
     for (var i = 0; i < nodes.length; i++) {
-      if ((nodes[i].textContent || '').replace(/\s+/g, ' ').trim() === target) return nodes[i]
+      if (SKIP[nodes[i].tagName.toLowerCase()]) continue
+      if (!isTextUnit(nodes[i])) continue
+      if (normalize(nodes[i].textContent) === target) return nodes[i]
     }
     return null
   }
 
+  // Only return an element we are confident is the control: a stored selector still pointing at the
+  // original copy, else an exact full-text match. Never hand back a drifted element to overwrite.
   function locate(exp) {
-    var el = null
+    var target = normalize(exp.controlCopy)
     if (exp.selector) {
       try {
-        el = document.querySelector(exp.selector)
+        var el = document.querySelector(exp.selector)
+        if (el && normalize(el.textContent) === target) return el
       } catch (e) {}
     }
-    return el || findByText(exp.controlCopy)
+    return findByText(exp.controlCopy)
   }
 
   function armFor(exp) {

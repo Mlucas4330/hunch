@@ -6,6 +6,7 @@ import { experiments, experimentStats, hypotheses } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
 import { experimentWithResult } from '@/lib/experiments'
 import { TestRunner, type TestExperiment } from '@/components/test-runner'
+import { InfoHint } from '@/components/info-hint'
 import { SECTION_LABEL } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 
@@ -22,7 +23,7 @@ export default async function RunTestPage({
     where: eq(hypotheses.id, hypothesisId),
     with: {
       analysis: true,
-      variants: { orderBy: (v, { asc }) => asc(v.id) }
+      variants: { orderBy: (v, { asc }) => asc(v.position) }
     }
   })
 
@@ -59,9 +60,18 @@ export default async function RunTestPage({
     <div className="animate-fade-up space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">
-            Run a test - {SECTION_LABEL[hypothesis.section]}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="panel-label text-[0.7rem] text-muted-foreground">
+              Run a test - {SECTION_LABEL[hypothesis.section]}
+            </p>
+            <InfoHint label="How running a test works">
+              Your current copy is the <strong>control</strong>. Pick a <strong>challenger</strong>,
+              edit it to fit your product (replace any [bracketed] placeholders with real details),
+              and choose how long to run. On <strong>Launch</strong>, the snippet shows the challenger
+              to half your visitors and tracks conversions. When the window ends we read the result
+              once and recommend a winner.
+            </InfoHint>
+          </div>
           <h1 className="font-display text-2xl font-bold tracking-tight">{hypothesis.problem}</h1>
         </div>
         <Button asChild variant="ghost" size="sm" className="shrink-0">

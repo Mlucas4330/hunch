@@ -11,3 +11,4 @@ Never use hardcoded values for strings, values, types and etc. Check @/lib/enums
 Check frontend rules at @.claude/rules/frontend.md when necessary.
 Check backend rules at @.claude/rules/backend.md when necessary.
 Don't add unicode symbols anywhere. Emojis are allowed everywhere.
+Always test the application after adding a new feature.

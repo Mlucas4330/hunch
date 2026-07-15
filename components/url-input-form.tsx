@@ -8,7 +8,21 @@ import { Input } from '@/components/ui/input'
 import type { SubscriptionPlan } from '@/lib/enums'
 import { cn } from '@/lib/utils'
 
-const PHASES = ['Scraping page...', 'Analyzing copy...', 'Saving results...'] as const
+const PHASES = [
+  'Scraping your page...',
+  'Researching competitors...',
+  'Writing your test ideas...',
+  'Saving results...'
+] as const
+
+// Paced to the real pipeline (scrape ~4s, web-search ~42s, generation ~67s) so the label
+// tracks what is actually happening instead of claiming "saving" for two minutes.
+const PHASE_SCHEDULE: { at: number; label: (typeof PHASES)[number] }[] = [
+  { at: 4000, label: PHASES[1] },
+  { at: 46000, label: PHASES[2] },
+  { at: 160000, label: PHASES[3] }
+]
+
 const MAX_COMPETITORS = 3
 
 const textareaClass =
@@ -28,6 +42,7 @@ export function UrlInputForm({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [phase, setPhase] = useState<(typeof PHASES)[number]>(PHASES[0])
+  const [elapsed, setElapsed] = useState(0)
 
   const isPaid = plan !== 'free'
 
@@ -45,8 +60,10 @@ export function UrlInputForm({
 
     setPending(true)
     setPhase(PHASES[0])
-    const tick = setTimeout(() => setPhase(PHASES[1]), 600)
-    const tock = setTimeout(() => setPhase(PHASES[2]), 1200)
+    setElapsed(0)
+    const startedAt = Date.now()
+    const ticker = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000)
+    const phaseTimers = PHASE_SCHEDULE.map(({ at, label }) => setTimeout(() => setPhase(label), at))
 
     const competitorUrls = isPaid
       ? competitors.map((c) => c.trim()).filter(Boolean)
@@ -75,8 +92,8 @@ export function UrlInputForm({
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
-      clearTimeout(tick)
-      clearTimeout(tock)
+      clearInterval(ticker)
+      phaseTimers.forEach(clearTimeout)
       setPending(false)
     }
   }
@@ -96,9 +113,24 @@ export function UrlInputForm({
           required
         />
         <Button type="submit" disabled={pending} className="shrink-0">
-          {pending ? <span className="panel-label text-[0.7rem]">{phase}</span> : 'Analyze'}
+          {pending ? 'Analyzing...' : 'Analyze'}
         </Button>
       </div>
+
+      {pending && (
+        <div className="space-y-2" role="status" aria-live="polite">
+          <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/50 px-3 py-2">
+            <span className="panel-label text-[0.7rem] text-muted-foreground">{phase}</span>
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+              {formatElapsed(elapsed)}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            This usually takes 2 to 3 minutes. Keep this tab open while we scrape the page, study
+            competitors, and write your tests.
+          </p>
+        </div>
+      )}
 
       <details className="rounded-md border border-border px-3 py-2">
         <summary className="cursor-pointer text-sm text-muted-foreground">
@@ -159,6 +191,12 @@ export function UrlInputForm({
       )}
     </form>
   )
+}
+
+function formatElapsed(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const rest = seconds % 60
+  return `${minutes}:${String(rest).padStart(2, '0')}`
 }
 
 function messageFor(status: number, code?: string): string {

@@ -38,3 +38,6 @@ pnpm-debug.log*
 # os / editor
 .DS_Store
 *.pem
+
+# Output of scripts/test-screenshot.mts
+screenshot-test/
