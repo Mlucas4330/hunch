@@ -2,10 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import type { SubscriptionPlan } from '@/lib/enums'
 import { cn } from '@/lib/utils'
 
 const PHASES = [
@@ -28,13 +26,7 @@ const MAX_COMPETITORS = 3
 const textareaClass =
   'flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50'
 
-export function UrlInputForm({
-  plan,
-  defaultBrief = ''
-}: {
-  plan: SubscriptionPlan
-  defaultBrief?: string
-}) {
+export function UrlInputForm({ defaultBrief = '' }: { defaultBrief?: string }) {
   const router = useRouter()
   const [url, setUrl] = useState('')
   const [brief, setBrief] = useState(defaultBrief)
@@ -43,8 +35,6 @@ export function UrlInputForm({
   const [pending, setPending] = useState(false)
   const [phase, setPhase] = useState<(typeof PHASES)[number]>(PHASES[0])
   const [elapsed, setElapsed] = useState(0)
-
-  const isPaid = plan !== 'free'
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -65,9 +55,7 @@ export function UrlInputForm({
     const ticker = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000)
     const phaseTimers = PHASE_SCHEDULE.map(({ at, label }) => setTimeout(() => setPhase(label), at))
 
-    const competitorUrls = isPaid
-      ? competitors.map((c) => c.trim()).filter(Boolean)
-      : []
+    const competitorUrls = competitors.map((c) => c.trim()).filter(Boolean)
 
     try {
       const res = await fetch('/api/analyses', {
@@ -81,8 +69,7 @@ export function UrlInputForm({
       })
 
       if (!res.ok) {
-        const body = await res.json().catch(() => null)
-        setError(messageFor(res.status, body?.error))
+        setError(messageFor(res.status))
         return
       }
 
@@ -149,38 +136,25 @@ export function UrlInputForm({
       </details>
 
       <details className="rounded-md border border-border px-3 py-2">
-        <summary className="cursor-pointer text-sm text-muted-foreground">
-          Competitor mode {!isPaid && <span className="text-[0.7rem]">(Solo & Team)</span>}
-        </summary>
+        <summary className="cursor-pointer text-sm text-muted-foreground">Competitor mode</summary>
         <div className="space-y-2 pt-2">
-          {isPaid ? (
-            <>
-              <p className="text-xs text-muted-foreground">
-                Paste up to {MAX_COMPETITORS} competitor landing pages to ground your hunches.
-              </p>
-              {competitors.map((value, i) => (
-                <Input
-                  key={i}
-                  type="url"
-                  placeholder="https://a-competitor.com"
-                  value={value}
-                  disabled={pending}
-                  className="font-mono"
-                  onChange={(e) =>
-                    setCompetitors((list) => list.map((v, j) => (j === i ? e.target.value : v)))
-                  }
-                />
-              ))}
-            </>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Ground your hunches on competitors you choose.{' '}
-              <Link href="/billing" className="font-medium underline underline-offset-2">
-                Upgrade
-              </Link>{' '}
-              to unlock Competitor mode. Free analyses find competitors automatically.
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground">
+            Paste up to {MAX_COMPETITORS} competitor landing pages to ground your hunches. Leave
+            blank to find competitors automatically.
+          </p>
+          {competitors.map((value, i) => (
+            <Input
+              key={i}
+              type="url"
+              placeholder="https://a-competitor.com"
+              value={value}
+              disabled={pending}
+              className="font-mono"
+              onChange={(e) =>
+                setCompetitors((list) => list.map((v, j) => (j === i ? e.target.value : v)))
+              }
+            />
+          ))}
         </div>
       </details>
 
@@ -199,10 +173,7 @@ function formatElapsed(seconds: number): string {
   return `${minutes}:${String(rest).padStart(2, '0')}`
 }
 
-function messageFor(status: number, code?: string): string {
-  if (status === 403 || code === 'limit_reached') {
-    return 'You have reached the free plan limit. Upgrade to keep analyzing.'
-  }
+function messageFor(status: number): string {
   if (status === 422) return 'That URL is not valid or supported.'
   if (status === 502) return 'We could not load that page. Check the URL and try again.'
   return 'Something went wrong while analyzing. Please try again.'

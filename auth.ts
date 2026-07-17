@@ -4,7 +4,6 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { users } from '@/db/schema'
 import { authConfig } from '@/auth.config'
-import type { SubscriptionPlan } from '@/lib/enums'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -30,11 +29,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!existing) {
           await db.insert(users).values({
             email: ADMIN_EMAIL,
-            name: 'Admin',
-            plan: 'team'
+            name: 'Admin'
           })
-        } else if (existing.plan !== 'team') {
-          await db.update(users).set({ plan: 'team' }).where(eq(users.email, ADMIN_EMAIL))
         }
 
         return { email: ADMIN_EMAIL, name: 'Admin' }
@@ -69,7 +65,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (dbUser) {
         token.id = dbUser.id
-        token.plan = dbUser.plan
       }
 
       return token
@@ -77,7 +72,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
-        session.user.plan = token.plan as SubscriptionPlan
       }
       return session
     }

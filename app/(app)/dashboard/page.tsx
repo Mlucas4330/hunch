@@ -18,7 +18,6 @@ export default async function DashboardPage() {
         .orderBy(desc(analyses.createdAt))
     : []
 
-  const plan = user?.plan ?? 'free'
   const defaultBrief = rows.find((row) => row.brief)?.brief ?? ''
 
   return (
@@ -30,8 +29,8 @@ export default async function DashboardPage() {
           <InfoHint label="How analysis works">
             Paste your live landing page URL. Hunch scans the copy, studies competitors, and generates
             ranked A/B test ideas. Add <strong>business details</strong> so the copy comes back finished
-            instead of with [placeholders]. On paid plans, paste competitor URLs (<strong>Competitor
-            mode</strong>) to ground the ideas; free analyses find competitors automatically.
+            instead of with [placeholders]. Paste competitor URLs (<strong>Competitor mode</strong>) to
+            ground the ideas, or leave it blank to find competitors automatically.
           </InfoHint>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -39,7 +38,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <UrlInputForm plan={plan} defaultBrief={defaultBrief} />
+      <UrlInputForm defaultBrief={defaultBrief} />
 
       {rows.length === 0 ? (
         <Card>

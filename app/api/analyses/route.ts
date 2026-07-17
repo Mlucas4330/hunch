@@ -2,10 +2,8 @@ import { NextResponse } from 'next/server'
 import { desc, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db'
-import { analyses, hypotheses, users, variants } from '@/db/schema'
+import { analyses, hypotheses, variants } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
-import { hasReachedFreeLimit } from '@/lib/usage'
-import { FREE_ANALYSES_LIMIT } from '@/lib/constants'
 import { analyzeLandingPage } from '@/lib/analyze'
 import { ScrapeError } from '@/lib/scrape'
 
@@ -22,13 +20,8 @@ export async function POST(request: Request) {
   const parsed = BodySchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'invalid_url' }, { status: 422 })
 
-  if (hasReachedFreeLimit(user)) {
-    return NextResponse.json({ error: 'limit_reached' }, { status: 403 })
-  }
-
   const brief = parsed.data.brief || undefined
-  // Competitor mode is a paid feature: free users always fall back to auto web-search.
-  const competitorUrls = user.plan === 'free' ? undefined : parsed.data.competitorUrls
+  const competitorUrls = parsed.data.competitorUrls
 
   let output
   try {
@@ -64,9 +57,7 @@ export async function POST(request: Request) {
             currentCopy: h.current_copy,
             impactScore: h.impact_score,
             effortScore: h.effort_score,
-            rationale: h.rationale,
-            selector: h.selector,
-            target: h.target
+            rationale: h.rationale
           }))
         )
         .returning()
@@ -84,11 +75,6 @@ export async function POST(request: Request) {
           )
         )
         .returning()
-
-      await tx
-        .update(users)
-        .set({ analysesCount: sql`${users.analysesCount} + 1` })
-        .where(eq(users.id, user.id))
 
       return {
         ...created,
@@ -111,11 +97,8 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const page = Math.max(1, Number(searchParams.get('page')) || 1)
-  const limit =
-    user.plan === 'free'
-      ? FREE_ANALYSES_LIMIT
-      : Math.min(50, Math.max(1, Number(searchParams.get('limit')) || 10))
-  const offset = user.plan === 'free' ? 0 : (page - 1) * limit
+  const limit = Math.min(50, Math.max(1, Number(searchParams.get('limit')) || 10))
+  const offset = (page - 1) * limit
 
   const rows = await db
     .select()

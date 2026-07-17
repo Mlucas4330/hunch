@@ -47,66 +47,6 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
   }
 }
 
-// Renders the landing page with the variant copy swapped into its target element and captures an
-// above-the-fold viewport PNG -- the changed element is scrolled to center so the report shows it
-// in context, surrounded by its real neighbors. When a selector is given but the element can no
-// longer be found or its text has drifted from `controlCopy` (stale selector), throws ScrapeError
-// rather than silently shooting an unchanged page, so callers can degrade honestly.
-export async function screenshotVariant(
-  url: string,
-  selector: string | null,
-  variantCopy: string,
-  controlCopy?: string | null
-): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  })
-
-  try {
-    const page = await browser.newPage()
-    await page.setViewport({ width: 1280, height: 800 })
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 })
-
-    if (selector) {
-      const outcome = await page.evaluate(
-        (sel, vCopy, cCopy) => {
-          const el = document.querySelector(sel)
-          if (!el) return 'not_found'
-          if (cCopy) {
-            const own = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase()
-            const control = cCopy.replace(/\s+/g, ' ').trim().toLowerCase()
-            if (own !== control && !own.includes(control) && !control.includes(own)) {
-              return 'mismatch'
-            }
-          }
-          el.textContent = vCopy
-          el.scrollIntoView({ block: 'center', inline: 'nearest' })
-          return 'ok'
-        },
-        selector,
-        variantCopy,
-        controlCopy ?? null
-      )
-
-      if (outcome !== 'ok') {
-        throw new ScrapeError(`Variant target not applicable on ${url} (${outcome})`)
-      }
-
-      // Let the scroll settle and any lazy-loaded imagery paint before capturing.
-      await new Promise((resolve) => setTimeout(resolve, 400))
-    }
-
-    const shot = await page.screenshot({ type: 'png' })
-    return Buffer.from(shot)
-  } catch (error) {
-    if (error instanceof ScrapeError) throw error
-    throw new ScrapeError(`Failed to screenshot ${url}`, { cause: error })
-  } finally {
-    await browser.close()
-  }
-}
-
 // Runs in the browser context: collect each visible "text unit" with a stable CSS path. A text unit
 // is the innermost block-level element -- one whose only element children are inline formatting
 // (span, a, strong, ...) -- captured with its FULL text so inline styling spans inside a heading are
@@ -185,10 +125,10 @@ function wordCount(value: string): number {
   return value.split(/\s+/).filter(Boolean).length
 }
 
-// Resolves a hypothesis's current copy to a single captured element, and classifies how safely it
-// can be applied. `auto` only when the copy maps to exactly one element of a compatible size (so a
-// long merged string never snaps onto a tiny badge); otherwise `manual`, with a null selector, and
-// the report/embed degrade honestly instead of swapping the wrong element.
+// Resolves a hypothesis's current copy to a single captured element so the stored copy is the exact
+// on-page text a visitor sees. Only matches when the copy maps to exactly one element of a compatible
+// size (so a long merged string never snaps onto a tiny badge); otherwise returns null text and the
+// original copy is kept as-is.
 export function resolveTarget(currentCopy: string, elements: PageElement[]): ResolvedTarget {
   const manual: ResolvedTarget = { selector: null, mode: 'manual', text: null }
   const target = normalize(currentCopy)

@@ -1,6 +1,4 @@
 import { signOut } from '@/auth'
-import { PlanBadge } from '@/components/plan-badge'
-import type { SubscriptionPlan } from '@/lib/enums'
 
 async function signOutAction() {
   'use server'
@@ -10,7 +8,7 @@ async function signOutAction() {
 export function AccountMenu({
   user
 }: {
-  user: { name?: string | null; email?: string | null; plan: SubscriptionPlan }
+  user: { name?: string | null; email?: string | null }
 }) {
   const label = user.name ?? user.email ?? 'Account'
   const initial = label.charAt(0).toUpperCase()
@@ -28,9 +26,6 @@ export function AccountMenu({
         <div className="space-y-1">
           {user.name && <p className="text-sm font-medium">{user.name}</p>}
           {user.email && <p className="truncate text-xs text-muted-foreground">{user.email}</p>}
-          <div className="pt-1">
-            <PlanBadge plan={user.plan} />
-          </div>
         </div>
         <form action={signOutAction} className="mt-3 border-t pt-3">
           <button

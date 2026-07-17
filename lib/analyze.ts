@@ -9,21 +9,15 @@ import {
 import { COMPETITOR_RESEARCH_PROMPT, SYSTEM_PROMPT } from '@/lib/ai/prompt'
 import { FIXTURE_ANALYSIS } from '@/lib/ai/fixtures'
 import { type PageElement, preprocessHtml, resolveTarget, scrapePage } from '@/lib/scrape'
-import type { HypothesisTarget } from '@/lib/enums'
 
 const MODEL = 'claude-sonnet-4-6'
 
 // Cap the element list passed to generation so it grounds targeting without blowing the token budget.
 const MAX_PROMPT_ELEMENTS = 150
 
-export type AnalyzedHypothesis = HypothesisOutput & {
-  selector: string | null
-  target: HypothesisTarget
-}
-
 export type AnalysisResult = {
   competitors: AnalysisOutput['competitors']
-  hypotheses: AnalyzedHypothesis[]
+  hypotheses: HypothesisOutput[]
 }
 
 export type AnalyzeOptions = {
@@ -36,8 +30,8 @@ export async function analyzeLandingPage(
   options: AnalyzeOptions = {}
 ): Promise<AnalysisResult> {
   if (process.env.E2E_FIXTURES === '1') {
-    // Synthesize one element per fixture hypothesis so its current_copy resolves to `auto` (the
-    // fixtures represent an idealized clean page), keeping the deterministic launch-a-test flow live.
+    // Synthesize one element per fixture hypothesis so its current_copy snaps to real text (the
+    // fixtures represent an idealized clean page), keeping the deterministic analysis flow live.
     const fixtureElements: PageElement[] = FIXTURE_ANALYSIS.hypotheses.map((h, i) => ({
       text: h.current_copy,
       selector: `[data-hunch-fixture="${i}"]`,
@@ -117,9 +111,7 @@ function resolveTargets(output: AnalysisOutput, elements: PageElement[]): Analys
         ...h,
         // Snap current_copy to the matched element's real on-page text so the report shows exactly
         // what a visitor sees, never a paraphrase or a merge of adjacent elements.
-        current_copy: resolved.text ?? h.current_copy,
-        selector: resolved.selector,
-        target: resolved.mode
+        current_copy: resolved.text ?? h.current_copy
       }
     })
   }
