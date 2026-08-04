@@ -10,6 +10,7 @@ import {
   SCRAPE_SETTLE_POLL_MS,
   SCRAPE_SETTLE_TEXT_TOLERANCE,
   SCRAPE_SETTLE_TIMEOUT_MS,
+  SCRAPE_VIEWPORT,
   TARGET_MATCH_MAX_WORD_RATIO
 } from '@/lib/constants'
 import { assertPublicUrl, isPublicUrl } from '@/lib/url-guard'
@@ -160,10 +161,7 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
 
   try {
     const page = await openGuardedPage(browser)
-    // A real desktop fold, matching screenshotVariant. Both the visibility filter in
-    // captureElements and aboveFoldCtaCount are measured against it, so it cannot be left at
-    // Puppeteer's 800x600 default without calling a normal hero "below the fold".
-    await page.setViewport({ width: 1280, height: 800 })
+    await page.setViewport(SCRAPE_VIEWPORT)
     await page.goto(target.href, {
       waitUntil: 'networkidle2',
       timeout: SCRAPE_NAVIGATION_TIMEOUT_MS
@@ -200,7 +198,7 @@ export async function screenshotVariant(
 
   try {
     const page = await openGuardedPage(browser)
-    await page.setViewport({ width: 1280, height: 800 })
+    await page.setViewport(SCRAPE_VIEWPORT)
     await page.goto(target.href, {
       waitUntil: 'networkidle2',
       timeout: SCRAPE_NAVIGATION_TIMEOUT_MS

@@ -33,6 +33,12 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['puppeteer'],
+  // Variant previews are uploaded to Vercel Blob and rendered through next/image, which refuses any
+  // remote host that is not allowlisted here. This is a separate list from the CSP's img-src above;
+  // both have to name the Blob store or the preview silently fails to render.
+  images: {
+    remotePatterns: [{ protocol: 'https', hostname: '*.public.blob.vercel-storage.com' }]
+  },
   // Isolate the e2e dev server's build output so it never contends with a
   // separately running `npm run dev` over the shared .next/cache.
   distDir: process.env.E2E_FIXTURES === '1' ? '.next-e2e' : '.next',

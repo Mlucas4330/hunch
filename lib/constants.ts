@@ -52,6 +52,11 @@ export const BLOCKED_HOST_SUFFIXES = ['localhost', '.localhost', '.local', '.int
 // keeps the guard off the critical path without letting a verdict go stale across analyses.
 export const HOST_RESOLUTION_CACHE_TTL_MS = 60 * 1000
 
+// A real desktop fold. Every scrape and every screenshot renders at exactly this size, so the
+// visibility filter in captureElements, aboveFoldCtaCount and the preview image's intrinsic
+// dimensions all agree by construction rather than by three copies of the same pair of numbers.
+export const SCRAPE_VIEWPORT = { width: 1280, height: 800 }
+
 export const SCRAPE_NAVIGATION_TIMEOUT_MS = 30_000
 
 // How long to keep waiting for a client-rendered page to paint after navigation reports idle.

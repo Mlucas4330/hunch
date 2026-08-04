@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useI18n } from '@/components/i18n-provider'
+import { SCRAPE_VIEWPORT } from '@/lib/constants'
+import Image from 'next/image'
 
 export function VariantPreview({
   embedKey,
@@ -52,7 +54,13 @@ export function VariantPreview({
       </p>
       <div className="overflow-hidden rounded-md border bg-muted">
         {state === 'ready' && url ? (
-          <img src={url} alt={dictionary.report.previewAlt} className="w-full" />
+          <Image
+            src={url}
+            alt={dictionary.report.previewAlt}
+            width={SCRAPE_VIEWPORT.width}
+            height={SCRAPE_VIEWPORT.height}
+            className="h-auto w-full"
+          />
         ) : (
           <div className="h-40 w-full animate-pulse bg-muted" />
         )}
