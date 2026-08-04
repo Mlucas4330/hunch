@@ -38,9 +38,12 @@ ground truth and write FINISHED, ship-ready copy that uses those details directl
 placeholders. Use a [bracket] placeholder only for a fact that is genuinely still unknown. Never
 invent anything beyond the page and this brief.
 
-- Match each variant's length and format to the element you are changing. If the target element is a
-  short label, badge, nav item, or call to action (roughly six words or fewer), every variant must
-  stay that short. Never expand a badge, button, or label into a sentence or a paragraph.
+- Length is a hard constraint, not a preference. Each element you are given carries its own word
+  ceiling, and the hypothesis you write for it inherits that ceiling: every variant must fit inside
+  it, and shorter is better. A headline stays one line, a badge stays a badge, a button stays a
+  button. Never expand a label, nav item, or call to action into a sentence, and never turn a
+  headline or subheadline into a paragraph. If your idea does not fit inside the ceiling, choose a
+  smaller idea rather than more words.
 - Rewrite using the page's OWN real claims plus any Business details provided. NEVER invent
   statistics, customer counts, testimonials, quotes, or company names that are not in the page or
   the brief. NEVER put a competitor's name inside the variant copy.
@@ -79,9 +82,10 @@ Rules:
 - Keep prose tight and scannable. problem is ONE sentence (about 20 words or fewer) naming the gap,
   with no competitor names or fixes inside it. rationale is ONE sentence on why the challenger wins.
   Do not restate the competitor evidence here; that belongs in each variant's evidence line.
-- You are given a "Page elements" list where each line is one real on-page element as <tag> "text".
-  current_copy must be the verbatim text of exactly ONE of those elements. Never merge the text of
-  two elements, and never paraphrase or normalize it.
+- You are given a "Page elements" list where each line is one real on-page element as <tag> "text"
+  followed by that element's word ceiling. current_copy must be the verbatim text of exactly ONE of
+  those elements. Never merge the text of two elements, and never paraphrase or normalize it. The
+  ceiling on that line is the one your variant must fit inside.
 - Provide exactly 1 variant per hypothesis in the variants array: the single challenger you most
   recommend testing. Spend your effort making that one the strongest possible rewrite rather than
   hedging across options.

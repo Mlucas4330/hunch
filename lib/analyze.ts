@@ -33,6 +33,7 @@ import {
   resolveTarget,
   scrapePage
 } from '@/lib/scrape'
+import { variantWordBudget, wordCount } from '@/lib/text'
 import type { HypothesisTarget, Locale } from '@/lib/enums'
 
 // The hypotheses are the core IP -- they stay on Sonnet.
@@ -124,10 +125,10 @@ export async function analyzeLandingPage(
     .slice(0, MAX_PROMPT_ELEMENTS)
     // Angle brackets, not parens: a bare `(h2)` beside the copy reads as a label for it, and the
     // model has put the tag straight into `section` because of it.
-    .map((e) => `<${e.tag}> "${e.text}"`)
+    .map((e) => `<${e.tag}> "${e.text}" (max ${variantWordBudget(wordCount(e.text))} words)`)
     .join('\n')
   const elementsSection = elementList
-    ? `\n\nPage elements (each line is one real on-page element; current_copy must quote exactly one of these verbatim, and the variant must match its length and role):\n\n${elementList}`
+    ? `\n\nPage elements (each line is one real on-page element; current_copy must quote exactly one of these verbatim, and every variant you write for it must fit inside that element's word ceiling):\n\n${elementList}`
     : ''
 
   // What the reference corpus says this page is missing. '' when the corpus is empty, which costs
@@ -246,6 +247,10 @@ export async function generateAlternateVariants(
     `Problem with it:\n${input.problem}`,
     `Why the challenger should win:\n${input.rationale}`,
     `The recommended challenger (write different angles, do not paraphrase this):\n${input.recommendedCopy}`,
+    // The element list never reaches this call, so the ceiling the analysis prompt reads off each
+    // line is computed here from the same formula. An alternate is held to exactly the standard the
+    // recommendation it sits beside was held to.
+    `Word ceiling: the current copy is ${wordCount(input.currentCopy)} words. Every alternate must be ${variantWordBudget(wordCount(input.currentCopy))} words or fewer.`,
     `Competitive research brief:\n${input.researchBrief || 'No competitor research available.'}`
   ]
 
@@ -263,7 +268,22 @@ export async function generateAlternateVariants(
     prompt: sections.join('\n\n')
   })
 
+  object.variants.forEach((v) => warnOverLength(input.section, input.currentCopy, v.copy))
+
   return object.variants
+}
+
+// Deliberately log-only. A zod .max() on copy would fail the whole 16k-token generation with no
+// retry wrapper, turning one long headline into an opaque 500 that costs the user the entire
+// analysis; truncating would ship a headline cut mid-clause to a prospect on the public report; and
+// regenerating puts a second Sonnet call on the critical path for a soft rule. Logging makes the
+// prompt's ceiling measurable in production, which is what has to come before escalating it.
+function warnOverLength(section: string, currentCopy: string, variantCopy: string): void {
+  const budget = variantWordBudget(wordCount(currentCopy))
+  const actual = wordCount(variantCopy)
+  if (actual <= budget) return
+
+  console.warn('[analyze] variant over word budget', { section, budget, actual })
 }
 
 function hostnameOf(url: string): string {
@@ -310,6 +330,8 @@ function resolveTargets(input: {
     structure,
     hypotheses: output.hypotheses.map((h) => {
       const resolved = resolveTarget(h.current_copy, elements)
+      // Measured against the resolved on-page text, which is the copy the variant actually replaces.
+      h.variants.forEach((v) => warnOverLength(h.section, resolved.text ?? h.current_copy, v.copy))
       return {
         ...h,
         // Snap current_copy to the matched element's real on-page text so the report shows exactly

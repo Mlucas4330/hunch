@@ -1,10 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useI18n } from '@/components/i18n-provider'
-import { SCRAPE_VIEWPORT } from '@/lib/constants'
+import { Button } from '@/components/ui/button'
+import { PREVIEW_ESTIMATE_SECONDS, SCRAPE_VIEWPORT } from '@/lib/constants'
+import { t } from '@/lib/i18n/format'
 import Image from 'next/image'
 
+// Rendering a preview boots a browser against the customer's real page, so it is never speculative:
+// nothing is requested until the reader asks for this one. Mounting three of these on a cold report
+// used to launch three browsers before anyone had scrolled to them.
 export function VariantPreview({
   embedKey,
   hypothesisId,
@@ -16,44 +21,38 @@ export function VariantPreview({
 }) {
   const { dictionary } = useI18n()
   const [url, setUrl] = useState<string | null>(initialUrl)
-  const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'empty'>(
+  const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>(
     initialUrl ? 'ready' : 'idle'
   )
 
-  useEffect(() => {
-    if (state !== 'idle') return
-    let active = true
+  async function render() {
     setState('loading')
-    fetch('/api/report/screenshot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ embedKey, hypothesisId })
-    })
-      .then((res) => res.json())
-      .then((data: { url: string | null }) => {
-        if (!active) return
-        if (data.url) {
-          setUrl(data.url)
-          setState('ready')
-        } else {
-          setState('empty')
-        }
+    try {
+      const res = await fetch('/api/report/screenshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ embedKey, hypothesisId })
       })
-      .catch(() => active && setState('empty'))
-    return () => {
-      active = false
+      const data: { url: string | null } = await res.json()
+      if (!data.url) {
+        setState('error')
+        return
+      }
+      setUrl(data.url)
+      setState('ready')
+    } catch {
+      setState('error')
     }
-  }, [state, embedKey, hypothesisId])
-
-  if (state === 'empty') return null
+  }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1" data-testid="variant-preview">
       <p className="panel-label text-[0.6rem] text-muted-foreground">
         {dictionary.report.appliedToYourPage}
       </p>
-      <div className="overflow-hidden rounded-md border bg-muted">
-        {state === 'ready' && url ? (
+
+      {state === 'ready' && url ? (
+        <div className="overflow-hidden rounded-md border bg-muted">
           <Image
             src={url}
             alt={dictionary.report.previewAlt}
@@ -61,10 +60,36 @@ export function VariantPreview({
             height={SCRAPE_VIEWPORT.height}
             className="h-auto w-full"
           />
-        ) : (
-          <div className="h-40 w-full animate-pulse bg-muted" />
-        )}
-      </div>
+        </div>
+      ) : null}
+
+      {state === 'idle' || state === 'loading' ? (
+        <div className="space-y-2">
+          <Button variant="outline" size="sm" onClick={render} disabled={state === 'loading'}>
+            {state === 'loading' ? dictionary.report.previewLoading : dictionary.report.previewCta}
+          </Button>
+          {state === 'loading' ? (
+            <div
+              className="h-40 w-full animate-pulse rounded-md border bg-muted"
+              aria-busy="true"
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {t(dictionary.report.previewHint, { seconds: PREVIEW_ESTIMATE_SECONDS })}
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {/* The reader clicked, so silence would read as a broken button. */}
+      {state === 'error' ? (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{dictionary.report.previewUnavailable}</p>
+          <Button variant="outline" size="sm" onClick={() => setState('idle')}>
+            {dictionary.report.previewRetry}
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }

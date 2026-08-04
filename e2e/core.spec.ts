@@ -121,7 +121,7 @@ test.describe('core features', () => {
 
     // Screen 1 lists hypotheses grounded in competitors, each with a recommended challenger
     await expect(page.getByTestId('benchmarked-against')).toContainText('Linear')
-    await expect(page.getByText('Ship faster: cut your release cycle from').first()).toBeVisible()
+    await expect(page.getByText('Ship faster: releases in').first()).toBeVisible()
     await expect(page.getByRole('link', { name: 'Set up test' }).first()).toBeVisible()
 
     // Appears in dashboard history
@@ -187,6 +187,12 @@ test.describe('core features', () => {
     const anon = await context.newPage()
     await anon.goto(`/r/${analysis.embedKey}`)
     await expect(anon.getByTestId('flow-playbook').getByTestId('flow-fix')).toHaveCount(4)
+
+    // Previews are rendered on request, never on mount: each one boots a browser against the
+    // customer's real page, so opening the report must cost nothing.
+    const preview = anon.getByTestId('variant-preview').first()
+    await expect(preview.getByRole('button', { name: 'See how this looks on your page' })).toBeVisible()
+    await expect(preview.getByRole('img')).toHaveCount(0)
 
     await context.close()
   })

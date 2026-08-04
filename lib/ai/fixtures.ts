@@ -203,7 +203,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'The all-in-one platform for modern teams',
         variants: [
           {
-            copy: 'Ship faster: cut your release cycle from [weeks] to [days]',
+            copy: 'Ship faster: releases in [days], not [weeks]',
             evidence:
               'Linear leads with a quantified speed outcome - plug in your real before/after numbers.'
           }
@@ -251,7 +251,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Enterprise - $99/user/mo',
         variants: [
           {
-            copy: 'Free for [solo builders]. Scale to [Pro] at [$price]/user/mo as your team grows.',
+            copy: 'Free to start, [Pro] at [$price]',
             evidence:
               'Vercel anchors on a free entry tier before paid - map this to your real tiers.'
           }
@@ -267,7 +267,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Real-time sync, API access, role-based permissions',
         variants: [
           {
-            copy: 'Everyone sees the same data instantly. Automate your stack with the API. Control who can touch what.',
+            copy: 'See data instantly, automate with the API, control access',
             evidence:
               'Linear frames each feature as a job-to-be-done - keep your real capabilities, lead with the outcome.'
           }
@@ -283,7 +283,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Built for teams that move fast',
         variants: [
           {
-            copy: 'Set up in [setup time]. No migration, no training, cancel anytime.',
+            copy: 'Set up in [setup time]. No migration, no training.',
             evidence: 'Vercel pre-empts setup-effort objections - use your real onboarding time.'
           }
         ],
@@ -303,7 +303,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'The all-in-one platform for modern teams',
         variants: [
           {
-            copy: 'Entregue mais rápido: reduza seu ciclo de releases de [semanas] para [dias]',
+            copy: 'Entregue em [dias], não em [semanas]',
             evidence:
               'A Linear abre com um ganho de velocidade quantificado, use seus números reais de antes e depois.'
           }
@@ -335,7 +335,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Trusted by teams everywhere',
         variants: [
           {
-            copy: 'A escolha de [número] times que entregam todo dia',
+            copy: 'A escolha de [número] times que entregam',
             evidence:
               'A Linear quantifica a adoção em vez de afirmar confiança, coloque seu número real de times ativos.'
           }
@@ -351,7 +351,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Enterprise - $99/user/mo',
         variants: [
           {
-            copy: 'Grátis para [quem trabalha sozinho]. Suba para o [Pro] por [$preço] por usuário ao mês conforme o time cresce.',
+            copy: 'Grátis para começar, [Pro] por [$preço]',
             evidence:
               'A Vercel ancora num plano de entrada gratuito antes do pago, mapeie isso para seus planos reais.'
           }
@@ -368,7 +368,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Real-time sync, API access, role-based permissions',
         variants: [
           {
-            copy: 'Todo mundo vê os mesmos dados na hora. Automatize sua stack pela API. Controle quem pode mexer em quê.',
+            copy: 'Veja dados na hora, automatize pela API, controle acessos',
             evidence:
               'A Linear apresenta cada recurso como uma tarefa a resolver, mantenha suas capacidades reais e comece pelo resultado.'
           }
@@ -384,7 +384,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Built for teams that move fast',
         variants: [
           {
-            copy: 'Configure em [tempo de setup]. Sem migração, sem treinamento, cancele quando quiser.',
+            copy: 'Configure em [tempo de setup]. Sem migração, sem treinamento.',
             evidence:
               'A Vercel antecipa a objeção de esforço de configuração, use seu tempo real de onboarding.'
           }

@@ -82,7 +82,10 @@ export const SCRAPE_SETTLE_TEXT_TOLERANCE = 8
 export const SCRAPE_MAX_RESPONSE_BYTES = 25 * 1024 * 1024
 
 // Resource types worth fetching to render text and take a screenshot. Media, websockets and
-// prefetches only cost time.
+// prefetches only cost time. `preflight` is here because a cross-origin stylesheet or webfont served
+// behind CORS never issues its real request once the OPTIONS is aborted, so blocking it renders the
+// page unstyled -- and the screenshot is read as a preview of the customer's own site. It is not a
+// hole in the guard: the request handler runs isPublicUrl on a preflight like any other request.
 export const SCRAPE_ALLOWED_RESOURCE_TYPES = [
   'document',
   'stylesheet',
@@ -91,8 +94,17 @@ export const SCRAPE_ALLOWED_RESOURCE_TYPES = [
   'script',
   'xhr',
   'fetch',
+  'preflight',
   'other'
 ]
+
+// A screenshot is judged on how it looks, so it waits for webfonts and pending images after the text
+// has settled -- an unstyled fallback face reads as a broken preview. Fail-soft and short: an asset
+// that never resolves costs the preview this budget, never the screenshot.
+export const SCRAPE_ASSET_READY_TIMEOUT_MS = 3_000
+
+// Lets the scroll land and freshly triggered lazy images paint before the shutter.
+export const SCRAPE_PAINT_SETTLE_MS = 250
 
 // Sized by what each route costs us, not by what a plan allows. The two LLM/Puppeteer routes are
 // the expensive ones; the tracking routes carry a landing page's real traffic and must stay generous
@@ -120,6 +132,11 @@ export const DEFAULT_EXPERIMENT_DURATION = 14
 // remaining ones are blurred behind the waitlist wall.
 export const REPORT_PREVIEW_LIMIT = 3
 
+// What the preview button promises before it is clicked. A variant preview boots a browser and
+// renders the customer's real page, so the wait is long enough that it has to be stated up front
+// rather than hidden behind a spinner.
+export const PREVIEW_ESTIMATE_SECONDS = 15
+
 // Variant targeting: a hypothesis is only "auto" (safe to swap in a screenshot or live test) when
 // its current copy resolves to a single element whose word count is within this ratio of the copy.
 // Guards against snapping a long merged string onto a tiny element (e.g. a 3-word badge).
@@ -128,6 +145,16 @@ export const TARGET_MATCH_MAX_WORD_RATIO = 1.3
 // Conversion goals are pinned to clickable elements. Anything wordier than this is prose with a link
 // in it, not a CTA, so it never becomes a goal candidate.
 export const GOAL_CANDIDATE_MAX_WORDS = 8
+
+// How much longer than the copy it replaces a variant may be. Deliberately NOT
+// TARGET_MATCH_MAX_WORD_RATIO: that one guards a matching heuristic, where being wrong means
+// previewing the wrong element, so it must stay tight. This one is a writing constraint and has to
+// leave room for a genuinely better line. A pure ratio is nonsense at the short end (a 2-word CTA at
+// 1.5x is 3 words, which forbids "Start free, no card required"), hence the floor. Ceilings run
+// 2 -> 5, 6 -> 9, 10 -> 15: a hero headline stays one line instead of becoming a paragraph.
+export const VARIANT_WORD_BUDGET_RATIO = 1.5
+
+export const VARIANT_WORD_BUDGET_FLOOR = 3
 
 // How many goal candidates the test runner offers before falling back to the free-text selector.
 export const GOAL_CANDIDATE_LIMIT = 12

@@ -332,6 +332,10 @@ in and uploads the PNG to Vercel Blob, caching the URL on `variants.screenshot_u
 `{ url }`, with `url: null` whenever a preview is not possible (manual target, stale selector,
 missing Blob config) so the report degrades to copy-only instead of breaking.
 
+**User-initiated, one request per click.** The report used to fire this on mount for every visible
+hypothesis, so opening a cold report launched `REPORT_PREVIEW_LIMIT` browsers before anyone had
+scrolled to them. The button in `components/variant-preview.tsx` is what triggers it now.
+
 `POST /api/waitlist`
 Body `{ email, phone?, embedKey? }`. Inserts a lead with `onConflictDoNothing`. Returns `201`.
 Read back by the admin-only `/admin/leads` page; there is no other way to see these rows.
@@ -496,6 +500,28 @@ is shared by both prompts so an alternate obeys exactly the same copy rules as t
 that `variantCopyRules` and `playbookPrompt` both compose, so those can never drift between the
 things one analysis produces.
 
+**Copy length is a measured per-element ceiling, not prose guidance.** `variantWordBudget(words)` in
+`lib/text.ts` is `max(words + VARIANT_WORD_BUDGET_FLOOR, ceil(words * VARIANT_WORD_BUDGET_RATIO))`,
+and every line of the "Page elements" list carries its own ceiling: `<tag> "text" (max N words)`. The
+prompt used to only say "match the element's length", with one qualitative rule that constrained
+labels and CTAs and said nothing about a headline -- which is how a six word hero title came back as
+a 50 word paragraph. The alternates call never sees the element list, so
+`generateAlternateVariants` computes the ceiling from `currentCopy` with the same function; an
+alternate is never held to a different standard than the recommendation beside it.
+
+This is deliberately **not** `TARGET_MATCH_MAX_WORD_RATIO`. That one guards a matching heuristic,
+where being wrong means previewing the wrong element, so it stays tight; a writing budget has to
+leave room for a genuinely better line. The floor exists because a pure ratio is nonsense at the
+short end: a 2-word CTA at 1.5x is 3 words, which forbids "Start free, no card required".
+
+The overshoot guard `warnOverLength` is **log-only**, by design. A `.max()` on `copy` in
+`VariantSchema` would fail the whole 16k-token `generateObject` with no retry wrapper, turning one
+long headline into an opaque `500` that costs the user the entire analysis; truncating would ship a
+headline cut mid-clause to a prospect on the public report; and regenerating puts a second Sonnet
+call on the critical path for a soft rule. Logging makes the ceiling's effectiveness measurable in
+production, which is what has to come before escalating it. The fixtures in `lib/ai/fixtures.ts` all
+fit their own ceilings, so they stay a correct reference rendering of the rule.
+
 ### 2a. Structural readout and the reference corpus
 
 `scrapePage` returns a `PageStructure` alongside `html` and `elements`: a flat record of what the
@@ -554,6 +580,44 @@ One non-obvious constraint the CLI exposed: functions handed to `page.evaluate()
 source, so esbuild's `__name` keepNames helper (injected when tsx runs the script) is not defined in
 the page. `openGuardedPage` declares `window.__name` as an identity function, which is what lets the
 scraper run outside the Next build at all.
+
+### 2d. Applying a variant to the live DOM (`applyVariantCopy`)
+
+`screenshotVariant` swaps the copy in **without touching the element's markup**. It used to do
+`el.textContent = copy`, which deletes every child node -- and the children are exactly what the
+preview exists to show, because `captureElements` targets the innermost block element with its inline
+children folded in, so a selector usually lands on something like
+`<h1>The <span class="gradient">fastest</span> way to ship</h1>`. That assignment took the gradient
+span, the `<br>`, the icons and all their CSS with it, and the preview came back unstyled.
+
+The routine walks the element's text nodes (`TreeWalker`, `SHOW_TEXT`) and writes only into those, so
+every element wrapper survives by construction. Three rules make the result readable:
+
+- **Proportional distribution.** The new words are spread across the text nodes in proportion to the
+  fragment lengths they replace, so a styled fragment keeps a share of the copy and still renders.
+  One word is reserved for each fragment still to come, so a span whose share rounds to zero does not
+  go empty; the last node takes the remainder, so rounding never drops a word.
+- **Whitespace-only text nodes are never written to.** They are the layout gaps between inline
+  fragments, and rewriting them glues words together. Each fragment's original leading and trailing
+  whitespace is re-applied around its chunk for the same reason. Where the page had no whitespace
+  between two fragments a separator is added, because the split point there is ours, not the page's.
+- **The control-copy check stays ahead of the mutation.** Once one node is rewritten there is no
+  original text left to compare, and a stale selector would report a successful swap of the wrong
+  element instead of the `mismatch` the caller degrades on.
+
+The accepted trade-off: the split follows the *original* fragment sizes, so a span may wrap a
+different word than the designer chose. Strictly better than the span disappearing.
+
+`awaitPaint` runs after the swap and after every screenshot. `settlePage` answers "has the text
+stopped changing", which is right for reading copy and wrong for taking a picture: a page whose text
+is final can still be painting its webfonts and lazy images, and a fallback face reads as a broken
+preview. It awaits `document.fonts.ready` plus every pending `document.images` entry, bounded by
+`SCRAPE_ASSET_READY_TIMEOUT_MS` and fail-soft, then settles for `SCRAPE_PAINT_SETTLE_MS`.
+
+`SCRAPE_ALLOWED_RESOURCE_TYPES` includes `preflight` for the same reason: a cross-origin stylesheet
+or webfont served behind CORS never issues its real request once the `OPTIONS` is aborted, so
+blocking it renders the page unstyled. It is not a hole in the guard -- the request handler runs
+`isPublicUrl` on a preflight like any other request, and the byte cap still applies.
 
 ### 2c. Playbook generation
 

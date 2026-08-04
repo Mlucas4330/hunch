@@ -4,7 +4,9 @@ import {
   OAUTH_PROVIDER_PATTERNS,
   STRUCTURE_PATTERNS,
   SCRAPE_ALLOWED_RESOURCE_TYPES,
+  SCRAPE_ASSET_READY_TIMEOUT_MS,
   SCRAPE_MAX_RESPONSE_BYTES,
+  SCRAPE_PAINT_SETTLE_MS,
   SCRAPE_NAVIGATION_TIMEOUT_MS,
   SCRAPE_SETTLE_MIN_TEXT_LENGTH,
   SCRAPE_SETTLE_POLL_MS,
@@ -14,6 +16,7 @@ import {
   TARGET_MATCH_MAX_WORD_RATIO
 } from '@/lib/constants'
 import { assertPublicUrl, isPublicUrl } from '@/lib/url-guard'
+import { wordCount } from '@/lib/text'
 
 export interface PageElement {
   text: string
@@ -206,33 +209,18 @@ export async function screenshotVariant(
     await settlePage(page)
 
     if (selector) {
-      const outcome = await page.evaluate(
-        (sel, vCopy, cCopy) => {
-          const el = document.querySelector(sel)
-          if (!el) return 'not_found'
-          if (cCopy) {
-            const own = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase()
-            const control = cCopy.replace(/\s+/g, ' ').trim().toLowerCase()
-            if (own !== control && !own.includes(control) && !control.includes(own)) {
-              return 'mismatch'
-            }
-          }
-          el.textContent = vCopy
-          el.scrollIntoView({ block: 'center', inline: 'nearest' })
-          return 'ok'
-        },
+      const outcome = await page.evaluate(applyVariantCopy, {
         selector,
         variantCopy,
-        controlCopy ?? null
-      )
+        controlCopy: controlCopy ?? null
+      })
 
       if (outcome !== 'ok') {
         throw new ScrapeError(`Variant target not applicable on ${url} (${outcome})`)
       }
-
-      // Let the scroll settle and any lazy-loaded imagery paint before capturing.
-      await new Promise((resolve) => setTimeout(resolve, 400))
     }
+
+    await awaitPaint(page)
 
     const shot = await page.screenshot({ type: 'png' })
     return Buffer.from(shot)
@@ -242,6 +230,119 @@ export async function screenshotVariant(
   } finally {
     await browser.close()
   }
+}
+
+type ApplyOutcome = 'ok' | 'not_found' | 'mismatch'
+
+// Runs in the browser context: swap the variant copy into the target element WITHOUT touching its
+// markup. `el.textContent = copy` used to do this, and it deleted every child node -- which is
+// exactly the styling the preview exists to show, because captureElements targets the innermost
+// block element with its inline children folded in, so the selector usually points at something like
+// `<h1>The <span class="gradient">fastest</span> way to ship</h1>`. Writing only into the existing
+// text nodes means gradient spans, <br>, icons and their CSS survive by construction.
+//
+// The new words are spread across those text nodes in proportion to the fragment lengths they
+// replace, so every styled fragment keeps a share of the copy and still renders. The split point
+// follows the original fragment sizes, so a span may end up wrapping a different word than the
+// designer chose; that is strictly better than the span disappearing.
+function applyVariantCopy(options: {
+  selector: string
+  variantCopy: string
+  controlCopy: string | null
+}): ApplyOutcome {
+  const el = document.querySelector(options.selector)
+  if (!el) return 'not_found'
+
+  // Must stay ahead of the mutation: once a single node is rewritten there is no original text left
+  // to compare, and a stale selector would be reported as a successful swap of the wrong element.
+  if (options.controlCopy) {
+    const own = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase()
+    const control = options.controlCopy.replace(/\s+/g, ' ').trim().toLowerCase()
+    if (own !== control && !own.includes(control) && !control.includes(own)) return 'mismatch'
+  }
+
+  const skip = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT'])
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+  const nodes: Text[] = []
+
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node as Text
+    if (skip.has(text.parentElement?.tagName || '')) continue
+    // Whitespace-only nodes are the layout gaps between inline fragments. Writing to them would glue
+    // words together, so they are left exactly as the page wrote them.
+    if (!(text.nodeValue || '').trim()) continue
+    nodes.push(text)
+  }
+
+  const words = options.variantCopy.split(/\s+/).filter(Boolean)
+
+  if (nodes.length === 0) {
+    // Never textContent here either: the element may hold an <img> or an <svg> and nothing else.
+    el.appendChild(document.createTextNode(options.variantCopy))
+  } else {
+    const weights = nodes.map((node) => (node.nodeValue || '').trim().length)
+    const total = weights.reduce((sum, weight) => sum + weight, 0) || nodes.length
+    let taken = 0
+    let wrote = false
+
+    nodes.forEach((node, index) => {
+      const value = node.nodeValue || ''
+      // Adjacent fragments with no whitespace between them are legitimate markup
+      // (`<span>Ship</span><span>Faster</span>`), but the split point is ours, not the page's, so a
+      // separator has to be added or the copy renders as one glued word.
+      const lead = value.match(/^\s*/)?.[0] || (wrote ? ' ' : '')
+      const trail = value.match(/\s*$/)?.[0] ?? ''
+
+      // Hold one word back for each fragment still to come, so a span whose proportional share
+      // rounds to zero keeps a word and keeps rendering. The last node takes whatever is left, so
+      // rounding can never drop a word.
+      const remaining = words.length - taken
+      const reserve = Math.min(nodes.length - index - 1, remaining)
+      const ceiling = remaining - reserve
+      const share = Math.round((words.length * weights[index]) / total)
+      const take =
+        index === nodes.length - 1
+          ? remaining
+          : Math.min(ceiling, Math.max(ceiling > 0 ? 1 : 0, share))
+
+      const chunk = words.slice(taken, taken + take).join(' ')
+      taken += take
+      wrote = wrote || chunk.length > 0
+      node.nodeValue = chunk ? lead + chunk + trail : ''
+    })
+  }
+
+  el.scrollIntoView({ block: 'center', inline: 'nearest' })
+  return 'ok'
+}
+
+// settlePage answers "has the text stopped changing", which is the right question for reading copy
+// and the wrong one for taking a picture: a page whose text is final can still be painting its
+// webfonts and its lazy images. Bounded and fail-soft -- an asset that never resolves costs the
+// preview SCRAPE_ASSET_READY_TIMEOUT_MS, never the screenshot.
+async function awaitPaint(page: Page): Promise<void> {
+  await page
+    .evaluate(async (timeout) => {
+      const pending: Promise<unknown>[] = [document.fonts?.ready ?? Promise.resolve()]
+
+      for (const image of Array.from(document.images)) {
+        if (image.complete) continue
+        pending.push(
+          new Promise((resolve) => {
+            image.addEventListener('load', resolve, { once: true })
+            image.addEventListener('error', resolve, { once: true })
+          })
+        )
+      }
+
+      await Promise.race([
+        Promise.all(pending),
+        new Promise((resolve) => setTimeout(resolve, timeout))
+      ])
+    }, SCRAPE_ASSET_READY_TIMEOUT_MS)
+    .catch(() => {})
+
+  await new Promise((resolve) => setTimeout(resolve, SCRAPE_PAINT_SETTLE_MS))
 }
 
 // Runs in the browser context: collect each visible "text unit" with a stable CSS path. A text unit
@@ -436,10 +537,6 @@ export function goalCandidates(elements: PageElement[]): GoalCandidate[] {
 
 function normalize(value: string): string {
   return value.replace(/\s+/g, ' ').trim().toLowerCase()
-}
-
-function wordCount(value: string): number {
-  return value.split(/\s+/).filter(Boolean).length
 }
 
 // Resolves a hypothesis's current copy to a single captured element, and classifies how safely it

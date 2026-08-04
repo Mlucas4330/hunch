@@ -501,6 +501,13 @@ export const ptBR: Dictionary = {
       'Esta mudança toca uma seção que não é uma troca de texto de linha única, então a prévia no contexto não está disponível. Aplique o texto recomendado manualmente.',
     appliedToYourPage: 'Aplicado à sua página',
     previewAlt: 'Variante aplicada à landing page',
+    previewCta: 'Veja como fica na sua página',
+    previewHint:
+      'Carregamos sua página real com este texto no lugar. Leva cerca de {seconds} segundos.',
+    previewLoading: 'Renderizando sua página...',
+    previewUnavailable:
+      'Não conseguimos renderizar sua página agora. O texto recomendado acima continua valendo.',
+    previewRetry: 'Tentar de novo',
     footerQuestion: 'Quer medir isso ao vivo na sua página?',
     generatedBy: 'Gerado pelo Hunch'
   },

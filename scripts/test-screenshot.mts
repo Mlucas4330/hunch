@@ -21,9 +21,11 @@ const outDir = resolve(process.argv[4] ?? 'screenshot-test')
 // A punchy, obviously-different headline so the swap is unmistakable in the "after" shot.
 const VARIANT_COPY = 'This headline was rewritten by Hunch'
 
-async function shoot(label: string, copy: string, file: string) {
+async function shoot(label: string, copy: string | null, file: string) {
   console.log(`Capturing ${label} ...`)
-  const buffer = await screenshotVariant(url, selector, copy)
+  // A null selector shoots the page untouched, which is what makes the pair diffable: the styling
+  // in `after` has to match `before` everywhere except the words themselves.
+  const buffer = await screenshotVariant(url, copy === null ? null : selector, copy ?? '')
   const path = resolve(outDir, file)
   await writeFile(path, buffer)
   console.log(`  -> ${path} (${buffer.length} bytes)`)
@@ -35,9 +37,10 @@ async function main() {
   console.log(`Selector : ${selector}`)
   console.log(`Variant  : ${VARIANT_COPY}\n`)
 
+  await shoot('control (untouched page)', null, 'before.png')
   await shoot('variant (swapped copy)', VARIANT_COPY, 'after.png')
 
-  console.log('\nDone. Open after.png to see the variant applied to the page.\n')
+  console.log('\nDone. Compare before.png and after.png: only the words may differ.\n')
 }
 
 main().catch((error) => {

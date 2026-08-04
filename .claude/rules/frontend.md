@@ -260,9 +260,16 @@ it, so nothing here may 404 loudly or leak whether an unknown key exists.
   count toward `REPORT_PREVIEW_LIMIT`.
 - Ranked teardown of the analysis, `REPORT_PREVIEW_LIMIT` hypotheses shown in full. Auto-targetable
   ideas are ordered first so the previews on top are real ones.
-- **Variant preview** (`components/variant-preview.tsx`): lazily POSTs to `/api/report/screenshot`
-  and renders the landing page with the recommended copy swapped in. Renders nothing when no preview
-  is possible; `manual` hypotheses show a dashed "apply by hand" note instead.
+- **Variant preview** (`components/variant-preview.tsx`): renders the landing page with the
+  recommended copy swapped in, **on request only**. Each preview boots a browser against the
+  customer's real page, so it POSTs to `/api/report/screenshot` from a click and never from mount -
+  three of these on a cold report used to launch three browsers before anyone scrolled to them.
+  Four states: `idle` (button + a hint naming `PREVIEW_ESTIMATE_SECONDS`), `loading` (button
+  disabled, label swapped, skeleton - the label is what carries a 10s+ wait, a pulse alone is not
+  enough), `ready` (the image), `error` (a note plus a retry that returns to `idle`; after an
+  explicit click, rendering nothing reads as a broken button). A cached `screenshot_url` arrives as
+  `initialUrl` and renders straight to `ready` with no button and no request. `manual` hypotheses
+  never mount it at all and show a dashed "apply by hand" note instead.
 - **Waitlist wall** (`components/waitlist-wall.tsx`): once past the preview limit, the remaining
   hypotheses are blurred behind an email + optional phone form posting to `/api/waitlist`.
 
