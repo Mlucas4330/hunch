@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { db } from '@/db'
 import { analyses, experiments, experimentStats, hypotheses, variants } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
+import { enforceRateLimit } from '@/lib/rate-limit'
+import { isUuid } from '@/lib/uuid'
 import { hasReachedFreeExperimentLimit } from '@/lib/usage'
 import { experimentWithResult } from '@/lib/experiments'
 import { DEFAULT_EXPERIMENT_DURATION } from '@/lib/constants'
@@ -25,6 +27,9 @@ const BodySchema = z.object({
 export async function POST(request: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  const limited = await enforceRateLimit('experiment', user.id)
+  if (limited) return limited
 
   const parsed = BodySchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'invalid_body' }, { status: 422 })
@@ -109,6 +114,9 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const analysisId = new URL(request.url).searchParams.get('analysisId')
+  if (analysisId && !isUuid(analysisId)) {
+    return NextResponse.json({ experiments: [] })
+  }
 
   const conditions = [eq(analyses.userId, user.id)]
   if (analysisId) conditions.push(eq(experiments.analysisId, analysisId))

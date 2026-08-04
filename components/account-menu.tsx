@@ -1,18 +1,20 @@
 import { signOut } from '@/auth'
 import { PlanBadge } from '@/components/plan-badge'
 import type { SubscriptionPlan } from '@/lib/enums'
+import { getDictionary } from '@/lib/i18n'
 
 async function signOutAction() {
   'use server'
   await signOut({ redirectTo: '/auth/signin' })
 }
 
-export function AccountMenu({
+export async function AccountMenu({
   user
 }: {
   user: { name?: string | null; email?: string | null; plan: SubscriptionPlan }
 }) {
-  const label = user.name ?? user.email ?? 'Account'
+  const t = await getDictionary()
+  const label = user.name ?? user.email ?? t.nav.account
   const initial = label.charAt(0).toUpperCase()
 
   return (
@@ -37,7 +39,7 @@ export function AccountMenu({
             type="submit"
             className="w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
           >
-            Sign out
+            {t.nav.signOut}
           </button>
         </form>
       </div>

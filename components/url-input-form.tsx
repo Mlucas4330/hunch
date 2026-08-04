@@ -5,22 +5,18 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useI18n } from '@/components/i18n-provider'
+import { t } from '@/lib/i18n/format'
+import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import type { SubscriptionPlan } from '@/lib/enums'
 import { cn } from '@/lib/utils'
 
-const PHASES = [
-  'Scraping your page...',
-  'Researching competitors...',
-  'Writing your test ideas...',
-  'Saving results...'
-] as const
-
 // Paced to the real pipeline (scrape ~4s, web-search ~42s, generation ~67s) so the label
 // tracks what is actually happening instead of claiming "saving" for two minutes.
-const PHASE_SCHEDULE: { at: number; label: (typeof PHASES)[number] }[] = [
-  { at: 4000, label: PHASES[1] },
-  { at: 46000, label: PHASES[2] },
-  { at: 160000, label: PHASES[3] }
+const PHASE_SCHEDULE: { at: number; phase: number }[] = [
+  { at: 4000, phase: 1 },
+  { at: 46000, phase: 2 },
+  { at: 160000, phase: 3 }
 ]
 
 const MAX_COMPETITORS = 3
@@ -30,18 +26,21 @@ const textareaClass =
 
 export function UrlInputForm({
   plan,
-  defaultBrief = ''
+  defaultBrief = '',
+  blocked = false
 }: {
   plan: SubscriptionPlan
   defaultBrief?: string
+  blocked?: boolean
 }) {
+  const { dictionary } = useI18n()
   const router = useRouter()
   const [url, setUrl] = useState('')
   const [brief, setBrief] = useState(defaultBrief)
   const [competitors, setCompetitors] = useState<string[]>(['', '', ''])
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [phase, setPhase] = useState<(typeof PHASES)[number]>(PHASES[0])
+  const [phase, setPhase] = useState(0)
   const [elapsed, setElapsed] = useState(0)
 
   const isPaid = plan !== 'free'
@@ -54,16 +53,16 @@ export function UrlInputForm({
     try {
       parsed = new URL(url)
     } catch {
-      setError('Enter a valid URL, including https://')
+      setError(dictionary.urlForm.errorInvalidUrl)
       return
     }
 
     setPending(true)
-    setPhase(PHASES[0])
+    setPhase(0)
     setElapsed(0)
     const startedAt = Date.now()
     const ticker = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000)
-    const phaseTimers = PHASE_SCHEDULE.map(({ at, label }) => setTimeout(() => setPhase(label), at))
+    const phaseTimers = PHASE_SCHEDULE.map((step) => setTimeout(() => setPhase(step.phase), step.at))
 
     const competitorUrls = isPaid
       ? competitors.map((c) => c.trim()).filter(Boolean)
@@ -82,7 +81,7 @@ export function UrlInputForm({
 
       if (!res.ok) {
         const body = await res.json().catch(() => null)
-        setError(messageFor(res.status, body?.error))
+        setError(messageFor(dictionary, res.status, body?.error))
         return
       }
 
@@ -90,7 +89,7 @@ export function UrlInputForm({
       router.push(`/analyses/${analysis.id}`)
       router.refresh()
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError(dictionary.urlForm.errorGeneric)
     } finally {
       clearInterval(ticker)
       phaseTimers.forEach(clearTimeout)
@@ -104,37 +103,36 @@ export function UrlInputForm({
         <Input
           name="url"
           type="url"
-          placeholder="https://your-landing-page.com"
+          placeholder={dictionary.urlForm.urlPlaceholder}
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          disabled={pending}
+          disabled={pending || blocked}
           className="font-mono"
           aria-invalid={error ? true : undefined}
           required
         />
-        <Button type="submit" disabled={pending} className="shrink-0">
-          {pending ? 'Analyzing...' : 'Analyze'}
+        <Button type="submit" disabled={pending || blocked} className="shrink-0">
+          {pending ? dictionary.urlForm.analyzing : dictionary.urlForm.analyze}
         </Button>
       </div>
 
       {pending && (
         <div className="space-y-2" role="status" aria-live="polite">
           <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/50 px-3 py-2">
-            <span className="panel-label text-[0.7rem] text-muted-foreground">{phase}</span>
+            <span className="panel-label text-[0.7rem] text-muted-foreground">
+              {dictionary.urlForm.phases[phase]}
+            </span>
             <span className="font-mono text-xs tabular-nums text-muted-foreground">
               {formatElapsed(elapsed)}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            This usually takes 2 to 3 minutes. Keep this tab open while we scrape the page, study
-            competitors, and write your tests.
-          </p>
+          <p className="text-xs text-muted-foreground">{dictionary.urlForm.waitNote}</p>
         </div>
       )}
 
       <details className="rounded-md border border-border px-3 py-2">
         <summary className="cursor-pointer text-sm text-muted-foreground">
-          Add business details (optional)
+          {dictionary.urlForm.briefSummary}
         </summary>
         <div className="pt-2">
           <textarea
@@ -142,7 +140,7 @@ export function UrlInputForm({
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
             disabled={pending}
-            placeholder="Who it's for, your real numbers (users, trial length, pricing), and what makes you different. We use these to write finished copy instead of placeholders."
+            placeholder={dictionary.urlForm.briefPlaceholder}
             className={textareaClass}
           />
         </div>
@@ -150,19 +148,22 @@ export function UrlInputForm({
 
       <details className="rounded-md border border-border px-3 py-2">
         <summary className="cursor-pointer text-sm text-muted-foreground">
-          Competitor mode {!isPaid && <span className="text-[0.7rem]">(Solo & Team)</span>}
+          {dictionary.urlForm.competitorSummary}{' '}
+          {!isPaid && (
+            <span className="text-[0.7rem]">{dictionary.urlForm.competitorPaidOnly}</span>
+          )}
         </summary>
         <div className="space-y-2 pt-2">
           {isPaid ? (
             <>
               <p className="text-xs text-muted-foreground">
-                Paste up to {MAX_COMPETITORS} competitor landing pages to ground your hunches.
+                {t(dictionary.urlForm.competitorHint, { max: MAX_COMPETITORS })}
               </p>
               {competitors.map((value, i) => (
                 <Input
                   key={i}
                   type="url"
-                  placeholder="https://a-competitor.com"
+                  placeholder={dictionary.urlForm.competitorPlaceholder}
                   value={value}
                   disabled={pending}
                   className="font-mono"
@@ -174,11 +175,11 @@ export function UrlInputForm({
             </>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Ground your hunches on competitors you choose.{' '}
+              {dictionary.urlForm.competitorLockedBefore}{' '}
               <Link href="/billing" className="font-medium underline underline-offset-2">
-                Upgrade
+                {dictionary.common.upgrade}
               </Link>{' '}
-              to unlock Competitor mode. Free analyses find competitors automatically.
+              {dictionary.urlForm.competitorLockedAfter}
             </p>
           )}
         </div>
@@ -199,11 +200,10 @@ function formatElapsed(seconds: number): string {
   return `${minutes}:${String(rest).padStart(2, '0')}`
 }
 
-function messageFor(status: number, code?: string): string {
-  if (status === 403 || code === 'limit_reached') {
-    return 'You have reached the free plan limit. Upgrade to keep analyzing.'
-  }
-  if (status === 422) return 'That URL is not valid or supported.'
-  if (status === 502) return 'We could not load that page. Check the URL and try again.'
-  return 'Something went wrong while analyzing. Please try again.'
+function messageFor(dictionary: Dictionary, status: number, code?: string): string {
+  const { urlForm } = dictionary
+  if (status === 403 || code === 'limit_reached') return urlForm.errorLimitReached
+  if (status === 422) return urlForm.errorUnsupportedUrl
+  if (status === 502) return urlForm.errorScrapeFailed
+  return urlForm.errorAnalyzeFailed
 }

@@ -1,18 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SectionBadge } from '@/components/section-badge'
 import {
-  EXPERIMENT_ARM_LABEL,
   EXPERIMENT_RECOMMENDATION_BADGE_CLASS,
-  EXPERIMENT_RECOMMENDATION_LABEL,
-  EXPERIMENT_STATUS_BADGE_CLASS,
-  EXPERIMENT_STATUS_LABEL
+  EXPERIMENT_STATUS_BADGE_CLASS
 } from '@/lib/constants'
 import { buildReportMarkdown } from '@/lib/export'
-import type { ExperimentAction, ExperimentStatus, Section } from '@/lib/enums'
+import type { ExperimentAction, ExperimentStatus, Locale, Section } from '@/lib/enums'
+import { useI18n } from '@/components/i18n-provider'
+import { formatDecimal, t } from '@/lib/i18n/format'
+import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import type { ExperimentResult } from '@/lib/stats'
 import { cn } from '@/lib/utils'
 
@@ -25,13 +26,23 @@ export type PanelExperiment = {
   variantCopy: string
   durationDays: number
   endsAt: string | null
+  goalSelector: string | null
   result: ExperimentResult
 }
 
 const POLL_INTERVAL = 5000
 const DAY_MS = 86_400_000
 
-export function ExperimentPanel({ experiment, url }: { experiment: PanelExperiment; url: string }) {
+export function ExperimentPanel({
+  experiment,
+  url,
+  canExport
+}: {
+  experiment: PanelExperiment
+  url: string
+  canExport: boolean
+}) {
+  const { locale, dictionary } = useI18n()
   const [state, setState] = useState(experiment)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -65,15 +76,19 @@ export function ExperimentPanel({ experiment, url }: { experiment: PanelExperime
   }
 
   const report = () =>
-    buildReportMarkdown({
-      url,
-      section: state.section,
-      problem: state.problem,
-      controlCopy: state.controlCopy,
-      variantCopy: state.variantCopy,
-      durationDays: state.durationDays,
-      result: state.result
-    })
+    buildReportMarkdown(
+      {
+        url,
+        section: state.section,
+        problem: state.problem,
+        controlCopy: state.controlCopy,
+        variantCopy: state.variantCopy,
+        durationDays: state.durationDays,
+        result: state.result
+      },
+      dictionary,
+      locale
+    )
 
   async function copyReport() {
     await navigator.clipboard.writeText(report())
@@ -86,7 +101,7 @@ export function ExperimentPanel({ experiment, url }: { experiment: PanelExperime
     const href = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = href
-    anchor.download = 'ab-test-report.md'
+    anchor.download = dictionary.export.filename
     anchor.click()
     URL.revokeObjectURL(href)
   }
@@ -106,22 +121,24 @@ export function ExperimentPanel({ experiment, url }: { experiment: PanelExperime
                 EXPERIMENT_STATUS_BADGE_CLASS[state.status]
               )}
             >
-              {EXPERIMENT_STATUS_LABEL[state.status]}
+              {dictionary.labels.experimentStatus[state.status]}
             </span>
             {state.status === 'running' && (
-              <span className="text-xs text-muted-foreground">{countdown(state.endsAt)}</span>
+              <span className="text-xs text-muted-foreground">
+                {countdown(state.endsAt, dictionary)}
+              </span>
             )}
           </div>
           {state.status === 'running' && (
             <div className="flex gap-2">
               <Button size="sm" variant="outline" disabled={busy} onClick={() => act('stop')}>
-                Stop
+                {dictionary.experimentPanel.stop}
               </Button>
               <Button size="sm" variant="ghost" disabled={busy} onClick={() => act('discard')}>
-                Discard
+                {dictionary.experimentPanel.discard}
               </Button>
               <Button size="sm" disabled={busy} onClick={() => act('declare_winner')}>
-                Declare winner
+                {dictionary.experimentPanel.declareWinner}
               </Button>
             </div>
           )}
@@ -130,16 +147,35 @@ export function ExperimentPanel({ experiment, url }: { experiment: PanelExperime
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <ArmStat label={EXPERIMENT_ARM_LABEL.control} arm={control} isLeader={leader === 'control'} />
-          <ArmStat label={EXPERIMENT_ARM_LABEL.variant} arm={variant} isLeader={leader === 'variant'} />
+          <ArmStat
+            label={dictionary.labels.experimentArm.control}
+            arm={control}
+            isLeader={leader === 'control'}
+            locale={locale}
+          />
+          <ArmStat
+            label={dictionary.labels.experimentArm.variant}
+            arm={variant}
+            isLeader={leader === 'variant'}
+            locale={locale}
+          />
         </div>
-        <p className="text-xs text-muted-foreground">{summary(upliftPct, pValue, significant)}</p>
+        <p className="text-xs text-muted-foreground">
+          {summary(upliftPct, pValue, significant, dictionary, locale)}
+        </p>
+        {!state.goalSelector && (
+          <p className="text-xs text-amber" data-testid="experiment-no-goal">
+            {dictionary.experimentPanel.noGoal}
+          </p>
+        )}
 
         {done && (
           <div className="space-y-3 border-t pt-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="panel-label text-[0.7rem] text-muted-foreground">Recommendation</span>
+                <span className="panel-label text-[0.7rem] text-muted-foreground">
+                  {dictionary.experimentPanel.recommendation}
+                </span>
                 <span
                   className={cn(
                     'rounded-full px-2 py-0.5 text-xs font-medium',
@@ -147,17 +183,23 @@ export function ExperimentPanel({ experiment, url }: { experiment: PanelExperime
                   )}
                   data-testid="experiment-recommendation"
                 >
-                  {EXPERIMENT_RECOMMENDATION_LABEL[recommendation]}
+                  {dictionary.labels.experimentRecommendation[recommendation]}
                 </span>
               </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={copyReport} data-testid="report-copy">
-                  {copied ? 'Copied' : 'Copy report'}
+              {canExport ? (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={copyReport} data-testid="report-copy">
+                    {copied ? dictionary.common.copied : dictionary.experimentPanel.copyReport}
+                  </Button>
+                  <Button size="sm" onClick={downloadReport} data-testid="report-download">
+                    {dictionary.experimentPanel.downloadMd}
+                  </Button>
+                </div>
+              ) : (
+                <Button asChild size="sm" variant="outline" data-testid="report-export-upgrade">
+                  <Link href="/billing">{dictionary.experimentPanel.upgradeToExport}</Link>
                 </Button>
-                <Button size="sm" onClick={downloadReport} data-testid="report-download">
-                  Download .md
-                </Button>
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -166,29 +208,33 @@ export function ExperimentPanel({ experiment, url }: { experiment: PanelExperime
   )
 }
 
-function countdown(endsAt: string | null): string {
+function countdown(endsAt: string | null, dictionary: Dictionary): string {
   if (!endsAt) return ''
   const remaining = new Date(endsAt).getTime() - Date.now()
-  if (remaining <= 0) return 'Finalizing...'
+  if (remaining <= 0) return dictionary.experimentPanel.finalizing
   const days = Math.ceil(remaining / DAY_MS)
-  return days === 1 ? 'Ends in 1 day' : `Ends in ${days} days`
+  return t(dictionary.experimentPanel.endsIn, { count: days, days })
 }
 
 function ArmStat({
   label,
   arm,
-  isLeader
+  isLeader,
+  locale
 }: {
   label: string
   arm: ExperimentResult['control']
   isLeader: boolean
+  locale: Locale
 }) {
   return (
     <div
       className={cn('rounded-md border p-3', isLeader ? 'border-green bg-green/10' : 'border-border')}
     >
       <p className="panel-label text-[0.7rem] text-muted-foreground">{label}</p>
-      <p className="font-display text-lg font-semibold">{(arm.rate * 100).toFixed(1)}%</p>
+      <p className="font-display text-lg font-semibold">
+        {formatDecimal(arm.rate * 100, locale, 1)}%
+      </p>
       <p className="text-xs text-muted-foreground">
         {arm.conversions} / {arm.n}
       </p>
@@ -196,10 +242,21 @@ function ArmStat({
   )
 }
 
-function summary(upliftPct: number | null, pValue: number | null, significant: boolean): string {
-  if (upliftPct === null || pValue === null) return 'Not enough data yet.'
-  const direction = upliftPct >= 0 ? 'lift' : 'drop'
-  const magnitude = `${Math.abs(upliftPct).toFixed(1)}% ${direction}`
-  if (significant) return `Significant: ${magnitude} (p=${pValue.toFixed(3)}).`
-  return `${magnitude} so far, not yet significant (p=${pValue.toFixed(3)}).`
+function summary(
+  upliftPct: number | null,
+  pValue: number | null,
+  significant: boolean,
+  dictionary: Dictionary,
+  locale: Locale
+): string {
+  const { experimentPanel } = dictionary
+  if (upliftPct === null || pValue === null) return experimentPanel.notEnoughData
+
+  const magnitude = t(experimentPanel.magnitude, {
+    value: formatDecimal(Math.abs(upliftPct), locale, 1),
+    direction: upliftPct >= 0 ? experimentPanel.lift : experimentPanel.drop
+  })
+  const vars = { magnitude, pValue: formatDecimal(pValue, locale, 3) }
+
+  return t(significant ? experimentPanel.significant : experimentPanel.notSignificant, vars)
 }

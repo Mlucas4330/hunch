@@ -32,6 +32,8 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { E2E_FIXTURES: '1', AUTH_URL: baseURL }
+    // The suite signs in through the credentials escape hatch, so it turns that on for itself
+    // rather than depending on the developer's .env having it set.
+    env: { E2E_FIXTURES: '1', AUTH_URL: baseURL, ALLOW_CREDENTIALS_LOGIN: '1' }
   }
 })

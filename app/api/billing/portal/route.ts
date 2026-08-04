@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/current-user'
 import { stripe } from '@/lib/stripe'
+import { appOrigin } from '@/lib/app-url'
 
 export async function POST(request: Request) {
   const user = await getCurrentUser()
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'no_customer' }, { status: 400 })
   }
 
-  const origin = new URL(request.url).origin
+  const origin = appOrigin(request)
   const session = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
     return_url: `${origin}/billing`

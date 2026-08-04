@@ -10,7 +10,7 @@
   function store(name) {
     try {
       return window.localStorage.getItem(name)
-    } catch (e) {
+    } catch {
       return null
     }
   }
@@ -18,17 +18,41 @@
   function remember(name, value) {
     try {
       window.localStorage.setItem(name, value)
-    } catch (e) {}
+    } catch {}
+  }
+
+  // A stable per-browser id. The server dedupes on it, so a reload -- or a replayed beacon --
+  // counts once instead of inflating the arm. Falls back to a fresh id when storage is blocked,
+  // which loses dedupe for that visitor rather than dropping the event.
+  function visitor() {
+    var id = store('hunch_vid')
+    if (!id) {
+      id =
+        window.crypto && window.crypto.randomUUID
+          ? window.crypto.randomUUID()
+          : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+              var r = (Math.random() * 16) | 0
+              return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+            })
+      remember('hunch_vid', id)
+    }
+    return id
   }
 
   function send(experimentId, arm, type) {
-    var body = JSON.stringify({ key: key, experimentId: experimentId, arm: arm, type: type })
+    var body = JSON.stringify({
+      key: key,
+      experimentId: experimentId,
+      arm: arm,
+      type: type,
+      visitorId: visitor()
+    })
     try {
       if (navigator.sendBeacon) {
         navigator.sendBeacon(api + '/api/track/event', new Blob([body], { type: 'text/plain' }))
         return
       }
-    } catch (e) {}
+    } catch {}
     fetch(api + '/api/track/event', { method: 'POST', body: body, keepalive: true }).catch(
       function () {}
     )
@@ -75,7 +99,7 @@
       try {
         var el = document.querySelector(exp.selector)
         if (el && normalize(el.textContent) === target) return el
-      } catch (e) {}
+      } catch {}
     }
     return findByText(exp.controlCopy)
   }
@@ -102,13 +126,14 @@
       send(exp.experimentId, arm, 'impression')
     }
 
+    // A conversion is only ever a click on the declared goal. Never fall back to the swapped
+    // element -- clicking a headline is not a conversion, and counting it would quietly poison
+    // the result with numbers that look real.
+    if (!exp.goalSelector) return
     var goal = null
-    if (exp.goalSelector) {
-      try {
-        goal = document.querySelector(exp.goalSelector)
-      } catch (e) {}
-    }
-    goal = goal || el
+    try {
+      goal = document.querySelector(exp.goalSelector)
+    } catch {}
     if (!goal) return
 
     goal.addEventListener('click', function () {
@@ -127,7 +152,7 @@
       ;(data.experiments || []).forEach(function (exp) {
         try {
           run(exp)
-        } catch (e) {}
+        } catch {}
       })
     })
     .catch(function () {})

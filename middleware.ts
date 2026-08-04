@@ -1,9 +1,8 @@
 import NextAuth from 'next-auth'
 import { authConfig } from '@/auth.config'
+import { PROTECTED_PREFIXES } from '@/lib/constants'
 
 const { auth } = NextAuth(authConfig)
-
-const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/billing']
 
 export default auth((req) => {
   const { pathname } = req.nextUrl

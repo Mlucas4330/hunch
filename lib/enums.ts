@@ -1,5 +1,8 @@
-export const SUBSCRIPTION_PLAN = ['free', 'solo', 'team'] as const
+export const SUBSCRIPTION_PLAN = ['free', 'solo'] as const
 export type SubscriptionPlan = (typeof SUBSCRIPTION_PLAN)[number]
+
+export const LOCALE = ['en', 'pt-BR'] as const
+export type Locale = (typeof LOCALE)[number]
 
 export const SECTIONS = [
   'headline',
@@ -13,6 +16,19 @@ export const SECTIONS = [
   'other'
 ] as const
 export type Section = (typeof SECTIONS)[number]
+
+// What a flow fix unblocks. A copy hypothesis swaps one line of text; a flow fix changes the page's
+// structure, so it is categorized by the conversion blocker it removes rather than by a page section.
+export const FLOW_CATEGORY = [
+  'signup_friction',
+  'cta_placement',
+  'decision_load',
+  'objections',
+  'trust',
+  'pricing_clarity',
+  'page_structure'
+] as const
+export type FlowCategory = (typeof FLOW_CATEGORY)[number]
 
 export const HYPOTHESIS_STATUS = ['pending', 'testing', 'completed', 'skipped'] as const
 export type HypothesisStatus = (typeof HYPOTHESIS_STATUS)[number]
@@ -45,3 +61,17 @@ export type ExperimentDuration = (typeof EXPERIMENT_DURATIONS)[number]
 
 export const EXPERIMENT_RECOMMENDATION = ['ship_variant', 'keep_control', 'inconclusive'] as const
 export type ExperimentRecommendation = (typeof EXPERIMENT_RECOMMENDATION)[number]
+
+// Abuse gates, distinct from the plan quotas in FREE_ANALYSES_LIMIT / FREE_EXPERIMENTS_LIMIT.
+// Windows live in RATE_LIMITS, so a kind added here fails typecheck until it is given one.
+export const RATE_LIMIT_KIND = [
+  'analysis',
+  'variants',
+  'experiment',
+  'screenshot',
+  'waitlist',
+  'track_event',
+  'track_config',
+  'signin'
+] as const
+export type RateLimitKind = (typeof RATE_LIMIT_KIND)[number]

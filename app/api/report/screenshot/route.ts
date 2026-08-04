@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { db } from '@/db'
 import { hypotheses, variants } from '@/db/schema'
 import { CORS_HEADERS, preflight } from '@/lib/cors'
+import { clientIp, enforceRateLimit } from '@/lib/rate-limit'
 import { screenshotVariant } from '@/lib/scrape'
 
 export const runtime = 'nodejs'
@@ -25,6 +26,15 @@ function json(url: string | null) {
 export async function POST(request: Request) {
   const parsed = BodySchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return json(null)
+
+  // The embed key is printed in plaintext on the customer's own page, so anyone can read it and
+  // start launching browsers here. This is the only thing standing between that and the bill.
+  const limited = await enforceRateLimit(
+    'screenshot',
+    `${parsed.data.embedKey}:${clientIp(request)}`,
+    CORS_HEADERS
+  )
+  if (limited) return limited
 
   try {
     const hypothesis = await db.query.hypotheses.findFirst({
@@ -51,9 +61,12 @@ export async function POST(request: Request) {
       variant.copy,
       hypothesis.currentCopy
     )
+    // The blob is world-readable, so the path must not be derivable from the variant id -- that id
+    // is returned by the authenticated API and would otherwise make every screenshot guessable.
     const { url } = await put(`screenshots/${variant.id}.png`, buffer, {
       access: 'public',
-      contentType: 'image/png'
+      contentType: 'image/png',
+      addRandomSuffix: true
     })
 
     await db.update(variants).set({ screenshotUrl: url }).where(eq(variants.id, variant.id))

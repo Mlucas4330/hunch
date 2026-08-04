@@ -5,9 +5,21 @@ import { db } from '@/db'
 import { analyses } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
 import { HypothesisList } from '@/components/hypothesis-list'
+import { FlowPlaybook } from '@/components/flow-playbook'
+import { EmbedSnippet } from '@/components/embed-snippet'
 import { InfoHint } from '@/components/info-hint'
 import { CopyReportLink } from '@/components/copy-report-link'
+import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
+import { getDictionary } from '@/lib/i18n'
+import { PLAYBOOK_EXPANDED_COUNT } from '@/lib/constants'
+import { pageMetadata } from '@/lib/seo'
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const { metadata } = await getDictionary()
+  return pageMetadata({ ...metadata.pages.analysis, path: `/analyses/${id}`, index: false })
+}
 
 export default async function AnalysisDetailPage({
   params
@@ -18,9 +30,14 @@ export default async function AnalysisDetailPage({
   const user = await getCurrentUser()
   if (!user) notFound()
 
+  const t = await getDictionary()
+
   const analysis = await db.query.analyses.findFirst({
     where: and(eq(analyses.id, id), eq(analyses.userId, user.id)),
-    with: { hypotheses: { with: { variants: { orderBy: (v, { asc }) => asc(v.position) } } } }
+    with: {
+      hypotheses: { with: { variants: { orderBy: (v, { asc }) => asc(v.position) } } },
+      flowFixes: { orderBy: (f, { asc }) => asc(f.position) }
+    }
   })
 
   if (!analysis) notFound()
@@ -29,15 +46,11 @@ export default async function AnalysisDetailPage({
     <div className="animate-fade-up space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">What to test</p>
+          <p className="panel-label text-[0.7rem] text-muted-foreground">{t.analysis.eyebrow}</p>
           <div className="flex items-center gap-2">
-            <h1 className="font-display text-2xl font-bold tracking-tight">Your test ideas</h1>
-            <InfoHint label="How to use this screen">
-              Each card is a test idea, ranked by likely impact. For each one the AI recommends the
-              strongest <strong>challenger</strong> to try against your current copy. Pick one and
-              press <strong>Set up test</strong> - you run one test at a time, and the live results
-              (not your guess) decide the winner. Install the snippet once and every test runs behind
-              it.
+            <h1 className="font-display text-2xl font-bold tracking-tight">{t.analysis.title}</h1>
+            <InfoHint label={t.analysis.hintLabel}>
+              <RichText>{t.analysis.hint}</RichText>
             </InfoHint>
           </div>
           <p className="truncate font-mono text-sm text-muted-foreground">{analysis.url}</p>
@@ -48,17 +61,17 @@ export default async function AnalysisDetailPage({
             embedKey={analysis.embedKey}
           />
           <Button asChild variant="outline" size="sm">
-            <Link href={`/analyses/${analysis.id}/report`}>Report</Link>
+            <Link href={`/analyses/${analysis.id}/report`}>{t.analysis.report}</Link>
           </Button>
           <Button asChild variant="ghost" size="sm">
-            <Link href="/dashboard">Back to dashboard</Link>
+            <Link href="/dashboard">{t.analysis.backToDashboard}</Link>
           </Button>
         </div>
       </div>
 
       {analysis.competitors && analysis.competitors.length > 0 && (
         <p className="text-sm text-muted-foreground" data-testid="benchmarked-against">
-          Benchmarked against:{' '}
+          {t.analysis.benchmarkedAgainst}{' '}
           {analysis.competitors.map((competitor, i) => (
             <span key={competitor.url}>
               {i > 0 && ', '}
@@ -75,12 +88,16 @@ export default async function AnalysisDetailPage({
         </p>
       )}
 
-      <HypothesisList
-        analysisId={analysis.id}
-        embedKey={analysis.embedKey}
+      {/* Section order lives here rather than inside HypothesisList: site-level setup first, then
+          the structural fixes, then the copy tests that run behind the snippet. */}
+      <EmbedSnippet
         appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
-        hypotheses={analysis.hypotheses}
+        embedKey={analysis.embedKey}
       />
+
+      <FlowPlaybook fixes={analysis.flowFixes} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
+
+      <HypothesisList analysisId={analysis.id} hypotheses={analysis.hypotheses} />
     </div>
   )
 }

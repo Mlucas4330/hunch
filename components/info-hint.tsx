@@ -2,12 +2,13 @@
 
 import { useState, type ReactNode } from 'react'
 import { Info } from 'lucide-react'
+import { useI18n } from '@/components/i18n-provider'
 import { cn } from '@/lib/utils'
 
 // A small clickable "how this works" icon. Clicking toggles a short explanation panel;
 // clicking anywhere outside closes it.
 export function InfoHint({
-  label = 'How this step works',
+  label,
   children,
   align = 'left'
 }: {
@@ -15,13 +16,14 @@ export function InfoHint({
   children: ReactNode
   align?: 'left' | 'right'
 }) {
+  const { dictionary } = useI18n()
   const [open, setOpen] = useState(false)
 
   return (
     <span className="relative inline-flex align-middle">
       <button
         type="button"
-        aria-label={label}
+        aria-label={label ?? dictionary.infoHint.defaultLabel}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="text-muted-foreground transition-colors hover:text-foreground"

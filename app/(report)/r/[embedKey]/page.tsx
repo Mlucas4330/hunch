@@ -1,14 +1,40 @@
 import { notFound } from 'next/navigation'
-import { eq } from 'drizzle-orm'
-import { db } from '@/db'
-import { analyses } from '@/db/schema'
 import { Wordmark } from '@/components/wordmark'
 import { SectionBadge } from '@/components/section-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
 import { VariantPreview } from '@/components/variant-preview'
+import { FlowPlaybook } from '@/components/flow-playbook'
 import { WaitlistWall } from '@/components/waitlist-wall'
 import { hasPlaceholders } from '@/lib/utils'
-import { REPORT_PREVIEW_LIMIT } from '@/lib/constants'
+import { PLAYBOOK_EXPANDED_COUNT, REPORT_PREVIEW_LIMIT } from '@/lib/constants'
+import { LanguageToggle } from '@/components/language-toggle'
+import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
+import { t as fill } from '@/lib/i18n/format'
+import { loadReport, reportHost } from '@/lib/report'
+import { pageMetadata } from '@/lib/seo'
+
+// noindex: a report is one prospect's teardown behind an opaque key, so it is thin and
+// near-duplicate for a crawler. The Open Graph card is the point -- this link is pasted into cold
+// email and DMs. An unknown key gets the same metadata shape as a real one, so nothing here reveals
+// whether a key exists; the page's own notFound() is what answers a bad link.
+export async function generateMetadata({ params }: { params: Promise<{ embedKey: string }> }) {
+  const { embedKey } = await params
+  const { metadata } = await getDictionary()
+  const analysis = await loadReport(embedKey)
+
+  const vars = {
+    host: analysis ? reportHost(analysis.url) : metadata.title,
+    count: analysis?.hypotheses.length ?? 0
+  }
+
+  return pageMetadata({
+    title: fill(metadata.pages.report.title, vars),
+    description: fill(metadata.pages.report.description, vars),
+    path: `/r/${embedKey}`,
+    index: false,
+    ownImage: true
+  })
+}
 
 export default async function PublicReportPage({
   params
@@ -17,11 +43,12 @@ export default async function PublicReportPage({
 }) {
   const { embedKey } = await params
 
-  const analysis = await db.query.analyses.findFirst({
-    where: eq(analyses.embedKey, embedKey),
-    with: { hypotheses: { with: { variants: { orderBy: (v, { asc }) => asc(v.position) } } } }
-  })
+  const locale = await getLocale()
+  const t = dictionaryFor(locale)
 
+  // A prospect reads this from a pasted link, so a mangled key lands on the same 404 an unknown one
+  // does rather than a Postgres cast error.
+  const analysis = await loadReport(embedKey)
   if (!analysis) notFound()
 
   const ranked = [...analysis.hypotheses].sort((a, b) => b.impactScore - a.impactScore)
@@ -39,29 +66,34 @@ export default async function PublicReportPage({
     <div className="space-y-8">
       <header className="flex items-end justify-between gap-4 border-b pb-4">
         <Wordmark />
-        <div className="text-right">
-          <p className="panel-label text-[0.65rem] text-muted-foreground">Conversion teardown</p>
-          <p className="font-display text-sm font-medium">A/B test plan</p>
+        <div className="flex items-end gap-4">
+          <LanguageToggle locale={locale} />
+          <div className="text-right">
+            <p className="panel-label text-[0.65rem] text-muted-foreground">{t.report.teardown}</p>
+            <p className="font-display text-sm font-medium">{t.report.plan}</p>
+          </div>
         </div>
       </header>
 
       <div className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">Landing page analyzed</p>
+        <p className="panel-label text-[0.7rem] text-muted-foreground">
+          {t.report.landingPageAnalyzed}
+        </p>
         <h1 className="text-balance font-display text-3xl font-bold tracking-tight">
-          {ranked.length} tests to lift your conversion, ranked by impact.
+          {fill(t.report.heading, { count: ranked.length })}
         </h1>
         <p className="break-all font-mono text-sm text-purple">{analysis.url}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
-        <SummaryCell label="Tests found" value={String(ranked.length)} />
-        <SummaryCell label="Top impact" value={`${topImpact}/10`} />
+        <SummaryCell label={t.report.testsFound} value={String(ranked.length)} />
+        <SummaryCell label={t.report.topImpact} value={`${topImpact}/10`} />
       </div>
 
       {analysis.competitors && analysis.competitors.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="panel-label text-[0.65rem] text-muted-foreground">
-            Benchmarked against
+            {t.report.benchmarkedAgainst}
           </span>
           {analysis.competitors.map((competitor) => (
             <a
@@ -75,6 +107,10 @@ export default async function PublicReportPage({
         </div>
       )}
 
+      {/* Shown in full, in front of the wall and outside REPORT_PREVIEW_LIMIT: the flow fixes are
+          the strongest reason a prospect keeps reading, so they are never what gets blurred. */}
+      <FlowPlaybook fixes={analysis.flowFixes} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
+
       <div className="space-y-4">
         {visible.map((hypothesis, index) => {
           const recommended = hypothesis.variants[0]
@@ -87,17 +123,19 @@ export default async function PublicReportPage({
                   </span>
                   <SectionBadge section={hypothesis.section} />
                   {index === 0 && (
-                    <span className="panel-label text-[0.6rem] text-coral">Test this first</span>
+                    <span className="panel-label text-[0.6rem] text-coral">
+                      {t.report.testThisFirst}
+                    </span>
                   )}
                 </div>
                 <div className="flex gap-3">
-                  <ScoreIndicator label="Impact" score={hypothesis.impactScore} kind="impact" />
-                  <ScoreIndicator label="Effort" score={hypothesis.effortScore} kind="effort" />
+                  <ScoreIndicator score={hypothesis.impactScore} kind="impact" />
+                  <ScoreIndicator score={hypothesis.effortScore} kind="effort" />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <p className="panel-label text-[0.6rem] text-muted-foreground">Problem</p>
+                <p className="panel-label text-[0.6rem] text-muted-foreground">{t.report.problem}</p>
                 <p className="text-sm font-medium leading-snug text-foreground">
                   {hypothesis.problem}
                 </p>
@@ -105,23 +143,27 @@ export default async function PublicReportPage({
 
               {recommended && (
                 <div className="space-y-2">
-                  <p className="panel-label text-[0.6rem] text-muted-foreground">Recommendation</p>
+                  <p className="panel-label text-[0.6rem] text-muted-foreground">
+                    {t.report.recommendation}
+                  </p>
                   <div className="space-y-3 rounded-md border border-purple/40 bg-purple/10 p-3">
                     <div className="space-y-1">
-                      <p className="panel-label text-[0.55rem] text-muted-foreground">Current</p>
+                      <p className="panel-label text-[0.55rem] text-muted-foreground">
+                        {t.report.current}
+                      </p>
                       <p className="text-sm text-muted-foreground line-through">
                         {hypothesis.currentCopy}
                       </p>
                     </div>
                     <div className="space-y-1">
-                      <p className="panel-label text-[0.55rem] text-muted-foreground">Change to</p>
+                      <p className="panel-label text-[0.55rem] text-muted-foreground">
+                        {t.report.changeTo}
+                      </p>
                       <p className="text-sm font-medium">{recommended.copy}</p>
                     </div>
                   </div>
                   {hasPlaceholders(recommended.copy) && (
-                    <p className="font-mono text-xs text-amber">
-                      Contains [placeholders]. Swap in your real details before launching.
-                    </p>
+                    <p className="font-mono text-xs text-amber">{t.report.placeholderNote}</p>
                   )}
                 </div>
               )}
@@ -134,17 +176,16 @@ export default async function PublicReportPage({
                 />
               ) : (
                 <div className="rounded-md border border-dashed bg-muted/40 p-3">
-                  <p className="panel-label text-[0.6rem] text-muted-foreground">Manual setup</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    This change touches a section that is not a single-line text swap, so an
-                    in-context preview is not available. Apply the recommended copy by hand.
+                  <p className="panel-label text-[0.6rem] text-muted-foreground">
+                    {t.report.manualSetup}
                   </p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t.report.manualSetupBody}</p>
                 </div>
               )}
 
               <details className="group">
                 <summary className="panel-label flex cursor-pointer list-none items-center gap-1 text-[0.6rem] text-muted-foreground hover:text-foreground">
-                  Why this works
+                  {t.report.whyThisWorks}
                   <span className="group-open:hidden">+</span>
                   <span className="hidden group-open:inline">-</span>
                 </summary>
@@ -186,8 +227,8 @@ export default async function PublicReportPage({
       )}
 
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
-        <p className="font-mono text-sm">Want these measured live on your page?</p>
-        <p className="text-sm text-muted-foreground">Generated by Hunch</p>
+        <p className="font-mono text-sm">{t.report.footerQuestion}</p>
+        <p className="text-sm text-muted-foreground">{t.report.generatedBy}</p>
       </footer>
     </div>
   )

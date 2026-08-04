@@ -1,12 +1,109 @@
+import type { Duration } from '@upstash/ratelimit'
 import type {
-  ExperimentArm,
   ExperimentRecommendation,
   ExperimentStatus,
+  FlowCategory,
   HypothesisStatus,
+  Locale,
+  RateLimitKind,
   Section,
   SubscriptionPlan,
   VariantStatus
 } from '@/lib/enums'
+
+// Only reached when NEXT_PUBLIC_APP_URL is unset, which is local dev and the e2e run. In production
+// it is what canonical, Open Graph and sitemap URLs are built from, so it must be set there.
+export const FALLBACK_APP_ORIGIN = 'http://localhost:3000'
+
+// Session-gated page prefixes. Middleware redirects them when signed out and robots.txt disallows
+// them, so the two can never drift.
+export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/billing', '/admin']
+
+export const DEFAULT_LOCALE: Locale = 'en'
+
+export const LOCALE_COOKIE = 'locale'
+
+// Language names stay in their own language -- never translated.
+export const LOCALE_LABEL: Record<Locale, string> = {
+  en: 'EN',
+  'pt-BR': 'PT'
+}
+
+// How each locale is named to the model when it is told which language to write the analysis in.
+export const AI_OUTPUT_LANGUAGE: Record<Locale, string> = {
+  en: 'English',
+  'pt-BR': 'Brazilian Portuguese (pt-BR)'
+}
+
+// A language choice is a UI preference, not a session: it outlives sign-out and belongs to the
+// browser, so it is never tied to the user row.
+export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+
+// Outbound scraping is driven by user-supplied URLs, so every hop is validated against these before
+// a browser is pointed at it. See lib/url-guard.ts.
+export const ALLOWED_SCRAPE_PROTOCOLS = ['http:', 'https:']
+
+export const ALLOWED_SCRAPE_PORTS = [80, 443, 8080]
+
+// Hostnames that resolve inside the deploy no matter what DNS says.
+export const BLOCKED_HOST_SUFFIXES = ['localhost', '.localhost', '.local', '.internal', '.home.arpa']
+
+// One scrape touches many subresources on a handful of hosts; resolving each host once per scrape
+// keeps the guard off the critical path without letting a verdict go stale across analyses.
+export const HOST_RESOLUTION_CACHE_TTL_MS = 60 * 1000
+
+export const SCRAPE_NAVIGATION_TIMEOUT_MS = 30_000
+
+// How long to keep waiting for a client-rendered page to paint after navigation reports idle.
+// Generous on purpose: a page that renders fast settles in about two polls and never spends this
+// budget, so the only thing a bigger number costs is the pathological case. Measured against a real
+// target, an app whose API backend cold-starts took ~8s to swap its "Carregando..." skeleton for
+// content -- well past navigation, and enough that a 10s budget lost the race intermittently.
+export const SCRAPE_SETTLE_TIMEOUT_MS = 25_000
+
+export const SCRAPE_SETTLE_POLL_MS = 250
+
+// Below this the rendered text is a skeleton or a spinner, not a landing page, so an unchanged
+// sample that short is treated as "still rendering" rather than as settled.
+export const SCRAPE_SETTLE_MIN_TEXT_LENGTH = 200
+
+// Rendered text never goes perfectly still: a countdown, a live counter or a rotating headline
+// rewrites a few characters forever. Settling is therefore "stopped changing meaningfully" rather
+// than "identical", or every page carrying one would wait out the full timeout for nothing.
+export const SCRAPE_SETTLE_TEXT_TOLERANCE = 8
+
+// A page is read for its copy, so anything past this is padding -- and an unbounded response is a
+// straightforward way to exhaust the function's memory.
+export const SCRAPE_MAX_RESPONSE_BYTES = 25 * 1024 * 1024
+
+// Resource types worth fetching to render text and take a screenshot. Media, websockets and
+// prefetches only cost time.
+export const SCRAPE_ALLOWED_RESOURCE_TYPES = [
+  'document',
+  'stylesheet',
+  'image',
+  'font',
+  'script',
+  'xhr',
+  'fetch',
+  'other'
+]
+
+// Sized by what each route costs us, not by what a plan allows. The two LLM/Puppeteer routes are
+// the expensive ones; the tracking routes carry a landing page's real traffic and must stay generous
+// enough that a busy customer is never throttled.
+export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; window: Duration }> = {
+  analysis: { tokens: 5, window: '1 h' },
+  variants: { tokens: 20, window: '1 h' },
+  experiment: { tokens: 30, window: '1 h' },
+  screenshot: { tokens: 10, window: '1 h' },
+  waitlist: { tokens: 5, window: '1 h' },
+  track_event: { tokens: 120, window: '1 m' },
+  track_config: { tokens: 300, window: '1 m' },
+  signin: { tokens: 5, window: '15 m' }
+}
+
+export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 
 export const FREE_ANALYSES_LIMIT = 3
 
@@ -23,28 +120,91 @@ export const REPORT_PREVIEW_LIMIT = 3
 // Guards against snapping a long merged string onto a tiny element (e.g. a 3-word badge).
 export const TARGET_MATCH_MAX_WORD_RATIO = 1.3
 
+// Conversion goals are pinned to clickable elements. Anything wordier than this is prose with a link
+// in it, not a CTA, so it never becomes a goal candidate.
+export const GOAL_CANDIDATE_MAX_WORDS = 8
+
+// How many goal candidates the test runner offers before falling back to the free-text selector.
+export const GOAL_CANDIDATE_LIMIT = 12
+
+// The recommendation plus its two alternates. Only the recommendation is generated during the
+// analysis; the alternates are written on demand by the run-a-test screen.
+export const VARIANTS_PER_HYPOTHESIS = 3
+
+// The flow playbook: structural fixes that sit beside the copy hypotheses. Bounded because a founder
+// acts on a short list, and because the playbook shares the analysis's generation budget.
+export const PLAYBOOK_MIN = 3
+
+export const PLAYBOOK_MAX = 6
+
+export const PLAYBOOK_STEPS_MAX = 5
+
+// Where a hypothesis lands when the model answers with a section outside the enum -- it has returned
+// the element's HTML tag before. The catch-all SECTIONS member, named here so the schema's fallback
+// is not a bare string literal.
+export const SECTION_FALLBACK: Section = 'other'
+
+// How many reference pages are named as examples in one evidence line. The aggregate count carries
+// the argument; the names are there to make it checkable.
+export const REFERENCE_SAMPLE_LIMIT = 5
+
+// A corpus signal is only evidence FOR a fix when most reference pages do it. Below this the count
+// argues the other way ("2 of 12 do this"), which is worse than citing nothing: the corpus holds
+// landing pages, so anything that normally lives a click deeper (a signup form's OAuth buttons) is
+// legitimately sparse and must not be quoted as a reason to skip the fix.
+export const REFERENCE_MAJORITY_RATIO = 0.5
+
+// Each ingest entry is a full Puppeteer scrape, so the batch is throttled rather than fanned out.
+export const REFERENCE_INGEST_CONCURRENCY = 3
+
+// Text a login button carries when it delegates auth to a provider. Used to tell a page that already
+// offers social sign in from one that would benefit from it, so the playbook never recommends adding
+// what is already there. Detection patterns, not domain values -- matched case-insensitively.
+export const OAUTH_PROVIDER_PATTERNS: Record<string, string[]> = {
+  google: ['google'],
+  github: ['github'],
+  microsoft: ['microsoft', 'azure', 'office 365'],
+  apple: ['apple'],
+  facebook: ['facebook', 'meta'],
+  linkedin: ['linkedin'],
+  slack: ['slack'],
+  sso: ['sso', 'single sign on', 'saml', 'okta']
+}
+
+// The rest of the structural detection vocabulary, matched case-insensitively against element text,
+// headings, or iframe sources. A provider name alone is not enough to call something social sign in
+// (a dev tool links to GitHub in its nav), so `auth` has to match on the same control.
+export const STRUCTURE_PATTERNS = {
+  auth: ['sign in', 'signin', 'sign up', 'signup', 'log in', 'login', 'continue with', 'register'],
+  faq: ['faq', "faq's", 'frequently asked', 'common questions', 'questions', 'perguntas'],
+  pricing: ['pricing', 'plans', 'price', 'preco', 'precos', 'planos'],
+  testimonials: ['testimonial', 'customers say', 'loved by', 'what our', 'reviews', 'depoimentos'],
+  videoHosts: ['youtube.com', 'youtu.be', 'vimeo.com', 'loom.com', 'wistia', 'mux.com']
+}
+
+// Open Graph images are rasterized by Satori, which parses neither oklch() nor a CSS custom
+// property -- so the design tokens in app/globals.css cannot be referenced there. These are those
+// same tokens (--ink, --paper, --rule, --muted-foreground, --purple, --coral) as sRGB hex, and the
+// only place in the codebase where a hex value is legitimate. Keep them in step with globals.css.
+export const OG_COLORS = {
+  ink: '#1b1d24',
+  paper: '#fbfbfd',
+  rule: '#e2e2e7',
+  mutedForeground: '#6c6f7d',
+  purple: '#7c3aed',
+  coral: '#ef5a3f'
+}
+
+export const OG_IMAGE_SIZE = { width: 1200, height: 630 }
+
+// The site-wide card rendered by app/opengraph-image.tsx. Named explicitly because a page that sets
+// its own `openGraph` replaces the root layout's entirely -- the file convention does not survive
+// that merge, so every such page has to point back here. See lib/seo.ts.
+export const DEFAULT_OG_IMAGE_PATH = '/opengraph-image'
+
 export const PLAN_PRICES: Record<SubscriptionPlan, number> = {
   free: 0,
-  solo: 29,
-  team: 79
-}
-
-export const PLAN_SEATS: Record<SubscriptionPlan, number> = {
-  free: 1,
-  solo: 1,
-  team: 3
-}
-
-export const SECTION_LABEL: Record<Section, string> = {
-  headline: 'Headline',
-  subheadline: 'Subheadline',
-  cta: 'CTA',
-  social_proof: 'Social Proof',
-  pricing: 'Pricing',
-  features: 'Features',
-  hero_image: 'Hero Image',
-  navigation: 'Navigation',
-  other: 'Other'
+  solo: 29
 }
 
 // Color tokens are defined in app/globals.css (@theme). These maps only reference
@@ -87,17 +247,19 @@ export const SECTION_DOT_CLASS: Record<Section, string> = {
   other: 'bg-neutral'
 }
 
-export const PLAN_BADGE_CLASS: Record<SubscriptionPlan, string> = {
-  free: 'bg-neutral/15 text-neutral',
-  solo: 'bg-purple/15 text-purple',
-  team: 'bg-amber/15 text-amber'
+export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
+  signup_friction: 'bg-coral/15 text-coral',
+  cta_placement: 'bg-purple/15 text-purple',
+  decision_load: 'bg-blue/15 text-blue',
+  objections: 'bg-teal/15 text-teal',
+  trust: 'bg-green/15 text-green',
+  pricing_clarity: 'bg-amber/15 text-amber',
+  page_structure: 'bg-neutral/15 text-neutral'
 }
 
-export const HYPOTHESIS_STATUS_LABEL: Record<HypothesisStatus, string> = {
-  pending: 'Pending',
-  testing: 'Testing',
-  completed: 'Completed',
-  skipped: 'Skipped'
+export const PLAN_BADGE_CLASS: Record<SubscriptionPlan, string> = {
+  free: 'bg-neutral/15 text-neutral',
+  solo: 'bg-purple/15 text-purple'
 }
 
 export const HYPOTHESIS_STATUS_BADGE_CLASS: Record<HypothesisStatus, string> = {
@@ -107,13 +269,6 @@ export const HYPOTHESIS_STATUS_BADGE_CLASS: Record<HypothesisStatus, string> = {
   skipped: 'bg-neutral/10 text-muted-foreground'
 }
 
-export const VARIANT_STATUS_LABEL: Record<VariantStatus, string> = {
-  proposed: 'Proposed',
-  testing: 'Testing',
-  winner: 'Winner',
-  rejected: 'Rejected'
-}
-
 export const VARIANT_STATUS_BADGE_CLASS: Record<VariantStatus, string> = {
   proposed: 'bg-neutral/15 text-neutral',
   testing: 'bg-amber/15 text-amber',
@@ -121,27 +276,10 @@ export const VARIANT_STATUS_BADGE_CLASS: Record<VariantStatus, string> = {
   rejected: 'bg-red/15 text-red'
 }
 
-export const EXPERIMENT_STATUS_LABEL: Record<ExperimentStatus, string> = {
-  running: 'Running',
-  stopped: 'Stopped',
-  completed: 'Completed'
-}
-
 export const EXPERIMENT_STATUS_BADGE_CLASS: Record<ExperimentStatus, string> = {
   running: 'bg-amber/15 text-amber',
   stopped: 'bg-neutral/15 text-neutral',
   completed: 'bg-green/15 text-green'
-}
-
-export const EXPERIMENT_ARM_LABEL: Record<ExperimentArm, string> = {
-  control: 'Control',
-  variant: 'Variant'
-}
-
-export const EXPERIMENT_RECOMMENDATION_LABEL: Record<ExperimentRecommendation, string> = {
-  ship_variant: 'Ship the variant',
-  keep_control: 'Keep current copy',
-  inconclusive: 'Inconclusive - not enough traffic'
 }
 
 export const EXPERIMENT_RECOMMENDATION_BADGE_CLASS: Record<ExperimentRecommendation, string> = {
@@ -174,3 +312,17 @@ export function effortScoreFillClass(score: number): string {
   if (score <= 6) return 'bg-amber'
   return 'bg-red'
 }
+
+// High payoff for little work. The print report's summary cell and the analysis screen's "Quick
+// wins" sort read the same definition, so the two can never disagree about what one is.
+export function isQuickWin(scores: { impactScore: number; effortScore: number }): boolean {
+  return scores.impactScore >= 7 && scores.effortScore <= 3
+}
+
+// How many hypotheses stay open before the rest collapse into scannable rows, and the point past
+// which the sort/filter bar earns its space.
+export const HYPOTHESIS_EXPANDED_COUNT = 3
+export const HYPOTHESIS_FILTER_THRESHOLD = 4
+// The playbook keeps fewer open: it sits above the hypotheses on every surface, and its cards are
+// the tallest thing on the page once the steps list is showing.
+export const PLAYBOOK_EXPANDED_COUNT = 2

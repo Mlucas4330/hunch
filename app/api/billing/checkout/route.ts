@@ -5,6 +5,7 @@ import { db } from '@/db'
 import { users } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
 import { stripe, priceIdForPlan } from '@/lib/stripe'
+import { appOrigin } from '@/lib/app-url'
 import { SUBSCRIPTION_PLAN } from '@/lib/enums'
 
 const PAID_PLANS = SUBSCRIPTION_PLAN.filter((plan) => plan !== 'free')
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
       await db.update(users).set({ stripeCustomerId: customerId }).where(eq(users.id, user.id))
     }
 
-    const origin = new URL(request.url).origin
+    const origin = appOrigin(request)
     const session = await stripe.checkout.sessions.create({
       ui_mode: 'embedded',
       mode: 'subscription',

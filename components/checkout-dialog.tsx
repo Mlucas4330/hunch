@@ -3,6 +3,8 @@
 import { useCallback, useEffect } from 'react'
 import { EmbeddedCheckout, EmbeddedCheckoutProvider } from '@stripe/react-stripe-js'
 import { getStripe } from '@/lib/stripe-client'
+import { useI18n } from '@/components/i18n-provider'
+import { t } from '@/lib/i18n/format'
 import type { SubscriptionPlan } from '@/lib/enums'
 
 export function CheckoutDialog({
@@ -12,6 +14,9 @@ export function CheckoutDialog({
   plan: SubscriptionPlan
   onClose: () => void
 }) {
+  const { dictionary } = useI18n()
+  const upgradeLabel = t(dictionary.billing.upgradeTo, { plan: dictionary.labels.plan[plan] })
+
   const fetchClientSecret = useCallback(async () => {
     const res = await fetch('/api/billing/checkout', {
       method: 'POST',
@@ -42,7 +47,7 @@ export function CheckoutDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label={`Upgrade to ${plan}`}
+      aria-label={upgradeLabel}
       onClick={onClose}
     >
       <div
@@ -50,16 +55,14 @@ export function CheckoutDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-3 flex shrink-0 items-center justify-between">
-          <span className="panel-label text-[0.7rem] text-muted-foreground capitalize">
-            Upgrade to {plan}
-          </span>
+          <span className="panel-label text-[0.7rem] text-muted-foreground">{upgradeLabel}</span>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close checkout"
+            aria-label={dictionary.billing.closeCheckoutAria}
             className="rounded-sm px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted"
           >
-            Close
+            {dictionary.common.close}
           </button>
         </div>
         <div className="-mr-2 flex-1 overflow-y-auto pr-2">

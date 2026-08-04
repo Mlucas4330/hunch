@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useI18n } from '@/components/i18n-provider'
 
 export function EmbedSnippet({ appUrl, embedKey }: { appUrl: string; embedKey: string }) {
+  const { dictionary } = useI18n()
   const [origin, setOrigin] = useState(appUrl)
   const [copied, setCopied] = useState(false)
 
@@ -23,16 +25,13 @@ export function EmbedSnippet({ appUrl, embedKey }: { appUrl: string; embedKey: s
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
-        <CardTitle className="text-sm font-medium">Install the tracking snippet</CardTitle>
+        <CardTitle className="text-sm font-medium">{dictionary.embedSnippet.title}</CardTitle>
         <Button variant="outline" size="sm" onClick={copy} data-testid="embed-copy">
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? dictionary.common.copied : dictionary.common.copy}
         </Button>
       </CardHeader>
       <CardContent className="space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Paste this once, just before the closing body tag on your landing page. It applies
-          running variants and reports results back automatically.
-        </p>
+        <p className="text-xs text-muted-foreground">{dictionary.embedSnippet.body}</p>
         <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs">{snippet}</pre>
       </CardContent>
     </Card>

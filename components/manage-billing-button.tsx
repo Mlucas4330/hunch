@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/components/i18n-provider'
 
 export function ManageBillingButton() {
+  const { dictionary } = useI18n()
   const [pending, setPending] = useState(false)
 
   async function onClick() {
@@ -19,7 +21,7 @@ export function ManageBillingButton() {
 
   return (
     <Button variant="outline" disabled={pending} onClick={onClick}>
-      Manage billing
+      {dictionary.billing.manageBilling}
     </Button>
   )
 }

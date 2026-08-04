@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useI18n } from '@/components/i18n-provider'
 
 export function WaitlistForm({ embedKey }: { embedKey: string }) {
+  const { dictionary } = useI18n()
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [status, setStatus] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle')
@@ -12,7 +14,7 @@ export function WaitlistForm({ embedKey }: { embedKey: string }) {
   if (status === 'done') {
     return (
       <p className="rounded-md border border-teal/40 bg-teal/10 px-4 py-3 text-sm font-medium text-teal">
-        You are on the list. We will be in touch.
+        {dictionary.waitlist.done}
       </p>
     )
   }
@@ -37,24 +39,22 @@ export function WaitlistForm({ embedKey }: { embedKey: string }) {
       <Input
         type="email"
         required
-        placeholder="you@company.com"
+        placeholder={dictionary.waitlist.emailPlaceholder}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         disabled={status === 'submitting'}
       />
       <Input
         type="tel"
-        placeholder="Phone (optional)"
+        placeholder={dictionary.waitlist.phonePlaceholder}
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
         disabled={status === 'submitting'}
       />
       <Button type="submit" className="w-full" disabled={status === 'submitting'}>
-        {status === 'submitting' ? 'Joining...' : 'Join the waitlist'}
+        {status === 'submitting' ? dictionary.waitlist.joining : dictionary.waitlist.join}
       </Button>
-      {status === 'error' && (
-        <p className="text-sm text-red">Something went wrong. Please try again.</p>
-      )}
+      {status === 'error' && <p className="text-sm text-red">{dictionary.waitlist.error}</p>}
     </form>
   )
 }

@@ -1,5 +1,18 @@
-import puppeteer from 'puppeteer'
-import { TARGET_MATCH_MAX_WORD_RATIO } from '@/lib/constants'
+import puppeteer, { type Browser, type Page } from 'puppeteer'
+import {
+  GOAL_CANDIDATE_MAX_WORDS,
+  OAUTH_PROVIDER_PATTERNS,
+  STRUCTURE_PATTERNS,
+  SCRAPE_ALLOWED_RESOURCE_TYPES,
+  SCRAPE_MAX_RESPONSE_BYTES,
+  SCRAPE_NAVIGATION_TIMEOUT_MS,
+  SCRAPE_SETTLE_MIN_TEXT_LENGTH,
+  SCRAPE_SETTLE_POLL_MS,
+  SCRAPE_SETTLE_TEXT_TOLERANCE,
+  SCRAPE_SETTLE_TIMEOUT_MS,
+  TARGET_MATCH_MAX_WORD_RATIO
+} from '@/lib/constants'
+import { assertPublicUrl, isPublicUrl } from '@/lib/url-guard'
 
 export interface PageElement {
   text: string
@@ -7,7 +20,36 @@ export interface PageElement {
   tag: string
 }
 
+// What the page DOES, as opposed to what it says. The copy hypotheses only ever need `elements`;
+// the flow playbook needs to know whether a fix it is about to recommend is already implemented.
+// Flat and boolean/numeric only: the identical shape is stored on every reference_pages row, and
+// comparing an analysed page against the corpus is a field-by-field diff.
+export interface PageStructure {
+  hasOauth: boolean
+  oauthProviders: string[]
+  formCount: number
+  formFieldCount: number
+  hasFaq: boolean
+  hasPricing: boolean
+  hasTestimonials: boolean
+  hasVideo: boolean
+  hasStickyCta: boolean
+  // Every short clickable in the body, not only real calls to action -- a feature card's "Learn
+  // more" counts. Named for what it measures so the model never reads it as "you have 68 CTAs".
+  bodyLinkCount: number
+  aboveFoldCtaCount: number
+  navLinkCount: number
+  headingCount: number
+  sectionCount: number
+  wordCount: number
+}
+
 export type TargetMode = 'auto' | 'manual'
+
+export interface GoalCandidate {
+  text: string
+  selector: string
+}
 
 export interface ResolvedTarget {
   selector: string | null
@@ -19,6 +61,7 @@ export interface ScrapedPage {
   url: string
   html: string
   elements: PageElement[]
+  structure: PageStructure
 }
 
 export class ScrapeError extends Error {
@@ -28,18 +71,112 @@ export class ScrapeError extends Error {
   }
 }
 
-export async function scrapePage(url: string): Promise<ScrapedPage> {
-  const browser = await puppeteer.launch({
+// The single place a browser is obtained. Every scrape shares it so the sandbox flags and the
+// request guard below can never drift apart between call sites, and so the body can later be
+// swapped for `puppeteer.connect()` against a dedicated browser tier without touching callers.
+async function launchBrowser(): Promise<Browser> {
+  // The Chrome sandbox is what keeps a renderer exploit -- from a page we do not control -- away
+  // from this process's env, which holds the DB and API credentials. Disabling it is opt-in and
+  // explicit, never the silent default, because some serverless runtimes cannot provide it.
+  const sandboxless = process.env.PUPPETEER_ALLOW_NO_SANDBOX === '1'
+
+  return puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: [
+      ...(sandboxless ? ['--no-sandbox', '--disable-setuid-sandbox'] : []),
+      '--disable-dev-shm-usage',
+      '--disable-gpu'
+    ]
+  })
+}
+
+// assertPublicUrl only vets the URL we were handed. Redirects and anything the page requests on its
+// own are re-checked here, which is what actually closes DNS rebinding and 302-to-metadata.
+async function openGuardedPage(browser: Browser): Promise<Page> {
+  const page = await browser.newPage()
+  page.setDefaultTimeout(SCRAPE_NAVIGATION_TIMEOUT_MS)
+
+  // The functions handed to page.evaluate() are serialized as source, so whatever transpiled them
+  // comes along. esbuild (which is what runs the ingest CLI through tsx) wraps named functions in a
+  // __name() helper that lives in the module scope and therefore does not exist in the page, making
+  // every evaluate throw "__name is not defined". Declaring it as an identity function in the page
+  // is what lets the scraper run outside the Next build. Passed as a string so it cannot itself be
+  // rewritten by the same transform.
+  await page.evaluateOnNewDocument('window.__name = window.__name || ((fn) => fn)')
+
+  await page.setRequestInterception(true)
+
+  let bytes = 0
+
+  page.on('request', async (request) => {
+    if (request.isInterceptResolutionHandled()) return
+
+    if (!SCRAPE_ALLOWED_RESOURCE_TYPES.includes(request.resourceType())) {
+      return request.abort('blockedbyclient').catch(() => {})
+    }
+    if (bytes > SCRAPE_MAX_RESPONSE_BYTES) {
+      return request.abort('blockedbyclient').catch(() => {})
+    }
+    if (!(await isPublicUrl(request.url()))) {
+      return request.abort('blockedbyclient').catch(() => {})
+    }
+
+    request.continue().catch(() => {})
   })
 
+  page.on('response', (response) => {
+    const length = Number(response.headers()['content-length'] ?? 0)
+    bytes += Number.isFinite(length) ? length : 0
+  })
+
+  return page
+}
+
+// `networkidle2` is a network condition, not a rendering one: it fires once the sockets go quiet,
+// which a client-rendered page satisfies while its skeleton is still the only thing on screen.
+// Everything downstream reads the DOM -- the copy, the element list, the structural readout, the
+// screenshot -- so the capture waits here until the rendered text stops growing. Bounded and
+// fail-soft: a page that never settles is captured as-is rather than failing the scrape.
+async function settlePage(page: Page): Promise<void> {
+  const deadline = Date.now() + SCRAPE_SETTLE_TIMEOUT_MS
+  let previous = -1
+
+  while (Date.now() < deadline) {
+    const length = await page.evaluate(() => document.body?.innerText.length ?? 0)
+
+    // A stable sample that is still skeleton-sized means the frame has not painted yet, not that
+    // the page is finished, so only a stable *and* substantial one ends the wait early.
+    const stable = Math.abs(length - previous) <= SCRAPE_SETTLE_TEXT_TOLERANCE
+    if (stable && length >= SCRAPE_SETTLE_MIN_TEXT_LENGTH) return
+
+    previous = length
+    await new Promise((resolve) => setTimeout(resolve, SCRAPE_SETTLE_POLL_MS))
+  }
+}
+
+export async function scrapePage(url: string): Promise<ScrapedPage> {
+  const target = await assertPublicUrl(url)
+  const browser = await launchBrowser()
+
   try {
-    const page = await browser.newPage()
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 })
+    const page = await openGuardedPage(browser)
+    // A real desktop fold, matching screenshotVariant. Both the visibility filter in
+    // captureElements and aboveFoldCtaCount are measured against it, so it cannot be left at
+    // Puppeteer's 800x600 default without calling a normal hero "below the fold".
+    await page.setViewport({ width: 1280, height: 800 })
+    await page.goto(target.href, {
+      waitUntil: 'networkidle2',
+      timeout: SCRAPE_NAVIGATION_TIMEOUT_MS
+    })
+    await settlePage(page)
     const html = await page.content()
     const elements = await page.evaluate(captureElements)
-    return { url, html, elements }
+    const structure = await page.evaluate(captureStructure, {
+      oauthProviders: OAUTH_PROVIDER_PATTERNS,
+      patterns: STRUCTURE_PATTERNS,
+      ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
+    })
+    return { url, html, elements, structure }
   } catch (error) {
     throw new ScrapeError(`Failed to scrape ${url}`, { cause: error })
   } finally {
@@ -58,15 +195,17 @@ export async function screenshotVariant(
   variantCopy: string,
   controlCopy?: string | null
 ): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  })
+  const target = await assertPublicUrl(url)
+  const browser = await launchBrowser()
 
   try {
-    const page = await browser.newPage()
+    const page = await openGuardedPage(browser)
     await page.setViewport({ width: 1280, height: 800 })
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 })
+    await page.goto(target.href, {
+      waitUntil: 'networkidle2',
+      timeout: SCRAPE_NAVIGATION_TIMEOUT_MS
+    })
+    await settlePage(page)
 
     if (selector) {
       const outcome = await page.evaluate(
@@ -175,6 +314,126 @@ function captureElements(): PageElement[] {
     out.push({ text, selector: cssPath(el), tag })
   }
   return out
+}
+
+// Runs in the browser context: measure what the page already does, so the playbook never recommends
+// adding something that is already there. Every signal is deliberately conservative -- a false
+// negative costs one redundant suggestion, a false positive silently drops a real fix.
+function captureStructure(options: {
+  oauthProviders: Record<string, string[]>
+  patterns: typeof STRUCTURE_PATTERNS
+  ctaMaxWords: number
+}): PageStructure {
+  const { oauthProviders, patterns, ctaMaxWords } = options
+
+  function isVisible(el: Element): boolean {
+    const rect = el.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) return false
+    const style = getComputedStyle(el)
+    return style.visibility !== 'hidden' && style.display !== 'none'
+  }
+
+  function label(el: Element): string {
+    const text = (el.textContent || '') + ' ' + (el.getAttribute('aria-label') || '')
+    return text.replace(/\s+/g, ' ').trim().toLowerCase()
+  }
+
+  function matchesAny(value: string, needles: string[]): boolean {
+    return needles.some((needle) => value.includes(needle))
+  }
+
+  function words(value: string): number {
+    return value.split(/\s+/).filter(Boolean).length
+  }
+
+  const clickables = Array.from(document.querySelectorAll('a, button')).filter(isVisible)
+
+  // A provider name alone means nothing (a dev tool links to GitHub in its nav). The same control
+  // has to also read as an auth action for this to be social sign in.
+  const providers = new Set<string>()
+  for (const el of clickables) {
+    const text = label(el)
+    if (!matchesAny(text, patterns.auth)) continue
+    for (const [provider, needles] of Object.entries(oauthProviders)) {
+      if (matchesAny(text, needles)) providers.add(provider)
+    }
+  }
+
+  const fields = Array.from(
+    document.querySelectorAll<HTMLElement>('input, select, textarea')
+  ).filter((el) => {
+    if (el.tagName === 'INPUT') {
+      const type = (el as HTMLInputElement).type
+      if (['hidden', 'submit', 'button', 'reset', 'image'].includes(type)) return false
+    }
+    return isVisible(el)
+  })
+
+  const forms = Array.from(document.querySelectorAll('form')).filter((form) =>
+    fields.some((field) => form.contains(field))
+  )
+
+  const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6')).filter(isVisible)
+  const headingText = headings.map((h) => label(h))
+
+  const bodyText = (document.body.innerText || '').replace(/\s+/g, ' ').trim()
+
+  const ctas = clickables.filter((el) => {
+    if (el.closest('nav, header, footer')) return false
+    const text = label(el)
+    return text.length > 0 && words(text) <= ctaMaxWords
+  })
+
+  const hasStickyCta = Array.from(document.querySelectorAll('*')).some((el) => {
+    const position = getComputedStyle(el).position
+    if (position !== 'fixed' && position !== 'sticky') return false
+    return isVisible(el) && el.querySelector('a, button') !== null
+  })
+
+  const hasVideo =
+    document.querySelector('video') !== null ||
+    Array.from(document.querySelectorAll('iframe')).some((frame) =>
+      matchesAny((frame.getAttribute('src') || '').toLowerCase(), patterns.videoHosts)
+    )
+
+  const main = document.querySelector('main') ?? document.body
+
+  return {
+    hasOauth: providers.size > 0,
+    oauthProviders: Array.from(providers),
+    formCount: forms.length,
+    formFieldCount: fields.length,
+    hasFaq:
+      document.querySelector('details > summary') !== null ||
+      headingText.some((text) => matchesAny(text, patterns.faq)),
+    hasPricing:
+      headingText.some((text) => matchesAny(text, patterns.pricing)) ||
+      /[$€£]\s?\d|R\$\s?\d/.test(bodyText),
+    hasTestimonials:
+      document.querySelector('blockquote') !== null ||
+      headingText.some((text) => matchesAny(text, patterns.testimonials)),
+    hasVideo,
+    hasStickyCta,
+    bodyLinkCount: ctas.length,
+    aboveFoldCtaCount: ctas.filter((el) => el.getBoundingClientRect().top < window.innerHeight)
+      .length,
+    navLinkCount: Array.from(document.querySelectorAll('nav a, header a')).filter(isVisible).length,
+    headingCount: headings.length,
+    sectionCount: Array.from(main.children).filter(isVisible).length,
+    wordCount: words(bodyText)
+  }
+}
+
+// The clickable elements a conversion can be pinned to. `captureElements` already emits anchors and
+// buttons individually with a stable selector, so this is a filter over that output rather than a
+// second DOM pass. Ordered longest-lived-CTA-first: real CTAs read like actions, so the wordier nav
+// links sink below them and the default goal lands on something worth measuring.
+export function goalCandidates(elements: PageElement[]): GoalCandidate[] {
+  return elements
+    .filter((e) => e.tag === 'a' || e.tag === 'button')
+    .filter((e) => wordCount(e.text) <= GOAL_CANDIDATE_MAX_WORDS)
+    .sort((a, b) => wordCount(a.text) - wordCount(b.text))
+    .map((e) => ({ text: e.text, selector: e.selector }))
 }
 
 function normalize(value: string): string {

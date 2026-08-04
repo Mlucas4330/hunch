@@ -4,11 +4,28 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { experiments, experimentStats, hypotheses } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
+import { canExport } from '@/lib/usage'
 import { experimentWithResult } from '@/lib/experiments'
 import { TestRunner, type TestExperiment } from '@/components/test-runner'
 import { InfoHint } from '@/components/info-hint'
-import { SECTION_LABEL } from '@/lib/constants'
+import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
+import { getDictionary } from '@/lib/i18n'
+import { pageMetadata } from '@/lib/seo'
+
+export async function generateMetadata({
+  params
+}: {
+  params: Promise<{ id: string; hypothesisId: string }>
+}) {
+  const { id, hypothesisId } = await params
+  const { metadata } = await getDictionary()
+  return pageMetadata({
+    ...metadata.pages.test,
+    path: `/analyses/${id}/tests/${hypothesisId}`,
+    index: false
+  })
+}
 
 export default async function RunTestPage({
   params
@@ -18,6 +35,8 @@ export default async function RunTestPage({
   const { id, hypothesisId } = await params
   const user = await getCurrentUser()
   if (!user) notFound()
+
+  const t = await getDictionary()
 
   const hypothesis = await db.query.hypotheses.findFirst({
     where: eq(hypotheses.id, hypothesisId),
@@ -52,6 +71,7 @@ export default async function RunTestPage({
       variantCopy: withResult.variantCopy,
       durationDays: withResult.durationDays,
       endsAt: withResult.endsAt ? withResult.endsAt.toISOString() : null,
+      goalSelector: withResult.goalSelector,
       result: withResult.result
     }
   }
@@ -62,20 +82,16 @@ export default async function RunTestPage({
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <p className="panel-label text-[0.7rem] text-muted-foreground">
-              Run a test - {SECTION_LABEL[hypothesis.section]}
+              {t.runTest.eyebrow} - {t.labels.section[hypothesis.section]}
             </p>
-            <InfoHint label="How running a test works">
-              Your current copy is the <strong>control</strong>. Pick a <strong>challenger</strong>,
-              edit it to fit your product (replace any [bracketed] placeholders with real details),
-              and choose how long to run. On <strong>Launch</strong>, the snippet shows the challenger
-              to half your visitors and tracks conversions. When the window ends we read the result
-              once and recommend a winner.
+            <InfoHint label={t.runTest.hintLabel}>
+              <RichText>{t.runTest.hint}</RichText>
             </InfoHint>
           </div>
           <h1 className="font-display text-2xl font-bold tracking-tight">{hypothesis.problem}</h1>
         </div>
         <Button asChild variant="ghost" size="sm" className="shrink-0">
-          <Link href={`/analyses/${id}`}>Back to ideas</Link>
+          <Link href={`/analyses/${id}`}>{t.runTest.backToIdeas}</Link>
         </Button>
       </div>
 
@@ -88,6 +104,8 @@ export default async function RunTestPage({
           currentCopy: hypothesis.currentCopy,
           variants: hypothesis.variants.map((v) => ({ id: v.id, copy: v.copy }))
         }}
+        goals={hypothesis.analysis.goalCandidates ?? []}
+        canExport={canExport(user.plan)}
         initialExperiment={initialExperiment}
       />
     </div>

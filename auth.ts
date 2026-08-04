@@ -4,6 +4,9 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { users } from '@/db/schema'
 import { authConfig } from '@/auth.config'
+import { clientIp, enforceRateLimit } from '@/lib/rate-limit'
+import { secretsMatch } from '@/lib/secure-compare'
+import { credentialsLoginAllowed } from '@/lib/auth-policy'
 import type { SubscriptionPlan } from '@/lib/enums'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -15,11 +18,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: {},
         password: {}
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
+        // Local/e2e escape hatch only, behind two independent gates -- see lib/auth-policy.ts.
+        if (!credentialsLoginAllowed()) return null
+
         const { ADMIN_EMAIL, ADMIN_PASSWORD } = process.env
 
         if (!ADMIN_EMAIL || !ADMIN_PASSWORD) return null
-        if (credentials.email !== ADMIN_EMAIL || credentials.password !== ADMIN_PASSWORD) {
+
+        if (await enforceRateLimit('signin', clientIp(request))) return null
+
+        const email = typeof credentials.email === 'string' ? credentials.email : ''
+        const password = typeof credentials.password === 'string' ? credentials.password : ''
+
+        if (!secretsMatch(email, ADMIN_EMAIL) || !secretsMatch(password, ADMIN_PASSWORD)) {
           return null
         }
 
@@ -31,10 +43,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           await db.insert(users).values({
             email: ADMIN_EMAIL,
             name: 'Admin',
-            plan: 'team'
+            plan: 'solo'
           })
-        } else if (existing.plan !== 'team') {
-          await db.update(users).set({ plan: 'team' }).where(eq(users.email, ADMIN_EMAIL))
+        } else if (existing.plan !== 'solo') {
+          await db.update(users).set({ plan: 'solo' }).where(eq(users.email, ADMIN_EMAIL))
         }
 
         return { email: ADMIN_EMAIL, name: 'Admin' }
@@ -42,8 +54,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     })
   ],
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account, profile }) {
       if (!user.email) return false
+
+      // A user row is keyed on email, so an OAuth provider asserting an unverified address could
+      // otherwise be used to land on someone else's account.
+      const isOAuth = account?.type === 'oauth' || account?.type === 'oidc'
+      if (isOAuth && profile && profile.email_verified === false) return false
 
       const existing = await db.query.users.findFirst({
         where: eq(users.email, user.email)

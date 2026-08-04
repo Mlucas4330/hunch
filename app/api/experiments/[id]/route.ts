@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db } from '@/db'
 import { analyses, experiments, experimentStats, hypotheses, variants } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
+import { isUuid } from '@/lib/uuid'
 import { experimentWithResult } from '@/lib/experiments'
 import { EXPERIMENT_ACTION } from '@/lib/enums'
 
@@ -26,6 +27,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const { id } = await params
+  if (!isUuid(id)) return NextResponse.json({ error: 'not_found' }, { status: 404 })
   const experiment = await ownedExperiment(id, user.id)
   if (!experiment) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
@@ -42,6 +44,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const { id } = await params
+  if (!isUuid(id)) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
   const parsed = BodySchema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'invalid_action' }, { status: 422 })

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db } from '@/db'
 import { analyses, hypotheses } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
+import { isUuid } from '@/lib/uuid'
 import { HYPOTHESIS_STATUS } from '@/lib/enums'
 
 const BodySchema = z.object({
@@ -15,6 +16,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const { id } = await params
+  if (!isUuid(id)) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
   const parsed = BodySchema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'invalid_status' }, { status: 422 })

@@ -4,179 +4,76 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { SectionBadge } from '@/components/section-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
-import { PLAN_PRICES, PLAN_SEATS, FREE_ANALYSES_LIMIT } from '@/lib/constants'
-import { SUBSCRIPTION_PLAN, type Section, type SubscriptionPlan } from '@/lib/enums'
+import { PLAN_PRICES, FREE_ANALYSES_LIMIT } from '@/lib/constants'
+import { SUBSCRIPTION_PLAN, type Locale, type Section } from '@/lib/enums'
+import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
+import { pageMetadata } from '@/lib/seo'
+import { formatNumber, t } from '@/lib/i18n/format'
+import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import { cn } from '@/lib/utils'
 
-type SampleHunch = {
-  section: Section
-  problem: string
-  impact: number
-  effort: number
-  variant?: string
-  evidence?: string
-}
-
-const SAMPLE_READOUT: SampleHunch[] = [
-  {
-    section: 'headline',
-    problem: 'Your H1 says what you do, not why it beats the tab they already have open.',
-    impact: 9,
-    effort: 2,
-    variant: 'Ship changes to your pricing page without waiting on a designer.',
-    evidence: 'Linear leads with the outcome the founder wants, not the feature set.'
-  },
-  {
-    section: 'cta',
-    problem: '"Sign up" asks for commitment before the visitor has seen a single win.',
-    impact: 7,
-    effort: 1
-  },
-  {
-    section: 'social_proof',
-    problem: 'Nothing above the fold tells them another founder trusted this.',
-    impact: 6,
-    effort: 3
-  }
+// The readout is a static illustration of a finished analysis, so its shape lives here while the
+// copy for each row comes from the dictionary.
+const SAMPLE_SECTIONS: Section[] = ['headline', 'cta', 'social_proof']
+const SAMPLE_SCORES = [
+  { impact: 9, effort: 2 },
+  { impact: 7, effort: 1 },
+  { impact: 6, effort: 3 }
 ]
+const SAMPLE_VISITORS = 2140
 
-type Pain = {
-  channel: string
-  headline: string
-  reality: string
-  answer: string
-}
+const PAIN_CHANNELS = ['border-coral', 'border-purple', 'border-teal']
 
-const PAINS: Pain[] = [
-  {
-    channel: 'border-coral',
-    headline: 'Your traffic is too low to test everything.',
-    reality:
-      'A few hundred visitors a week buys you maybe one experiment a month. Pick the wrong one and you learn nothing.',
-    answer: 'Every hunch is ranked by predicted impact, so your one shot lands where it moves revenue.'
-  },
-  {
-    channel: 'border-purple',
-    headline: "There is no growth team. It's you, at 11pm.",
-    reality:
-      'No CRO, no copywriter, no backlog of experiments. Just you and a page you have read a thousand times.',
-    answer: 'Paste the URL once. Get five to eight tests written for you, variant copy included.'
-  },
-  {
-    channel: 'border-teal',
-    headline: 'You never know where to start.',
-    reality:
-      'You know conversion matters. Every guide says "just test." None of them say what to test first.',
-    answer: 'Hunch turns the blank page into an ordered path: headline, then CTA, then proof.'
-  }
-]
-
-const STEPS = [
-  {
-    label: 'Paste your URL',
-    body: 'Drop in your live landing page. Hunch scrapes the copy and studies two to three real competitors in your space.'
-  },
-  {
-    label: 'Get ranked hunches',
-    body: 'Five to eight A/B tests, ordered by impact, each with variant copy and the competitor pattern it borrows.'
-  },
-  {
-    label: 'Launch in one line',
-    body: 'Pick a variant and drop one script tag on your page. Hunch shows it to half your visitors, no redeploy or code changes.'
-  },
-  {
-    label: 'Read the verdict',
-    body: 'A timed 7, 14, or 30-day test measures real conversions and returns a proven winner with a plain recommendation.'
-  }
-] as const
-
-const PROOF: { title: string; body: string }[] = [
-  {
-    title: 'One line to go live',
-    body: 'Drop in a single script tag. Hunch splits your traffic and swaps the copy client-side. Nothing to redeploy.'
-  },
-  {
-    title: 'Timed, honest tests',
-    body: 'Choose 7, 14, or 30 days. Significance is read once at the finish line, so you never chase a false winner.'
-  },
-  {
-    title: 'A verdict you can ship',
-    body: 'Each test auto-closes into a report: conversion lift, statistical significance, and a plain recommendation.'
-  }
-]
-
-const PLAN_PITCH: Record<SubscriptionPlan, { line: string; features: string[] }> = {
-  free: {
-    line: 'Kick the tires on your own page.',
-    features: [
-      `${FREE_ANALYSES_LIMIT} analyses / month`,
-      '1 live experiment',
-      'Your last 3 analyses',
-      'Single seat'
-    ]
-  },
-  solo: {
-    line: 'For the founder who ships every week.',
-    features: [
-      'Unlimited analyses',
-      'Unlimited live experiments',
-      'Full history',
-      'Competitor mode',
-      'Export & test reports'
-    ]
-  },
-  team: {
-    line: 'For the small team splitting the growth work.',
-    features: ['Everything in Solo', '3 seats', 'Shared history', 'Export & test reports']
-  }
+// The only indexable route in the app.
+export async function generateMetadata() {
+  const { metadata } = await getDictionary()
+  return pageMetadata({ ...metadata.pages.landing, path: '/', index: true })
 }
 
 export default async function LandingPage() {
   const session = await auth()
+  const locale = await getLocale()
+  const d = dictionaryFor(locale)
   const ctaHref = session?.user ? '/dashboard' : '/auth/signin'
 
   return (
     <div className="animate-fade-up space-y-24 pb-12">
       <section className="grid items-center gap-10 pt-6 lg:grid-cols-[1.05fr_1fr]">
         <div className="space-y-6">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">
-            Conversion instrument for micro-SaaS
-          </p>
+          <p className="panel-label text-[0.7rem] text-muted-foreground">{d.landing.eyebrow}</p>
           <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
-            Find it. Test it.
-            <span className="block text-muted-foreground">Prove what converts.</span>
+            {d.landing.headlineTop}
+            <span className="block text-muted-foreground">{d.landing.headlineBottom}</span>
           </h1>
-          <p className="max-w-md text-base text-muted-foreground">
-            Hunch reads your landing page, studies real competitors, and hands you a ranked backlog
-            of A/B tests, then runs the ones you pick live and proves which copy actually lifts
-            conversion.
-          </p>
+          <p className="max-w-md text-base text-muted-foreground">{d.landing.lead}</p>
           <div className="flex flex-wrap items-center gap-4 pt-1">
             <Button asChild size="lg">
-              <Link href={ctaHref}>Analyze your landing page</Link>
+              <Link href={ctaHref}>{d.landing.cta}</Link>
             </Button>
             <Link
               href="#how"
               className="panel-label text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground"
             >
-              How it works
+              {d.landing.howItWorksLink}
             </Link>
           </div>
         </div>
 
-        <HeroReadout />
+        <HeroReadout dictionary={d} locale={locale} />
       </section>
 
       <section className="space-y-10">
         <header className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">The reality</p>
+          <p className="panel-label text-[0.7rem] text-muted-foreground">
+            {d.landing.reality.eyebrow}
+          </p>
           <h2 className="font-display text-2xl font-bold tracking-tight">
-            The problem was never effort. It was knowing where to point it.
+            {d.landing.reality.heading}
           </h2>
         </header>
         <div className="space-y-4">
-          {PAINS.map((pain) => (
-            <Card key={pain.headline} className={cn('border-l-2', pain.channel)}>
+          {d.landing.pains.map((pain, i) => (
+            <Card key={pain.headline} className={cn('border-l-2', PAIN_CHANNELS[i])}>
               <CardContent className="grid gap-4 p-5 md:grid-cols-[1.1fr_1fr] md:items-center">
                 <div className="space-y-1.5">
                   <h3 className="font-display text-lg font-semibold tracking-tight">
@@ -195,34 +92,47 @@ export default async function LandingPage() {
 
       <section id="how" className="space-y-10 scroll-mt-20">
         <header className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">How it works</p>
-          <h2 className="font-display text-2xl font-bold tracking-tight">
-            One paste to a proven winner.
-          </h2>
+          <p className="panel-label text-[0.7rem] text-muted-foreground">{d.landing.how.eyebrow}</p>
+          <h2 className="font-display text-2xl font-bold tracking-tight">{d.landing.how.heading}</h2>
+          <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.how.intro}</p>
         </header>
-        <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map((step, i) => (
-            <li key={step.label} className="space-y-3">
-              <span className="panel-label text-sm text-muted-foreground">
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <div className="h-px bg-border" />
-              <h3 className="font-display text-lg font-semibold tracking-tight">{step.label}</h3>
-              <p className="text-sm text-muted-foreground">{step.body}</p>
-            </li>
+        <div className="grid gap-10 lg:grid-cols-2">
+          {d.landing.tracks.map((track) => (
+            <div key={track.label} className="space-y-6">
+              <div className="flex items-baseline gap-3">
+                <h3 className="font-display text-xl font-bold tracking-tight">{track.label}</h3>
+                <span className="panel-label text-[0.6rem] text-muted-foreground">{track.note}</span>
+              </div>
+              <ol className="grid gap-6 sm:grid-cols-3">
+                {track.steps.map((step, i) => (
+                  <li key={step.label} className="space-y-3">
+                    <span className="panel-label text-sm text-muted-foreground">
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <div className="h-px bg-border" />
+                    <h4 className="font-display text-base font-semibold tracking-tight">
+                      {step.label}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">{step.body}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
           ))}
-        </ol>
+        </div>
       </section>
 
       <section className="space-y-10">
         <header className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">Proof, not opinions</p>
+          <p className="panel-label text-[0.7rem] text-muted-foreground">
+            {d.landing.value.eyebrow}
+          </p>
           <h2 className="font-display text-2xl font-bold tracking-tight">
-            Every hunch ends in a number.
+            {d.landing.value.heading}
           </h2>
         </header>
         <div className="grid gap-6 sm:grid-cols-3">
-          {PROOF.map((item) => (
+          {d.landing.proof.map((item) => (
             <Card key={item.title}>
               <CardContent className="space-y-2 p-5">
                 <h3 className="font-display text-lg font-semibold tracking-tight">{item.title}</h3>
@@ -235,12 +145,14 @@ export default async function LandingPage() {
 
       <section className="space-y-10">
         <header className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">Pricing</p>
+          <p className="panel-label text-[0.7rem] text-muted-foreground">
+            {d.landing.pricing.eyebrow}
+          </p>
           <h2 className="font-display text-2xl font-bold tracking-tight">
-            Start free. Upgrade when testing becomes a habit.
+            {d.landing.pricing.heading}
           </h2>
         </header>
-        <div className="grid gap-6 sm:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2">
           {SUBSCRIPTION_PLAN.map((plan) => {
             const featured = plan === 'solo'
             return (
@@ -251,30 +163,39 @@ export default async function LandingPage() {
                 <CardContent className="flex flex-1 flex-col gap-4 p-5">
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-display text-lg font-semibold capitalize tracking-tight">
-                        {plan}
+                      <span className="font-display text-lg font-semibold tracking-tight">
+                        {d.labels.plan[plan]}
                       </span>
                       {featured && (
-                        <span className="panel-label text-[0.6rem] text-purple">Most popular</span>
+                        <span className="panel-label text-[0.6rem] text-purple">
+                          {d.landing.pricing.mostPopular}
+                        </span>
                       )}
                     </div>
                     <p className="font-mono text-2xl font-semibold tabular-nums">
                       ${PLAN_PRICES[plan]}
-                      <span className="text-sm text-muted-foreground">/mo</span>
+                      <span className="text-sm text-muted-foreground">
+                        {d.landing.pricing.perMonth}
+                      </span>
                     </p>
-                    <p className="text-sm text-muted-foreground">{PLAN_PITCH[plan].line}</p>
+                    <p className="text-sm text-muted-foreground">{d.landing.plans[plan].line}</p>
                   </div>
                   <ul className="flex-1 space-y-2 text-sm">
-                    {PLAN_PITCH[plan].features.map((feature) => (
+                    {d.landing.plans[plan].features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
-                        <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-foreground" />
-                        {feature}
+                        <span
+                          aria-hidden
+                          className="mt-2 h-1 w-1 shrink-0 rounded-full bg-foreground"
+                        />
+                        {t(feature, { limit: FREE_ANALYSES_LIMIT })}
                       </li>
                     ))}
                   </ul>
                   <Button asChild variant={featured ? 'default' : 'outline'} className="w-full">
                     <Link href={ctaHref}>
-                      {plan === 'free' ? 'Start free' : `Choose ${plan}`}
+                      {plan === 'free'
+                        ? d.landing.pricing.startFree
+                        : t(d.landing.pricing.choose, { plan: d.labels.plan[plan] })}
                     </Link>
                   </Button>
                 </CardContent>
@@ -283,7 +204,7 @@ export default async function LandingPage() {
           })}
         </div>
         <p className="panel-label text-[0.65rem] text-muted-foreground">
-          {PLAN_SEATS.team} seats on Team, cancel anytime
+          {d.landing.pricing.footnote}
         </p>
       </section>
 
@@ -291,10 +212,10 @@ export default async function LandingPage() {
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center gap-5 p-10 text-center">
             <h2 className="max-w-lg font-display text-2xl font-bold tracking-tight">
-              Stop rereading your own copy. Start with a hunch.
+              {d.landing.finalCta.heading}
             </h2>
             <Button asChild size="lg">
-              <Link href={ctaHref}>Analyze your landing page</Link>
+              <Link href={ctaHref}>{d.landing.cta}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -303,42 +224,47 @@ export default async function LandingPage() {
   )
 }
 
-function HeroReadout() {
+function HeroReadout({ dictionary, locale }: { dictionary: Dictionary; locale: Locale }) {
+  const { readout, sample } = dictionary.landing
+
   return (
     <Card className="animate-pop-in shadow-sm">
       <div className="flex items-center justify-between border-b px-4 py-2.5">
-        <span className="font-mono text-xs text-muted-foreground">yoursaas.com</span>
+        <span className="font-mono text-xs text-muted-foreground">{readout.domain}</span>
         <span className="flex items-center gap-1.5 panel-label text-[0.6rem] text-green">
           <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-green" />
-          Live test
+          {readout.liveTest}
         </span>
       </div>
       <CardContent className="space-y-3 p-4">
         <div className="flex items-center justify-between rounded-md border border-green bg-green/10 p-3">
           <div>
-            <p className="text-sm font-medium">Headline variant wins</p>
-            <p className="text-xs text-muted-foreground">14-day test, 2,140 visitors</p>
+            <p className="text-sm font-medium">{readout.winner}</p>
+            <p className="text-xs text-muted-foreground">
+              {t(readout.detail, { visitors: formatNumber(SAMPLE_VISITORS, locale) })}
+            </p>
           </div>
           <div className="text-right">
-            <p className="font-display text-lg font-semibold text-green">+18%</p>
-            <p className="panel-label text-[0.6rem] text-green">Significant</p>
+            <p className="font-display text-lg font-semibold text-green">{readout.lift}</p>
+            <p className="panel-label text-[0.6rem] text-green">{readout.significant}</p>
           </div>
         </div>
-        {SAMPLE_READOUT.map((hunch) => (
-          <div key={hunch.section} className="rounded-md border p-3">
+        {sample.map((hunch, i) => (
+          <div key={SAMPLE_SECTIONS[i]} className="rounded-md border p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <SectionBadge section={hunch.section} />
+              <SectionBadge section={SAMPLE_SECTIONS[i]} />
               <div className="flex items-center gap-3">
-                <ScoreIndicator label="Impact" score={hunch.impact} kind="impact" />
-                <ScoreIndicator label="Effort" score={hunch.effort} kind="effort" />
+                <ScoreIndicator score={SAMPLE_SCORES[i].impact} kind="impact" />
+                <ScoreIndicator score={SAMPLE_SCORES[i].effort} kind="effort" />
               </div>
             </div>
             <p className="mt-2 text-sm">{hunch.problem}</p>
-            {hunch.variant && (
+            {'variant' in hunch && hunch.variant && (
               <div className="mt-3 space-y-1 rounded-sm bg-muted p-2.5">
                 <p className="text-sm font-medium">{`"${hunch.variant}"`}</p>
                 <p className="text-xs text-muted-foreground">
-                  <span className="panel-label text-[0.6rem] text-teal">Why</span> {hunch.evidence}
+                  <span className="panel-label text-[0.6rem] text-teal">{readout.why}</span>{' '}
+                  {'evidence' in hunch ? hunch.evidence : null}
                 </p>
               </div>
             )}

@@ -2,15 +2,17 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useI18n } from '@/components/i18n-provider'
 import { cn } from '@/lib/utils'
 
 const LINKS = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/billing', label: 'Billing' }
+  { href: '/dashboard', key: 'dashboard' },
+  { href: '/billing', key: 'billing' }
 ] as const
 
 export function NavLinks() {
   const pathname = usePathname()
+  const { dictionary } = useI18n()
 
   return (
     <>
@@ -26,7 +28,7 @@ export function NavLinks() {
               active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            {link.label}
+            {dictionary.nav[link.key]}
           </Link>
         )
       })}

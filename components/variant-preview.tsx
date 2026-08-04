@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useI18n } from '@/components/i18n-provider'
 
 export function VariantPreview({
   embedKey,
@@ -11,6 +12,7 @@ export function VariantPreview({
   hypothesisId: string
   initialUrl: string | null
 }) {
+  const { dictionary } = useI18n()
   const [url, setUrl] = useState<string | null>(initialUrl)
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'empty'>(
     initialUrl ? 'ready' : 'idle'
@@ -45,10 +47,12 @@ export function VariantPreview({
 
   return (
     <div className="space-y-1">
-      <p className="panel-label text-[0.6rem] text-muted-foreground">Applied to your page</p>
+      <p className="panel-label text-[0.6rem] text-muted-foreground">
+        {dictionary.report.appliedToYourPage}
+      </p>
       <div className="overflow-hidden rounded-md border bg-muted">
         {state === 'ready' && url ? (
-          <img src={url} alt="Variant applied to the landing page" className="w-full" />
+          <img src={url} alt={dictionary.report.previewAlt} className="w-full" />
         ) : (
           <div className="h-40 w-full animate-pulse bg-muted" />
         )}

@@ -1,22 +1,28 @@
-import { desc, eq } from 'drizzle-orm'
-import { db } from '@/db'
-import { analyses } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
+import { listAnalysesForUser } from '@/lib/analyses'
+import { usageFor } from '@/lib/usage'
 import { UrlInputForm } from '@/components/url-input-form'
+import { UsageBanner } from '@/components/usage-banner'
 import { AnalysisHistory } from '@/components/analysis-history'
 import { InfoHint } from '@/components/info-hint'
+import { RichText } from '@/components/rich-text'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
+import { formatDate } from '@/lib/i18n/format'
+import { pageMetadata } from '@/lib/seo'
+
+export async function generateMetadata() {
+  const { metadata } = await getDictionary()
+  return pageMetadata({ ...metadata.pages.dashboard, path: '/dashboard', index: false })
+}
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
+  const locale = await getLocale()
+  const t = dictionaryFor(locale)
 
-  const rows = user
-    ? await db
-        .select()
-        .from(analyses)
-        .where(eq(analyses.userId, user.id))
-        .orderBy(desc(analyses.createdAt))
-    : []
+  const rows = user ? (await listAnalysesForUser(user)).rows : []
+  const usage = user ? usageFor(user) : null
 
   const plan = user?.plan ?? 'free'
   const defaultBrief = rows.find((row) => row.brief)?.brief ?? ''
@@ -24,30 +30,31 @@ export default async function DashboardPage() {
   return (
     <div className="animate-fade-up space-y-6">
       <div className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">Dashboard</p>
+        <p className="panel-label text-[0.7rem] text-muted-foreground">{t.dashboard.eyebrow}</p>
         <div className="flex items-center gap-2">
-          <h1 className="font-display text-2xl font-bold tracking-tight">Your analyses</h1>
-          <InfoHint label="How analysis works">
-            Paste your live landing page URL. Hunch scans the copy, studies competitors, and generates
-            ranked A/B test ideas. Add <strong>business details</strong> so the copy comes back finished
-            instead of with [placeholders]. On paid plans, paste competitor URLs (<strong>Competitor
-            mode</strong>) to ground the ideas; free analyses find competitors automatically.
+          <h1 className="font-display text-2xl font-bold tracking-tight">{t.dashboard.title}</h1>
+          <InfoHint label={t.dashboard.hintLabel}>
+            <RichText>{t.dashboard.hint}</RichText>
           </InfoHint>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Paste a landing page URL to generate ranked A/B test hypotheses.
-        </p>
+        <p className="text-sm text-muted-foreground">{t.dashboard.subtitle}</p>
       </div>
 
-      <UrlInputForm plan={plan} defaultBrief={defaultBrief} />
+      {usage && <UsageBanner used={usage.analyses_count} limit={usage.limit} />}
+
+      <UrlInputForm
+        plan={plan}
+        defaultBrief={defaultBrief}
+        blocked={usage ? usage.limit !== null && usage.analyses_count >= usage.limit : false}
+      />
 
       {rows.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="font-display tracking-tight">No analyses yet</CardTitle>
-            <CardDescription>
-              Paste a landing page URL above to run your first analysis.
-            </CardDescription>
+            <CardTitle className="font-display tracking-tight">
+              {t.dashboard.emptyTitle}
+            </CardTitle>
+            <CardDescription>{t.dashboard.emptyDescription}</CardDescription>
           </CardHeader>
         </Card>
       ) : (
@@ -55,7 +62,7 @@ export default async function DashboardPage() {
           analyses={rows.map((analysis) => ({
             id: analysis.id,
             url: analysis.url,
-            date: analysis.createdAt.toLocaleDateString()
+            date: formatDate(analysis.createdAt, locale)
           }))}
         />
       )}

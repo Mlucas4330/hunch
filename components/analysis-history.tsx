@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { useI18n } from '@/components/i18n-provider'
+import { t } from '@/lib/i18n/format'
 
 type HistoryItem = { id: string; url: string; date: string }
 
 export function AnalysisHistory({ analyses }: { analyses: HistoryItem[] }) {
+  const { dictionary } = useI18n()
   const router = useRouter()
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -37,7 +40,7 @@ export function AnalysisHistory({ analyses }: { analyses: HistoryItem[] }) {
             <CardContent className="flex items-center justify-between gap-4 p-4">
               <Link
                 href={`/analyses/${analysis.id}`}
-                aria-label={`Open analysis for ${analysis.url}`}
+                aria-label={t(dictionary.history.openAria, { url: analysis.url })}
                 className="absolute inset-0 rounded-lg"
               />
               <span className="truncate font-mono text-sm">{analysis.url}</span>
@@ -53,7 +56,7 @@ export function AnalysisHistory({ analyses }: { analyses: HistoryItem[] }) {
                       disabled={deleting}
                       onClick={() => onDelete(analysis.id)}
                     >
-                      {deleting ? 'Deleting' : 'Delete'}
+                      {deleting ? dictionary.common.deleting : dictionary.common.delete}
                     </Button>
                     <Button
                       variant="ghost"
@@ -61,18 +64,18 @@ export function AnalysisHistory({ analyses }: { analyses: HistoryItem[] }) {
                       disabled={deleting}
                       onClick={() => setConfirmingId(null)}
                     >
-                      Cancel
+                      {dictionary.common.cancel}
                     </Button>
                   </div>
                 ) : (
                   <Button
                     variant="ghost"
                     size="sm"
-                    aria-label={`Delete analysis for ${analysis.url}`}
+                    aria-label={t(dictionary.history.deleteAria, { url: analysis.url })}
                     onClick={() => setConfirmingId(analysis.id)}
                     className="text-muted-foreground hover:text-red"
                   >
-                    Delete
+                    {dictionary.common.delete}
                   </Button>
                 )}
               </div>

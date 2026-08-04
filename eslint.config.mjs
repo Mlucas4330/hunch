@@ -9,6 +9,18 @@ const compat = new FlatCompat({
   baseDirectory: __dirname
 })
 
-const eslintConfig = [...compat.extends('next/core-web-vitals', 'next/typescript')]
+const eslintConfig = [
+  // Build output and test artifacts are generated code -- linting them only produces noise.
+  {
+    ignores: [
+      '.next*/**',
+      'next-env.d.ts',
+      'test-results/**',
+      'playwright-report/**',
+      'node_modules/**'
+    ]
+  },
+  ...compat.extends('next/core-web-vitals', 'next/typescript')
+]
 
 export default eslintConfig

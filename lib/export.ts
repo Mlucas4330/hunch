@@ -1,5 +1,6 @@
-import { EXPERIMENT_RECOMMENDATION_LABEL, SECTION_LABEL } from '@/lib/constants'
-import type { Section } from '@/lib/enums'
+import type { Locale, Section } from '@/lib/enums'
+import type { Dictionary } from '@/lib/i18n/dictionaries/en'
+import { formatDecimal } from '@/lib/i18n/format'
 import type { ExperimentResult } from '@/lib/stats'
 
 export interface ReportInput {
@@ -12,29 +13,34 @@ export interface ReportInput {
   result: ExperimentResult
 }
 
-export function buildReportMarkdown(input: ReportInput): string {
+export function buildReportMarkdown(
+  input: ReportInput,
+  dictionary: Dictionary,
+  locale: Locale
+): string {
   const { control, variant, upliftPct, pValue, recommendation } = input.result
-  const rate = (arm: { rate: number }) => `${(arm.rate * 100).toFixed(1)}%`
+  const { export: e, labels } = dictionary
+  const rate = (arm: { rate: number }) => `${formatDecimal(arm.rate * 100, locale, 1)}%`
 
   return [
-    `# A/B test report`,
+    `# ${e.title}`,
     ``,
-    `Source: ${input.url}`,
-    `Section: ${SECTION_LABEL[input.section]}`,
-    `Duration: ${input.durationDays} days`,
+    `${e.source}: ${input.url}`,
+    `${e.section}: ${labels.section[input.section]}`,
+    `${e.duration}: ${input.durationDays} ${e.days}`,
     ``,
-    `## Recommendation: ${EXPERIMENT_RECOMMENDATION_LABEL[recommendation]}`,
+    `## ${e.recommendation}: ${labels.experimentRecommendation[recommendation]}`,
     ``,
-    `**Problem:** ${input.problem}`,
+    `**${e.problem}:** ${input.problem}`,
     ``,
-    `## Result`,
+    `## ${e.result}`,
     ``,
-    `| Arm | Copy | Conversions / Visitors | Rate |`,
+    `| ${e.arm} | ${e.copy} | ${e.conversions} | ${e.rate} |`,
     `| --- | --- | --- | --- |`,
-    `| Control | ${input.controlCopy} | ${control.conversions} / ${control.n} | ${rate(control)} |`,
-    `| Variant | ${input.variantCopy} | ${variant.conversions} / ${variant.n} | ${rate(variant)} |`,
+    `| ${labels.experimentArm.control} | ${input.controlCopy} | ${control.conversions} / ${control.n} | ${rate(control)} |`,
+    `| ${labels.experimentArm.variant} | ${input.variantCopy} | ${variant.conversions} / ${variant.n} | ${rate(variant)} |`,
     ``,
-    `**Uplift:** ${upliftPct === null ? 'n/a' : `${upliftPct.toFixed(1)}%`}`,
-    `**p-value:** ${pValue === null ? 'n/a' : pValue.toFixed(3)}`
+    `**${e.uplift}:** ${upliftPct === null ? e.notAvailable : `${formatDecimal(upliftPct, locale, 1)}%`}`,
+    `**${e.pValue}:** ${pValue === null ? e.notAvailable : formatDecimal(pValue, locale, 3)}`
   ].join('\n')
 }

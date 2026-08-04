@@ -1,0 +1,14 @@
+[
+  { "name": "Linear", "url": "https://linear.app", "source": "saaslandingpage" },
+  { "name": "Vercel", "url": "https://vercel.com", "source": "saaslandingpage" },
+  { "name": "Retool", "url": "https://retool.com", "source": "saaslandingpage" },
+  { "name": "Notion", "url": "https://www.notion.com", "source": "saaslandingpage" },
+  { "name": "Figma", "url": "https://www.figma.com", "source": "saaslandingpage" },
+  { "name": "Supabase", "url": "https://supabase.com", "source": "saaslandingpage" },
+  { "name": "Clerk", "url": "https://clerk.com", "source": "saaslandingpage" },
+  { "name": "Resend", "url": "https://resend.com", "source": "saaslandingpage" },
+  { "name": "PostHog", "url": "https://posthog.com", "source": "saaslandingpage" },
+  { "name": "Cal.com", "url": "https://cal.com", "source": "saaslandingpage" },
+  { "name": "Railway", "url": "https://railway.com", "source": "saaslandingpage" },
+  { "name": "Sentry", "url": "https://sentry.io", "source": "saaslandingpage" }
+]

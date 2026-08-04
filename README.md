@@ -18,27 +18,33 @@ Hunch then closes the loop: with one embeddable snippet (no external analytics r
 | Styles     | Shadcn
 | AI         | Claude API + Vercel AI SDK structured outputs |
 | Database   | Neon Postgres + Drizzle ORM                   |
-| Storage    | AI JSON output only                           |
+| Storage    | AI JSON output + variant screenshots (Vercel Blob) |
 | Billing    | Stripe only (USD)                             |
+| i18n       | Cookie-driven dictionaries (`en`, `pt-BR`)    |
 | Deployment | Vercel                                        |
-| Market     | US-first, English                             |
+| Market     | US-first                                      |
 
 ## Monetization tiers
 
-| Plan | Price  | Analyses/month | Live experiments | History     | Competitor mode | Seats | Export |
-| ---- | ------ | -------------- | ---------------- | ----------- | --------------- | ----- | ------ |
-| Free | $0     | 3              | 1 concurrent     | Last 3 only | ❌              | 1     | ❌     |
-| Solo | $29/mo | Unlimited      | Unlimited        | Full        | ✅              | 1     | ✅     |
-| Team | $79/mo | Unlimited      | Unlimited        | Full        | ✅              | 3     | ✅     |
+| Plan | Price  | Analyses/month | Live experiments | History     | Competitor mode | Export |
+| ---- | ------ | -------------- | ---------------- | ----------- | --------------- | ------ |
+| Free | $0     | 3              | 1 concurrent     | Last 3 only | ❌              | ❌     |
+| Solo | $29/mo | Unlimited      | Unlimited        | Full        | ✅              | ✅     |
 
 ## Functional requirements
 
 - Paste a landing page URL and generate ranked A/B test hypotheses
+- Get a ranked flow playbook alongside them: structural fixes with implementation steps (offer login
+  with Google, cut the signup form, add a Q&A block, repeat the CTA after pricing), grounded in a
+  corpus of real shipped SaaS landing pages rather than in model priors alone
 - Optionally add a business brief so variants come back as finished, ready-to-ship copy
 - Paste competitor landing pages to ground the hypotheses (paid Competitor mode; free auto-searches)
 - Browse ranked hypotheses, each with an AI-recommended challenger to test (no manual variant-picking)
 - Run one test at a time from a focused screen: approve/swap/edit the challenger, then launch
+- Swap the recommendation for one of two alternates, written on demand on the run-a-test screen
+- Choose what counts as a conversion, from the CTAs captured during the scrape
 - Sign up, log in, log out via Google OAuth
+- Switch language between English and Brazilian Portuguese
 - Track analysis history (dashboard)
 - Update hypothesis status (pending -> testing -> completed -> skipped)
 - Launch a live A/B test from a chosen variant, choosing a 7 / 14 / 30-day window
@@ -47,18 +53,58 @@ Hunch then closes the loop: with one embeddable snippet (no external analytics r
 - Measure conversion rate and statistical significance per test
 - Auto-finalize a test at its end date (daily cron) and produce a report with a recommendation
 - Declare a winner or stop a running test
+- Share a public report link (`/r/<embedKey>`) that previews the top fixes applied to the real page
+  and collects leads behind a waitlist wall
 - Upgrade, downgrade, and cancel subscription via Stripe
-- Export hypotheses (Solo and Team plans)
+- Export hypotheses (Solo plan)
 - Usage gate for free tier (hard block at 3 analyses/month; 1 concurrent live test)
 
 ## Non-functional requirements
 
 - Scraping must handle JS-rendered pages (Puppeteer)
+- A flow fix is never recommended for something the page already does: the scrape captures a
+  structural readout (social sign in, form length, FAQ, pricing, sticky CTA) and the playbook prompt
+  is bound to it
+- The reference corpus only ever supports a fix, never argues against one: a signal is quoted as
+  evidence only when a majority of reference pages do it, because the corpus holds landing pages and
+  anything living a click deeper (a signup form's OAuth buttons) is legitimately sparse there
+- An empty or unreachable reference corpus costs the playbook its quantitative evidence, never the
+  analysis: `structuralEvidence` returns '' and generation continues with no invented statistics
 - AI output must be fully typed and validated via Zod before DB insert
 - Stripe webhook must process events idempotently
 - All authenticated routes protected via NextAuth middleware
 - Free tier gate enforced server-side, never client-side only
-- Public tracking endpoints (`/api/track/*`) are unauthenticated + CORS-open and excluded from auth middleware
+- Public endpoints (`/api/track/*`, `/api/waitlist`, `/api/report/*`) are unauthenticated + CORS-open
+  and excluded from auth middleware; they back the snippet and the public report
+- The credentials sign-in is a local/e2e escape hatch only, refused unless `NODE_ENV != production`
+  **and** `ALLOW_CREDENTIALS_LOGIN=1`; secrets are compared in constant time, never with `!==`
+- Every URL the app fetches is validated against private, loopback and link-local ranges before a
+  browser is pointed at it, and re-validated per request inside the browser so a redirect or a DNS
+  rebind cannot reach the deploy's own network
+- Public endpoints are rate limited per IP or per embed key; the limiter fails open when unconfigured
+  so a missing env var is never an outage
+- Stripe webhooks are idempotent by `event.id` and ordered per subscription, so a retry is a no-op
+  and a delayed `updated` cannot undo a cancellation
+- A conversion or impression counts once per visitor: the snippet sends a sticky id and a unique
+  index gates the counter, so results cannot be inflated by anyone holding the public embed key
+- A test without a conversion goal records no conversions rather than counting a click on the swapped
+  element, so a result is never manufactured from the wrong event
+- All user-facing copy comes from an i18n dictionary, never inline strings; the locale lives in a
+  cookie, so no route changes and the `pt-BR` dictionary fails typecheck if a key is missing
+- AI-generated content (hypotheses, variant copy, rationales, flow fixes) is written in the UI locale
+  the analysis was run in, pinned to `analyses.locale` at creation. Switching language afterwards
+  never retranslates an existing analysis, and the on-demand alternates read the stored locale rather
+  than the current one, so a hypothesis and its alternates are always in the same language.
+  `current_copy` is the exception: it quotes the page's own characters, whatever language it is in
+- The landing page is the only indexable route; every other page declares `noindex`, and `robots.txt`
+  disallows the same prefixes the auth middleware protects, from one shared constant
+- Because the locale is a cookie and not a route segment, `en` and `pt-BR` are the same URL: each page
+  is its own canonical and claims no hreflang alternates rather than inventing URLs that do not exist
+- The public report is `noindex` but carries a full, per-report Open Graph card -- it is pasted into
+  cold email, where the unfurl is the first impression, and an unknown embed key must produce the
+  same card shape as a real one rather than reveal that it does not exist
+- `NEXT_PUBLIC_APP_URL` is load-bearing in production: canonical URLs, Open Graph URLs and the
+  sitemap are all built from it, not from the caller-controlled `Host` header
 - The embed snippet must fail safe: a bad selector or network error never breaks the host page
 - Visitor bucketing must be sticky (same visitor always sees the same arm)
 - Significance is evaluated once at the test's end date, not continuously (avoids the peeking problem)
@@ -75,3 +121,34 @@ npm install
 npm run dev
 npm run db:push
 ```
+
+Schema changes are tracked as migrations in `db/migrations` (`npm run db:generate`); `db:push`
+applies the current schema directly for local iteration.
+
+```bash
+npm run ingest:references                        # scrape db/seeds/reference-pages.json into the corpus
+npm run ingest:references -- https://foo.com Foo # add one page ad hoc
+```
+
+The reference corpus grounds the flow playbook. It is populated only by this command, from the
+hand-curated seed list: `saaslandingpage.com` serves 403 to automated fetches, so the gallery is
+browsed by hand to pick products and only the product pages themselves are scraped. Re-running
+refreshes existing rows in place. The playbook still generates against an empty corpus, just without
+the quantitative evidence lines.
+
+```bash
+npm run typecheck
+npm run check:url-guard  # asserts the SSRF guard blocks private/loopback/encoded-IP targets
+npm run test:e2e         # Playwright on port 3100 with E2E_FIXTURES=1 (no scraping, no Claude calls)
+```
+
+`E2E_FIXTURES=1` swaps generation for the fixtures in `lib/ai/fixtures.ts`, which exist per locale and
+are picked by the same locale the real pipeline uses. The suite sets no locale cookie, so it runs in
+`DEFAULT_LOCALE` and asserts against the English fixture.
+
+`ADMIN_EMAIL` and `ADMIN_PASSWORD` must be set for the e2e suite to sign in (the suite sets
+`ALLOW_CREDENTIALS_LOGIN` for itself). Rate limiting is skipped entirely without
+`UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`, so local dev needs no Redis.
+Run `npm run build` with
+no `npm run dev` server attached: both write to `.next`, and concurrently they corrupt each other's
+chunks.

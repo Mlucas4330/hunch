@@ -12,13 +12,18 @@ import {
 import {
   EXPERIMENT_ARM,
   EXPERIMENT_STATUS,
+  FLOW_CATEGORY,
   HYPOTHESIS_STATUS,
   HYPOTHESIS_TARGET,
+  LOCALE,
   SECTIONS,
   SUBSCRIPTION_PLAN,
   SUBSCRIPTION_STATUS,
+  TRACK_EVENT,
   VARIANT_STATUS
 } from '@/lib/enums'
+import { DEFAULT_LOCALE } from '@/lib/constants'
+import type { PageStructure } from '@/lib/scrape'
 
 export const subscriptionPlanEnum = pgEnum('subscription_plan', SUBSCRIPTION_PLAN)
 export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUS)
@@ -26,8 +31,11 @@ export const sectionEnum = pgEnum('section', SECTIONS)
 export const hypothesisStatusEnum = pgEnum('hypothesis_status', HYPOTHESIS_STATUS)
 export const hypothesisTargetEnum = pgEnum('hypothesis_target', HYPOTHESIS_TARGET)
 export const variantStatusEnum = pgEnum('variant_status', VARIANT_STATUS)
+export const flowCategoryEnum = pgEnum('flow_category', FLOW_CATEGORY)
 export const experimentStatusEnum = pgEnum('experiment_status', EXPERIMENT_STATUS)
 export const experimentArmEnum = pgEnum('experiment_arm', EXPERIMENT_ARM)
+export const trackEventEnum = pgEnum('track_event', TRACK_EVENT)
+export const localeEnum = pgEnum('locale', LOCALE)
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -37,6 +45,7 @@ export const users = pgTable('users', {
   plan: subscriptionPlanEnum('plan').notNull().default('free'),
   stripeCustomerId: text('stripe_customer_id'),
   analysesCount: integer('analyses_count').notNull().default(0),
+  usagePeriodStart: timestamp('usage_period_start').notNull().defaultNow(),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
@@ -60,6 +69,11 @@ export const analyses = pgTable('analyses', {
   url: text('url').notNull(),
   brief: text('brief'),
   competitors: jsonb('competitors').$type<{ name: string; url: string }[]>(),
+  goalCandidates: jsonb('goal_candidates').$type<{ text: string; selector: string }[]>(),
+  researchBrief: text('research_brief'),
+  // The language the AI wrote this analysis in. Pinned at creation so alternates generated later
+  // match the hypotheses already stored, even if the user switches the UI language afterwards.
+  locale: localeEnum('locale').notNull().default(DEFAULT_LOCALE),
   embedKey: uuid('embed_key').notNull().defaultRandom().unique(),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
@@ -94,6 +108,40 @@ export const variants = pgTable('variants', {
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
+// The flow playbook: structural fixes that cannot be applied by swapping one line of text, so they
+// never become a live test. No variants, no target, no status -- a founder either ships the steps or
+// does not, and there is nothing for the embed snippet to measure.
+export const flowFixes = pgTable('flow_fixes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  analysisId: uuid('analysis_id')
+    .notNull()
+    .references(() => analyses.id, { onDelete: 'cascade' }),
+  category: flowCategoryEnum('category').notNull(),
+  title: text('title').notNull(),
+  problem: text('problem').notNull(),
+  steps: jsonb('steps').$type<string[]>().notNull(),
+  impactScore: integer('impact_score').notNull(),
+  effortScore: integer('effort_score').notNull(),
+  evidence: text('evidence'),
+  position: integer('position').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+})
+
+// The corpus of real, shipped SaaS landing pages the playbook is grounded in. Not user data: no user
+// FK, no relations, and it is populated only by `npm run ingest:references` from a committed seed
+// list. `structure` is the same PageStructure shape captured from an analysed page, which is what
+// makes matching an analysis against the corpus a field-by-field diff.
+export const referencePages = pgTable('reference_pages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  url: text('url').notNull().unique(),
+  name: text('name').notNull(),
+  structure: jsonb('structure').$type<PageStructure>().notNull(),
+  copyDigest: text('copy_digest').notNull(),
+  source: text('source').notNull(),
+  scrapedAt: timestamp('scraped_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow()
+})
+
 export const experiments = pgTable('experiments', {
   id: uuid('id').primaryKey().defaultRandom(),
   analysisId: uuid('analysis_id')
@@ -125,6 +173,36 @@ export const waitlist = pgTable('waitlist', {
   embedKey: uuid('embed_key'),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
+
+// Every Stripe event we have already acted on. Stripe retries on any non-2xx and can deliver out of
+// order, so without this a replayed event would be processed twice.
+export const stripeEvents = pgTable('stripe_events', {
+  id: text('id').primaryKey(),
+  type: text('type').notNull(),
+  // Which subscription the event concerned, so ordering can be judged per subscription rather
+  // than against unrelated customers' events.
+  subscriptionId: text('subscription_id'),
+  // event.created, not our clock: this is what makes a late event recognisable as stale.
+  eventCreatedAt: timestamp('event_created_at').notNull(),
+  receivedAt: timestamp('received_at').notNull().defaultNow()
+})
+
+// One row per (visitor, experiment, arm, event), so a reload or a forged replay cannot increment
+// experiment_stats twice. Also the statistically correct unit: a conversion rate is per visitor.
+export const experimentEvents = pgTable(
+  'experiment_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    experimentId: uuid('experiment_id')
+      .notNull()
+      .references(() => experiments.id, { onDelete: 'cascade' }),
+    visitorId: uuid('visitor_id').notNull(),
+    arm: experimentArmEnum('arm').notNull(),
+    type: trackEventEnum('type').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  (table) => [unique().on(table.experimentId, table.visitorId, table.arm, table.type)]
+)
 
 export const experimentStats = pgTable(
   'experiment_stats',
@@ -161,7 +239,15 @@ export const analysesRelations = relations(analyses, ({ one, many }) => ({
     references: [users.id]
   }),
   hypotheses: many(hypotheses),
+  flowFixes: many(flowFixes),
   experiments: many(experiments)
+}))
+
+export const flowFixesRelations = relations(flowFixes, ({ one }) => ({
+  analysis: one(analyses, {
+    fields: [flowFixes.analysisId],
+    references: [analyses.id]
+  })
 }))
 
 export const hypothesesRelations = relations(hypotheses, ({ one, many }) => ({
@@ -207,6 +293,8 @@ export type Subscription = typeof subscriptions.$inferSelect
 export type Analysis = typeof analyses.$inferSelect
 export type Hypothesis = typeof hypotheses.$inferSelect
 export type Variant = typeof variants.$inferSelect
+export type FlowFix = typeof flowFixes.$inferSelect
+export type ReferencePage = typeof referencePages.$inferSelect
 export type Experiment = typeof experiments.$inferSelect
 export type ExperimentStat = typeof experimentStats.$inferSelect
 export type Waitlist = typeof waitlist.$inferSelect

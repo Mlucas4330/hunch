@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server'
 import { and, eq, inArray, lte, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { experiments, hypotheses } from '@/db/schema'
+import { secretsMatch } from '@/lib/secure-compare'
 
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
+  const presented = request.headers.get('authorization')?.replace(/^Bearer /, '')
+  if (!secretsMatch(presented, process.env.CRON_SECRET)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 

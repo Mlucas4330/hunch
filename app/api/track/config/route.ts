@@ -4,11 +4,12 @@ import { z } from 'zod'
 import { db } from '@/db'
 import { analyses, experiments } from '@/db/schema'
 import { CORS_HEADERS, preflight } from '@/lib/cors'
+import { enforceRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
 export function OPTIONS() {
-  return preflight()
+  return preflight('GET, OPTIONS')
 }
 
 export async function GET(request: Request) {
@@ -19,6 +20,11 @@ export async function GET(request: Request) {
   if (!parsedKey.success) {
     return NextResponse.json({ experiments: [] }, { headers: CORS_HEADERS })
   }
+
+  // Keyed on the embed key rather than the IP: this is one landing page's real visitor traffic
+  // arriving from many addresses, so a per-IP window would throttle the wrong thing.
+  const limited = await enforceRateLimit('track_config', parsedKey.data, CORS_HEADERS)
+  if (limited) return limited
 
   const analysis = await db.query.analyses.findFirst({
     where: eq(analyses.embedKey, parsedKey.data),

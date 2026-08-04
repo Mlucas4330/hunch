@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/components/i18n-provider'
 
 export function CopyReportLink({ reportUrl, embedKey }: { reportUrl: string; embedKey: string }) {
+  const { dictionary } = useI18n()
   const [origin, setOrigin] = useState(reportUrl)
   const [copied, setCopied] = useState(false)
 
@@ -19,7 +21,7 @@ export function CopyReportLink({ reportUrl, embedKey }: { reportUrl: string; emb
 
   return (
     <Button variant="outline" size="sm" onClick={copy}>
-      {copied ? 'Copied' : 'Copy report link'}
+      {copied ? dictionary.common.copied : dictionary.analysis.copyReportLink}
     </Button>
   )
 }
