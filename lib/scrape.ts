@@ -1,3 +1,4 @@
+import { lookup } from 'node:dns/promises'
 import puppeteer, { type Browser, type Page } from 'puppeteer'
 import {
   GOAL_CANDIDATE_MAX_WORDS,
@@ -75,10 +76,27 @@ export class ScrapeError extends Error {
   }
 }
 
-// The single place a browser is obtained. Every scrape shares it so the sandbox flags and the
-// request guard below can never drift apart between call sites, and so the body can later be
-// swapped for `puppeteer.connect()` against a dedicated browser tier without touching callers.
+// The single place a browser is obtained, so the sandbox flags and the request guard below can
+// never drift apart between call sites.
+//
+// In production BROWSER_URL points at a dedicated browser service: it holds no DB or API
+// credentials, so a renderer escape finds nothing worth stealing. Unset -- local dev, the ingest
+// CLI, the e2e suite -- falls back to launching Chrome in this process exactly as before.
 async function launchBrowser(): Promise<Browser> {
+  const remote = process.env.BROWSER_URL
+
+  if (remote) {
+    // Chrome's DevTools endpoint refuses any Host header that is not an IP or localhost -- its own
+    // DNS-rebinding guard -- so a service name has to be resolved before connecting.
+    const { hostname, port, protocol } = new URL(remote)
+    const { address, family } = await lookup(hostname)
+    // Railway's internal DNS answers with IPv6, and a bare v6 literal in a URL is malformed --
+    // it has to be bracketed or the connection never reaches Chrome.
+    const host = family === 6 ? `[${address}]` : address
+
+    return puppeteer.connect({ browserURL: `${protocol}//${host}:${port}` })
+  }
+
   // The Chrome sandbox is what keeps a renderer exploit -- from a page we do not control -- away
   // from this process's env, which holds the DB and API credentials. Disabling it is opt-in and
   // explicit, never the silent default, because some serverless runtimes cannot provide it.
@@ -92,6 +110,20 @@ async function launchBrowser(): Promise<Browser> {
       '--disable-gpu'
     ]
   })
+}
+
+// The mirror of launchBrowser: a connected browser is shared by every later request, so closing it
+// would take the whole container down with one scrape. The page is closed either way -- against a
+// long-lived browser, relying on close() to reap it leaks a tab per scrape.
+async function releaseBrowser(browser: Browser, page: Page | null): Promise<void> {
+  await page?.close().catch(() => {})
+
+  if (process.env.BROWSER_URL) {
+    await browser.disconnect().catch(() => {})
+    return
+  }
+
+  await browser.close().catch(() => {})
 }
 
 // assertPublicUrl only vets the URL we were handed. Redirects and anything the page requests on its
@@ -161,9 +193,10 @@ async function settlePage(page: Page): Promise<void> {
 export async function scrapePage(url: string): Promise<ScrapedPage> {
   const target = await assertPublicUrl(url)
   const browser = await launchBrowser()
+  let page: Page | null = null
 
   try {
-    const page = await openGuardedPage(browser)
+    page = await openGuardedPage(browser)
     await page.setViewport(SCRAPE_VIEWPORT)
     await page.goto(target.href, {
       waitUntil: 'networkidle2',
@@ -181,7 +214,7 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
   } catch (error) {
     throw new ScrapeError(`Failed to scrape ${url}`, { cause: error })
   } finally {
-    await browser.close()
+    await releaseBrowser(browser, page)
   }
 }
 
@@ -198,9 +231,10 @@ export async function screenshotVariant(
 ): Promise<Buffer> {
   const target = await assertPublicUrl(url)
   const browser = await launchBrowser()
+  let page: Page | null = null
 
   try {
-    const page = await openGuardedPage(browser)
+    page = await openGuardedPage(browser)
     await page.setViewport(SCRAPE_VIEWPORT)
     await page.goto(target.href, {
       waitUntil: 'networkidle2',
@@ -228,7 +262,7 @@ export async function screenshotVariant(
     if (error instanceof ScrapeError) throw error
     throw new ScrapeError(`Failed to screenshot ${url}`, { cause: error })
   } finally {
-    await browser.close()
+    await releaseBrowser(browser, page)
   }
 }
 

@@ -17,11 +17,11 @@ Hunch then closes the loop: with one embeddable snippet (no external analytics r
 | Scraping   | Puppeteer (self-hosted)                       |
 | Styles     | Shadcn
 | AI         | Claude API + Vercel AI SDK structured outputs |
-| Database   | Neon Postgres + Drizzle ORM                   |
-| Storage    | AI JSON output + variant screenshots (Vercel Blob) |
+| Database   | Postgres + Drizzle ORM                        |
+| Storage    | AI JSON output in Postgres; variant screenshots on a local volume |
 | Billing    | Stripe only (USD)                             |
 | i18n       | Cookie-driven dictionaries (`en`, `pt-BR`)    |
-| Deployment | Vercel                                        |
+| Deployment | Railway (app + dedicated browser + Postgres + cron); Upstash for rate limits |
 | Market     | US-first                                      |
 
 ## Monetization tiers
@@ -108,7 +108,15 @@ Hunch then closes the loop: with one embeddable snippet (no external analytics r
 - The embed snippet must fail safe: a bad selector or network error never breaks the host page
 - Visitor bucketing must be sticky (same visitor always sees the same arm)
 - Significance is evaluated once at the test's end date, not continuously (avoids the peeking problem)
-- The cron finalize endpoint authenticates via `CRON_SECRET`; Vercel Cron on Hobby runs at most daily
+- The cron finalize endpoint authenticates via `CRON_SECRET` and is driven by the host's crontab
+- Chrome runs as its own service, holding no credentials of any kind, because a scrape renders pages
+  we do not control. Its sandbox is off — Railway cannot attach a seccomp profile, and Docker's
+  default one blocks the namespace syscalls the sandbox needs — so the empty environment *is* the
+  containment, and the image is rebuilt regularly to keep Chromium patched
+- Variant screenshots are same-origin files on a volume, not object storage, so `img-src 'self'`
+  already covers them and `next/image` needs no `remotePatterns` entry. The route that serves them
+  takes a filename from an unauthenticated caller, so it allowlists the exact shape it writes
+  rather than sanitizing the path
 
 ## Local development
 
@@ -152,3 +160,41 @@ are picked by the same locale the real pipeline uses. The suite sets no locale c
 Run `npm run build` with
 no `npm run dev` server attached: both write to `.next`, and concurrently they corrupt each other's
 chunks.
+
+## Deployment
+
+Four Railway services in one project, built from this repo:
+
+| Service | Source | Notes |
+| ------- | ------ | ----- |
+| `app` | `Dockerfile` (target `runner`) | public domain, volume mounted at `/data/screenshots` |
+| `browser` | `Dockerfile.browser` | **no variables, no public domain** |
+| `Postgres` | Railway plugin | |
+| `cron-finalize` | `curlimages/curl`, cron `0 8 * * *` | calls `/api/cron/finalize-experiments` |
+
+Redis is deliberately not a Railway service: `lib/rate-limit.ts` speaks Upstash's REST protocol, and
+its free tier costs nothing and saves running both a Redis and a REST shim.
+
+Things that are easy to get wrong:
+
+- **`NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_REPORT_URL` are build args, not runtime env.** Next inlines
+  them into the client bundle, so a service variable cannot fix a build done without them -- the
+  embed snippet and every report link would point at `localhost`.
+- **`AUTH_TRUST_HOST=true` is required** behind Railway's proxy, or sign-in fails looking like broken
+  OAuth.
+- **`browser` gets no public domain and no TCP proxy.** Anyone who reaches CDP on 9222 controls that
+  browser completely, including reading files inside its container.
+- **No secrets in project-level shared variables.** Railway propagates those into every service,
+  including `browser`, whose empty environment is the entire mitigation for the missing sandbox.
+- **Rate limiting fails open.** Missing Upstash variables means no limit at all on the public
+  endpoints, silently -- confirm with a real 429 rather than by reading the config.
+
+Schema changes reach production through `.github/workflows/migrate.yml`, which runs `db:migrate`
+(the committed `db/migrations`) against Railway's public Postgres endpoint after CI passes on `main`.
+It cannot run as a Railway pre-deploy command: `output: 'standalone'` traces only runtime imports, so
+`drizzle-kit` is not in the app image. Railway rolls the app independently of that job, so write
+migrations that are safe against the previous release -- add a column before writing to it, drop it a
+release later. `db:push` stays local-only.
+
+The `browser` image should be rebuilt periodically. Chrome runs unsandboxed there (see the
+non-functional requirements), so an outdated Chromium is what turns that trade-off into a real risk.

@@ -120,6 +120,15 @@ export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; window: Durati
   signin: { tokens: 5, window: '15 m' }
 }
 
+// Where variant previews are served from. They live on a volume rather than object storage, so they
+// are same-origin: no next/image remote pattern, and img-src 'self' already covers them.
+export const SCREENSHOT_PUBLIC_PATH = '/screenshots'
+
+// Exactly what saveScreenshot() writes: a uuid, a hyphen, a uuid, `.png`. The serving route
+// allowlists against this instead of sanitizing the request path, so no separator or dot segment
+// can survive the check in the first place.
+export const SCREENSHOT_FILENAME_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.png$/
+
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 
 export const FREE_ANALYSES_LIMIT = 3

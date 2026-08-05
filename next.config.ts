@@ -7,7 +7,7 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' https://js.stripe.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://lh3.googleusercontent.com",
+  "img-src 'self' data: blob: https://lh3.googleusercontent.com",
   "font-src 'self' data:",
   "connect-src 'self' https://api.stripe.com",
   "frame-src https://js.stripe.com https://hooks.stripe.com",
@@ -32,13 +32,14 @@ const SECURITY_HEADERS = [
 ]
 
 const nextConfig: NextConfig = {
+  // Emitted as a self-contained server bundle so the runtime image carries only what it needs
+  // instead of all of node_modules.
+  output: 'standalone',
   serverExternalPackages: ['puppeteer'],
-  // Variant previews are uploaded to Vercel Blob and rendered through next/image, which refuses any
-  // remote host that is not allowlisted here. This is a separate list from the CSP's img-src above;
-  // both have to name the Blob store or the preview silently fails to render.
-  images: {
-    remotePatterns: [{ protocol: 'https', hostname: '*.public.blob.vercel-storage.com' }]
-  },
+  // Variant previews are written to a local volume and served from our own origin, so they need no
+  // remotePatterns entry and no img-src host: 'self' already covers both. That is the whole reason
+  // they are not on object storage -- see README.
+
   // Isolate the e2e dev server's build output so it never contends with a
   // separately running `npm run dev` over the shared .next/cache.
   distDir: process.env.E2E_FIXTURES === '1' ? '.next-e2e' : '.next',

@@ -1,0 +1,37 @@
+name: Migrate
+
+# Railway builds and deploys from its own GitHub integration, so nothing here ships images. What
+# does need to happen outside Railway is the schema change: `output: standalone` traces only what
+# the server imports at runtime, so drizzle-kit is absent from the app image and no pre-deploy
+# command on Railway can run it.
+#
+# This runs against Railway's public Postgres endpoint, gated on CI passing on main. Apply
+# migrations that are safe to run against the previous release -- add columns before writing to
+# them, drop them a release later -- because Railway rolls the app independently of this job.
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+
+      - run: npm run db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}

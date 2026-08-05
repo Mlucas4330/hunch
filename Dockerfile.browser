@@ -1,0 +1,49 @@
+# Chrome, alone. This container holds no DATABASE_URL, no ANTHROPIC_API_KEY and no AUTH_SECRET: its
+# entire environment is browser flags. That is deliberate and it is the protection that matters
+# here, because the sandbox below is off -- an escaped renderer lands somewhere with nothing to
+# steal.
+#
+# Keep it that way. Railway propagates project-level shared variables into every service, so a
+# secret defined at the project level instead of on `app` would end up in this container and undo
+# the whole arrangement.
+FROM debian:bookworm-slim
+
+# fonts-* is not optional: awaitPaint waits on document.fonts.ready, which resolves in whichever
+# process renders the page. A fontless browser returns every screenshot in a fallback face, which is
+# exactly the broken-looking preview that wait exists to prevent. Emoji are allowed in product copy.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      chromium \
+      ca-certificates \
+      fonts-liberation \
+      fonts-noto-color-emoji \
+      dumb-init \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --system --gid 1001 chrome \
+  && useradd --system --uid 1001 --gid chrome --create-home chrome
+
+USER chrome
+EXPOSE 9222
+
+# --remote-debugging-address=0.0.0.0 is required for the app service to reach CDP at all. This
+# service must therefore never be given a public domain or TCP proxy: anyone who reaches 9222
+# controls this browser completely, including reading files inside this container.
+# --remote-allow-origins is what lets puppeteer.connect complete its WebSocket upgrade.
+#
+# --no-sandbox is here because Chrome's sandbox needs user namespaces, whose clone/unshare syscalls
+# Docker's default seccomp profile blocks, and Railway does not support attaching a custom profile
+# (security_opt). On a host that does, the fix is that profile -- not this flag. The mitigation for
+# running without it is the empty environment above, plus rebuilding this image regularly so the
+# Chromium underneath stays patched.
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["chromium", \
+     "--headless=new", \
+     "--remote-debugging-port=9222", \
+     "--remote-debugging-address=0.0.0.0", \
+     "--remote-allow-origins=*", \
+     "--no-sandbox", \
+     "--disable-setuid-sandbox", \
+     "--disable-dev-shm-usage", \
+     "--disable-gpu", \
+     "--no-first-run", \
+     "--no-default-browser-check"]

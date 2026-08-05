@@ -88,7 +88,8 @@ variants
 - position       (int: 0 = the recommended challenger, written during the analysis; 1 and 2 are the
                   alternates, written on demand by POST /api/hypotheses/[id]/variants)
 - status         (enum: VARIANT_STATUS, default: proposed)
-- screenshot_url (text, nullable: Vercel Blob URL of the variant applied to the live page)
+- screenshot_url (text, nullable: same-origin path -- /screenshots/<file> -- of the variant applied
+                  to the live page, written to a local volume and served by the reverse proxy)
 - created_at     (timestamp)
 
 waitlist                        <- leads captured by the public report's paywall
@@ -328,9 +329,15 @@ Both back `/r/[embedKey]`, which anyone with the link can open. Authorization is
 
 `POST /api/report/screenshot`
 Body `{ embedKey, hypothesisId }`. Renders the landing page with the recommended variant swapped
-in and uploads the PNG to Vercel Blob, caching the URL on `variants.screenshot_url`. Returns
-`{ url }`, with `url: null` whenever a preview is not possible (manual target, stale selector,
-missing Blob config) so the report degrades to copy-only instead of breaking.
+in and writes the PNG to `SCREENSHOT_DIR` via `saveScreenshot` (`lib/screenshots.ts`), caching the
+resulting `/screenshots/<file>` path on `variants.screenshot_url`. Returns `{ url }`, with
+`url: null` whenever a preview is not possible (manual target, stale selector, unwritable volume) so
+the report degrades to copy-only instead of breaking.
+
+The filename carries a random suffix because the file is world-readable once the proxy serves it: a
+path derivable from the variant id would make every screenshot guessable, and that id is returned by
+the authenticated API. Being same-origin is why `next/image` needs no `remotePatterns` entry and the
+CSP needs no `img-src` host -- object storage would cost both.
 
 **User-initiated, one request per click.** The report used to fire this on mount for every visible
 hypothesis, so opening a cold report launched `REPORT_PREVIEW_LIMIT` browsers before anyone had
@@ -343,11 +350,10 @@ Read back by the admin-only `/admin/leads` page; there is no other way to see th
 ### Cron (auto-finalize)
 
 `GET /api/cron/finalize-experiments`
-Triggered daily by Vercel Cron (`vercel.json`). Authenticates via
-`Authorization: Bearer <CRON_SECRET>` -> `401` otherwise. Marks every `running` experiment with
+Triggered daily by the host's crontab (`curl` with the bearer header -- see README). Authenticates
+via `Authorization: Bearer <CRON_SECRET>` -> `401` otherwise. Marks every `running` experiment with
 `ends_at <= now()` as `completed` (+ `stopped_at`) and its hypothesis `completed`, then returns
-`{ finalized: n }`. Excluded from auth middleware (`api/cron` in the matcher). Sub-daily schedules
-require a paid Vercel plan.
+`{ finalized: n }`. Excluded from auth middleware (`api/cron` in the matcher).
 
 ### Billing
 
@@ -731,9 +737,41 @@ request the page makes through `setRequestInterception`. This is what actually c
 and a `302` to the metadata endpoint; the pre-flight check cannot see either. It also caps response
 bytes and drops resource types a text scrape does not need.
 
-`launchBrowser()` is the only place a browser is obtained. The Chrome sandbox is on unless
-`PUPPETEER_ALLOW_NO_SANDBOX=1`, because the renderer parses pages we do not control while sharing a
-process env with the DB and API credentials.
+`launchBrowser()` is the only place a browser is obtained, and it has two modes. With `BROWSER_URL`
+set it `connect()`s to the dedicated browser container; unset, it launches Chrome in-process exactly
+as before, which is what local dev, `npm run ingest:references` and the e2e suite use. The guard is
+unaffected either way: `openGuardedPage`'s interception runs app-side over CDP.
+
+`PUPPETEER_ALLOW_NO_SANDBOX` only affects the in-process launch, so it is irrelevant in production
+where the app connects rather than launches. The deployed browser passes `--no-sandbox` in
+`Dockerfile.browser`, because Chrome's sandbox needs user namespaces whose syscalls Docker's default
+seccomp profile blocks, and Railway does not support attaching a custom profile. On a host that does,
+that profile is the fix -- not the flag.
+
+What makes that survivable is the browser service having **no environment variables at all**: an
+escaped renderer holds no DB URL and no API key. Railway propagates project-level shared variables
+into every service, so a secret defined there instead of on `app` would quietly undo this. The second
+control is keeping the image rebuilt so Chromium stays patched.
+
+`releaseBrowser()` is the mirror and exists because a connected browser is **shared**: it closes the
+page always -- otherwise every scrape leaks a tab until the container OOMs -- then `disconnect()`s
+when remote and `close()`s when local. Calling `browser.close()` on the shared browser would take
+scraping down for every later request.
+
+Chrome's DevTools endpoint refuses a `Host` header that is not an IP or `localhost` (its own
+DNS-rebinding guard), so `BROWSER_URL`'s hostname is resolved before connecting. Pointing puppeteer
+straight at a service name fails. Railway's internal DNS answers with **IPv6**, and a bare v6 literal
+is not a valid URL host, so the resolved address is bracketed when `family === 6`.
+
+## Serving screenshots - `app/screenshots/[file]/route.ts`
+
+Previews live on a volume rather than in `public/`, so the app serves them; behind a proxy with
+access to that volume this route would not exist. The filename comes from an unauthenticated caller,
+so it is **allowlisted** against `SCREENSHOT_FILENAME_PATTERN` (the exact shape `saveScreenshot`
+writes, which admits no separator and no dot segment) rather than sanitized -- stripping `..` keeps
+losing to encoding tricks. The containment check against `SCREENSHOT_DIR` is a second lock, not the
+only one. A miss and a malformed name both answer `404`, so nothing here reveals what the directory
+holds.
 
 ## Rate limiting - `lib/rate-limit.ts`
 

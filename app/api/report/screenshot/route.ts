@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { put } from '@vercel/blob'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db'
@@ -7,6 +6,7 @@ import { hypotheses, variants } from '@/db/schema'
 import { CORS_HEADERS, preflight } from '@/lib/cors'
 import { clientIp, enforceRateLimit } from '@/lib/rate-limit'
 import { screenshotVariant } from '@/lib/scrape'
+import { saveScreenshot } from '@/lib/screenshots'
 
 export const runtime = 'nodejs'
 
@@ -61,19 +61,14 @@ export async function POST(request: Request) {
       variant.copy,
       hypothesis.currentCopy
     )
-    // The blob is world-readable, so the path must not be derivable from the variant id -- that id
-    // is returned by the authenticated API and would otherwise make every screenshot guessable.
-    const { url } = await put(`screenshots/${variant.id}.png`, buffer, {
-      access: 'public',
-      contentType: 'image/png',
-      addRandomSuffix: true
-    })
+    const url = await saveScreenshot(variant.id, buffer)
 
     await db.update(variants).set({ screenshotUrl: url }).where(eq(variants.id, variant.id))
     return json(url)
   } catch (error) {
-    // Fail-safe: the report must never break. Log so misconfigurations (e.g. a private Blob
-    // store, a bad selector, an unreachable page) are diagnosable instead of silently empty.
+    // Fail-safe: the report must never break. Log so misconfigurations (e.g. an unwritable
+    // screenshot volume, a bad selector, an unreachable page) are diagnosable instead of
+    // silently empty.
     console.error('[report/screenshot] generation failed', error)
     return json(null)
   }

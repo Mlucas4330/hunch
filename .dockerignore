@@ -1,0 +1,12 @@
+node_modules
+.next
+.next-e2e
+.git
+.github
+e2e/.auth
+test-results
+playwright-report
+.env
+.env.*
+!.env.example
+*.md
