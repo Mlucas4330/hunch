@@ -5,7 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// True when copy still contains a [bracketed] placeholder the founder must fill in.
 export function hasPlaceholders(text: string): boolean {
   return /\[[^\]]+\]/.test(text)
 }

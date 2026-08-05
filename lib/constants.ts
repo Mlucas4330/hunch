@@ -277,7 +277,6 @@ export const SECTION_SELECTED_CLASS: Record<Section, string> = {
   other: 'border-neutral bg-neutral/15 ring-2 ring-neutral'
 }
 
-// Solid section color for circuit nodes.
 export const SECTION_DOT_CLASS: Record<Section, string> = {
   headline: 'bg-purple',
   subheadline: 'bg-purple-soft',

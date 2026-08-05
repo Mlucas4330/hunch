@@ -45,7 +45,9 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: 'true'
 
-      - run: npm run db:push
+      # db:migrate, not db:push: the committed migrations are what the container runs on boot, so
+      # this is the only place a missing or broken one is caught before it reaches production.
+      - run: npm run db:migrate
 
       - run: npm run typecheck
 
@@ -56,10 +58,3 @@ jobs:
       - run: npx playwright install --with-deps chromium
 
       - run: npm run test:e2e
-
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7

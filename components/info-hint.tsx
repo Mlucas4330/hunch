@@ -5,8 +5,6 @@ import { Info } from 'lucide-react'
 import { useI18n } from '@/components/i18n-provider'
 import { cn } from '@/lib/utils'
 
-// A small clickable "how this works" icon. Clicking toggles a short explanation panel;
-// clicking anywhere outside closes it.
 export function InfoHint({
   label,
   children,

@@ -39,7 +39,7 @@ export const AnalysisOutputSchema = z.object({
   hypotheses: z.array(HypothesisSchema).min(5).max(8)
 })
 
-// The two alternates generated on demand for a hypothesis that already has its recommendation.
+// Generated on demand, for a hypothesis that already has its recommendation.
 export const AlternateVariantsSchema = z.object({
   variants: z.array(VariantSchema).length(2)
 })

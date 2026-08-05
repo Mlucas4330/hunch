@@ -37,7 +37,6 @@ export async function POST(request: Request) {
   const brief = parsed.data.brief || undefined
   // Competitor mode is a paid feature: free users always fall back to auto web-search.
   const competitorUrls = user.plan === 'free' ? undefined : parsed.data.competitorUrls
-  // The analysis is written in the language the user is reading the app in.
   const locale = await getLocale()
 
   let output

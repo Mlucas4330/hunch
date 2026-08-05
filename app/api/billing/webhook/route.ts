@@ -1,3 +1,5 @@
+// Stripe calls this route directly, so middleware.ts's matcher excludes it from the auth check. The
+// signature verification below is what stands in for a session here.
 import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { and, desc, eq } from 'drizzle-orm'
@@ -6,8 +8,6 @@ import { stripeEvents, subscriptions, users } from '@/db/schema'
 import { stripe, planForPriceId } from '@/lib/stripe'
 import { SUBSCRIPTION_PLAN } from '@/lib/enums'
 import type { SubscriptionPlan, SubscriptionStatus } from '@/lib/enums'
-
-// Excluded from auth middleware -- Stripe calls this directly.
 
 function mapStatus(status: Stripe.Subscription.Status): SubscriptionStatus {
   if (status === 'active' || status === 'trialing') return 'active'

@@ -21,7 +21,8 @@ export const loadReport = cache(async (embedKey: string) => {
   return analysis ?? null
 })
 
-// The analyzed page's hostname, which is what a report is named after in a title or an unfurl.
+// Falls back to the raw string rather than throwing: this feeds a title and an OG card, so a
+// malformed stored url must still render something.
 export function reportHost(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '')

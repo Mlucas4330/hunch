@@ -24,7 +24,6 @@ const SAMPLE_VISITORS = 2140
 
 const PAIN_CHANNELS = ['border-coral', 'border-purple', 'border-teal']
 
-// The only indexable route in the app.
 export async function generateMetadata() {
   const { metadata } = await getDictionary()
   return pageMetadata({ ...metadata.pages.landing, path: '/', index: true })

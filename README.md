@@ -163,26 +163,52 @@ chunks.
 
 ## Deployment
 
-Four Railway services in one project, built from this repo:
+Import this repo as a new Railway project and the `app` service builds, migrates and serves with no
+config file edits: Railway auto-detects `railway.json` at the root. Everything below is what that
+import cannot create for you.
 
 | Service | Source | Notes |
 | ------- | ------ | ----- |
-| `app` | `railway.app.json` | public domain, volume mounted at `/data/screenshots` |
-| `browser` | `railway.browser.json` | **no variables, no public domain** |
+| `app` | `railway.json` (auto-detected on import) | public domain, volume mounted at `/data/screenshots` |
+| `browser` | `railway.browser.json` (*Config as code*, set by hand) | **no variables, no public domain** |
 | `Postgres` | Railway plugin | |
 | `Redis` | Railway plugin | rate limit counters only |
 | `cron-finalize` | `curlimages/curl`, cron `0 8 * * *` | calls `/api/cron/finalize-experiments` |
 
-Both services build from this one repository, so each points at its own config file — set *Config as
-code* to `railway.app.json` and `railway.browser.json` respectively in each service's settings.
-That is also what keeps `watchPatterns` meaningful: without it every push to the app would rebuild
+Railway creates exactly one service per import, so after importing:
+
+1. Add the `Postgres` and `Redis` plugins.
+2. Set the variables from `.env.example` on `app`, plus `AUTH_TRUST_HOST=true`.
+3. Mount a volume on `app` at `/data/screenshots` (the image already defaults `SCREENSHOT_DIR` there).
+4. Add a second service from the same repo, set *Config as code* to `railway.browser.json`, give it
+   **no variables and no domain**, then point `BROWSER_URL` on `app` at its internal address.
+5. Add the `cron-finalize` service and give it `CRON_SECRET`.
+
+Steps 4 and 5 stay manual on purpose. The browser service's empty environment is the entire
+mitigation for its missing sandbox, and merging it into `app` would put an unsandboxed renderer in the
+same container as `DATABASE_URL` and `ANTHROPIC_API_KEY`. Pointing each service at its own config file
+is also what keeps `watchPatterns` meaningful: without it every push to the app would rebuild
 `browser` too, and that image reinstalls Chromium from apt each time.
 
 Things that are easy to get wrong:
 
-- **`NEXT_PUBLIC_APP_URL` and `NEXT_PUBLIC_REPORT_URL` are build args, not runtime env.** Next inlines
-  them into the client bundle, so a service variable cannot fix a build done without them -- the
-  embed snippet and every report link would point at `localhost`.
+- **`NEXT_PUBLIC_*` and `CSP_ENFORCE` are build args, not runtime env.** Next inlines the first into
+  the client bundle and `next.config.ts` reads `CSP_ENFORCE` at module scope, so a service variable
+  cannot fix a build done without them -- the embed snippet and every report link would point at
+  `localhost`, and the CSP would stay report-only. All four are declared as `ARG` in the `builder`
+  stage (`NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_REPORT_URL`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
+  `CSP_ENFORCE`); Railway fills them from the service's variables. Adding a fifth such variable means
+  adding an `ARG` for it too.
+- **`DATABASE_URL` is deliberately *not* a build arg.** `next build` imports every route module to
+  collect page data, and `db/index.ts` throws without it, so the `builder` stage sets a throwaway
+  placeholder -- nothing queries at build time and postgres.js connects lazily. Do not replace it with
+  a real value passed in as a build arg: that string would persist in the image's layer history. The
+  `runner` stage does not carry it forward, so a deploy missing the real runtime variable still fails
+  fast at boot.
+- **The volume must be writable by uid 1001.** The runtime image runs as `nextjs`, and
+  `saveScreenshot` degrades quietly on `EACCES` (`/api/report/screenshot` returns `url: null` by
+  design), so a root-owned mount shows up as reports without previews rather than as an error. Test it
+  by requesting a preview on a real report; the fix is Railway's `RAILWAY_RUN_UID=0`.
 - **`AUTH_TRUST_HOST=true` is required** behind Railway's proxy, or sign-in fails looking like broken
   OAuth.
 - **`browser` gets no public domain and no TCP proxy.** Anyone who reaches CDP on 9222 controls that
@@ -193,12 +219,19 @@ Things that are easy to get wrong:
   means no limit at all on the public endpoints -- silently, by design, so infrastructure trouble
   never becomes an outage. Confirm with a real 429 rather than by reading the config.
 
-Schema changes reach production through `.github/workflows/migrate.yml`, which runs `db:migrate`
-(the committed `db/migrations`) against Railway's public Postgres endpoint after CI passes on `main`.
-It cannot run as a Railway pre-deploy command: `output: 'standalone'` traces only runtime imports, so
-`drizzle-kit` is not in the app image. Railway rolls the app independently of that job, so write
-migrations that are safe against the previous release -- add a column before writing to it, drop it a
-release later. `db:push` stays local-only.
+Schema changes reach production on boot: the app container runs `db/migrate.mjs` before `server.js`,
+applying the committed `db/migrations`. It is idempotent -- drizzle records what it has applied, so
+every boot after the first is a no-op -- and a failed migration exits non-zero rather than serving a
+release against the wrong schema. This uses `drizzle-orm`'s runtime migrator rather than
+`drizzle-kit migrate`, because `output: 'standalone'` traces only runtime imports and `drizzle-kit` is
+a devDependency absent from the image. Railway overlaps the old and new containers during a rollover,
+so still write migrations that are safe against the previous release -- add a column before writing to
+it, drop it a release later. `db:push` stays local-only.
+
+Nothing in this repo builds or pushes an image; Railway's GitHub integration is the deploy trigger.
+`.github/workflows/ci.yml` is the gate in front of it -- Railway ships whatever is on `main` and fails
+a deploy only if the Docker build fails, so CI is the only thing running `typecheck`,
+`check:url-guard` and the e2e suite before a push goes live.
 
 The `browser` image should be rebuilt periodically. Chrome runs unsandboxed there (see the
 non-functional requirements), so an outdated Chromium is what turns that trade-off into a real risk.

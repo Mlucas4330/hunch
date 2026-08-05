@@ -46,7 +46,6 @@ test.describe('core features', () => {
       page.getByRole('button', { name: 'Sign out' }).click()
     ])
 
-    // Signed out: the protected route now redirects to sign-in
     await page.goto('/dashboard')
     await expect(page).toHaveURL(/\/auth\/signin/)
 
@@ -112,19 +111,16 @@ test.describe('core features', () => {
   }) => {
     const url = `https://example.com/?t=${Date.now()}`
 
-    // Analyze
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
     await page.getByRole('button', { name: 'Analyze' }).click()
 
     await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
 
-    // Screen 1 lists hypotheses grounded in competitors, each with a recommended challenger
     await expect(page.getByTestId('benchmarked-against')).toContainText('Linear')
     await expect(page.getByText('Ship faster: releases in').first()).toBeVisible()
     await expect(page.getByRole('link', { name: 'Set up test' }).first()).toBeVisible()
 
-    // Appears in dashboard history
     await page.goto('/dashboard')
     await expect(page.getByTestId('analysis-history').getByText(url)).toBeVisible()
   })
@@ -224,11 +220,9 @@ test.describe('core features', () => {
     await page.getByRole('button', { name: 'Analyze' }).click()
     await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
 
-    // Go to the run-a-test screen for the top hypothesis
     await page.getByRole('link', { name: 'Set up test' }).first().click()
     await page.waitForURL(/\/analyses\/[0-9a-f-]+\/tests\/[0-9a-f-]+$/)
 
-    // Launch the test; the response carries the embed key + experiment id
     const [launchResponse] = await Promise.all([
       page.waitForResponse(
         (r) => r.url().endsWith('/api/experiments') && r.request().method() === 'POST'
@@ -251,7 +245,6 @@ test.describe('core features', () => {
       expect(res.status()).toBe(204)
     }
 
-    // Reload and confirm the counters landed on the variant arm
     await page.reload()
     await expect(page.getByTestId('experiment-panel')).toContainText('1 / 1')
   })
@@ -310,7 +303,6 @@ test.describe('core features', () => {
     await expect(page.getByRole('button', { name: 'Variant C' })).toBeVisible()
     await expect(page.getByTestId('alternates-loading')).toHaveCount(0)
 
-    // Selecting an alternate swaps the editable copy
     await page.getByRole('button', { name: 'Variant B' }).click()
     await expect(page.getByTestId('challenger-copy')).not.toHaveValue('')
 
