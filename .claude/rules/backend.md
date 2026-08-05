@@ -776,12 +776,27 @@ holds.
 ## Rate limiting - `lib/rate-limit.ts`
 
 Distinct from the plan quotas: those are what a tier allows, these are what the infrastructure will
-absorb. Backed by Upstash Redis, because serverless invocations share no memory.
+absorb. Backed by Redis over `ioredis` (`REDIS_URL`), because more than one app instance can serve
+the same visitor.
+
+The window is a **sorted set per (kind, identifier)**, evaluated by one Lua script so the prune, the
+count and the insert cannot interleave between two callers -- a read-then-write in application code
+would let two simultaneous requests both see the count below the limit. Members are a fresh uuid per
+request, so two hits in the same millisecond do not collide into one. The script returns when the
+oldest hit in the window expires, which is what `Retry-After` is computed from.
+
+The client is cached on `globalThis`: Next re-evaluates modules on every edit in dev, and a new
+connection per reload exhausts Redis' client limit within an afternoon. It is configured with
+`enableOfflineQueue: false` and one retry so an unreachable Redis rejects immediately -- a rate
+limiter must never be the thing that makes a request hang -- and its `error` event is handled,
+because an unhandled one on an ioredis client takes the process down.
 
 `enforceRateLimit(kind, identifier)` returns a `429` with `Retry-After` or `null`, so a guarded route
 reads as one early return. Kinds are the `RATE_LIMIT_KIND` enum; windows live in `RATE_LIMITS`, so a
-kind without a window fails typecheck. **Fails open** when the Upstash env vars are absent - local
-dev and the e2e suite run unlimited, and a missing variable is never an outage.
+kind without a window fails typecheck. **Fails open** both when `REDIS_URL` is absent - local dev and
+the e2e suite run unlimited - and when the command itself throws, so a Redis outage degrades the
+limiter instead of taking the product down. Both paths log. The consequence to remember: a
+misconfigured `REDIS_URL` looks exactly like a working one until you test for a real `429`.
 
 Identity is the user id on authenticated routes, the IP on `waitlist`, the embed key on
 `track/config` (one landing page's traffic arrives from many addresses), and key + IP on

@@ -1,4 +1,3 @@
-import type { Duration } from '@upstash/ratelimit'
 import type {
   ExperimentRecommendation,
   ExperimentStatus,
@@ -106,18 +105,21 @@ export const SCRAPE_ASSET_READY_TIMEOUT_MS = 3_000
 // Lets the scroll land and freshly triggered lazy images paint before the shutter.
 export const SCRAPE_PAINT_SETTLE_MS = 250
 
+const MINUTE_MS = 60 * 1000
+const HOUR_MS = 60 * MINUTE_MS
+
 // Sized by what each route costs us, not by what a plan allows. The two LLM/Puppeteer routes are
 // the expensive ones; the tracking routes carry a landing page's real traffic and must stay generous
 // enough that a busy customer is never throttled.
-export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; window: Duration }> = {
-  analysis: { tokens: 5, window: '1 h' },
-  variants: { tokens: 20, window: '1 h' },
-  experiment: { tokens: 30, window: '1 h' },
-  screenshot: { tokens: 10, window: '1 h' },
-  waitlist: { tokens: 5, window: '1 h' },
-  track_event: { tokens: 120, window: '1 m' },
-  track_config: { tokens: 300, window: '1 m' },
-  signin: { tokens: 5, window: '15 m' }
+export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: number }> = {
+  analysis: { tokens: 5, windowMs: HOUR_MS },
+  variants: { tokens: 20, windowMs: HOUR_MS },
+  experiment: { tokens: 30, windowMs: HOUR_MS },
+  screenshot: { tokens: 10, windowMs: HOUR_MS },
+  waitlist: { tokens: 5, windowMs: HOUR_MS },
+  track_event: { tokens: 120, windowMs: MINUTE_MS },
+  track_config: { tokens: 300, windowMs: MINUTE_MS },
+  signin: { tokens: 5, windowMs: 15 * MINUTE_MS }
 }
 
 // Where variant previews are served from. They live on a volume rather than object storage, so they

@@ -21,7 +21,7 @@ Hunch then closes the loop: with one embeddable snippet (no external analytics r
 | Storage    | AI JSON output in Postgres; variant screenshots on a local volume |
 | Billing    | Stripe only (USD)                             |
 | i18n       | Cookie-driven dictionaries (`en`, `pt-BR`)    |
-| Deployment | Railway (app + dedicated browser + Postgres + cron); Upstash for rate limits |
+| Deployment | Railway (app, dedicated browser, Postgres, Redis, cron)  |
 | Market     | US-first                                      |
 
 ## Monetization tiers
@@ -156,7 +156,7 @@ are picked by the same locale the real pipeline uses. The suite sets no locale c
 
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` must be set for the e2e suite to sign in (the suite sets
 `ALLOW_CREDENTIALS_LOGIN` for itself). Rate limiting is skipped entirely without
-`UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`, so local dev needs no Redis.
+`REDIS_URL`, so local dev needs no Redis.
 Run `npm run build` with
 no `npm run dev` server attached: both write to `.next`, and concurrently they corrupt each other's
 chunks.
@@ -167,13 +167,16 @@ Four Railway services in one project, built from this repo:
 
 | Service | Source | Notes |
 | ------- | ------ | ----- |
-| `app` | `Dockerfile` (target `runner`) | public domain, volume mounted at `/data/screenshots` |
-| `browser` | `Dockerfile.browser` | **no variables, no public domain** |
+| `app` | `railway.app.json` | public domain, volume mounted at `/data/screenshots` |
+| `browser` | `railway.browser.json` | **no variables, no public domain** |
 | `Postgres` | Railway plugin | |
+| `Redis` | Railway plugin | rate limit counters only |
 | `cron-finalize` | `curlimages/curl`, cron `0 8 * * *` | calls `/api/cron/finalize-experiments` |
 
-Redis is deliberately not a Railway service: `lib/rate-limit.ts` speaks Upstash's REST protocol, and
-its free tier costs nothing and saves running both a Redis and a REST shim.
+Both services build from this one repository, so each points at its own config file — set *Config as
+code* to `railway.app.json` and `railway.browser.json` respectively in each service's settings.
+That is also what keeps `watchPatterns` meaningful: without it every push to the app would rebuild
+`browser` too, and that image reinstalls Chromium from apt each time.
 
 Things that are easy to get wrong:
 
@@ -186,8 +189,9 @@ Things that are easy to get wrong:
   browser completely, including reading files inside its container.
 - **No secrets in project-level shared variables.** Railway propagates those into every service,
   including `browser`, whose empty environment is the entire mitigation for the missing sandbox.
-- **Rate limiting fails open.** Missing Upstash variables means no limit at all on the public
-  endpoints, silently -- confirm with a real 429 rather than by reading the config.
+- **Rate limiting fails open.** A missing or wrong `REDIS_URL`, or a Redis that is simply down,
+  means no limit at all on the public endpoints -- silently, by design, so infrastructure trouble
+  never becomes an outage. Confirm with a real 429 rather than by reading the config.
 
 Schema changes reach production through `.github/workflows/migrate.yml`, which runs `db:migrate`
 (the committed `db/migrations`) against Railway's public Postgres endpoint after CI passes on `main`.
