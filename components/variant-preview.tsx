@@ -3,7 +3,11 @@
 import { useState } from 'react'
 import { useI18n } from '@/components/i18n-provider'
 import { Button } from '@/components/ui/button'
-import { PREVIEW_ESTIMATE_SECONDS, SCRAPE_VIEWPORT } from '@/lib/constants'
+import {
+  PREVIEW_ESTIMATE_SECONDS,
+  PREVIEW_REQUEST_TIMEOUT_MS,
+  SCRAPE_VIEWPORT
+} from '@/lib/constants'
 import { t } from '@/lib/i18n/format'
 import Image from 'next/image'
 
@@ -25,13 +29,22 @@ export function VariantPreview({
     initialUrl ? 'ready' : 'idle'
   )
 
+  // Bounded because the server's worst case is minutes, not the seconds the hint promises, and a
+  // pulsing skeleton with no end is worse than an error with a retry. Aborting does not cancel the
+  // render: nothing reads request.signal, so it finishes and caches, and the retry click returns it
+  // immediately. The timeout buys the reader an answer, not a smaller bill.
   async function render() {
     setState('loading')
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), PREVIEW_REQUEST_TIMEOUT_MS)
+
     try {
       const res = await fetch('/api/report/screenshot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ embedKey, hypothesisId })
+        body: JSON.stringify({ embedKey, hypothesisId }),
+        signal: controller.signal
       })
       const data: { url: string | null } = await res.json()
       if (!data.url) {
@@ -42,6 +55,8 @@ export function VariantPreview({
       setState('ready')
     } catch {
       setState('error')
+    } finally {
+      clearTimeout(timer)
     }
   }
 
@@ -59,6 +74,15 @@ export function VariantPreview({
             width={SCRAPE_VIEWPORT.width}
             height={SCRAPE_VIEWPORT.height}
             className="h-auto w-full"
+            // A cached screenshot_url is server-rendered straight into initialUrl, so this is the
+            // only place a file that has been pruned, lost with its volume, or left truncated by an
+            // interrupted write can be caught -- the POST route never runs on that path. Falling
+            // back to the button re-renders it on demand instead of showing a broken image on the
+            // one surface a prospect sees.
+            onError={() => {
+              setUrl(null)
+              setState('idle')
+            }}
           />
         </div>
       ) : null}

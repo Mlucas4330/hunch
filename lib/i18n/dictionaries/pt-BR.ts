@@ -428,7 +428,8 @@ export const ptBR: Dictionary = {
     eyebrow: 'Rodar um teste',
     hintLabel: 'Como rodar um teste funciona',
     hint: 'Seu texto atual é o *controle*. Escolha um *desafiante*, edite para o seu produto (troque qualquer [espaço reservado] entre colchetes por dados reais) e escolha por quanto tempo rodar. Ao clicar em *Lançar*, o snippet mostra o desafiante para metade dos visitantes e registra as conversões. Quando a janela termina, lemos o resultado uma vez e recomendamos um vencedor.',
-    backToIdeas: 'Voltar às ideias'
+    backToIdeas: 'Voltar às ideias',
+    relaunch: 'Rodar outro teste'
   },
 
   testRunner: {
@@ -453,6 +454,8 @@ export const ptBR: Dictionary = {
     gatedAfter: 'para rodar mais.',
     manualTarget:
       'Esta ideia é de configuração manual: o texto dela não corresponde a um único elemento que possamos trocar automaticamente, então ela não roda como teste de texto ao vivo. Aplique o texto recomendado na sua página manualmente.',
+    alreadyRunning:
+      'Esta ideia já tem um teste ao vivo. Interrompa esse teste antes de lançar outro.',
     error: 'Algo deu errado ao lançar o teste.'
   },
 
@@ -525,6 +528,14 @@ export const ptBR: Dictionary = {
     join: 'Entrar na lista de espera',
     joining: 'Entrando...',
     error: 'Algo deu errado. Tente novamente.'
+  },
+
+  upgradePrompt: {
+    eyebrow: 'Solo',
+    title: 'Continue testando sem limite',
+    body: 'O Solo libera análises ilimitadas, modo concorrente, testes ao vivo ilimitados e exportação de qualquer relatório.',
+    dismiss: 'Agora não',
+    dismissAria: 'Dispensar aviso de upgrade'
   },
 
   billing: {

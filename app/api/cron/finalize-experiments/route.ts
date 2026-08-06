@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
-import { and, eq, inArray, lte, sql } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '@/db'
-import { experiments, hypotheses } from '@/db/schema'
-import { secretsMatch } from '@/lib/secure-compare'
+import { experiments, experimentStats, hypotheses, variants } from '@/db/schema'
+import { authorizeCron } from '@/lib/cron-auth'
+import { experimentIsOver, experimentWithResult } from '@/lib/experiments'
 
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
-  const presented = request.headers.get('authorization')?.replace(/^Bearer /, '')
-  if (!secretsMatch(presented, process.env.CRON_SECRET)) {
+  if (!authorizeCron(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
@@ -16,19 +16,43 @@ export async function GET(request: Request) {
     const finalized = await tx
       .update(experiments)
       .set({ status: 'completed', stoppedAt: new Date() })
-      .where(and(eq(experiments.status, 'running'), lte(experiments.endsAt, sql`now()`)))
-      .returning({ hypothesisId: experiments.hypothesisId })
+      .where(and(eq(experiments.status, 'running'), experimentIsOver()))
+      .returning()
 
-    if (finalized.length > 0) {
-      await tx
-        .update(hypotheses)
-        .set({ status: 'completed' })
-        .where(
-          inArray(
-            hypotheses.id,
-            finalized.map((row) => row.hypothesisId)
-          )
+    if (finalized.length === 0) return finalized
+
+    await tx
+      .update(hypotheses)
+      .set({ status: 'completed' })
+      .where(
+        inArray(
+          hypotheses.id,
+          finalized.map((row) => row.hypothesisId)
         )
+      )
+
+    // Finishing on its own is the normal way a test ends, so this is where most variants get their
+    // verdict. Leaving them in `testing` would mean the status only ever resolves for the minority
+    // of tests someone closed by hand.
+    const stats = await tx
+      .select()
+      .from(experimentStats)
+      .where(
+        inArray(
+          experimentStats.experimentId,
+          finalized.map((row) => row.id)
+        )
+      )
+
+    for (const experiment of finalized) {
+      const { result } = experimentWithResult(
+        experiment,
+        stats.filter((s) => s.experimentId === experiment.id)
+      )
+      await tx
+        .update(variants)
+        .set({ status: result.recommendation === 'ship_variant' ? 'winner' : 'rejected' })
+        .where(eq(variants.id, experiment.variantId))
     }
 
     return finalized

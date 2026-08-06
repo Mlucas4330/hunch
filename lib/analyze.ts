@@ -23,7 +23,6 @@ import {
   fixtureAnalysis,
   fixturePlaybook
 } from '@/lib/ai/fixtures'
-import { structuralEvidence } from '@/lib/references'
 import {
   type GoalCandidate,
   type PageElement,
@@ -131,10 +130,6 @@ export async function analyzeLandingPage(
     ? `\n\nPage elements (each line is one real on-page element; current_copy must quote exactly one of these verbatim, and every variant you write for it must fit inside that element's word ceiling):\n\n${elementList}`
     : ''
 
-  // What the reference corpus says this page is missing. '' when the corpus is empty, which costs
-  // the playbook its counts and nothing else.
-  const evidence = await structuralEvidence(structure)
-
   // Run in parallel: the playbook is a second, much smaller generation over the structural readout,
   // so it costs no additional latency on the critical path.
   const [{ object }, playbook] = await Promise.all([
@@ -147,7 +142,6 @@ export async function analyzeLandingPage(
     }),
     generatePlaybook({
       structure,
-      referenceEvidence: evidence,
       founderBrief: options.brief ?? null,
       locale
     })
@@ -181,23 +175,20 @@ export async function analyzeLandingPage(
 
 export type PlaybookInput = {
   structure: PageStructure
-  referenceEvidence: string
   founderBrief: string | null
   locale: Locale
 }
 
-// The flow playbook: structural fixes derived from what the page already does, grounded in the
-// reference corpus. Resolves to [] on any failure -- a founder losing the playbook is a smaller cost
-// than losing the whole analysis, so this never rejects into the caller's Promise.all.
+// The flow playbook: structural fixes derived from what the page already does. Resolves to [] on any
+// failure -- a founder losing the playbook is a smaller cost than losing the whole analysis, so this
+// never rejects into the caller's Promise.all.
 export async function generatePlaybook(input: PlaybookInput): Promise<FlowFixOutput[]> {
   if (process.env.E2E_FIXTURES === '1') {
     return fixturePlaybook(input.locale)
   }
 
   const sections = [
-    `Structural readout of the page (JSON):\n${JSON.stringify(input.structure, null, 2)}`,
-    input.referenceEvidence ||
-      'No reference corpus evidence available. Make no quantitative claims in evidence.'
+    `Structural readout of the page (JSON):\n${JSON.stringify(input.structure, null, 2)}`
   ]
 
   if (input.founderBrief) {

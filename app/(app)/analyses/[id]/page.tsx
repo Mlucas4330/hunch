@@ -9,6 +9,7 @@ import { FlowPlaybook } from '@/components/flow-playbook'
 import { EmbedSnippet } from '@/components/embed-snippet'
 import { InfoHint } from '@/components/info-hint'
 import { CopyReportLink } from '@/components/copy-report-link'
+import { UpgradePrompt } from '@/components/upgrade-prompt'
 import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
 import { getDictionary } from '@/lib/i18n'
@@ -57,7 +58,7 @@ export default async function AnalysisDetailPage({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <CopyReportLink
-            reportUrl={process.env.NEXT_PUBLIC_REPORT_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? ''}
+            reportUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
             embedKey={analysis.embedKey}
           />
           <Button asChild variant="outline" size="sm">
@@ -98,6 +99,8 @@ export default async function AnalysisDetailPage({
       <FlowPlaybook fixes={analysis.flowFixes} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
 
       <HypothesisList analysisId={analysis.id} hypotheses={analysis.hypotheses} />
+
+      {user.plan === 'free' && <UpgradePrompt />}
     </div>
   )
 }

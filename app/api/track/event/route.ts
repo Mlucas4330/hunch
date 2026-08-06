@@ -13,9 +13,10 @@ const BodySchema = z.object({
   experimentId: z.string().uuid(),
   arm: z.enum(EXPERIMENT_ARM),
   type: z.enum(TRACK_EVENT),
-  // Optional so a snippet cached from before this shipped keeps reporting. Those events are
-  // counted without dedupe, exactly as they were.
-  visitorId: z.string().uuid().optional()
+  // Required: without it there is no dedupe, and without dedupe the embed key -- which is public by
+  // construction -- is enough to increment an arm at will and decide the winner. An event that
+  // arrives without one is dropped rather than counted un-deduped.
+  visitorId: z.string().uuid()
 })
 
 export function OPTIONS() {
@@ -53,22 +54,20 @@ export async function POST(request: Request) {
   if (!experiment) return noContent()
 
   // The unique index is what actually enforces this: a second event from the same visitor for the
-  // same arm inserts nothing, so the counter below never runs twice. Without it, anyone holding the
-  // public embed key could increment an arm at will and decide the winner.
-  if (parsed.data.visitorId) {
-    const claimed = await db
-      .insert(experimentEvents)
-      .values({
-        experimentId: parsed.data.experimentId,
-        visitorId: parsed.data.visitorId,
-        arm: parsed.data.arm,
-        type: parsed.data.type
-      })
-      .onConflictDoNothing()
-      .returning({ id: experimentEvents.id })
+  // same arm inserts nothing, so the counter below never runs twice. It is the only path to a
+  // counter -- a claim that lands on the conflict ends the request.
+  const claimed = await db
+    .insert(experimentEvents)
+    .values({
+      experimentId: parsed.data.experimentId,
+      visitorId: parsed.data.visitorId,
+      arm: parsed.data.arm,
+      type: parsed.data.type
+    })
+    .onConflictDoNothing()
+    .returning({ id: experimentEvents.id })
 
-    if (claimed.length === 0) return noContent()
-  }
+  if (claimed.length === 0) return noContent()
 
   const column = parsed.data.type === 'conversion' ? 'conversions' : 'impressions'
   await db

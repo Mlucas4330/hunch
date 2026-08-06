@@ -416,7 +416,8 @@ export const en = {
     eyebrow: 'Run a test',
     hintLabel: 'How running a test works',
     hint: 'Your current copy is the *control*. Pick a *challenger*, edit it to fit your product (replace any [bracketed] placeholders with real details), and choose how long to run. On *Launch*, the snippet shows the challenger to half your visitors and tracks conversions. When the window ends we read the result once and recommend a winner.',
-    backToIdeas: 'Back to ideas'
+    backToIdeas: 'Back to ideas',
+    relaunch: 'Run another test'
   },
 
   testRunner: {
@@ -437,6 +438,7 @@ export const en = {
     gatedBefore: 'You already have a test running. Free plans run one at a time.',
     gatedAfter: 'to run more.',
     manualTarget: 'This idea is a manual setup: its copy does not map to a single element we can swap automatically, so it cannot run as a live text test. Apply the recommended copy on your page by hand.',
+    alreadyRunning: 'This idea already has a live test. Stop it before launching another one.',
     error: 'Something went wrong launching the test.'
   },
 
@@ -505,6 +507,14 @@ export const en = {
     join: 'Join the waitlist',
     joining: 'Joining...',
     error: 'Something went wrong. Please try again.'
+  },
+
+  upgradePrompt: {
+    eyebrow: 'Solo',
+    title: 'Keep testing without a cap',
+    body: 'Solo unlocks unlimited analyses, competitor mode, unlimited live tests, and exporting any report.',
+    dismiss: 'Not now',
+    dismissAria: 'Dismiss upgrade prompt'
   },
 
   billing: {

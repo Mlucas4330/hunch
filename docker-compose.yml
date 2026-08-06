@@ -11,5 +11,14 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  # Rate limiting is skipped entirely while REDIS_URL is unset, so this service does nothing until
+  # you opt in. That is deliberate: `analysis` is 5/hour, so a filled-in REDIS_URL would block you
+  # after five analyses of local development. Set it when you want to exercise a real 429.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+
 volumes:
   pgdata:

@@ -32,9 +32,6 @@ const SECURITY_HEADERS = [
 ]
 
 const nextConfig: NextConfig = {
-  // Emitted as a self-contained server bundle so the runtime image carries only what it needs
-  // instead of all of node_modules.
-  output: 'standalone',
   serverExternalPackages: ['puppeteer'],
   // Variant previews are written to a local volume and served from our own origin, so they need no
   // remotePatterns entry and no img-src host: 'self' already covers both. That is the whole reason

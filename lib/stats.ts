@@ -1,6 +1,12 @@
 import type { ExperimentRecommendation } from '@/lib/enums'
 
-export const MIN_SAMPLE = 30
+// Impressions per arm, and conversions across both. Both gates are load-bearing, and the second one
+// is what the first cannot do alone: at a normal 2-5% conversion rate, a sample counted only in
+// impressions clears its bar while each arm still holds a handful of conversions, where one lucky
+// click moves the rate by a third and the z-test happily returns p < 0.05. That is a confident
+// `ship_variant` badge on noise, which is worse than no recommendation at all.
+export const MIN_SAMPLE = 200
+export const MIN_CONVERSIONS = 10
 export const SIGNIFICANCE_LEVEL = 0.05
 
 export type ArmCounts = { impressions: number; conversions: number }
@@ -54,7 +60,8 @@ export function experimentResult({
     }
   }
 
-  const enoughData = Math.min(c.n, v.n) >= MIN_SAMPLE
+  const enoughData =
+    Math.min(c.n, v.n) >= MIN_SAMPLE && c.conversions + v.conversions >= MIN_CONVERSIONS
   const significant = enoughData && pValue !== null && pValue < SIGNIFICANCE_LEVEL
 
   let leader: 'control' | 'variant' | null = null

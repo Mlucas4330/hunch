@@ -60,25 +60,12 @@ flow_fixes                      <- the flow playbook, one row per structural fix
 - steps        (jsonb: string[], 2-5 concrete implementation actions)
 - impact_score (int, 1-10)
 - effort_score (int, 1-10)
-- evidence     (text, nullable: cites the reference corpus aggregate when one was available)
+- evidence     (text, nullable: the CRO mechanism behind the fix, never a quantitative claim)
 - position     (int: impact desc, assigned at insert)
 - created_at   (timestamp)
 
 No variants, no target, no status: nothing here is a single-element text swap, so there is nothing
 for the embed snippet to apply and nothing to A/B. A founder ships the steps by hand.
-
-reference_pages                 <- the corpus the playbook is grounded in; NOT user data
-- id          (uuid, PK)
-- url         (text, unique)
-- name        (text)
-- structure   (jsonb: PageStructure -- the same shape captured from an analysed page, which is what
-               makes matching an analysis against the corpus a field-by-field diff)
-- copy_digest (text: preprocessHtml(html) truncated; for auditing rows, not for generation)
-- source      (text: provenance, e.g. 'saaslandingpage')
-- scraped_at  (timestamp: refreshed on re-ingest)
-- created_at  (timestamp)
-
-No user FK and no relations. Populated only by `npm run ingest:references`.
 
 variants
 - id             (uuid, PK)
@@ -164,7 +151,7 @@ Standard NextAuth catch-all. Handles Google OAuth callback, session creation, an
 
 `POST /api/analyses`
 Core route. Chain: check usage gate -> Puppeteer scrape -> preprocess HTML -> competitor research
--> corpus evidence -> Claude API (hypotheses + playbook in parallel) -> persist -> return.
+-> Claude API (hypotheses + playbook in parallel) -> persist -> return.
 
 Request:
 
@@ -268,7 +255,10 @@ Returns the hypothesis's variants ordered by position, without generating anythi
 `POST /api/experiments`
 Launches a live test for a chosen `(hypothesis, variant)`. Ownership via
 `hypotheses -> analyses`. **Gate**: free users may have only `FREE_EXPERIMENTS_LIMIT` (1)
-experiment with `status='running'` at a time -> `403 limit_reached`. In a transaction:
+experiment with `status='running'` at a time -> `403 limit_reached`. On **any** plan, a hypothesis
+that already has a `running` experiment -> `409 already_running`: two live tests on one hypothesis
+means two experiments racing to rewrite the same element, and the snippet cannot choose between
+them. In a transaction:
 snapshots `control_copy` / `variant_copy` / `selector`, inserts the experiment + its two
 `experiment_stats` rows, and flips the variant and hypothesis to `testing`.
 
@@ -297,9 +287,21 @@ significance + leader.
 Returns one experiment with its live `result`. `404` if not owned.
 
 `PATCH /api/experiments/[id]`
-Body `{ action: 'stop' | 'declare_winner' | 'discard' }`. `stop` -> `stopped`;
-`declare_winner` -> `completed` + variant `winner` + hypothesis `completed`;
-`discard` -> `stopped` + variant `rejected`.
+Body `{ action: 'stop' | 'declare_winner' | 'discard' }`. Every action ends a test, so none of them
+mean anything twice: an experiment that is not `running` answers `409 not_running` rather than
+letting a completed test be flipped back to `stopped`, undoing the verdict it already recorded.
+
+| action | experiment | variant | hypothesis |
+| ------ | ---------- | ------- | ---------- |
+| `declare_winner` | `completed` | `winner` | `completed` |
+| `stop` | `stopped` | `proposed` | `pending` |
+| `discard` | `stopped` | `rejected` | `skipped` |
+| cron finalize | `completed` | `winner` / `rejected` from `recommendation` | `completed` |
+
+**No path may leave a row in `testing`.** All four used to, in some combination, and a hypothesis
+stranded there is unreachable from every status filter in the app. `stop` returns the hypothesis to
+`pending` specifically because that is the path the panel's own "stop this test and relaunch it with
+a goal" note asks the user to take.
 
 ### Tracking (public - snippet)
 
@@ -310,6 +312,11 @@ Both routes are best-effort and answer even on bad input so the host page never 
 Returns the analysis's `running` experiments as
 `[{ experimentId, selector, controlCopy, variantCopy, splitPercent, goalSelector }]`.
 
+`running` alone is not enough: an experiment past its window is over whether or not the nightly cron
+has reached it, so the query also applies `experimentIsLive()` from `lib/experiments.ts`. Without it
+an expired-but-unfinalized test keeps mutating the customer's page until the next sweep -- forever, if
+the cron service was never created.
+
 `POST /api/track/event`
 Body `{ key, experimentId, arm, type, visitorId }` (`arm` in `EXPERIMENT_ARM`, `type` in
 `TRACK_EVENT`), sent via `navigator.sendBeacon` as a `text/plain` blob (stays a CORS simple
@@ -319,7 +326,10 @@ request). Verifies the experiment belongs to `key` and is `running`, then increm
 `visitorId` is a sticky uuid the snippet mints per browser. It is inserted into `experiment_events`
 first, and the counter moves **only when that insert is fresh** -- the unique index is what makes an
 arm un-inflatable by anyone holding the (necessarily public) embed key, and what stops a reload from
-double-counting. The field is optional so a snippet cached from before it shipped keeps reporting.
+double-counting. The field is **required**: it was optional once, for snippets cached from before it
+shipped, and that optionality was a live hole -- an event without an id skipped the ledger entirely,
+so anyone with the embed key could post unlimited conversions and decide the winner. An event missing
+it now fails validation and returns `204` uncounted, like any other malformed beacon.
 
 ### Public report (outreach surface)
 
@@ -343,17 +353,71 @@ CSP needs no `img-src` host -- object storage would cost both.
 hypothesis, so opening a cold report launched `REPORT_PREVIEW_LIMIT` browsers before anyone had
 scrolled to them. The button in `components/variant-preview.tsx` is what triggers it now.
 
+**A cached URL never reaches this route.** The report server-renders `variants.screenshot_url` into
+`VariantPreview`'s `initialUrl`, which mounts straight into `ready` with no request at all. So a file
+that has been pruned, lost with its volume, or left truncated by an interrupted write cannot be
+detected here -- it is caught by `onError` on the `<Image>`, which drops back to the button and
+re-renders on demand. Do not add a server-side existence check in its place: it cannot see the path
+where the breakage actually shows, and it reads a truncated PNG as present.
+
+The client bounds the request with `PREVIEW_REQUEST_TIMEOUT_MS`, derived from the scrape budget plus
+`SCREENSHOT_QUEUE_MAX_WAIT_MS` so it cannot drift below what the server can legitimately spend. An
+abort does **not** cancel the render (nothing reads `request.signal`): it finishes and caches, so the
+retry click returns instantly. The timeout buys the reader an answer, not a smaller bill. The accepted
+consequence is that a retry can start a second render of the same variant, leaving one orphaned file
+that the prune reclaims; `RATE_LIMITS.screenshot` bounds how often that can happen.
+
 `POST /api/waitlist`
 Body `{ email, phone?, embedKey? }`. Inserts a lead with `onConflictDoNothing`. Returns `201`.
 Read back by the admin-only `/admin/leads` page; there is no other way to see these rows.
 
-### Cron (auto-finalize)
+### Cron
+
+Both routes are `GET`, triggered by the host's crontab (`curl` with the bearer header -- see README),
+and authenticate through the shared `authorizeCron` (`lib/cron-auth.ts`) -> `401` otherwise, before any
+work. `GET` for a mutating route is the established shape here because the caller is `curlimages/curl`;
+a `POST` needs `-X` and gets forgotten. Both are excluded from auth middleware (`api/cron` in the
+matcher), so a new route under this prefix inherits the exemption.
 
 `GET /api/cron/finalize-experiments`
-Triggered daily by the host's crontab (`curl` with the bearer header -- see README). Authenticates
-via `Authorization: Bearer <CRON_SECRET>` -> `401` otherwise. Marks every `running` experiment with
-`ends_at <= now()` as `completed` (+ `stopped_at`) and its hypothesis `completed`, then returns
-`{ finalized: n }`. Excluded from auth middleware (`api/cron` in the matcher).
+Marks every `running` experiment whose window has closed as `completed` (+ `stopped_at`), its
+hypothesis `completed`, and its variant `winner` or `rejected` from the computed `recommendation`,
+then returns `{ finalized: n }`. This is the **normal** way a test ends, so it is where most variants
+get their verdict -- leaving them in `testing` here would mean the status only ever resolved for the
+minority of tests someone closed by hand.
+
+"Window has closed" is `experimentIsOver()` from `lib/experiments.ts`, not `ends_at <= now()`.
+`ends_at` is nullable, and that comparison on a null is null rather than false, so a row missing it
+would never be finalized -- it would run, and keep rewriting the customer's page, forever. The helper
+falls back to the `started_at + duration_days` the row already carries, and `/api/track/config` reads
+the same definition so the two can never disagree about whether a test is still live.
+
+**This route is the only thing that ends a test.** Without the `cron-finalize` service actually
+created in Railway, no experiment ever reaches its end date: free users stay permanently gated at one
+concurrent test, and every landing page stays mutated.
+
+`GET /api/cron/prune-screenshots`
+Deletes variant previews older than `SCREENSHOT_RETENTION_DAYS` and returns `{ pruned: n }`. Nothing
+else ever deleted one, so the volume used to grow for the life of the deploy until `writeFile` hit
+`ENOSPC` -- which `/api/report/screenshot` catches and reports as `url: null`, making a full disk look
+exactly like previews that simply do not work.
+
+Four things about it are load-bearing:
+
+- **Clears `variants.screenshot_url` before unlinking.** The failure windows are not symmetric: a row
+  pointing at a missing file is the one state that renders a broken image, while an orphaned file with
+  a null column just regenerates on the next click and gets retried tomorrow.
+- **Matches by URL equality, not by parsing the variant id out of the filename.** `saveScreenshot`
+  writes `<variantId>-<uuid>.png`, so the prefix is *available* -- but a variant can own an expired
+  file and a current one at once (a retry click renders twice), and deriving the id from the expired
+  one would discard a screenshot that is still good.
+- **Tolerates a missing directory.** `SCREENSHOT_DIR` does not exist until the first `saveScreenshot`
+  calls `mkdir`, so a fresh deploy's first run must read as `{ pruned: 0 }` rather than a `500` that
+  looks like a permanently broken cron.
+- **Returns a count and nothing else.** A directory listing in the body would describe the volume's
+  contents to anyone who ever obtained the secret.
+
+`screenshot_url` is deliberately **not** indexed: a nightly sequential scan is the intended cost.
 
 ### Billing
 
@@ -528,7 +592,7 @@ call on the critical path for a soft rule. Logging makes the ceiling's effective
 production, which is what has to come before escalating it. The fixtures in `lib/ai/fixtures.ts` all
 fit their own ceilings, so they stay a correct reference rendering of the rule.
 
-### 2a. Structural readout and the reference corpus
+### 2a. Structural readout
 
 `scrapePage` returns a `PageStructure` alongside `html` and `elements`: a flat record of what the
 page *does* (`hasOauth`, `formFieldCount`, `hasFaq`, `hasPricing`, `hasTestimonials`, `hasVideo`,
@@ -566,26 +630,18 @@ hypotheses about it -- which surfaces as `AnalysisOutputSchema`'s `min(5)` rejec
 a full Sonnet call, i.e. an opaque `500`. `screenshotVariant` shares the wait for the same reason: a
 selector looked up before paint reads as stale and costs the report its preview.
 
-`structuralEvidence(structure)` in `lib/references.ts` turns that readout into a prompt block by
-diffing it against `reference_pages`. It reports only in the direction that produces a
-recommendation: what proven pages do that this page does not. Two contracts hold it honest:
+The readout is the playbook's *only* ground truth, which is what bounds what the playbook may claim.
+It is a measurement of one page, so a fix's `evidence` argues the CRO mechanism and never carries a
+number -- see 2c. There was once a `reference_pages` corpus behind an extra quantitative evidence
+block; it was removed along with its hand-curated ingest, and re-adding one means re-adding the
+honesty contracts too (a signal only quoted when a majority of the corpus does it, and a fail-quiet
+read so an empty corpus never costs the analysis).
 
-- **Majority only.** A signal is quoted only when more than `REFERENCE_MAJORITY_RATIO` of the corpus
-  does it. The corpus is landing pages, so anything living a click deeper (a signup form's OAuth
-  buttons) is legitimately sparse, and a minority count would read as an argument *against* the fix.
-- **Fail-quiet.** Returns `''` on an empty corpus or any DB failure. An un-ingested database costs
-  the playbook its counts, never the analysis.
-
-The corpus is populated only by `npm run ingest:references` (`scripts/ingest-references.ts`) from the
-committed `db/seeds/reference-pages.json`. `saaslandingpage.com` serves 403 to automated fetches, so
-the gallery is browsed by hand and only the product pages themselves are scraped, through the same
-`scrapePage` (and therefore the same `assertPublicUrl` guard) the app already uses. A page that fails
-to scrape drops out rather than aborting the batch.
-
-One non-obvious constraint the CLI exposed: functions handed to `page.evaluate()` are serialized as
-source, so esbuild's `__name` keepNames helper (injected when tsx runs the script) is not defined in
-the page. `openGuardedPage` declares `window.__name` as an identity function, which is what lets the
-scraper run outside the Next build at all.
+One non-obvious constraint, which matters to any script driving `scrapePage`/`screenshotVariant`
+outside the Next build (today `npm run test:screenshot`): functions handed to `page.evaluate()` are
+serialized as source, so esbuild's `__name` keepNames helper (injected when tsx runs the script) is
+not defined in the page. `openGuardedPage` declares `window.__name` as an identity function, which is
+what lets the scraper run outside the Next build at all.
 
 ### 2d. Applying a variant to the live DOM (`applyVariantCopy`)
 
@@ -629,13 +685,16 @@ blocking it renders the page unstyled. It is not a hole in the guard -- the requ
 
 `generatePlaybook` runs a second `generateObject` over `PlaybookOutputSchema`, in `Promise.all` with
 the hypothesis call, so it costs no additional latency on the critical path. It is fed the structure
-JSON, the corpus evidence block, and the founder brief. It resolves to `[]` on any failure rather
-than rejecting, which is what keeps a playbook failure from taking the analysis down with it.
+JSON and the founder brief. It resolves to `[]` on any failure rather than rejecting, which is what
+keeps a playbook failure from taking the analysis down with it.
 
 The prompt's load-bearing rules: never recommend adding something the readout says is already there;
 every `steps` entry is one concrete action on the founder's own site (never advice, never replacement
-copy); and `evidence` may make a quantitative claim only when corpus evidence was actually supplied,
-never an invented statistic or benchmark.
+copy); and `evidence` carries **no quantitative claim of any kind** -- no percentage, no lift figure,
+no count of other companies, no "studies show". The readout of the one page in front of it is the
+only measurement the call has, so any number in `evidence` is invented by construction. This rule is
+unconditional; it used to have an escape hatch for when corpus evidence was supplied, and that is
+exactly what would have to come back with a corpus.
 
 ### 2b. Competitor research (web search)
 
@@ -717,7 +776,12 @@ which is read by prospects who have no session.
 
 Middleware gates **pages only**. Every `/api` route authenticates itself via `getCurrentUser()`, so
 the matcher's exclusion list is a performance detail, not the security boundary - never treat a
-route as protected because it is missing from that list.
+route as protected because it is missing from that list. Pages guard themselves for the same reason:
+`req.auth` proves a session, not a user row, so every page behind `PROTECTED_PREFIXES` re-checks.
+
+A redirect carries the requested `pathname` **and query string** in `CALLBACK_URL_PARAM`, so a link
+into a filtered view survives sign-in. The sign-in page revalidates it before use - see
+`safeCallbackUrl()` under Auth.
 
 ---
 
@@ -739,7 +803,7 @@ bytes and drops resource types a text scrape does not need.
 
 `launchBrowser()` is the only place a browser is obtained, and it has two modes. With `BROWSER_URL`
 set it `connect()`s to the dedicated browser container; unset, it launches Chrome in-process exactly
-as before, which is what local dev, `npm run ingest:references` and the e2e suite use. The guard is
+as before, which is what local dev, `npm run test:screenshot` and the e2e suite use. The guard is
 unaffected either way: `openGuardedPage`'s interception runs app-side over CDP.
 
 `PUPPETEER_ALLOW_NO_SANDBOX` only affects the in-process launch, so it is irrelevant in production
@@ -759,19 +823,56 @@ when remote and `close()`s when local. Calling `browser.close()` on the shared b
 scraping down for every later request.
 
 Chrome's DevTools endpoint refuses a `Host` header that is not an IP or `localhost` (its own
-DNS-rebinding guard), so `BROWSER_URL`'s hostname is resolved before connecting. Pointing puppeteer
-straight at a service name fails. Railway's internal DNS answers with **IPv6**, and a bare v6 literal
-is not a valid URL host, so the resolved address is bracketed when `family === 6`.
+DNS-rebinding guard), so `BROWSER_URL`'s hostname is resolved before connecting -- that is what
+`connectToBrowser` exists for. Pointing puppeteer straight at a service name fails. Railway's internal
+DNS answers with **IPv6**, and a bare v6 literal is not a valid URL host, so the resolved address is
+bracketed when `family === 6`.
+
+That same `Host` rule is why `railway.browser.json` carries **no `healthcheckPath`**. CDP's
+`/json/version` would answer a probe, but Chrome rejects it unless the prober sends an IP or
+`localhost`, and a failing healthcheck gates the deploy -- so the line meant to catch a wedged Chromium
+would instead turn every `browser` deploy into a rollback. A wedged browser is handled app-side
+instead: `connect()` is **retried once** after `BROWSER_CONNECT_RETRY_DELAY_MS`, which covers the window
+where Railway's `restartPolicyType: ALWAYS` has the container coming back up. The hostname is resolved
+inside each attempt, because a restarted container can return on a different internal address.
+
+`withBrowserSlot` caps how many pages exist against that shared browser at once
+(`SCRAPE_MAX_CONCURRENT_PAGES`). The counter lives on `globalThis` for the same reason the Redis client
+does: Next re-evaluates modules on every edit in dev and splits server bundles per route, so a
+module-scope counter risks being per-bundle -- a cap that silently is not one. Three rules hold it
+together:
+
+- **The wait is asymmetric, by call site.** `screenshotVariant` passes
+  `SCREENSHOT_QUEUE_MAX_WAIT_MS` and fails fast, because the client degrades to a retry button and a
+  lost preview costs a prospect nothing. `scrapePage` passes `SCRAPE_QUEUE_MAX_WAIT_MS` and waits,
+  because an analysis has already committed to a Sonnet call and its competitor fan-out needs several
+  slots at once. This is deliberately not a reserved-slot scheme -- two literals do the same job.
+- **Nothing may await `scrapePage`/`screenshotVariant` while holding a slot.** Nothing does today
+  (`analyze.ts` fans out flat), but a nested call self-deadlocks at the cap and presents as an analysis
+  that simply hangs.
+- **`assertPublicUrl` runs before the slot is taken**, so a refused URL never spends capacity, and a
+  throw from it cannot leak one.
+
+The cap is per process, which only equals per deploy because `railway.json` pins `numReplicas: 1` (the
+screenshot volume requires it). Scaling `app` would multiply the real tab count; Redis is already
+available if a cross-process cap is ever genuinely needed.
 
 ## Serving screenshots - `app/screenshots/[file]/route.ts`
 
 Previews live on a volume rather than in `public/`, so the app serves them; behind a proxy with
-access to that volume this route would not exist. The filename comes from an unauthenticated caller,
-so it is **allowlisted** against `SCREENSHOT_FILENAME_PATTERN` (the exact shape `saveScreenshot`
-writes, which admits no separator and no dot segment) rather than sanitized -- stripping `..` keeps
-losing to encoding tricks. The containment check against `SCREENSHOT_DIR` is a second lock, not the
-only one. A miss and a malformed name both answer `404`, so nothing here reveals what the directory
-holds.
+access to that volume this route would not exist.
+
+The filename comes from an unauthenticated caller, and `screenshotPath(file)` in `lib/screenshots.ts`
+is the single function that turns one into a path on disk. It **allowlists** against
+`SCREENSHOT_FILENAME_PATTERN` (the exact shape `saveScreenshot` writes, which admits no separator and
+no dot segment) rather than sanitizing -- stripping `..` keeps losing to encoding tricks -- then checks
+containment against `SCREENSHOT_DIR` as a second lock, and returns `null` on any of those failing plus
+on the variable being unset.
+
+It lives in `lib/screenshots.ts` rather than in this route because `deleteScreenshot` and the prune job
+need the identical check. **Never re-implement it at a call site**: a security check with four copies
+is a check that will drift, and this route's `404` (a miss and a malformed name answer identically, so
+nothing reveals what the directory holds) depends on the resolver being the only way in.
 
 ## Rate limiting - `lib/rate-limit.ts`
 
@@ -786,10 +887,13 @@ request, so two hits in the same millisecond do not collide into one. The script
 oldest hit in the window expires, which is what `Retry-After` is computed from.
 
 The client is cached on `globalThis`: Next re-evaluates modules on every edit in dev, and a new
-connection per reload exhausts Redis' client limit within an afternoon. It is configured with
-`enableOfflineQueue: false` and one retry so an unreachable Redis rejects immediately -- a rate
-limiter must never be the thing that makes a request hang -- and its `error` event is handled,
-because an unhandled one on an ioredis client takes the process down.
+connection per reload exhausts Redis' client limit within an afternoon. The offline queue is left
+**on** -- with it off and no connection yet, every check during startup silently allowed the request,
+which is a limiter failing open exactly when a burst is most likely. So the first commands wait for
+the handshake instead, and `commandTimeout: 1_000` (plus `connectTimeout: 2_000` and
+`maxRetriesPerRequest: 1`) is the hard bound that keeps that queue from becoming a stall when Redis is
+genuinely down -- a rate limiter must never be the thing that makes a request hang. Its `error` event
+is handled, because an unhandled one on an ioredis client takes the process down.
 
 `enforceRateLimit(kind, identifier)` returns a `429` with `Retry-After` or `null`, so a guarded route
 reads as one early return. Kinds are the `RATE_LIMIT_KIND` enum; windows live in `RATE_LIMITS`, so a
@@ -825,10 +929,40 @@ Credentials are compared through `secretsMatch()` (`lib/secure-compare.ts`), whi
 and uses `timingSafeEqual`; the cron route's `CRON_SECRET` check uses the same helper. Sign-in
 attempts are rate limited per IP.
 
-The `signIn` callback refuses an OAuth profile with `email_verified === false`: user rows are keyed
-on email, so an unverified assertion would otherwise land on someone else's account. Sessions are
-JWTs with `SESSION_MAX_AGE_SECONDS` - they cannot be revoked server-side, so lifetime is the only
-bound on a stolen token.
+The `signIn` callback refuses an OAuth profile whose `email_verified` is not exactly `true`: user
+rows are keyed on email and there is no `accounts` table, so that claim is the only thing between a
+provider's assertion and an existing row. It **fails closed** - an absent claim counts as unverified,
+because "the provider did not say it is verified" and "the provider said it is not" carry the same
+risk here. `GoogleProfile` types the field as a required `boolean`, so this costs a real sign-in
+nothing; a provider added later that omits it must be handled deliberately, not by weakening this
+back to `=== false`. Sessions are JWTs with `SESSION_MAX_AGE_SECONDS` - they cannot be revoked
+server-side, so lifetime is the only bound on a stolen token.
+
+The user row is **upserted in one statement**, never read-then-written: two concurrent first sign-ins
+would otherwise both find no row and race into the `users.email` unique constraint, failing a login
+that was perfectly valid. The OAuth branch uses `onConflictDoUpdate` and re-syncs `name` and
+`avatarUrl` from the provider, which owns them - so a user who changes their photo at Google sees it
+on the next sign in. `plan`, the usage counters and the Stripe ids are ours and are never touched
+there. A provider that omits the photo leaves the stored one alone rather than blanking it. The
+credentials branch uses `onConflictDoNothing` instead, so the local hatch can never overwrite a real
+user's name with `Admin`.
+
+Sign-in honours the `callbackUrl` middleware attached, so a shared deep link survives the redirect
+through sign-in. It reaches NextAuth's `redirectTo`, which makes it attacker-controlled, so it passes
+through `safeCallbackUrl()` (`lib/auth-policy.ts`) first: an **allowlist** of one leading slash, not
+a sanitizer. `//evil.com` and `/\evil.com` are protocol-relative URLs a browser resolves off-site,
+so both are refused along with anything carrying a scheme, and anything rejected falls back to
+`POST_SIGNIN_REDIRECT`. Losing a deep link is a nuisance; honouring one is an open redirect. Both
+`e2e/core.spec.ts` cases (the deep link and the protocol-relative refusal) exist to keep that true.
+
+`getCurrentUser()` is wrapped in React's `cache()`. `auth()` is not itself memoized and the `jwt`
+callback queries `users` on **every** token decode, so an uncached helper cost one query per caller -
+and a signed-in render has several. `Navbar` consumes the same helper rather than calling `auth()`
+itself, which is what collapses a page view to one `jwt` query plus one lookup by id.
+
+Every page behind a session guards on a null user itself (`redirect('/auth/signin')` on the user's own
+pages, `notFound()` under `/admin`), because middleware only proves a *session* exists - a token whose
+user row was deleted still passes it.
 
 `/admin` is gated in `app/(app)/admin/layout.tsx` via `isAdmin()`, so a page added under that segment
 is operator-only by default. `/admin/leads` repeats the check, because the waitlist rows it shows are

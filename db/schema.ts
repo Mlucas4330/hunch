@@ -23,7 +23,6 @@ import {
   VARIANT_STATUS
 } from '@/lib/enums'
 import { DEFAULT_LOCALE } from '@/lib/constants'
-import type { PageStructure } from '@/lib/scrape'
 
 export const subscriptionPlanEnum = pgEnum('subscription_plan', SUBSCRIPTION_PLAN)
 export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUS)
@@ -124,21 +123,6 @@ export const flowFixes = pgTable('flow_fixes', {
   effortScore: integer('effort_score').notNull(),
   evidence: text('evidence'),
   position: integer('position').notNull().default(0),
-  createdAt: timestamp('created_at').notNull().defaultNow()
-})
-
-// The corpus of real, shipped SaaS landing pages the playbook is grounded in. Not user data: no user
-// FK, no relations, and it is populated only by `npm run ingest:references` from a committed seed
-// list. `structure` is the same PageStructure shape captured from an analysed page, which is what
-// makes matching an analysis against the corpus a field-by-field diff.
-export const referencePages = pgTable('reference_pages', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  url: text('url').notNull().unique(),
-  name: text('name').notNull(),
-  structure: jsonb('structure').$type<PageStructure>().notNull(),
-  copyDigest: text('copy_digest').notNull(),
-  source: text('source').notNull(),
-  scrapedAt: timestamp('scraped_at').notNull().defaultNow(),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
@@ -294,7 +278,6 @@ export type Analysis = typeof analyses.$inferSelect
 export type Hypothesis = typeof hypotheses.$inferSelect
 export type Variant = typeof variants.$inferSelect
 export type FlowFix = typeof flowFixes.$inferSelect
-export type ReferencePage = typeof referencePages.$inferSelect
 export type Experiment = typeof experiments.$inferSelect
 export type ExperimentStat = typeof experimentStats.$inferSelect
 export type Waitlist = typeof waitlist.$inferSelect

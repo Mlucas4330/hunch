@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises'
-import { resolve, sep } from 'node:path'
 import { NextResponse } from 'next/server'
-import { SCREENSHOT_FILENAME_PATTERN } from '@/lib/constants'
+import { screenshotPath } from '@/lib/screenshots'
 
 export const runtime = 'nodejs'
 
@@ -9,23 +8,14 @@ export const runtime = 'nodejs'
 // proxy with access to that volume this route would not exist -- the proxy would serve the files
 // and they would never touch Node.
 //
-// The path segment comes from an unauthenticated caller, so it is allowlisted rather than
-// sanitized: only the exact shape saveScreenshot() writes is accepted, which admits no separator
-// and no dot segment at all. Stripping `..` is the approach that keeps losing to encoding tricks;
-// refusing everything that is not a known-good filename does not. The containment check below is
-// then a cheap second lock rather than the only one.
+// The path segment comes from an unauthenticated caller, and screenshotPath() is what makes that
+// safe: it allowlists the exact shape saveScreenshot writes instead of sanitizing, then checks
+// containment. It lives in lib/screenshots.ts because the prune job needs the identical check.
 export async function GET(_request: Request, { params }: { params: Promise<{ file: string }> }) {
-  const dir = process.env.SCREENSHOT_DIR
   const { file } = await params
+  const path = screenshotPath(file)
 
-  if (!dir || !SCREENSHOT_FILENAME_PATTERN.test(file)) {
-    return new NextResponse(null, { status: 404 })
-  }
-
-  const root = resolve(dir)
-  const path = resolve(root, file)
-
-  if (!path.startsWith(root + sep)) {
+  if (!path) {
     return new NextResponse(null, { status: 404 })
   }
 

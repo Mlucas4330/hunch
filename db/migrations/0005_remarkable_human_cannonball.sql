@@ -1,0 +1,1 @@
+DROP TABLE "reference_pages" CASCADE;

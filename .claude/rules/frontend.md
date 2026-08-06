@@ -3,7 +3,7 @@
 | Route            | Page                | Description                                          |
 | ---------------- | ------------------- | ---------------------------------------------------- |
 | `/`              | Landing page        | Marketing: two tracks (report / optional live test), pricing tiers, CTA |
-| `/auth/signin`   | Auth page           | Google OAuth sign in via NextAuth                    |
+| `/auth/signin`   | Auth page           | Google OAuth sign in via NextAuth; returns to `callbackUrl` |
 | `/dashboard`     | Dashboard / history | List of past analyses, "New analysis" button         |
 | `/analyses/[id]` | What to test        | Install snippet, flow playbook, ranked hypotheses with a recommended challenger |
 | `/analyses/[id]/tests/[hypothesisId]` | Run a test | Approve/swap/edit the challenger, set the conversion goal, launch, monitor results |
@@ -146,6 +146,14 @@ written during the analysis) and the live test decides the actual winner.
   on `422 manual_target` it explains the idea has to be applied by hand.
 - Once an experiment exists (loaded server-side or just launched), it renders the experiment results
   panel in place.
+- **A finished test never blocks the next one.** The panel keeps its numbers, but once the experiment
+  is no longer `running` a "Run another test" button sits under it and clears the local state back to
+  the launch form. Without it the form was unreachable forever after the first stop -- which
+  contradicted the panel's own `noGoal` note telling the reader to stop and relaunch with a goal. The
+  page still loads the most recent experiment regardless of status, so the result stays readable;
+  it is the *rendering* that stops being terminal, not the query.
+- Launching a second test on a hypothesis that still has one running answers `409 already_running`
+  and surfaces `testRunner.alreadyRunning` inline, beside the existing `403` and `422` branches.
 
 ### Flow playbook (`components/flow-playbook.tsx`)
 
@@ -223,7 +231,10 @@ with `group-open:`, so the component stays CSS-only. They carry identical aria-l
   (Control vs Variant) each showing conversion rate and `conversions / impressions`; the leading
   arm is highlighted.
 - A significance line: "Not enough data yet" / "<x>% lift so far, not yet significant" /
-  "Significant: <x>% lift (p=...)".
+  "Significant: <x>% lift (p=...)". It is live and recomputed on every poll, deliberately -- what
+  waits for the end is the **recommendation pill**, which renders only when the experiment is
+  `completed` or `stopped`. The decision is never made from a peeked-at interim result; the numbers
+  behind it are always visible.
 - While `running`, shows an "Ends in N days" countdown (from `endsAt`; past-due -> "Finalizing..."),
   polls `GET /api/experiments/[id]`, and exposes Stop / Discard / Declare winner
   (`PATCH /api/experiments/[id]`).
@@ -251,6 +262,25 @@ with `group-open:`, so the component stays CSS-only. They carry identical aria-l
 - The count is the *effective* one from `usageFor()`, which reads 0 once the monthly window has
   rolled over, so it never shows a stale number from a lapsed period
 
+### Upgrade prompt (`components/upgrade-prompt.tsx`)
+
+The post-value upsell, and the counterpart to the public report: the report captures a *prospect's*
+email, this converts your own free users. Rendered at the end of `/analyses/[id]` when
+`user.plan === 'free'`, so it is never what stands between someone and the analysis they asked for.
+
+- Deliberately says nothing about the remaining allowance. `UsageBanner` already counts that on the
+  dashboard and the experiment panel already offers the export upgrade - three components repeating
+  one number is how a paywall starts to feel like nagging.
+- Dismissal is written to `localStorage` under `UPGRADE_PROMPT_DISMISSED_KEY`, so it is per browser,
+  not per user. Making it per user needs a `users` column and a write endpoint, which is more than a
+  dismissible prompt is worth.
+- `dismissed` is held as `boolean | null` and nothing renders while it is `null`: reading
+  `localStorage` happens in an effect, so rendering before it resolves flashes a card the reader
+  already dismissed.
+- Only the paid half is covered by e2e. The suite signs in through the credentials hatch, which forces
+  that user to `solo` (`auth.ts`), so what the fixture can prove is that a paying customer is **never**
+  shown an upsell. The free-plan half needs a genuinely free account and is checked by hand.
+
 ## Public report (`app/(report)/r/[embedKey]/page.tsx`)
 
 The outreach surface: no session, no navbar, its own layout. Read by a prospect who never asked for
@@ -270,6 +300,12 @@ it, so nothing here may 404 loudly or leak whether an unknown key exists.
   explicit click, rendering nothing reads as a broken button). A cached `screenshot_url` arrives as
   `initialUrl` and renders straight to `ready` with no button and no request. `manual` hypotheses
   never mount it at all and show a dashed "apply by hand" note instead.
+  The fetch is bounded by `PREVIEW_REQUEST_TIMEOUT_MS` - derived from the server's real budget, never
+  written down - because the worst case is minutes and an endless skeleton is worse than an error with
+  a retry. `onError` on the `<Image>` returns to `idle`: since `initialUrl` renders without ever
+  calling the API, this is the **only** place a pruned, lost or truncated file can be caught, and a
+  broken image on the one surface a prospect sees is the thing to avoid. Both are why this component
+  owns the recovery rather than the route.
 - **Waitlist wall** (`components/waitlist-wall.tsx`): once past the preview limit, the remaining
   hypotheses are blurred behind an email + optional phone form posting to `/api/waitlist`.
 

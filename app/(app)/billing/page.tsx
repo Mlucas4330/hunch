@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PLAN_PRICES, FREE_ANALYSES_LIMIT } from '@/lib/constants'
 import { SUBSCRIPTION_PLAN } from '@/lib/enums'
@@ -15,6 +16,9 @@ export async function generateMetadata() {
 
 export default async function BillingPage() {
   const user = await getCurrentUser()
+  // Same reasoning as the dashboard: a session is not a user row.
+  if (!user) redirect('/auth/signin')
+
   const t = await getDictionary()
 
   return (
@@ -24,7 +28,7 @@ export default async function BillingPage() {
         <h1 className="font-display text-2xl font-bold tracking-tight">{t.billing.title}</h1>
       </div>
 
-      {user?.plan === 'free' && (
+      {user.plan === 'free' && (
         <Card data-testid="usage-counter">
           <CardContent className="p-4 text-sm">
             <span className="font-mono font-semibold tabular-nums">
@@ -39,7 +43,7 @@ export default async function BillingPage() {
 
       <div className="grid gap-6 sm:grid-cols-2">
         {SUBSCRIPTION_PLAN.map((plan) => {
-          const isCurrent = user?.plan === plan
+          const isCurrent = user.plan === plan
           return (
             <Card key={plan}>
               <CardHeader>
@@ -59,7 +63,7 @@ export default async function BillingPage() {
         })}
       </div>
 
-      {user && user.plan !== 'free' && (
+      {user.plan !== 'free' && (
         <div>
           <ManageBillingButton />
         </div>

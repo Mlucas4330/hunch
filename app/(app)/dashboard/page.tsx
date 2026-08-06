@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/current-user'
 import { listAnalysesForUser } from '@/lib/analyses'
 import { usageFor } from '@/lib/usage'
@@ -18,13 +19,16 @@ export async function generateMetadata() {
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
+  // Middleware gates pages, but it only proves a session exists -- a token whose user row is gone
+  // still passes it. Guarding here is what makes that a trip back to sign-in rather than a silently
+  // empty dashboard.
+  if (!user) redirect('/auth/signin')
+
   const locale = await getLocale()
   const t = dictionaryFor(locale)
 
-  const rows = user ? (await listAnalysesForUser(user)).rows : []
-  const usage = user ? usageFor(user) : null
-
-  const plan = user?.plan ?? 'free'
+  const { rows } = await listAnalysesForUser(user)
+  const usage = usageFor(user)
   const defaultBrief = rows.find((row) => row.brief)?.brief ?? ''
 
   return (
@@ -40,12 +44,12 @@ export default async function DashboardPage() {
         <p className="text-sm text-muted-foreground">{t.dashboard.subtitle}</p>
       </div>
 
-      {usage && <UsageBanner used={usage.analyses_count} limit={usage.limit} />}
+      <UsageBanner used={usage.analyses_count} limit={usage.limit} />
 
       <UrlInputForm
-        plan={plan}
+        plan={user.plan}
         defaultBrief={defaultBrief}
-        blocked={usage ? usage.limit !== null && usage.analyses_count >= usage.limit : false}
+        blocked={usage.limit !== null && usage.analyses_count >= usage.limit}
       />
 
       {rows.length === 0 ? (

@@ -9,6 +9,7 @@ import { isUuid } from '@/lib/uuid'
 import { hasReachedFreeExperimentLimit } from '@/lib/usage'
 import { experimentWithResult } from '@/lib/experiments'
 import { DEFAULT_EXPERIMENT_DURATION } from '@/lib/constants'
+import { EXPERIMENT_DURATIONS, type ExperimentDuration } from '@/lib/enums'
 
 const DAY_MS = 86_400_000
 
@@ -18,8 +19,12 @@ const BodySchema = z.object({
   goalSelector: z.string().optional(),
   splitPercent: z.number().int().min(1).max(99).optional(),
   variantCopy: z.string().trim().min(1).max(1000).optional(),
+  // Derived from the enum the UI renders its buttons from, so a duration added there can never be
+  // offered by a button the server then rejects with a 422.
   durationDays: z
-    .union([z.literal(7), z.literal(14), z.literal(30)])
+    .custom<ExperimentDuration>((value) =>
+      EXPERIMENT_DURATIONS.includes(value as ExperimentDuration)
+    )
     .optional()
     .default(DEFAULT_EXPERIMENT_DURATION)
 })
@@ -63,10 +68,16 @@ export async function POST(request: Request) {
   }
 
   const running = await db
-    .select({ id: experiments.id })
+    .select({ id: experiments.id, hypothesisId: experiments.hypothesisId })
     .from(experiments)
     .innerJoin(analyses, eq(experiments.analysisId, analyses.id))
     .where(and(eq(analyses.userId, user.id), eq(experiments.status, 'running')))
+
+  // Two live tests on one hypothesis means two experiments racing to rewrite the same element, and
+  // the snippet has no way to choose between them.
+  if (running.some((row) => row.hypothesisId === parsed.data.hypothesisId)) {
+    return NextResponse.json({ error: 'already_running' }, { status: 409 })
+  }
 
   if (hasReachedFreeExperimentLimit(user, running.length)) {
     return NextResponse.json({ error: 'limit_reached' }, { status: 403 })

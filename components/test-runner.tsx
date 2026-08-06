@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,7 +12,7 @@ import {
   VARIANTS_PER_HYPOTHESIS
 } from '@/lib/constants'
 import { EXPERIMENT_DURATIONS } from '@/lib/enums'
-import type { ExperimentDuration, Section } from '@/lib/enums'
+import type { ExperimentDuration, ExperimentStatus, Section } from '@/lib/enums'
 import { useI18n } from '@/components/i18n-provider'
 import { t } from '@/lib/i18n/format'
 import { cn, hasPlaceholders } from '@/lib/utils'
@@ -45,10 +45,40 @@ export function TestRunner({
   canExport: boolean
   initialExperiment: TestExperiment | null
 }) {
+  const { dictionary } = useI18n()
   const [experiment, setExperiment] = useState<TestExperiment | null>(initialExperiment)
 
+  // Stable identity: the panel keeps this in its polling effect's dependencies, and a fresh arrow
+  // every render would tear the interval down and rebuild it on each tick.
+  const handleStatusChange = useCallback(
+    (status: ExperimentStatus) => setExperiment((e) => (e ? { ...e, status } : e)),
+    []
+  )
+
+  // A finished test keeps its panel -- the numbers are the deliverable -- but it must never be what
+  // stands between the user and the next test. Without this the launch form is unreachable forever
+  // after a stop, which is exactly what the panel's own "stop and relaunch with a goal" note asks
+  // the user to do.
   if (experiment) {
-    return <ExperimentPanel experiment={experiment} url={url} canExport={canExport} />
+    return (
+      <div className="space-y-4">
+        <ExperimentPanel
+          experiment={experiment}
+          url={url}
+          canExport={canExport}
+          onStatusChange={handleStatusChange}
+        />
+        {experiment.status !== 'running' && (
+          <Button
+            variant="outline"
+            onClick={() => setExperiment(null)}
+            data-testid="relaunch-experiment"
+          >
+            {dictionary.runTest.relaunch}
+          </Button>
+        )}
+      </div>
+    )
   }
 
   return <LaunchForm hypothesis={hypothesis} goals={goals} onLaunched={setExperiment} />
@@ -72,6 +102,7 @@ function LaunchForm({
   const [pending, setPending] = useState(false)
   const [gated, setGated] = useState(false)
   const [manualTarget, setManualTarget] = useState(false)
+  const [alreadyRunning, setAlreadyRunning] = useState(false)
   const [error, setError] = useState(false)
 
   // The analysis only writes the recommended challenger; the alternates are generated the first
@@ -107,6 +138,7 @@ function LaunchForm({
     setPending(true)
     setGated(false)
     setManualTarget(false)
+    setAlreadyRunning(false)
     setError(false)
     try {
       const res = await fetch('/api/experiments', {
@@ -122,6 +154,10 @@ function LaunchForm({
       })
       if (res.status === 403) {
         setGated(true)
+        return
+      }
+      if (res.status === 409) {
+        setAlreadyRunning(true)
         return
       }
       if (res.status === 422) {
@@ -272,6 +308,7 @@ function LaunchForm({
               type="button"
               onClick={() => setDuration(days)}
               disabled={pending}
+              data-testid={`duration-${days}`}
               className={cn(
                 'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                 duration === days
@@ -298,6 +335,11 @@ function LaunchForm({
         </p>
       )}
       {manualTarget && <p className="text-sm text-amber">{dictionary.testRunner.manualTarget}</p>}
+      {alreadyRunning && (
+        <p className="text-sm text-amber" data-testid="already-running">
+          {dictionary.testRunner.alreadyRunning}
+        </p>
+      )}
       {error && <p className="text-sm text-destructive">{dictionary.testRunner.error}</p>}
     </div>
   )

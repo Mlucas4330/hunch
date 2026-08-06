@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Wordmark } from '@/components/wordmark'
 import { getDictionary } from '@/lib/i18n'
-import { credentialsLoginAllowed } from '@/lib/auth-policy'
+import { credentialsLoginAllowed, safeCallbackUrl } from '@/lib/auth-policy'
+import { CALLBACK_URL_PARAM } from '@/lib/constants'
 import { pageMetadata } from '@/lib/seo'
 
 export async function generateMetadata() {
@@ -17,10 +18,15 @@ export async function generateMetadata() {
 export default async function SignInPage({
   searchParams
 }: {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; [CALLBACK_URL_PARAM]?: string }>
 }) {
-  const { error } = await searchParams
+  const params = await searchParams
   const t = await getDictionary()
+  const error = params.error
+  // Middleware puts the page the visitor was trying to reach here, so sign-in returns them to it
+  // instead of always to the dashboard. Validated because it reaches `redirectTo` -- see
+  // safeCallbackUrl.
+  const callbackUrl = safeCallbackUrl(params[CALLBACK_URL_PARAM])
   // Read from exactly the condition the provider itself checks, so the form is never offered
   // when it cannot work.
   const showCredentialsForm = credentialsLoginAllowed()
@@ -37,7 +43,7 @@ export default async function SignInPage({
           <form
             action={async () => {
               'use server'
-              await signIn('google', { redirectTo: '/dashboard' })
+              await signIn('google', { redirectTo: callbackUrl })
             }}
           >
             <Button type="submit" className="w-full">
@@ -56,18 +62,26 @@ export default async function SignInPage({
 
               <form
                 action={async (formData: FormData) => {
-              'use server'
-              try {
-                await signIn('credentials', {
-                  email: formData.get('email'),
-                  password: formData.get('password'),
-                  redirectTo: '/dashboard'
-                })
-              } catch (err) {
-                if (err instanceof AuthError) redirect('/auth/signin?error=credentials')
-                throw err
-              }
-            }}
+                  'use server'
+                  try {
+                    await signIn('credentials', {
+                      email: formData.get('email'),
+                      password: formData.get('password'),
+                      redirectTo: callbackUrl
+                    })
+                  } catch (err) {
+                    // The callbackUrl rides along, so a mistyped password does not cost the deep
+                    // link the visitor arrived with.
+                    if (err instanceof AuthError) {
+                      const retry = new URLSearchParams({
+                        error: 'credentials',
+                        [CALLBACK_URL_PARAM]: callbackUrl
+                      })
+                      redirect(`/auth/signin?${retry}`)
+                    }
+                    throw err
+                  }
+                }}
                 className="space-y-3"
               >
                 <Input

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { auth } from '@/auth'
+import { getCurrentUser } from '@/lib/current-user'
 import { AccountMenu } from '@/components/account-menu'
 import { NavLinks } from '@/components/nav-links'
 import { LanguageToggle } from '@/components/language-toggle'
@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button'
 import { dictionaryFor, getLocale } from '@/lib/i18n'
 
 export async function Navbar() {
-  const session = await auth()
+  // The same memoized lookup the pages use, so a signed-in render resolves one user, not two. A
+  // stale token resolves to null here and correctly renders as signed out.
+  const user = await getCurrentUser()
   const locale = await getLocale()
   const t = dictionaryFor(locale)
 
@@ -20,11 +22,11 @@ export async function Navbar() {
         </Link>
 
         <div className="flex items-center gap-5">
-          {session?.user ? (
+          {user ? (
             <>
               <NavLinks />
               <LanguageToggle locale={locale} />
-              <AccountMenu user={session.user} />
+              <AccountMenu user={user} />
             </>
           ) : (
             <>

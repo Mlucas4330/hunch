@@ -106,8 +106,7 @@ export const playbookPrompt = (language: string) => `You are a senior conversion
 
 You are given a structural readout of one landing page: what it already contains, how many form
 fields it asks for, whether it offers social sign in, whether it answers objections, and so on. You
-may also be given evidence measured across a corpus of real, shipped SaaS landing pages, and business
-details written by the founder.
+may also be given business details written by the founder.
 
 Produce ${PLAYBOOK_MIN} to ${PLAYBOOK_MAX} flow fixes: changes to the page's STRUCTURE and its path
 to signup, ranked by impact_score descending. These are not copy tests. A separate set of copy
@@ -135,10 +134,12 @@ Rules:
   cta_placement for where and how often the action appears, decision_load for too many choices or
   steps, objections for unanswered questions and guarantees, trust for proof and credibility,
   pricing_clarity for what things cost, page_structure for order and what is above the fold.
-- evidence is ONE sentence. When corpus evidence was supplied, cite it concretely, including the
-  count, for example "9 of 12 reference pages offer social sign in". When no corpus evidence was
-  supplied, explain the CRO reasoning instead and make NO quantitative claim: never invent a
-  statistic, a benchmark percentage, or a study.
+- evidence is ONE sentence explaining the CRO reasoning behind the fix, grounded in what the
+  structural readout of THIS page shows. It must carry NO quantitative claim of any kind: no
+  percentage, no conversion lift figure, no count of other companies, no "studies show", no named
+  benchmark or report. You have no measurements beyond this one page, so any number you write would
+  be invented. Argue from the mechanism instead: name what the visitor currently has to do and what
+  the fix removes.
 - Treat any business details from the founder as ground truth and make the steps fit their real
   product. Never invent facts about the product, its pricing, or its customers.
 - impact_score and effort_score are integers from 1 to 10. effort_score is honest engineering cost:

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db } from '@/db'
 import { analyses, experiments } from '@/db/schema'
 import { CORS_HEADERS, preflight } from '@/lib/cors'
+import { experimentIsLive } from '@/lib/experiments'
 import { enforceRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -45,7 +46,15 @@ export async function GET(request: Request) {
       goalSelector: experiments.goalSelector
     })
     .from(experiments)
-    .where(and(eq(experiments.analysisId, analysis.id), eq(experiments.status, 'running')))
+    // Past its end date is over, whether or not the cron has got to it yet. A test whose window
+    // closed must stop rewriting the page immediately, not on the next nightly sweep.
+    .where(
+      and(
+        eq(experiments.analysisId, analysis.id),
+        eq(experiments.status, 'running'),
+        experimentIsLive()
+      )
+    )
 
   return NextResponse.json(
     { experiments: rows },

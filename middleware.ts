@@ -1,16 +1,18 @@
 import NextAuth from 'next-auth'
 import { authConfig } from '@/auth.config'
-import { PROTECTED_PREFIXES } from '@/lib/constants'
+import { CALLBACK_URL_PARAM, PROTECTED_PREFIXES } from '@/lib/constants'
 
 const { auth } = NextAuth(authConfig)
 
 export default auth((req) => {
-  const { pathname } = req.nextUrl
+  const { pathname, search } = req.nextUrl
   const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 
   if (isProtected && !req.auth) {
     const signInUrl = new URL('/auth/signin', req.nextUrl.origin)
-    signInUrl.searchParams.set('callbackUrl', pathname)
+    // Carries the query string too, so a link into a filtered or sorted view survives sign-in. The
+    // sign-in page revalidates this before handing it to `redirectTo` -- see safeCallbackUrl.
+    signInUrl.searchParams.set(CALLBACK_URL_PARAM, `${pathname}${search}`)
     return Response.redirect(signInUrl)
   }
 })

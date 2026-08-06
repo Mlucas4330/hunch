@@ -7,6 +7,11 @@
 
   var api = script.getAttribute('data-api') || new URL(script.src).origin
 
+  // How long to keep waiting for a client-rendered page to paint the control copy before giving up
+  // on this experiment. Local to this file on purpose: it is served straight from public/ and can
+  // never import from lib/.
+  var LOCATE_TIMEOUT_MS = 3000
+
   function store(name) {
     try {
       return window.localStorage.getItem(name)
@@ -48,8 +53,12 @@
       visitorId: visitor()
     })
     try {
-      if (navigator.sendBeacon) {
+      // A false return means the beacon was never queued (the queue is full, the payload is too
+      // big). Falling through to fetch is the difference between a dropped event and a counted one.
+      if (
+        navigator.sendBeacon &&
         navigator.sendBeacon(api + '/api/track/event', new Blob([body], { type: 'text/plain' }))
+      ) {
         return
       }
     } catch {}
@@ -114,33 +123,73 @@
     return arm
   }
 
-  function run(exp) {
-    var arm = armFor(exp)
-    var el = locate(exp)
+  // Navigation is not paint. A client-rendered page reaches this script with nothing but a skeleton
+  // in the DOM, so locating once and giving up would silently drop every SPA. Waits for the document
+  // to stop being parsed, then watches for the control copy to appear, bounded so a page that never
+  // renders it costs one timer rather than a permanent observer.
+  function whenLocatable(exp, cb) {
+    function attempt() {
+      var el = locate(exp)
+      if (el) return cb(el)
 
-    if (arm === 'variant' && el) el.textContent = exp.variantCopy
-
-    var impKey = 'hunch_imp_' + exp.experimentId
-    if (!store(impKey)) {
-      remember(impKey, '1')
-      send(exp.experimentId, arm, 'impression')
+      var timer = null
+      var observer = new MutationObserver(function () {
+        var found = locate(exp)
+        if (!found) return
+        observer.disconnect()
+        clearTimeout(timer)
+        cb(found)
+      })
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+      timer = setTimeout(function () {
+        observer.disconnect()
+      }, LOCATE_TIMEOUT_MS)
     }
 
-    // A conversion is only ever a click on the declared goal. Never fall back to the swapped
-    // element -- clicking a headline is not a conversion, and counting it would quietly poison
-    // the result with numbers that look real.
-    if (!exp.goalSelector) return
-    var goal = null
-    try {
-      goal = document.querySelector(exp.goalSelector)
-    } catch {}
-    if (!goal) return
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', attempt)
+      return
+    }
+    attempt()
+  }
 
-    goal.addEventListener('click', function () {
-      var convKey = 'hunch_conv_' + exp.experimentId
-      if (store(convKey)) return
-      remember(convKey, '1')
-      send(exp.experimentId, arm, 'conversion')
+  // An impression only exists once the page is confirmed to be in the state the test assumes. If the
+  // control copy is not on the page, the visitor could never have been shown the challenger, and
+  // counting them into the variant arm would report an A/A test as a real result -- with a real
+  // looking rate, p-value and recommendation on top of it. Bucketing happens after that check for
+  // the same reason: an arm written to localStorage here would stick for every later visit too.
+  function run(exp) {
+    whenLocatable(exp, function (el) {
+      var arm = armFor(exp)
+      if (arm === 'variant') el.textContent = exp.variantCopy
+
+      var impKey = 'hunch_imp_' + exp.experimentId
+      if (!store(impKey)) {
+        remember(impKey, '1')
+        send(exp.experimentId, arm, 'impression')
+      }
+
+      // A conversion is only ever a click on the declared goal. Never fall back to the swapped
+      // element -- clicking a headline is not a conversion, and counting it would quietly poison
+      // the result with numbers that look real.
+      if (!exp.goalSelector) return
+
+      // Delegated from the document rather than bound to the element: a CTA rendered later -- by a
+      // modal, by hydration, by infinite scroll -- would otherwise never carry a listener, and the
+      // test would collect impressions forever without a single conversion.
+      document.addEventListener('click', function (event) {
+        var target = event.target
+        if (!target || !target.closest) return
+        try {
+          if (!target.closest(exp.goalSelector)) return
+        } catch {
+          return
+        }
+        var convKey = 'hunch_conv_' + exp.experimentId
+        if (store(convKey)) return
+        remember(convKey, '1')
+        send(exp.experimentId, arm, 'conversion')
+      })
     })
   }
 

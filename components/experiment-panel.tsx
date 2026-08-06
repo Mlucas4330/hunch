@@ -36,11 +36,16 @@ const DAY_MS = 86_400_000
 export function ExperimentPanel({
   experiment,
   url,
-  canExport
+  canExport,
+  onStatusChange
 }: {
   experiment: PanelExperiment
   url: string
   canExport: boolean
+  // The panel owns its status once mounted -- it is what polls and what acts on it -- so an owner
+  // that renders something else off the same status has to be told when it moves. Without this the
+  // parent still believes the test is running long after the panel has stopped it.
+  onStatusChange?: (status: ExperimentStatus) => void
 }) {
   const { locale, dictionary } = useI18n()
   const [state, setState] = useState(experiment)
@@ -54,9 +59,10 @@ export function ExperimentPanel({
       if (!res.ok) return
       const data = await res.json()
       setState((s) => ({ ...s, status: data.experiment.status, result: data.experiment.result }))
+      onStatusChange?.(data.experiment.status)
     }, POLL_INTERVAL)
     return () => clearInterval(timer)
-  }, [state.id, state.status])
+  }, [state.id, state.status, onStatusChange])
 
   async function act(action: ExperimentAction) {
     setBusy(true)
@@ -69,6 +75,7 @@ export function ExperimentPanel({
       if (res.ok) {
         const data = await res.json()
         setState((s) => ({ ...s, status: data.experiment.status, result: data.experiment.result }))
+        onStatusChange?.(data.experiment.status)
       }
     } finally {
       setBusy(false)

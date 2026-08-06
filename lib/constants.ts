@@ -1,4 +1,5 @@
 import type {
+  ExperimentDuration,
   ExperimentRecommendation,
   ExperimentStatus,
   FlowCategory,
@@ -18,9 +19,20 @@ export const FALLBACK_APP_ORIGIN = 'http://localhost:3000'
 // them, so the two can never drift.
 export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/billing', '/admin']
 
+// Where sign-in lands when there is no callbackUrl to honour, and the fallback safeCallbackUrl
+// returns for anything off-site.
+export const POST_SIGNIN_REDIRECT = '/dashboard'
+
+// Query param middleware uses to carry the page a signed-out visitor was trying to reach.
+export const CALLBACK_URL_PARAM = 'callbackUrl'
+
 export const DEFAULT_LOCALE: Locale = 'en'
 
 export const LOCALE_COOKIE = 'locale'
+
+// Where UpgradePrompt remembers a dismissal. localStorage rather than a cookie: nothing server-side
+// reads it, so it never needs to travel with a request.
+export const UPGRADE_PROMPT_DISMISSED_KEY = 'hunch.upgrade-prompt.dismissed'
 
 // Language names stay in their own language -- never translated.
 export const LOCALE_LABEL: Record<Locale, string> = {
@@ -105,6 +117,30 @@ export const SCRAPE_ASSET_READY_TIMEOUT_MS = 3_000
 // Lets the scroll land and freshly triggered lazy images paint before the shutter.
 export const SCRAPE_PAINT_SETTLE_MS = 250
 
+// The scarce resource is tabs on the single `browser` service, not CPU here: every scrape and every
+// preview opens a page on the same shared Chromium. Without a cap, a burst of previews on a public
+// report can OOM that container -- and its restartPolicyType is ALWAYS, so the restart kills every
+// in-flight scrape with it, including the paid analyses. A free, unauthenticated route must never be
+// able to do that.
+//
+// The cap is per process, which is only equivalent to per deploy because railway.json pins
+// numReplicas: 1 (the volume requires it). Scaling `app` would multiply the real tab count.
+export const SCRAPE_MAX_CONCURRENT_PAGES = 3
+
+// Waiting for a slot is deliberately asymmetric, because failing costs the two callers very
+// different amounts. A preview that gives up degrades to a button the reader can press again and
+// costs a prospect nothing.
+export const SCREENSHOT_QUEUE_MAX_WAIT_MS = 5_000
+
+// An analysis, by contrast, has already spent (or is about to spend) a Sonnet call, and its
+// competitor fan-out needs several slots at once -- so it waits rather than throwing away a paid
+// request because three previews arrived first.
+export const SCRAPE_QUEUE_MAX_WAIT_MS = 120_000
+
+// Long enough for a restarting browser container to start listening on CDP, short enough that a
+// genuinely absent BROWSER_URL still fails the request rather than stalling it.
+export const BROWSER_CONNECT_RETRY_DELAY_MS = 1_000
+
 const MINUTE_MS = 60 * 1000
 const HOUR_MS = 60 * MINUTE_MS
 
@@ -131,13 +167,22 @@ export const SCREENSHOT_PUBLIC_PATH = '/screenshots'
 // can survive the check in the first place.
 export const SCREENSHOT_FILENAME_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.png$/
 
+// How long a rendered preview is kept before the nightly prune reclaims it. Nothing used to delete
+// these, so the volume grew monotonically until writeFile hit ENOSPC -- which the screenshot route
+// catches and reports as `url: null`, i.e. previews silently stop working with no error anywhere.
+//
+// The cost of the window being this short is that a cold-outreach link opened months after it was
+// generated asks for a click again. That is accepted: it cannot be made an LRU instead, because
+// serving a file does not touch its mtime and atime on a network volume is not dependable.
+export const SCREENSHOT_RETENTION_DAYS = 30
+
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 
 export const FREE_ANALYSES_LIMIT = 3
 
 export const FREE_EXPERIMENTS_LIMIT = 1
 
-export const DEFAULT_EXPERIMENT_DURATION = 14
+export const DEFAULT_EXPERIMENT_DURATION: ExperimentDuration = 14
 
 // Public outreach report: how many top hypotheses are shown in full before the
 // remaining ones are blurred behind the waitlist wall.
@@ -147,6 +192,23 @@ export const REPORT_PREVIEW_LIMIT = 3
 // renders the customer's real page, so the wait is long enough that it has to be stated up front
 // rather than hidden behind a spinner.
 export const PREVIEW_ESTIMATE_SECONDS = 15
+
+// Everything the server can legitimately spend on one preview that is not one of the timeouts below:
+// the DNS lookup in assertPublicUrl, another in launchBrowser, the CDP connect, the page.evaluate
+// round trips, writing the PNG, and two database queries.
+const PREVIEW_TIMEOUT_SLACK_MS = 15_000
+
+// Derived rather than written down, because a hardcoded number is wrong the first time any budget
+// below it moves. The navigation and settle deadlines are additive: settlePage only starts counting
+// once goto has returned, so the real worst case is their sum and not the larger of the two. The
+// queue wait belongs here too -- once a slot has to be acquired, that wait precedes the render.
+export const PREVIEW_REQUEST_TIMEOUT_MS =
+  SCREENSHOT_QUEUE_MAX_WAIT_MS +
+  SCRAPE_NAVIGATION_TIMEOUT_MS +
+  SCRAPE_SETTLE_TIMEOUT_MS +
+  SCRAPE_ASSET_READY_TIMEOUT_MS +
+  SCRAPE_PAINT_SETTLE_MS +
+  PREVIEW_TIMEOUT_SLACK_MS
 
 // Variant targeting: a hypothesis is only "auto" (safe to swap in a screenshot or live test) when
 // its current copy resolves to a single element whose word count is within this ratio of the copy.
@@ -186,19 +248,6 @@ export const PLAYBOOK_STEPS_MAX = 5
 // the element's HTML tag before. The catch-all SECTIONS member, named here so the schema's fallback
 // is not a bare string literal.
 export const SECTION_FALLBACK: Section = 'other'
-
-// How many reference pages are named as examples in one evidence line. The aggregate count carries
-// the argument; the names are there to make it checkable.
-export const REFERENCE_SAMPLE_LIMIT = 5
-
-// A corpus signal is only evidence FOR a fix when most reference pages do it. Below this the count
-// argues the other way ("2 of 12 do this"), which is worse than citing nothing: the corpus holds
-// landing pages, so anything that normally lives a click deeper (a signup form's OAuth buttons) is
-// legitimately sparse and must not be quoted as a reason to skip the fix.
-export const REFERENCE_MAJORITY_RATIO = 0.5
-
-// Each ingest entry is a full Puppeteer scrape, so the batch is throttled rather than fanned out.
-export const REFERENCE_INGEST_CONCURRENCY = 3
 
 // Text a login button carries when it delegates auth to a provider. Used to tell a page that already
 // offers social sign in from one that would benefit from it, so the playbook never recommends adding

@@ -1,14 +1,18 @@
 import { lookup } from 'node:dns/promises'
 import puppeteer, { type Browser, type Page } from 'puppeteer'
 import {
+  BROWSER_CONNECT_RETRY_DELAY_MS,
   GOAL_CANDIDATE_MAX_WORDS,
   OAUTH_PROVIDER_PATTERNS,
   STRUCTURE_PATTERNS,
   SCRAPE_ALLOWED_RESOURCE_TYPES,
   SCRAPE_ASSET_READY_TIMEOUT_MS,
+  SCRAPE_MAX_CONCURRENT_PAGES,
   SCRAPE_MAX_RESPONSE_BYTES,
   SCRAPE_PAINT_SETTLE_MS,
   SCRAPE_NAVIGATION_TIMEOUT_MS,
+  SCRAPE_QUEUE_MAX_WAIT_MS,
+  SCREENSHOT_QUEUE_MAX_WAIT_MS,
   SCRAPE_SETTLE_MIN_TEXT_LENGTH,
   SCRAPE_SETTLE_POLL_MS,
   SCRAPE_SETTLE_TEXT_TOLERANCE,
@@ -27,8 +31,8 @@ export interface PageElement {
 
 // What the page DOES, as opposed to what it says. The copy hypotheses only ever need `elements`;
 // the flow playbook needs to know whether a fix it is about to recommend is already implemented.
-// Flat and boolean/numeric only: the identical shape is stored on every reference_pages row, and
-// comparing an analysed page against the corpus is a field-by-field diff.
+// Flat and boolean/numeric only: it is serialized straight into the playbook prompt, where a nested
+// shape would cost tokens without telling the model anything the flat one does not.
 export interface PageStructure {
   hasOauth: boolean
   oauthProviders: string[]
@@ -76,6 +80,71 @@ export class ScrapeError extends Error {
   }
 }
 
+// Pages open concurrently against the shared browser are capped, and the counter lives on globalThis
+// for the same reason the Redis client does (lib/rate-limit.ts): Next re-evaluates modules on every
+// edit in dev and splits server bundles per route, so a module-scope counter risks being per-bundle
+// rather than per-process -- a cap that silently is not one.
+const globalForBrowserPool = globalThis as unknown as {
+  browserPool?: { active: number; waiting: Array<() => void> }
+}
+
+function browserPool() {
+  globalForBrowserPool.browserPool ??= { active: 0, waiting: [] }
+
+  return globalForBrowserPool.browserPool
+}
+
+// The invariant that makes the pool safe: nothing may await scrapePage or screenshotVariant while
+// already holding a slot. Nothing does today -- analyze.ts fans its competitor scrapes out flat --
+// but a nested call self-deadlocks at the cap and presents as an analysis that simply hangs.
+async function withBrowserSlot<T>(maxWaitMs: number, run: () => Promise<T>): Promise<T> {
+  const pool = browserPool()
+
+  if (pool.active < SCRAPE_MAX_CONCURRENT_PAGES) {
+    pool.active += 1
+  } else {
+    await new Promise<void>((resolve, reject) => {
+      const grant = () => {
+        pool.active += 1
+        resolve()
+      }
+
+      pool.waiting.push(grant)
+
+      // Presence in the queue is what says "not yet granted", so there is nothing to clear: a slot
+      // that arrived first took `grant` off the queue, and the expiry then finds nothing to do.
+      setTimeout(() => {
+        const queued = pool.waiting.indexOf(grant)
+        if (queued === -1) return
+
+        pool.waiting.splice(queued, 1)
+        reject(new ScrapeError(`Timed out after ${maxWaitMs}ms waiting for a browser slot`))
+      }, maxWaitMs)
+    })
+  }
+
+  try {
+    return await run()
+  } finally {
+    // Decrement first, then hand the freed slot to the next waiter, which re-increments it. Waking a
+    // waiter without decrementing would raise the effective cap by one on every handoff.
+    pool.active -= 1
+    pool.waiting.shift()?.()
+  }
+}
+
+async function connectToBrowser(remote: string): Promise<Browser> {
+  // Chrome's DevTools endpoint refuses any Host header that is not an IP or localhost -- its own
+  // DNS-rebinding guard -- so a service name has to be resolved before connecting.
+  const { hostname, port, protocol } = new URL(remote)
+  const { address, family } = await lookup(hostname)
+  // Railway's internal DNS answers with IPv6, and a bare v6 literal in a URL is malformed --
+  // it has to be bracketed or the connection never reaches Chrome.
+  const host = family === 6 ? `[${address}]` : address
+
+  return puppeteer.connect({ browserURL: `${protocol}//${host}:${port}` })
+}
+
 // The single place a browser is obtained, so the sandbox flags and the request guard below can
 // never drift apart between call sites.
 //
@@ -86,15 +155,17 @@ async function launchBrowser(): Promise<Browser> {
   const remote = process.env.BROWSER_URL
 
   if (remote) {
-    // Chrome's DevTools endpoint refuses any Host header that is not an IP or localhost -- its own
-    // DNS-rebinding guard -- so a service name has to be resolved before connecting.
-    const { hostname, port, protocol } = new URL(remote)
-    const { address, family } = await lookup(hostname)
-    // Railway's internal DNS answers with IPv6, and a bare v6 literal in a URL is malformed --
-    // it has to be bracketed or the connection never reaches Chrome.
-    const host = family === 6 ? `[${address}]` : address
+    // Retried once, because the browser service restarts on its own (restartPolicyType: ALWAYS) and
+    // the window where Chrome is coming back up is otherwise a hard failure for whatever asked
+    // first. The hostname is resolved inside the attempt: a restarted container can come back on a
+    // different internal address, so a cached resolution is exactly what must not be reused.
+    try {
+      return await connectToBrowser(remote)
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, BROWSER_CONNECT_RETRY_DELAY_MS))
 
-    return puppeteer.connect({ browserURL: `${protocol}//${host}:${port}` })
+      return connectToBrowser(remote)
+    }
   }
 
   // The Chrome sandbox is what keeps a renderer exploit -- from a page we do not control -- away
@@ -133,11 +204,11 @@ async function openGuardedPage(browser: Browser): Promise<Page> {
   page.setDefaultTimeout(SCRAPE_NAVIGATION_TIMEOUT_MS)
 
   // The functions handed to page.evaluate() are serialized as source, so whatever transpiled them
-  // comes along. esbuild (which is what runs the ingest CLI through tsx) wraps named functions in a
-  // __name() helper that lives in the module scope and therefore does not exist in the page, making
-  // every evaluate throw "__name is not defined". Declaring it as an identity function in the page
-  // is what lets the scraper run outside the Next build. Passed as a string so it cannot itself be
-  // rewritten by the same transform.
+  // comes along. esbuild (which is what runs `npm run test:screenshot` through tsx) wraps named
+  // functions in a __name() helper that lives in the module scope and therefore does not exist in
+  // the page, making every evaluate throw "__name is not defined". Declaring it as an identity
+  // function in the page is what lets the scraper run outside the Next build. Passed as a string so
+  // it cannot itself be rewritten by the same transform.
   await page.evaluateOnNewDocument('window.__name = window.__name || ((fn) => fn)')
 
   await page.setRequestInterception(true)
@@ -191,31 +262,35 @@ async function settlePage(page: Page): Promise<void> {
 }
 
 export async function scrapePage(url: string): Promise<ScrapedPage> {
+  // Guarded before a slot is taken, so a refused URL never spends capacity the render path needs.
   const target = await assertPublicUrl(url)
-  const browser = await launchBrowser()
-  let page: Page | null = null
 
-  try {
-    page = await openGuardedPage(browser)
-    await page.setViewport(SCRAPE_VIEWPORT)
-    await page.goto(target.href, {
-      waitUntil: 'networkidle2',
-      timeout: SCRAPE_NAVIGATION_TIMEOUT_MS
-    })
-    await settlePage(page)
-    const html = await page.content()
-    const elements = await page.evaluate(captureElements)
-    const structure = await page.evaluate(captureStructure, {
-      oauthProviders: OAUTH_PROVIDER_PATTERNS,
-      patterns: STRUCTURE_PATTERNS,
-      ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
-    })
-    return { url, html, elements, structure }
-  } catch (error) {
-    throw new ScrapeError(`Failed to scrape ${url}`, { cause: error })
-  } finally {
-    await releaseBrowser(browser, page)
-  }
+  return withBrowserSlot(SCRAPE_QUEUE_MAX_WAIT_MS, async () => {
+    const browser = await launchBrowser()
+    let page: Page | null = null
+
+    try {
+      page = await openGuardedPage(browser)
+      await page.setViewport(SCRAPE_VIEWPORT)
+      await page.goto(target.href, {
+        waitUntil: 'networkidle2',
+        timeout: SCRAPE_NAVIGATION_TIMEOUT_MS
+      })
+      await settlePage(page)
+      const html = await page.content()
+      const elements = await page.evaluate(captureElements)
+      const structure = await page.evaluate(captureStructure, {
+        oauthProviders: OAUTH_PROVIDER_PATTERNS,
+        patterns: STRUCTURE_PATTERNS,
+        ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
+      })
+      return { url, html, elements, structure }
+    } catch (error) {
+      throw new ScrapeError(`Failed to scrape ${url}`, { cause: error })
+    } finally {
+      await releaseBrowser(browser, page)
+    }
+  })
 }
 
 // Renders the landing page with the variant copy swapped into its target element and captures an
@@ -230,40 +305,43 @@ export async function screenshotVariant(
   controlCopy?: string | null
 ): Promise<Buffer> {
   const target = await assertPublicUrl(url)
-  const browser = await launchBrowser()
-  let page: Page | null = null
 
-  try {
-    page = await openGuardedPage(browser)
-    await page.setViewport(SCRAPE_VIEWPORT)
-    await page.goto(target.href, {
-      waitUntil: 'networkidle2',
-      timeout: SCRAPE_NAVIGATION_TIMEOUT_MS
-    })
-    await settlePage(page)
+  return withBrowserSlot(SCREENSHOT_QUEUE_MAX_WAIT_MS, async () => {
+    const browser = await launchBrowser()
+    let page: Page | null = null
 
-    if (selector) {
-      const outcome = await page.evaluate(applyVariantCopy, {
-        selector,
-        variantCopy,
-        controlCopy: controlCopy ?? null
+    try {
+      page = await openGuardedPage(browser)
+      await page.setViewport(SCRAPE_VIEWPORT)
+      await page.goto(target.href, {
+        waitUntil: 'networkidle2',
+        timeout: SCRAPE_NAVIGATION_TIMEOUT_MS
       })
+      await settlePage(page)
 
-      if (outcome !== 'ok') {
-        throw new ScrapeError(`Variant target not applicable on ${url} (${outcome})`)
+      if (selector) {
+        const outcome = await page.evaluate(applyVariantCopy, {
+          selector,
+          variantCopy,
+          controlCopy: controlCopy ?? null
+        })
+
+        if (outcome !== 'ok') {
+          throw new ScrapeError(`Variant target not applicable on ${url} (${outcome})`)
+        }
       }
+
+      await awaitPaint(page)
+
+      const shot = await page.screenshot({ type: 'png' })
+      return Buffer.from(shot)
+    } catch (error) {
+      if (error instanceof ScrapeError) throw error
+      throw new ScrapeError(`Failed to screenshot ${url}`, { cause: error })
+    } finally {
+      await releaseBrowser(browser, page)
     }
-
-    await awaitPaint(page)
-
-    const shot = await page.screenshot({ type: 'png' })
-    return Buffer.from(shot)
-  } catch (error) {
-    if (error instanceof ScrapeError) throw error
-    throw new ScrapeError(`Failed to screenshot ${url}`, { cause: error })
-  } finally {
-    await releaseBrowser(browser, page)
-  }
+  })
 }
 
 type ApplyOutcome = 'ok' | 'not_found' | 'mismatch'

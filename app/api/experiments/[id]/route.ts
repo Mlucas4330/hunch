@@ -52,6 +52,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const experiment = await ownedExperiment(id, user.id)
   if (!experiment) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
+  // Every action here ends a test, so none of them mean anything twice. Without this a completed
+  // experiment could be flipped back to stopped, undoing the verdict it already recorded.
+  if (experiment.status !== 'running') {
+    return NextResponse.json({ error: 'not_running' }, { status: 409 })
+  }
+
   const updated = await db.transaction(async (tx) => {
     if (parsed.data.action === 'declare_winner') {
       await tx
@@ -70,11 +76,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return row
     }
 
+    // `discard` rejects the idea; `stop` only ends this run. Both used to strand the hypothesis in
+    // `testing` forever, which left it unreachable from every status filter in the app.
     if (parsed.data.action === 'discard') {
       await tx
         .update(variants)
         .set({ status: 'rejected' })
         .where(eq(variants.id, experiment.variantId))
+      await tx
+        .update(hypotheses)
+        .set({ status: 'skipped' })
+        .where(eq(hypotheses.id, experiment.hypothesisId))
+    } else {
+      await tx
+        .update(variants)
+        .set({ status: 'proposed' })
+        .where(eq(variants.id, experiment.variantId))
+      await tx
+        .update(hypotheses)
+        .set({ status: 'pending' })
+        .where(eq(hypotheses.id, experiment.hypothesisId))
     }
 
     const [row] = await tx
