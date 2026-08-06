@@ -34,6 +34,9 @@ analyses
 - embed_key       (uuid, unique: public opaque key the snippet uses; never expose analyses.id)
 - locale          (enum: LOCALE, default: en -- the language the AI wrote this analysis in, pinned
                    at creation so later alternates match the hypotheses already stored)
+- market          (enum: MARKET, default: us -- the market the analyzed page sells into, MEASURED
+                   from the page by lib/market.ts, never taken from the UI locale. Pinned for the
+                   same reason as locale)
 - created_at      (timestamp)
 
 hypotheses
@@ -51,21 +54,33 @@ hypotheses
 - status         (enum: HYPOTHESIS_STATUS, default: pending)
 - created_at     (timestamp)
 
-flow_fixes                      <- the flow playbook, one row per structural fix
+flow_fixes                      <- BOTH ranked lists of fixes, one row each
 - id           (uuid, PK)
 - analysis_id  (FK -> analyses.id)
-- category     (enum: FLOW_CATEGORY -- the conversion blocker removed, not a page section)
+- kind         (enum: FIX_KIND -- `flow` for the conversion playbook, `visibility` for the
+                discoverability audit. The two have the identical shape and share this table, this
+                category column and one component; `kind` is the only thing keeping them two
+                sections rather than one list where an SEO task outranks a conversion fix)
+- category     (enum: FLOW_CATEGORY -- the blocker removed, not a page section. One enum holding
+                two families: FLOW_FIX_CATEGORY for `flow`, VISIBILITY_FIX_CATEGORY for
+                `visibility`. Each generation's Zod schema is given only its own family, because a
+                visibility fix categorized `trust` would render under the wrong heading and the
+                prompt alone cannot prevent that)
 - title        (text: short imperative, e.g. "Offer login with Google")
 - problem      (text: one sentence on what the current flow costs the visitor)
 - steps        (jsonb: string[], 2-5 concrete implementation actions)
 - impact_score (int, 1-10)
 - effort_score (int, 1-10)
 - evidence     (text, nullable: the CRO mechanism behind the fix, never a quantitative claim)
-- position     (int: impact desc, assigned at insert)
+- position     (int: impact desc, assigned at insert, counted PER KIND so each section ranks from 1)
 - created_at   (timestamp)
 
 No variants, no target, no status: nothing here is a single-element text swap, so there is nothing
 for the embed snippet to apply and nothing to A/B. A founder ships the steps by hand.
+
+`splitFixes` in `lib/analyses.ts` is the one place rows are separated by kind. Three pages render
+both lists, and a page that forgot to filter would silently show conversion fixes under the
+discoverability heading -- so no surface filters inline.
 
 variants
 - id             (uuid, PK)
@@ -150,8 +165,9 @@ Standard NextAuth catch-all. Handles Google OAuth callback, session creation, an
 ### Analyses
 
 `POST /api/analyses`
-Core route. Chain: check usage gate -> Puppeteer scrape -> preprocess HTML -> competitor research
--> Claude API (hypotheses + playbook in parallel) -> persist -> return.
+Core route. Chain: check usage gate -> Puppeteer scrape -> preprocess HTML -> detect market ->
+competitor research + robots.txt in parallel -> Claude API (hypotheses + playbook + visibility audit
+in parallel) -> persist -> return.
 
 Request:
 
@@ -179,9 +195,14 @@ Response:
 }
 ```
 
-`flowFixes` is `[]` when playbook generation failed. It is an addition to the analysis, never a
-precondition for it, and it rides the same `persist_failed` catch as everything else in the
-transaction.
+`flowFixes` holds both kinds, `flow` first then `visibility`, each ranked by impact and each with
+`position` counted from 0 within its own kind. Either family can be empty -- the playbook when its
+generation failed, the visibility audit for that reason or because the page genuinely has nothing
+left to fix. Both are additions to the analysis, never preconditions for it, and they ride the same
+`persist_failed` catch as everything else in the transaction.
+
+`analyses.market` is written from `output.market`. **Nothing changes in `BodySchema`**: the market is
+measured from the page, not supplied by the client, exactly like `goalCandidates` and `researchBrief`.
 
 Errors:
 
@@ -243,7 +264,9 @@ Writes the two alternate challengers the analysis deliberately skipped. Ownershi
 (3) variants is returned unchanged, so a reload or a double fetch never appends duplicates.
 Otherwise it runs one small `generateObject` over `AlternateVariantsSchema`, seeded with the
 hypothesis plus the analysis's stored `research_brief` and `brief` (no second web search), and
-inserts the results at positions 1 and 2.
+inserts the results at positions 1 and 2. `locale` **and `market`** are read from the stored analysis
+rather than re-derived, so an alternate is held to the same language and the same market as the
+recommendation it sits beside.
 
 Response: `{ variants: VariantRow[] }` (all three, ordered by position).
 
@@ -559,6 +582,19 @@ const FlowFixSchema = z.object({
 const PlaybookOutputSchema = z.object({
     fixes: z.array(FlowFixSchema).min(PLAYBOOK_MIN).max(PLAYBOOK_MAX)
 })
+
+// The visibility audit. Identical shape, its own category family, and deliberately NO minimum:
+// every page has room to convert better, so PLAYBOOK_MIN asks for something always available, but a
+// page can genuinely have no discoverability problem left and a floor would buy an invented finding
+// to fill the quota. FlowPlaybook renders nothing for an empty list, so [] is a correct answer.
+const VisibilityFixSchema = z.object({
+    category: z.enum(VISIBILITY_FIX_CATEGORY),
+    ...fixFields
+})
+
+const VisibilityOutputSchema = z.object({
+    fixes: z.array(VisibilityFixSchema).max(VISIBILITY_MAX)
+})
 ```
 
 **Only one variant is generated during the analysis.** Generation is output-token-bound, and three
@@ -591,6 +627,43 @@ headline cut mid-clause to a prospect on the public report; and regenerating put
 call on the critical path for a soft rule. Logging makes the ceiling's effectiveness measurable in
 production, which is what has to come before escalating it. The fixtures in `lib/ai/fixtures.ts` all
 fit their own ceilings, so they stay a correct reference rendering of the rule.
+
+### 2e. Metadata readout and the visibility audit
+
+`scrapePage` returns a `PageSeo` alongside `structure`: what the page declares about itself, which is
+almost entirely the `<head>` that `preprocessHtml` strips before any model sees the page. Fields:
+`title`, `metaDescription`, `canonical`, `robotsMeta`, `lang`, `h1Count`, `imageCount`,
+`imagesMissingAlt`, `internalLinkCount`, `hasOgTitle`/`hasOgDescription`/`hasOgImage`, and
+`jsonLdTypes` (every `@type` in the page's JSON-LD, `@graph` included; an unparseable block is
+skipped rather than thrown, because a broken block is a finding, not a reason to lose the scrape).
+
+`PageStructure` is deliberately left alone. Its contract is "what the page DOES" and it is serialized
+straight into the playbook prompt, so metadata there would be tokens no playbook rule reads.
+`generateVisibility` is handed `PageSeo` plus exactly two `PageStructure` fields (`hasFaq`,
+`wordCount`) rather than the whole thing.
+
+`fetchCrawlerAccess` (`lib/robots.ts`) reads the site's `robots.txt` and returns
+`{ status, blockedAgents, blocksAll, sitemaps }`. Four things about it are load-bearing:
+
+- **Three states, not two.** `unknown` is a network failure or an unreadable response, and the prompt
+  is told explicitly to say nothing about robots.txt when it sees one. "We could not check" and "they
+  block AI crawlers" are opposite findings.
+- **Redirects are followed by hand**, re-validating each hop with `assertPublicUrl`, bounded by
+  `ROBOTS_MAX_REDIRECTS`. `redirect: 'follow'` would let a `302` walk the fetch to a private address
+  the pre-flight check never saw -- the hole `openGuardedPage`'s interception closes for the scrape.
+  Refusing redirects outright would be safe too, but would answer `unknown` for every apex that
+  redirects to www.
+- **Fail-soft throughout**: every failure path resolves to `unknown`. A site whose robots.txt cannot
+  be read still gets its analysis.
+- **It uses `fetch`, not a browser**, so it takes no `withBrowserSlot` slot, and it runs inside the
+  same `Promise.all` as competitor research so it adds nothing to the critical path.
+
+`generateVisibility` is a third `generateObject` in the same `Promise.all` as the hypotheses and the
+playbook, resolving to `[]` on any failure. `visibilityPrompt` carries the playbook's evidence
+discipline plus the rule the whole feature's credibility rests on: **the audit measured the page, not
+the index.** It never promises a ranking or a citation, never estimates traffic, and never says
+whether a model currently mentions the product -- none of that was measured, so any sentence in that
+direction is invented by construction.
 
 ### 2a. Structural readout
 
@@ -696,6 +769,13 @@ only measurement the call has, so any number in `evidence` is invented by constr
 unconditional; it used to have an escape hatch for when corpus evidence was supplied, and that is
 exactly what would have to come back with a corpus.
 
+`marketRules(market)` in `lib/ai/prompt.ts` is shared by every prompt that receives a market, because
+the risk is identical in all of them and must not be phrased three ways. **The market is a filter,
+never a source of evidence.** It may rule an idea out (do not offer a Brazilian founder a trust seal
+nobody there recognizes) but it may never license a claim about what people in that market expect,
+prefer, or do -- the analysis measured one page and nothing about any country, so such a claim is
+invented exactly like a number in `evidence`.
+
 ### 2b. Competitor research (web search)
 
 Before structured generation, run a web-search step with the official Anthropic SDK
@@ -713,6 +793,13 @@ rejects the `effort` parameter, and it supports only the basic `web_search_20250
 (the `_20260209` dynamic-filtering variant needs Sonnet 4.6 or newer). `max_uses` is
 `RESEARCH_MAX_SEARCHES` (3); each use is a serial round trip, so more of them buys latency rather
 than coverage.
+
+The search tool is given `user_location` from `MARKET_SEARCH_LOCATION[market]`. This was the one
+place in the pipeline that ignored where the product sells: without it the search runs from nowhere
+in particular, English-language results win, and a Brazilian product is benchmarked against American
+companies it never competes with. `user_location` is a parameter of the basic variant, so the Haiku
+constraints above still hold — and `competitorResearchPrompt(market)` is a factory like every other
+prompt in the file, which the old `COMPETITOR_RESEARCH_PROMPT` const was not.
 
 When the user supplies `competitorUrls` (paid Competitor mode), this web-search step is skipped:
 `analyzeLandingPage` scrapes those pages concurrently and concatenates the cleaned copy into the

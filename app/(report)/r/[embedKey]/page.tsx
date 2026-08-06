@@ -6,6 +6,7 @@ import { VariantPreview } from '@/components/variant-preview'
 import { FlowPlaybook } from '@/components/flow-playbook'
 import { WaitlistWall } from '@/components/waitlist-wall'
 import { hasPlaceholders } from '@/lib/utils'
+import { splitFixes } from '@/lib/analyses'
 import { PLAYBOOK_EXPANDED_COUNT, REPORT_PREVIEW_LIMIT } from '@/lib/constants'
 import { LanguageToggle } from '@/components/language-toggle'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
@@ -61,6 +62,7 @@ export default async function PublicReportPage({
   const visible = previewOrder.slice(0, REPORT_PREVIEW_LIMIT)
   const hidden = previewOrder.slice(REPORT_PREVIEW_LIMIT)
   const topImpact = ranked[0]?.impactScore ?? 0
+  const fixes = splitFixes(analysis.flowFixes)
 
   return (
     <div className="space-y-8">
@@ -107,9 +109,11 @@ export default async function PublicReportPage({
         </div>
       )}
 
-      {/* Shown in full, in front of the wall and outside REPORT_PREVIEW_LIMIT: the flow fixes are
-          the strongest reason a prospect keeps reading, so they are never what gets blurred. */}
-      <FlowPlaybook fixes={analysis.flowFixes} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
+      {/* Both lists are shown in full, in front of the wall and outside REPORT_PREVIEW_LIMIT: they
+          are the strongest reason a prospect keeps reading, so they are never what gets blurred. */}
+      <FlowPlaybook fixes={fixes.flow} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
+
+      <FlowPlaybook fixes={fixes.visibility} kind="visibility" expandFrom={PLAYBOOK_EXPANDED_COUNT} />
 
       <div className="space-y-4">
         {visible.map((hypothesis, index) => {

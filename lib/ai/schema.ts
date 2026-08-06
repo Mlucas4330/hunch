@@ -1,10 +1,11 @@
 import { z } from 'zod'
-import { FLOW_CATEGORY, SECTIONS } from '@/lib/enums'
+import { FLOW_FIX_CATEGORY, SECTIONS, VISIBILITY_FIX_CATEGORY } from '@/lib/enums'
 import {
   PLAYBOOK_MAX,
   PLAYBOOK_MIN,
   PLAYBOOK_STEPS_MAX,
-  SECTION_FALLBACK
+  SECTION_FALLBACK,
+  VISIBILITY_MAX
 } from '@/lib/constants'
 
 export const VariantSchema = z.object({
@@ -44,21 +45,42 @@ export const AlternateVariantsSchema = z.object({
   variants: z.array(VariantSchema).length(2)
 })
 
-// A structural fix. It has no current_copy and no variants: nothing here is a text swap, so there is
-// nothing for the embed snippet to apply and nothing to A/B. What it has instead is `steps`, the
-// implementation actions the founder carries out by hand.
-export const FlowFixSchema = z.object({
-  category: z.enum(FLOW_CATEGORY),
+// Everything a fix carries except its category. Shared because the flow playbook and the visibility
+// audit produce the identical shape and are rendered by one component -- only the vocabulary of
+// blockers differs, which is exactly what the category field is.
+const fixFields = {
   title: z.string(),
   problem: z.string(),
   steps: z.array(z.string()).min(2).max(PLAYBOOK_STEPS_MAX),
   impact_score: z.number().int().min(1).max(10),
   effort_score: z.number().int().min(1).max(10),
   evidence: z.string()
+}
+
+// A structural fix. It has no current_copy and no variants: nothing here is a text swap, so there is
+// nothing for the embed snippet to apply and nothing to A/B. What it has instead is `steps`, the
+// implementation actions the founder carries out by hand.
+export const FlowFixSchema = z.object({
+  category: z.enum(FLOW_FIX_CATEGORY),
+  ...fixFields
 })
 
 export const PlaybookOutputSchema = z.object({
   fixes: z.array(FlowFixSchema).min(PLAYBOOK_MIN).max(PLAYBOOK_MAX)
+})
+
+// A discoverability fix. Same shape, different ground truth: the page's own metadata and its
+// robots.txt rather than its conversion flow.
+export const VisibilityFixSchema = z.object({
+  category: z.enum(VISIBILITY_FIX_CATEGORY),
+  ...fixFields
+})
+
+// Deliberately no minimum, unlike the playbook. Every page has room to convert better, so a floor
+// there asks for something that is always available; a page can genuinely have no discoverability
+// problem left, and a floor here would buy an invented finding to fill the quota.
+export const VisibilityOutputSchema = z.object({
+  fixes: z.array(VisibilityFixSchema).max(VISIBILITY_MAX)
 })
 
 export type AlternateVariantsOutput = z.infer<typeof AlternateVariantsSchema>
@@ -68,3 +90,9 @@ export type HypothesisOutput = z.infer<typeof HypothesisSchema>
 export type AnalysisOutput = z.infer<typeof AnalysisOutputSchema>
 export type FlowFixOutput = z.infer<typeof FlowFixSchema>
 export type PlaybookOutput = z.infer<typeof PlaybookOutputSchema>
+export type VisibilityFixOutput = z.infer<typeof VisibilityFixSchema>
+export type VisibilityOutput = z.infer<typeof VisibilityOutputSchema>
+
+// What the two families have in common, which is everything the persistence layer and the UI touch.
+// A fix is inserted, ranked, and rendered the same way whichever generation produced it.
+export type FixOutput = FlowFixOutput | VisibilityFixOutput

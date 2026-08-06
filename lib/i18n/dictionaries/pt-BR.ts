@@ -81,7 +81,15 @@ export const ptBR: Dictionary = {
       objections: 'Objeções',
       trust: 'Confiança',
       pricing_clarity: 'Clareza de preços',
-      page_structure: 'Estrutura da página'
+      page_structure: 'Estrutura da página',
+      indexability: 'Indexação',
+      metadata: 'Metadados',
+      structured_data: 'Dados estruturados',
+      ai_answerability: 'Legibilidade para IA'
+    },
+    market: {
+      us: 'Estados Unidos',
+      br: 'Brasil'
     },
     hypothesisStatus: {
       pending: 'Pendente',
@@ -374,6 +382,7 @@ export const ptBR: Dictionary = {
     report: 'Relatório',
     backToDashboard: 'Voltar ao painel',
     benchmarkedAgainst: 'Comparado com:',
+    marketNote: '(mercado: {market})',
     copyReportLink: 'Copiar link do relatório'
   },
 
@@ -388,6 +397,15 @@ export const ptBR: Dictionary = {
       one: '{count} ajuste de fluxo',
       other: '{count} ajustes de fluxo'
     }
+  },
+
+  visibility: {
+    eyebrow: 'Seja encontrado',
+    title: 'Um buscador e uma IA conseguem ler esta página',
+    hintLabel: 'O que esta seção verificou',
+    hint: 'Isto vem do que a sua página *declara sobre si mesma*: título, descrição, dados estruturados e o que o robots.txt permite. Verificamos a página, *não* a sua posição em busca: nada aqui diz onde você aparece nem se alguma IA cita você hoje, apenas se a sua página entrega o que elas precisam para encontrar e citar você.',
+    stepsLabel: 'Como implementar',
+    evidenceLabel: 'Por quê'
   },
 
   hypothesisList: {

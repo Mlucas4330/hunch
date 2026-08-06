@@ -249,6 +249,16 @@ test.describe('core features', () => {
     // Nothing here is A/B testable, so no fix may offer a test button
     await expect(playbook.getByRole('link', { name: 'Set up test' })).toHaveCount(0)
 
+    // The visibility audit shares this table and this component, so what keeps it a separate
+    // section is the kind discriminator alone. These counts are what prove the two never merge:
+    // conversion fixes and discoverability fixes ranked into one list would be the failure.
+    const visibility = page.getByTestId('visibility-playbook')
+    await expect(visibility).toBeVisible()
+    await expect(visibility.getByTestId('visibility-fix')).toHaveCount(3)
+    await expect(playbook.getByTestId('visibility-fix')).toHaveCount(0)
+    await expect(visibility.getByTestId('flow-fix')).toHaveCount(0)
+    await expect(visibility.getByRole('heading', { name: 'Write a meta description' })).toBeVisible()
+
     const origin = new URL(page.url()).origin
     const analysisId = page.url().split('/').pop()
     const detail = await page.request.get(`${origin}/api/analyses/${analysisId}`)
@@ -259,6 +269,7 @@ test.describe('core features', () => {
     const anon = await context.newPage()
     await anon.goto(`/r/${analysis.embedKey}`)
     await expect(anon.getByTestId('flow-playbook').getByTestId('flow-fix')).toHaveCount(4)
+    await expect(anon.getByTestId('visibility-playbook').getByTestId('visibility-fix')).toHaveCount(3)
 
     // Previews are rendered on request, never on mount: each one boots a browser against the
     // customer's real page, so opening the report must cost nothing.

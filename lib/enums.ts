@@ -4,6 +4,12 @@ export type SubscriptionPlan = (typeof SUBSCRIPTION_PLAN)[number]
 export const LOCALE = ['en', 'pt-BR'] as const
 export type Locale = (typeof LOCALE)[number]
 
+// The market a landing page sells into, measured from the page itself rather than from the UI
+// language. It scopes the competitor search geographically and bounds which recommendations are
+// eligible, so a Brazilian product is never told to add a trust seal that does not exist here.
+export const MARKET = ['us', 'br'] as const
+export type Market = (typeof MARKET)[number]
+
 export const SECTIONS = [
   'headline',
   'subheadline',
@@ -17,9 +23,20 @@ export const SECTIONS = [
 ] as const
 export type Section = (typeof SECTIONS)[number]
 
-// What a flow fix unblocks. A copy hypothesis swaps one line of text; a flow fix changes the page's
-// structure, so it is categorized by the conversion blocker it removes rather than by a page section.
-export const FLOW_CATEGORY = [
+// Which of the two ranked lists a fix belongs to. Both have the identical shape (title, problem,
+// steps, impact, effort, evidence) and share one table and one component, so this is what keeps them
+// rendering as two sections instead of one list where "write a meta description" competes with "cut
+// the signup form" for the same slot.
+export const FIX_KIND = ['flow', 'visibility'] as const
+export type FixKind = (typeof FIX_KIND)[number]
+
+// What a fix unblocks, one family per kind. A copy hypothesis swaps one line of text; a fix changes
+// the page itself, so it is categorized by the blocker it removes rather than by a page section.
+//
+// The families are declared separately rather than sliced out of one list because each one is handed
+// to its own generation as the exact set of values it may return -- a visibility fix categorized as
+// `trust` would render under the wrong section heading, and the prompt alone cannot prevent that.
+export const FLOW_FIX_CATEGORY = [
   'signup_friction',
   'cta_placement',
   'decision_load',
@@ -28,6 +45,20 @@ export const FLOW_CATEGORY = [
   'pricing_clarity',
   'page_structure'
 ] as const
+export type FlowFixCategory = (typeof FLOW_FIX_CATEGORY)[number]
+
+// Whether a crawler and a language model can reach, read, and cite the page.
+export const VISIBILITY_FIX_CATEGORY = [
+  'indexability',
+  'metadata',
+  'structured_data',
+  'ai_answerability'
+] as const
+export type VisibilityFixCategory = (typeof VISIBILITY_FIX_CATEGORY)[number]
+
+// Both families in one list: they share a table, a column, and a badge map, so the Postgres enum and
+// every Record keyed by category cover all of them.
+export const FLOW_CATEGORY = [...FLOW_FIX_CATEGORY, ...VISIBILITY_FIX_CATEGORY] as const
 export type FlowCategory = (typeof FLOW_CATEGORY)[number]
 
 export const HYPOTHESIS_STATUS = ['pending', 'testing', 'completed', 'skipped'] as const

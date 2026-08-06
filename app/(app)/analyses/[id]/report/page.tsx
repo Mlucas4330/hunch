@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { formatDate, t as fill } from '@/lib/i18n/format'
 import { hasPlaceholders } from '@/lib/utils'
+import { splitFixes } from '@/lib/analyses'
 import { isQuickWin } from '@/lib/constants'
 import { pageMetadata } from '@/lib/seo'
 
@@ -45,6 +46,7 @@ export default async function AnalysisReportPage({
   if (!analysis) notFound()
 
   const ranked = [...analysis.hypotheses].sort((a, b) => b.impactScore - a.impactScore)
+  const fixes = splitFixes(analysis.flowFixes)
   const quickWins = ranked.filter(isQuickWin).length
   const topImpact = ranked[0]?.impactScore ?? 0
   const locale = await getLocale()
@@ -102,7 +104,10 @@ export default async function AnalysisReportPage({
         </div>
       )}
 
-      <FlowPlaybook fixes={analysis.flowFixes} />
+      {/* Both lists, and neither passes expandFrom: nothing may be hidden on paper. */}
+      <FlowPlaybook fixes={fixes.flow} />
+
+      <FlowPlaybook fixes={fixes.visibility} kind="visibility" />
 
       <div className="space-y-4">
         {ranked.map((hypothesis, index) => {

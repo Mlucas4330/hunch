@@ -55,6 +55,11 @@ jobs:
       # loopback and encoded-IP targets.
       - run: npm run check:url-guard
 
+      # The e2e suite runs on fixtures and never reaches market detection, so this is the only
+      # thing standing between a regression there and a Brazilian product benchmarked against
+      # American competitors.
+      - run: npm run check:market
+
       - run: npx playwright install --with-deps chromium
 
       - run: npm run test:e2e

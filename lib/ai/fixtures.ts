@@ -1,6 +1,11 @@
-import type { AnalysisOutput, FlowFixOutput, VariantOutput } from '@/lib/ai/schema'
+import type {
+  AnalysisOutput,
+  FlowFixOutput,
+  VariantOutput,
+  VisibilityFixOutput
+} from '@/lib/ai/schema'
 import type { Locale } from '@/lib/enums'
-import type { PageStructure } from '@/lib/scrape'
+import type { PageSeo, PageStructure } from '@/lib/scrape'
 
 // Fixtures are written per locale for the same reason the real prompts take a language: the analysis
 // is written in the language the user is reading the app in, and E2E_FIXTURES must not be the one
@@ -34,6 +39,27 @@ export const FIXTURE_STRUCTURE: PageStructure = {
   wordCount: 720
 }
 
+// The metadata readout to match: a page that declares a title and Open Graph tags but no description,
+// no canonical, no structured data, and several images with no alt text -- so every fixture
+// visibility fix below is traceable to a null or high field here, exactly as the flow fixes are to
+// FIXTURE_STRUCTURE. `lang` is `en`, which is also what makes detectMarket resolve the fixture run to
+// the default market.
+export const FIXTURE_SEO: PageSeo = {
+  title: 'Acme - The workspace for modern teams',
+  metaDescription: null,
+  canonical: null,
+  robotsMeta: null,
+  lang: 'en',
+  h1Count: 1,
+  imageCount: 12,
+  imagesMissingAlt: 5,
+  internalLinkCount: 14,
+  hasOgTitle: true,
+  hasOgDescription: true,
+  hasOgImage: false,
+  jsonLdTypes: []
+}
+
 // The flow playbook under E2E_FIXTURES. Four fixes across distinct categories, ordered by impact
 // descending, each one traceable to a false/high field in FIXTURE_STRUCTURE above.
 const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
@@ -51,7 +77,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       impact_score: 9,
       effort_score: 4,
       evidence:
-        '3 of 3 reference pages offer social sign in, so the one click path is the expectation.'
+        'Every account created today costs the visitor a password they must invent and then remember.'
     },
     {
       category: 'objections',
@@ -77,7 +103,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       ],
       impact_score: 7,
       effort_score: 3,
-      evidence: 'The median reference page asks for 2 fields at signup.'
+      evidence:
+        'Four of the six fields are asked before the visitor has any reason to answer them.'
     },
     {
       category: 'cta_placement',
@@ -106,7 +133,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       impact_score: 9,
       effort_score: 4,
       evidence:
-        '3 de 3 páginas de referência oferecem login social, então o caminho de um clique é o esperado.'
+        'Toda conta criada hoje custa ao visitante uma senha que ele precisa inventar e depois lembrar.'
     },
     {
       category: 'objections',
@@ -134,7 +161,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       ],
       impact_score: 7,
       effort_score: 3,
-      evidence: 'A página de referência mediana pede 2 campos no cadastro.'
+      evidence:
+        'Quatro dos seis campos são pedidos antes de o visitante ter qualquer motivo para respondê-los.'
     },
     {
       category: 'cta_placement',
@@ -149,6 +177,99 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       effort_score: 1,
       evidence:
         'As páginas de referência repetem uma ação em vez de oferecer várias concorrentes entre si.'
+    }
+  ]
+}
+
+// The visibility audit under E2E_FIXTURES. Three fixes, each traceable to a null or high field in
+// FIXTURE_SEO. Note what is absent: no robots.txt finding, because the fixture run performs no fetch
+// and the audit must never invent one -- and no evidence line carries a number, a ranking, or a
+// promise that a model will cite the page, which is the contract visibilityPrompt enforces.
+const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
+  en: [
+    {
+      category: 'metadata',
+      title: 'Write a meta description',
+      problem: 'The page declares no description, so search engines write their own from the copy.',
+      steps: [
+        'Add a meta description tag summarizing what the product does and who it is for',
+        'Keep it to one sentence that reads as a whole thought on its own'
+      ],
+      impact_score: 8,
+      effort_score: 1,
+      evidence:
+        'With no description declared, the snippet a reader sees is assembled from whatever text the crawler picked.'
+    },
+    {
+      category: 'structured_data',
+      title: 'Add Organization structured data',
+      problem: 'Nothing on the page states in machine readable form what this company is.',
+      steps: [
+        'Add a JSON-LD script describing the Organization with its name, URL, and logo',
+        'Add a SoftwareApplication entry naming the product and its category',
+        'Validate the markup renders without errors before shipping'
+      ],
+      impact_score: 6,
+      effort_score: 3,
+      evidence:
+        'A model reading this page has to infer what the company is from prose, because no markup states it.'
+    },
+    {
+      category: 'ai_answerability',
+      title: 'Add alt text to the product images',
+      problem: 'Several images carry no alt attribute, so their content reaches no crawler at all.',
+      steps: [
+        'Write alt text for every image that carries a claim or a screenshot of the product',
+        'Leave alt empty only for images that are purely decorative'
+      ],
+      impact_score: 5,
+      effort_score: 2,
+      evidence:
+        'What those images show is currently readable only by a person looking at the page.'
+    }
+  ],
+  'pt-BR': [
+    {
+      category: 'metadata',
+      title: 'Escreva uma meta description',
+      problem:
+        'A página não declara descrição, então os buscadores escrevem a deles a partir do texto.',
+      steps: [
+        'Adicione uma tag meta description resumindo o que o produto faz e para quem ele é',
+        'Mantenha em uma frase que se sustente sozinha como ideia completa'
+      ],
+      impact_score: 8,
+      effort_score: 1,
+      evidence:
+        'Sem descrição declarada, o trecho que o leitor vê é montado a partir de qualquer texto que o rastreador escolheu.'
+    },
+    {
+      category: 'structured_data',
+      title: 'Adicione dados estruturados de Organization',
+      problem: 'Nada na página diz, em formato legível por máquina, o que é esta empresa.',
+      steps: [
+        'Adicione um script JSON-LD descrevendo a Organization com nome, URL e logo',
+        'Adicione uma entrada SoftwareApplication nomeando o produto e sua categoria',
+        'Valide se a marcação carrega sem erros antes de publicar'
+      ],
+      impact_score: 6,
+      effort_score: 3,
+      evidence:
+        'Um modelo que lê esta página precisa deduzir o que é a empresa a partir do texto corrido, porque nenhuma marcação diz isso.'
+    },
+    {
+      category: 'ai_answerability',
+      title: 'Adicione texto alternativo às imagens',
+      problem:
+        'Várias imagens não têm atributo alt, então o conteúdo delas não chega a rastreador nenhum.',
+      steps: [
+        'Escreva o texto alternativo de toda imagem que carrega uma afirmação ou uma tela do produto',
+        'Deixe o alt vazio apenas nas imagens puramente decorativas'
+      ],
+      impact_score: 5,
+      effort_score: 2,
+      evidence:
+        'O que essas imagens mostram hoje só é legível por uma pessoa olhando para a página.'
     }
   ]
 }
@@ -404,6 +525,10 @@ export function fixtureAnalysis(locale: Locale): AnalysisOutput {
 
 export function fixturePlaybook(locale: Locale): FlowFixOutput[] {
   return PLAYBOOK[locale]
+}
+
+export function fixtureVisibility(locale: Locale): VisibilityFixOutput[] {
+  return VISIBILITY[locale]
 }
 
 export function fixtureAlternateVariants(locale: Locale): VariantOutput[] {

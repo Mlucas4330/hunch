@@ -53,6 +53,34 @@ export interface PageStructure {
   wordCount: number
 }
 
+// What a crawler and a language model can find, read, and cite. Sibling of PageStructure and held to
+// the same discipline -- flat, measured, no inference -- but a separate readout because it answers a
+// different question: PageStructure is what the page DOES, this is how the page is DESCRIBED.
+//
+// Nearly all of it is the <head>, which preprocessHtml strips before any model sees the page, so
+// without this capture none of it reaches generation at all.
+export interface PageSeo {
+  title: string | null
+  metaDescription: string | null
+  canonical: string | null
+  // The <meta name="robots"> content verbatim. A page can be noindex without anyone noticing.
+  robotsMeta: string | null
+  // <html lang>. Also what detectMarket reads, which is why the two features share one capture.
+  lang: string | null
+  h1Count: number
+  // Images are how a landing page states its strongest claims, and alt text is the only version of
+  // them a crawler or a model receives.
+  imageCount: number
+  imagesMissingAlt: number
+  internalLinkCount: number
+  hasOgTitle: boolean
+  hasOgDescription: boolean
+  hasOgImage: boolean
+  // The @type of every JSON-LD block on the page (Organization, Product, FAQPage, ...). The most
+  // direct citability signal there is: it is the page telling a machine what it is, in machine terms.
+  jsonLdTypes: string[]
+}
+
 export type TargetMode = 'auto' | 'manual'
 
 export interface GoalCandidate {
@@ -71,6 +99,7 @@ export interface ScrapedPage {
   html: string
   elements: PageElement[]
   structure: PageStructure
+  seo: PageSeo
 }
 
 export class ScrapeError extends Error {
@@ -284,7 +313,8 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
         patterns: STRUCTURE_PATTERNS,
         ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
       })
-      return { url, html, elements, structure }
+      const seo = await page.evaluate(captureSeo)
+      return { url, html, elements, structure, seo }
     } catch (error) {
       throw new ScrapeError(`Failed to scrape ${url}`, { cause: error })
     } finally {
@@ -632,6 +662,75 @@ function captureStructure(options: {
     headingCount: headings.length,
     sectionCount: Array.from(main.children).filter(isVisible).length,
     wordCount: words(bodyText)
+  }
+}
+
+// Runs in the browser context: read how the page describes itself to machines. Takes no options --
+// unlike captureStructure there is no vocabulary to match against, only tags that either exist or do
+// not, which is what keeps every field here a fact rather than a judgement.
+function captureSeo(): PageSeo {
+  function attr(selector: string, name: string): string | null {
+    const value = document.querySelector(selector)?.getAttribute(name)
+    const trimmed = (value || '').trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+
+  // Every @type in the document's JSON-LD, including the ones nested in an @graph, which is how most
+  // real sites emit more than one. Malformed JSON is skipped rather than thrown: a broken block is a
+  // finding for the audit, not a reason to lose the whole scrape.
+  const jsonLdTypes = new Set<string>()
+  for (const script of Array.from(
+    document.querySelectorAll('script[type="application/ld+json"]')
+  )) {
+    try {
+      const collect = (node: unknown): void => {
+        if (Array.isArray(node)) {
+          node.forEach(collect)
+          return
+        }
+        if (node === null || typeof node !== 'object') return
+        const record = node as Record<string, unknown>
+        const type = record['@type']
+        if (typeof type === 'string') jsonLdTypes.add(type)
+        if (Array.isArray(type)) {
+          type.forEach((t) => {
+            if (typeof t === 'string') jsonLdTypes.add(t)
+          })
+        }
+        if ('@graph' in record) collect(record['@graph'])
+      }
+      collect(JSON.parse(script.textContent || ''))
+    } catch {
+      // Unparseable block: nothing to record.
+    }
+  }
+
+  const images = Array.from(document.querySelectorAll('img'))
+  const origin = window.location.origin
+
+  return {
+    title: (document.title || '').trim() || null,
+    metaDescription: attr('meta[name="description"]', 'content'),
+    canonical: attr('link[rel="canonical"]', 'href'),
+    robotsMeta: attr('meta[name="robots"]', 'content'),
+    lang: attr('html', 'lang'),
+    h1Count: document.querySelectorAll('h1').length,
+    imageCount: images.length,
+    // A decorative image is correctly alt="", so only a MISSING attribute counts as missing.
+    imagesMissingAlt: images.filter((img) => !img.hasAttribute('alt')).length,
+    internalLinkCount: Array.from(document.querySelectorAll('a[href]')).filter((a) => {
+      const href = a.getAttribute('href') || ''
+      if (href.startsWith('#')) return false
+      try {
+        return new URL(href, origin).origin === origin
+      } catch {
+        return false
+      }
+    }).length,
+    hasOgTitle: attr('meta[property="og:title"]', 'content') !== null,
+    hasOgDescription: attr('meta[property="og:description"]', 'content') !== null,
+    hasOgImage: attr('meta[property="og:image"]', 'content') !== null,
+    jsonLdTypes: Array.from(jsonLdTypes)
   }
 }
 

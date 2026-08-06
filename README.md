@@ -38,7 +38,11 @@ Hunch then closes the loop: with one embeddable snippet (no external analytics r
   with Google, cut the signup form, add a Q&A block, repeat the CTA after pricing), grounded in a
   measured structural readout of the page itself rather than in a guess at what it contains
 - Optionally add a business brief so variants come back as finished, ready-to-ship copy
-- Paste competitor landing pages to ground the hypotheses (paid Competitor mode; free auto-searches)
+- Get a discoverability audit alongside them: what the page declares about itself (title, description,
+  canonical, structured data) and what its robots.txt allows, so a founder can see whether a search
+  engine and a language model can reach, read, and quote the page
+- Paste competitor landing pages to ground the hypotheses (paid Competitor mode; free auto-searches
+  in the market the page itself sells into)
 - Browse ranked hypotheses, each with an AI-recommended challenger to test (no manual variant-picking)
 - Run one test at a time from a focused screen: approve/swap/edit the challenger, then launch
 - Swap the recommendation for one of two alternates, written on demand on the run-a-test screen
@@ -69,6 +73,33 @@ Hunch then closes the loop: with one embeddable snippet (no external analytics r
 - A flow fix's `evidence` never carries a number. The only measurement the playbook has is the
   readout of the one page in front of it, so a percentage, a conversion lift or a count of what other
   companies do would be invented; the prompt requires the CRO mechanism instead
+- The market a page sells into is **measured from the page**, not taken from the UI locale: a `.br`
+  domain or a Portuguese `lang` attribute decides it, and nothing else does. Weaker signals were
+  deliberately left out — a BRL price appears on plenty of global pricing tables — because the two
+  directions of error are not symmetric. Missing a Brazilian page costs one unfocused competitor
+  search, which is what already happened before the market existed; marking a US page Brazilian
+  rewrites the whole analysis around the wrong country and shows the reader nothing that explains it.
+  The market is passed as `user_location` on the competitor web search and pinned to
+  `analyses.market`, so an alternate written later is held to the market its hypothesis was written
+  for, exactly as `locale` works
+- **The market is a filter on what may be recommended, never a fact the model knows.** The analysis
+  measured one page and nothing about any country, so the prompts may rule an idea out (do not offer
+  a Brazilian founder a trust seal nobody there recognizes) but may never state what buyers in a
+  market expect, prefer, or do. That claim would be invented exactly like a number in `evidence`
+- The visibility audit measured the page, **not the index**. A finding never promises a ranking or a
+  citation, never estimates traffic, and never says whether any model currently mentions the product
+   — none of that was measured. Its `evidence` argues the mechanism (a crawler cannot read a price
+  that exists only inside an image), under the same no-quantitative-claim rule as the playbook
+- Unknown is never reported as negative. `robots.txt` resolves to `found`, `absent`, or `unknown`,
+  and `unknown` (a network failure or an unreadable response) is excluded from the prompt's findings
+  rather than presented as a missing file or a block — "we could not check" and "they block AI
+  crawlers" are opposite conclusions
+- The visibility audit has **no minimum number of findings**, unlike the playbook. Every page has room
+  to convert better, so a floor there asks for something always available; a page can genuinely have
+  no discoverability problem left, and a floor would buy an invented finding to fill the quota
+- The two ranked lists share one table, one component and one category enum, discriminated by
+  `flow_fixes.kind`. They render as separate sections rather than one list: a founder choosing what to
+  test first should not have an SEO task ranked in among the conversion fixes
 - AI output must be fully typed and validated via Zod before DB insert
 - Stripe webhook must process events idempotently
 - All authenticated routes protected via NextAuth middleware, and every page and API route behind it
@@ -174,6 +205,7 @@ applies the current schema directly for local iteration.
 ```bash
 npm run typecheck
 npm run check:url-guard  # asserts the SSRF guard blocks private/loopback/encoded-IP targets
+npm run check:market     # asserts market detection, incl. that pt-PT and a .com never read as Brazil
 npm run test:e2e         # Playwright on port 3100 with E2E_FIXTURES=1 (no scraping, no Claude calls)
 
 npm run test:screenshot                                  # defaults: https://vercel.com, h1
@@ -189,6 +221,10 @@ images.
 `E2E_FIXTURES=1` swaps generation for the fixtures in `lib/ai/fixtures.ts`, which exist per locale and
 are picked by the same locale the real pipeline uses. The suite sets no locale cookie, so it runs in
 `DEFAULT_LOCALE` and asserts against the English fixture.
+
+`check:market` exists because that fixture path replaces the entire pipeline before a page is ever
+scraped, so the e2e suite never reaches market detection at all. It is the only automated coverage
+`detectMarket` has, which is why it is a CI step rather than a convenience script.
 
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` must be set for the e2e suite to sign in (the suite sets
 `ALLOW_CREDENTIALS_LOGIN` for itself).

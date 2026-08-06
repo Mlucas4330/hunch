@@ -102,7 +102,11 @@ written during the analysis) and the live test decides the actual winner.
 
 **Screen 1 - "What to test"** (`app/analyses/[id]/page.tsx` + `components/hypothesis-list.tsx`):
 
-- Benchmarked-against line: the competitors (`analyses.competitors`) rendered as links near the top.
+- Benchmarked-against line: the competitors (`analyses.competitors`) rendered as links near the top,
+  followed by the market the analysis was run in (`analysis.marketNote` + `labels.market.*`). The
+  market is named there because it is the only thing that explains the list beside it: detection reads
+  the page, and when it reads it wrong the failure surfaces as inexplicably foreign competitors unless
+  the reader can see which market was used.
 - A one-time **Install snippet** card (`components/embed-snippet.tsx`) - site-level setup. It is
   mounted by the **page**, not by `HypothesisList`, so the section order (snippet -> playbook ->
   hypotheses) is decided in one place rather than by where the snippet happens to be rendered.
@@ -155,10 +159,27 @@ written during the analysis) and the live test decides the actual winner.
 - Launching a second test on a hypothesis that still has one running answers `409 already_running`
   and surfaces `testRunner.alreadyRunning` inline, beside the existing `403` and `422` branches.
 
-### Flow playbook (`components/flow-playbook.tsx`)
+### Flow playbook and visibility audit (`components/flow-playbook.tsx`)
 
-The structural fixes, shown on **all three** analysis surfaces from this one component: the analysis
-screen, the owner print report, and the public report. Nothing about it is duplicated per surface.
+**Two ranked lists, one component.** The flow playbook (structural conversion fixes) and the
+visibility audit (whether a search engine and a model can reach, read, and cite the page) have the
+identical shape and share one table, so one component renders both on **all three** analysis
+surfaces: the analysis screen, the owner print report, and the public report. Nothing is duplicated
+per surface or per kind.
+
+`kind` (`flow` by default, or `visibility`) selects the dictionary subtree and the `data-testid`, and
+nothing else -- there is no branch on it below the heading, which is the point. Consequences:
+
+- `dictionary.visibility` mirrors `dictionary.playbook` key for key. A key added to one must be added
+  to the other or the union access in the component stops typechecking.
+- Test ids are `${kind}-playbook` and `${kind}-fix`, so the flow section keeps `flow-playbook` /
+  `flow-fix` exactly and the existing e2e counts hold. **A shared `flow-fix` id across both sections
+  would have broken those counts silently** -- the e2e asserts the two families never merge.
+- Rows are split by `splitFixes` (`lib/analyses.ts`), never filtered inline at a call site.
+
+They render as separate sections rather than one impact-ranked list: a founder deciding what to test
+first should not have "write a meta description" ranked in among the conversion fixes. On the analysis
+screen the visibility section sits **last**, after the hypotheses, for the same reason.
 
 - Per fix: `FlowCategoryBadge`, two `ScoreIndicator`s, the title, the problem, the `steps` as an
   `<ol>` numbered `01`-style (`font-mono tabular-nums`, the same idiom as `landing.tracks`), and the
@@ -172,12 +193,19 @@ screen, the owner print report, and the public report. Nothing about it is dupli
   and the public report pass `PLAYBOOK_EXPANDED_COUNT` (2); the **print report passes nothing**, so
   every fix stays open - nothing may be hidden on paper. Collapsed rows keep `data-testid="flow-fix"`
   so the e2e counts hold across both renderings.
-- On the public report it sits in front of `WaitlistWall` and outside `REPORT_PREVIEW_LIMIT`: it is
-  the strongest reason a prospect keeps reading, so it is never what gets blurred.
+- On the public report both sections sit in front of `WaitlistWall` and outside
+  `REPORT_PREVIEW_LIMIT`: they are the strongest reason a prospect keeps reading, so they are never
+  what gets blurred.
+- The visibility section's `hint` states the limit of what was measured: the audit read the page, not
+  the index. It promises nothing about ranking and nothing about whether an AI mentions the product
+  today. Do not soften that into a claim the audit cannot support.
 - `components/flow-category-badge.tsx` mirrors `section-badge.tsx` exactly, over
-  `FLOW_CATEGORY_BADGE_CLASS` + `dictionary.labels.flowCategory`. Colors: `signup_friction` -> coral,
-  `cta_placement` -> purple, `decision_load` -> blue, `objections` -> teal, `trust` -> green,
-  `pricing_clarity` -> amber, `page_structure` -> gray.
+  `FLOW_CATEGORY_BADGE_CLASS` + `dictionary.labels.flowCategory`. Flow colors: `signup_friction` ->
+  coral, `cta_placement` -> purple, `decision_load` -> blue, `objections` -> teal, `trust` -> green,
+  `pricing_clarity` -> amber, `page_structure` -> gray. Visibility colors: `indexability` -> coral,
+  `metadata` -> purple, `structured_data` -> blue, `ai_answerability` -> teal. Hues repeat across the
+  two families on purpose -- they never render in the same list, so a colour only has to separate the
+  categories it sits beside.
 
 ### Section badge
 

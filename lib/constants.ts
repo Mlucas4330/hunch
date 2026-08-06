@@ -5,6 +5,7 @@ import type {
   FlowCategory,
   HypothesisStatus,
   Locale,
+  Market,
   RateLimitKind,
   Section,
   SubscriptionPlan,
@@ -49,6 +50,67 @@ export const AI_OUTPUT_LANGUAGE: Record<Locale, string> = {
 // A language choice is a UI preference, not a session: it outlives sign-out and belongs to the
 // browser, so it is never tied to the user row.
 export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+
+// Where an analysis lands when no market signal fires. US-first, per the product's own positioning.
+export const DEFAULT_MARKET: Market = 'us'
+
+// Passed as `user_location` on the web search tool so competitor research is scoped to the market the
+// page actually sells into. `country` is ISO 3166-1 alpha-2 and `timezone` is IANA, which is the shape
+// the tool accepts.
+export const MARKET_SEARCH_LOCATION: Record<Market, { country: string; timezone: string }> = {
+  us: { country: 'US', timezone: 'America/New_York' },
+  br: { country: 'BR', timezone: 'America/Sao_Paulo' }
+}
+
+// How each market is named to the model, in the same spirit as AI_OUTPUT_LANGUAGE. Prompt input, so
+// it is written in the prompts' language and never translated.
+export const MARKET_NAME: Record<Market, string> = {
+  us: 'the United States',
+  br: 'Brazil'
+}
+
+// The detection vocabulary for lib/market.ts. Every signal here is decisive on its own, which is why
+// the list is short: a weaker signal blended in (a BRL price, say) would fire on the global pricing
+// tables that list one, and a false positive benchmarks a US product against the wrong country.
+// `langExceptions` keeps Portugal out of a prefix match on `pt`; matched lowercased.
+//
+// Keyed by the non-default markets, because the default is what you get when nothing matches.
+export const MARKET_SIGNALS: Record<
+  Exclude<Market, 'us'>,
+  { tlds: string[]; langPrefixes: string[]; langExceptions: string[] }
+> = {
+  br: {
+    tlds: ['.br'],
+    langPrefixes: ['pt'],
+    langExceptions: ['pt-pt']
+  }
+}
+
+// Crawlers that feed AI answers, checked against the page's robots.txt. A `Disallow: /` for one of
+// these is the literal, verifiable answer to "can an AI find my product" -- everything else the
+// visibility audit reports is about whether a model could read the page once it got there.
+export const AI_CRAWLER_AGENTS = [
+  'GPTBot',
+  'OAI-SearchBot',
+  'ClaudeBot',
+  'anthropic-ai',
+  'PerplexityBot',
+  'Google-Extended',
+  'CCBot'
+]
+
+// robots.txt is one small text file on the same origin the scrape already reached. Kept short because
+// it runs alongside competitor research and must never be what makes an analysis slow.
+export const ROBOTS_FETCH_TIMEOUT_MS = 5_000
+
+// A robots.txt larger than this is not a robots.txt. Bounded for the same reason the scrape caps
+// response bytes: the far end is not ours.
+export const ROBOTS_MAX_BYTES = 512 * 1024
+
+// Redirects are followed by hand so each hop can be re-validated against the SSRF guard, which means
+// the depth has to be bounded here rather than by fetch. Enough for the http -> https -> www chains
+// that are the reason redirects are followed at all.
+export const ROBOTS_MAX_REDIRECTS = 3
 
 // Outbound scraping is driven by user-supplied URLs, so every hop is validated against these before
 // a browser is pointed at it. See lib/url-guard.ts.
@@ -244,6 +306,13 @@ export const PLAYBOOK_MAX = 6
 
 export const PLAYBOOK_STEPS_MAX = 5
 
+// The visibility audit is bounded the same way, with one deliberate difference: there is no minimum.
+// Every page has structural room to convert better, so PLAYBOOK_MIN asks for something that is always
+// there. Discoverability is not like that -- a page can genuinely be well covered, and a floor would
+// buy an invented finding to fill the quota. Zero findings is a correct answer, and FlowPlaybook
+// already renders nothing for an empty list.
+export const VISIBILITY_MAX = 6
+
 // Where a hypothesis lands when the model answers with a section outside the enum -- it has returned
 // the element's HTML tag before. The catch-all SECTIONS member, named here so the schema's fallback
 // is not a bare string literal.
@@ -338,6 +407,9 @@ export const SECTION_DOT_CLASS: Record<Section, string> = {
   other: 'bg-neutral'
 }
 
+// Hues repeat across the two families (coral is both signup_friction and indexability). That is fine
+// and deliberate: the two never render in the same list, so a colour only has to separate the
+// categories it sits beside.
 export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
   signup_friction: 'bg-coral/15 text-coral',
   cta_placement: 'bg-purple/15 text-purple',
@@ -345,7 +417,11 @@ export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
   objections: 'bg-teal/15 text-teal',
   trust: 'bg-green/15 text-green',
   pricing_clarity: 'bg-amber/15 text-amber',
-  page_structure: 'bg-neutral/15 text-neutral'
+  page_structure: 'bg-neutral/15 text-neutral',
+  indexability: 'bg-coral/15 text-coral',
+  metadata: 'bg-purple/15 text-purple',
+  structured_data: 'bg-blue/15 text-blue',
+  ai_answerability: 'bg-teal/15 text-teal'
 }
 
 export const PLAN_BADGE_CLASS: Record<SubscriptionPlan, string> = {

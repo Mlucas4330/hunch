@@ -13,6 +13,8 @@ import { UpgradePrompt } from '@/components/upgrade-prompt'
 import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
 import { getDictionary } from '@/lib/i18n'
+import { t as fill } from '@/lib/i18n/format'
+import { splitFixes } from '@/lib/analyses'
 import { PLAYBOOK_EXPANDED_COUNT } from '@/lib/constants'
 import { pageMetadata } from '@/lib/seo'
 
@@ -42,6 +44,8 @@ export default async function AnalysisDetailPage({
   })
 
   if (!analysis) notFound()
+
+  const fixes = splitFixes(analysis.flowFixes)
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -86,19 +90,30 @@ export default async function AnalysisDetailPage({
               </a>
             </span>
           ))}
+          {/* The market is named here because it is the only thing that explains the list above it.
+              Detection reads the page, and when it reads it wrong the failure surfaces as
+              inexplicably foreign competitors -- unless the reader can see which market was used. */}
+          <span className="text-muted-foreground">
+            {' '}
+            {fill(t.analysis.marketNote, { market: t.labels.market[analysis.market] })}
+          </span>
         </p>
       )}
 
       {/* Section order lives here rather than inside HypothesisList: site-level setup first, then
-          the structural fixes, then the copy tests that run behind the snippet. */}
+          the structural fixes, then the copy tests that run behind the snippet, and last the
+          discoverability audit -- what the reader came for is the ranked tests, and an SEO task
+          interleaved among them competes for the decision they are here to make. */}
       <EmbedSnippet
         appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
         embedKey={analysis.embedKey}
       />
 
-      <FlowPlaybook fixes={analysis.flowFixes} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
+      <FlowPlaybook fixes={fixes.flow} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
 
       <HypothesisList analysisId={analysis.id} hypotheses={analysis.hypotheses} />
+
+      <FlowPlaybook fixes={fixes.visibility} kind="visibility" expandFrom={PLAYBOOK_EXPANDED_COUNT} />
 
       {user.plan === 'free' && <UpgradePrompt />}
     </div>

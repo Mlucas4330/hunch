@@ -12,17 +12,19 @@ import {
 import {
   EXPERIMENT_ARM,
   EXPERIMENT_STATUS,
+  FIX_KIND,
   FLOW_CATEGORY,
   HYPOTHESIS_STATUS,
   HYPOTHESIS_TARGET,
   LOCALE,
+  MARKET,
   SECTIONS,
   SUBSCRIPTION_PLAN,
   SUBSCRIPTION_STATUS,
   TRACK_EVENT,
   VARIANT_STATUS
 } from '@/lib/enums'
-import { DEFAULT_LOCALE } from '@/lib/constants'
+import { DEFAULT_LOCALE, DEFAULT_MARKET } from '@/lib/constants'
 
 export const subscriptionPlanEnum = pgEnum('subscription_plan', SUBSCRIPTION_PLAN)
 export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUS)
@@ -35,6 +37,8 @@ export const experimentStatusEnum = pgEnum('experiment_status', EXPERIMENT_STATU
 export const experimentArmEnum = pgEnum('experiment_arm', EXPERIMENT_ARM)
 export const trackEventEnum = pgEnum('track_event', TRACK_EVENT)
 export const localeEnum = pgEnum('locale', LOCALE)
+export const marketEnum = pgEnum('market', MARKET)
+export const fixKindEnum = pgEnum('fix_kind', FIX_KIND)
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -73,6 +77,10 @@ export const analyses = pgTable('analyses', {
   // The language the AI wrote this analysis in. Pinned at creation so alternates generated later
   // match the hypotheses already stored, even if the user switches the UI language afterwards.
   locale: localeEnum('locale').notNull().default(DEFAULT_LOCALE),
+  // The market the analyzed page sells into, measured from the page itself rather than taken from the
+  // UI locale. Pinned for the same reason as `locale`: an alternate written later must be held to the
+  // market its hypothesis was written for.
+  market: marketEnum('market').notNull().default(DEFAULT_MARKET),
   embedKey: uuid('embed_key').notNull().defaultRandom().unique(),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
@@ -115,6 +123,11 @@ export const flowFixes = pgTable('flow_fixes', {
   analysisId: uuid('analysis_id')
     .notNull()
     .references(() => analyses.id, { onDelete: 'cascade' }),
+  // Which ranked list this fix belongs to. Conversion fixes and discoverability fixes have the
+  // identical shape and share this table and one component, so this is the only thing keeping them
+  // two sections rather than one list where they compete for the same slot. `position` is assigned
+  // per kind, so each section ranks from 1.
+  kind: fixKindEnum('kind').notNull().default('flow'),
   category: flowCategoryEnum('category').notNull(),
   title: text('title').notNull(),
   problem: text('problem').notNull(),

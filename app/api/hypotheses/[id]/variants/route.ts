@@ -26,7 +26,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const hypothesis = await db.query.hypotheses.findFirst({
     where: eq(hypotheses.id, id),
     with: {
-      analysis: { columns: { userId: true, brief: true, researchBrief: true, locale: true } },
+      analysis: {
+        columns: { userId: true, brief: true, researchBrief: true, locale: true, market: true }
+      },
       variants: { orderBy: (v, { asc }) => asc(v.position) }
     }
   })
@@ -52,7 +54,10 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       recommendedCopy: recommended.copy,
       researchBrief: hypothesis.analysis.researchBrief,
       founderBrief: hypothesis.analysis.brief,
-      locale: hypothesis.analysis.locale
+      locale: hypothesis.analysis.locale,
+      // Read from the stored analysis, never re-detected: the alternate has to be held to the market
+      // its hypothesis was written for.
+      market: hypothesis.analysis.market
     })
   } catch {
     return NextResponse.json({ error: 'generation_failed' }, { status: 500 })

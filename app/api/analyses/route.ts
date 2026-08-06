@@ -69,7 +69,8 @@ export async function POST(request: Request) {
           competitors: output.competitors,
           goalCandidates: output.goalCandidates,
           researchBrief: output.researchBrief || null,
-          locale
+          locale,
+          market: output.market
         })
         .returning()
 
@@ -104,15 +105,25 @@ export async function POST(request: Request) {
         )
         .returning()
 
-      // Ranked the same way as the hypotheses, and empty when playbook generation failed -- an
-      // analysis without a playbook is still a complete analysis.
-      const rankedFixes = [...output.playbook].sort((a, b) => b.impact_score - a.impact_score)
+      // Both families are ranked the same way as the hypotheses and inserted into the same table,
+      // with `position` counted per kind so each section ranks from 1. Either list can be empty --
+      // the playbook when its generation failed, the visibility audit for that reason or because the
+      // page genuinely has nothing left to fix. An analysis missing either is still complete.
+      const rankedFixes = [
+        ...[...output.playbook]
+          .sort((a, b) => b.impact_score - a.impact_score)
+          .map((fix, position) => ({ fix, kind: 'flow' as const, position })),
+        ...[...output.visibility]
+          .sort((a, b) => b.impact_score - a.impact_score)
+          .map((fix, position) => ({ fix, kind: 'visibility' as const, position }))
+      ]
       const fixRows = rankedFixes.length
         ? await tx
             .insert(flowFixes)
             .values(
-              rankedFixes.map((fix, position) => ({
+              rankedFixes.map(({ fix, kind, position }) => ({
                 analysisId: created.id,
+                kind,
                 category: fix.category,
                 title: fix.title,
                 problem: fix.problem,

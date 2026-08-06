@@ -80,7 +80,15 @@ export const en = {
       objections: 'Objections',
       trust: 'Trust',
       pricing_clarity: 'Pricing Clarity',
-      page_structure: 'Page Structure'
+      page_structure: 'Page Structure',
+      indexability: 'Indexability',
+      metadata: 'Metadata',
+      structured_data: 'Structured Data',
+      ai_answerability: 'AI Answerability'
+    },
+    market: {
+      us: 'United States',
+      br: 'Brazil'
     },
     hypothesisStatus: {
       pending: 'Pending',
@@ -363,6 +371,7 @@ export const en = {
     report: 'Report',
     backToDashboard: 'Back to dashboard',
     benchmarkedAgainst: 'Benchmarked against:',
+    marketNote: '(market: {market})',
     copyReportLink: 'Copy report link'
   },
 
@@ -377,6 +386,17 @@ export const en = {
       one: '{count} flow fix',
       other: '{count} flow fixes'
     }
+  },
+
+  // Mirrors `playbook` key for key, because FlowPlaybook picks one of the two subtrees by `kind`.
+  // A key added to one has to be added to the other.
+  visibility: {
+    eyebrow: 'Get found',
+    title: 'Can a search engine and an AI read this page',
+    hintLabel: 'What this section checked',
+    hint: 'These come from what your page *declares about itself* - its title, description, structured data, and what its robots.txt allows. We checked the page, *not* your search ranking: nothing here tells you where you rank or whether an AI mentions you today, only whether your page gives them what they need to find and quote you.',
+    stepsLabel: 'How to ship it',
+    evidenceLabel: 'Why'
   },
 
   hypothesisList: {

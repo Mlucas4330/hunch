@@ -5,27 +5,40 @@ import {
   AlternateVariantsSchema,
   AnalysisOutputSchema,
   PlaybookOutputSchema,
+  VisibilityOutputSchema,
   type AnalysisOutput,
   type FlowFixOutput,
   type HypothesisOutput,
-  type VariantOutput
+  type VariantOutput,
+  type VisibilityFixOutput
 } from '@/lib/ai/schema'
 import {
-  COMPETITOR_RESEARCH_PROMPT,
   alternateVariantsPrompt,
+  competitorResearchPrompt,
   playbookPrompt,
-  systemPrompt
+  systemPrompt,
+  visibilityPrompt
 } from '@/lib/ai/prompt'
-import { AI_OUTPUT_LANGUAGE, DEFAULT_LOCALE } from '@/lib/constants'
 import {
+  AI_OUTPUT_LANGUAGE,
+  DEFAULT_LOCALE,
+  MARKET_NAME,
+  MARKET_SEARCH_LOCATION
+} from '@/lib/constants'
+import {
+  FIXTURE_SEO,
   FIXTURE_STRUCTURE,
   fixtureAlternateVariants,
   fixtureAnalysis,
-  fixturePlaybook
+  fixturePlaybook,
+  fixtureVisibility
 } from '@/lib/ai/fixtures'
+import { detectMarket } from '@/lib/market'
+import { fetchCrawlerAccess, type CrawlerAccess } from '@/lib/robots'
 import {
   type GoalCandidate,
   type PageElement,
+  type PageSeo,
   type PageStructure,
   goalCandidates,
   preprocessHtml,
@@ -33,7 +46,7 @@ import {
   scrapePage
 } from '@/lib/scrape'
 import { variantWordBudget, wordCount } from '@/lib/text'
-import type { HypothesisTarget, Locale } from '@/lib/enums'
+import type { HypothesisTarget, Locale, Market } from '@/lib/enums'
 
 // The hypotheses are the core IP -- they stay on Sonnet.
 const MODEL = 'claude-sonnet-4-6'
@@ -61,8 +74,15 @@ export type AnalysisResult = {
   // Structural fixes, generated alongside the hypotheses. Empty when the playbook generation failed:
   // it is an addition to the analysis, never a precondition for it.
   playbook: FlowFixOutput[]
+  // Discoverability fixes. Empty for the same reason as the playbook, and ALSO empty when the page
+  // genuinely has no findings left -- unlike the playbook, that is a real outcome and not a failure.
+  visibility: VisibilityFixOutput[]
   goalCandidates: GoalCandidate[]
   structure: PageStructure
+  seo: PageSeo
+  // Measured from the page, not taken from the UI locale. Pinned on the analysis so later alternates
+  // are held to the same market as the hypotheses they sit beside.
+  market: Market
   // Persisted so the on-demand alternates call is grounded in the same competitor research
   // without paying for a second web search.
   researchBrief: string
@@ -86,6 +106,9 @@ export async function analyzeLandingPage(
 
   if (process.env.E2E_FIXTURES === '1') {
     const analysis = fixtureAnalysis(locale)
+    // Kept in step with the real path below: the fixture page is the idealized US SaaS its
+    // competitors describe, so it resolves to the default market rather than skipping detection.
+    const fixtureMarket = detectMarket({ url, lang: FIXTURE_SEO.lang })
     // Synthesize one element per fixture hypothesis so its current_copy resolves to `auto` (the
     // fixtures represent an idealized clean page), keeping the deterministic launch-a-test flow live.
     const fixtureElements: PageElement[] = analysis.hypotheses.map((h, i) => ({
@@ -100,20 +123,33 @@ export async function analyzeLandingPage(
       elements: fixtureElements,
       researchBrief: '',
       playbook: fixturePlaybook(locale),
-      structure: FIXTURE_STRUCTURE
+      visibility: fixtureVisibility(locale),
+      structure: FIXTURE_STRUCTURE,
+      seo: FIXTURE_SEO,
+      market: fixtureMarket
     })
   }
 
   const startedAt = Date.now()
-  const { html, elements, structure } = await scrapePage(url)
+  const { html, elements, structure, seo } = await scrapePage(url)
   const content = preprocessHtml(html)
+  // Measured from the page rather than taken from the UI locale: a Brazilian founder reading Hunch in
+  // English still sells to Brazil, and it is the page that says so.
+  const market = detectMarket({ url, lang: seo.lang })
   const scrapedAt = Date.now()
 
   // Paid "Competitor mode": ground on the pages the user supplied instead of auto web-search.
-  const provided = options.competitorUrls?.length
-    ? await researchProvidedCompetitors(options.competitorUrls)
-    : null
-  const research = provided ?? (await researchCompetitors(content))
+  // robots.txt rides alongside whichever path runs: it is one small fetch against an origin the
+  // scrape already reached, and putting it in front of the research would add its latency to the
+  // critical path for nothing.
+  const [research, crawlerAccess] = await Promise.all([
+    options.competitorUrls?.length
+      ? researchProvidedCompetitors(options.competitorUrls).then(
+          (provided) => provided ?? researchCompetitors(content, market)
+        )
+      : researchCompetitors(content, market),
+    fetchCrawlerAccess(url)
+  ])
   const researchedAt = Date.now()
 
   const briefSection = options.brief
@@ -130,20 +166,29 @@ export async function analyzeLandingPage(
     ? `\n\nPage elements (each line is one real on-page element; current_copy must quote exactly one of these verbatim, and every variant you write for it must fit inside that element's word ceiling):\n\n${elementList}`
     : ''
 
-  // Run in parallel: the playbook is a second, much smaller generation over the structural readout,
-  // so it costs no additional latency on the critical path.
-  const [{ object }, playbook] = await Promise.all([
+  // Run in parallel: the playbook and the visibility audit are much smaller generations over the
+  // readouts the scrape already produced, so they cost no additional latency on the critical path.
+  const [{ object }, playbook, visibility] = await Promise.all([
     generateObject({
       model: anthropic(MODEL),
       schema: AnalysisOutputSchema,
       maxTokens: 16000,
-      system: systemPrompt(AI_OUTPUT_LANGUAGE[locale]),
+      system: systemPrompt(AI_OUTPUT_LANGUAGE[locale], MARKET_NAME[market]),
       prompt: `Landing page copy:\n\n${content}${elementsSection}\n\nCompetitive research brief:\n\n${research || 'No competitor research available.'}${briefSection}`
     }),
     generatePlaybook({
       structure,
       founderBrief: options.brief ?? null,
-      locale
+      locale,
+      market
+    }),
+    generateVisibility({
+      seo,
+      structure,
+      crawlerAccess,
+      founderBrief: options.brief ?? null,
+      locale,
+      market
     })
   ])
 
@@ -154,7 +199,10 @@ export async function analyzeLandingPage(
     research: researchedAt - scrapedAt,
     generation: Date.now() - researchedAt,
     total: Date.now() - startedAt,
-    playbookFixes: playbook.length
+    market,
+    robots: crawlerAccess.status,
+    playbookFixes: playbook.length,
+    visibilityFixes: visibility.length
   })
 
   const competitors = options.competitorUrls?.length
@@ -169,7 +217,10 @@ export async function analyzeLandingPage(
     elements,
     researchBrief: research,
     playbook,
-    structure
+    visibility,
+    structure,
+    seo,
+    market
   })
 }
 
@@ -177,6 +228,7 @@ export type PlaybookInput = {
   structure: PageStructure
   founderBrief: string | null
   locale: Locale
+  market: Market
 }
 
 // The flow playbook: structural fixes derived from what the page already does. Resolves to [] on any
@@ -200,12 +252,63 @@ export async function generatePlaybook(input: PlaybookInput): Promise<FlowFixOut
       model: anthropic(MODEL),
       schema: PlaybookOutputSchema,
       maxTokens: 3000,
-      system: playbookPrompt(AI_OUTPUT_LANGUAGE[input.locale]),
+      system: playbookPrompt(AI_OUTPUT_LANGUAGE[input.locale], MARKET_NAME[input.market]),
       prompt: sections.join('\n\n')
     })
     return object.fixes
   } catch (error) {
     console.error('[analyze] playbook generation failed', error)
+    return []
+  }
+}
+
+export type VisibilityInput = {
+  seo: PageSeo
+  structure: PageStructure
+  crawlerAccess: CrawlerAccess
+  founderBrief: string | null
+  locale: Locale
+  market: Market
+}
+
+// The visibility audit: what a crawler and a language model can reach, read, and cite. Resolves to []
+// on any failure, exactly like the playbook -- and unlike the playbook, [] is also the correct answer
+// for a page that has no findings left, which is why the schema carries no minimum.
+export async function generateVisibility(input: VisibilityInput): Promise<VisibilityFixOutput[]> {
+  if (process.env.E2E_FIXTURES === '1') {
+    return fixtureVisibility(input.locale)
+  }
+
+  const sections = [
+    `Metadata readout of the page (JSON):\n${JSON.stringify(input.seo, null, 2)}`,
+    // Only the two fields the audit can act on. The rest of PageStructure is the playbook's ground
+    // truth and would just be tokens here: an FAQ in readable text is what a model quotes when asked
+    // about the product, and the word count says whether there is anything to read at all.
+    `Readable content on the page (JSON):\n${JSON.stringify(
+      { hasFaq: input.structure.hasFaq, wordCount: input.structure.wordCount },
+      null,
+      2
+    )}`,
+    `robots.txt (JSON). A status of "unknown" means the file could not be read: it does NOT mean the
+file is missing and does NOT mean anything is blocked, so say nothing about robots.txt in that
+case:\n${JSON.stringify(input.crawlerAccess, null, 2)}`
+  ]
+
+  if (input.founderBrief) {
+    sections.push(`Business details from the founder:\n${input.founderBrief}`)
+  }
+
+  try {
+    const { object } = await generateObject({
+      model: anthropic(MODEL),
+      schema: VisibilityOutputSchema,
+      maxTokens: 3000,
+      system: visibilityPrompt(AI_OUTPUT_LANGUAGE[input.locale], MARKET_NAME[input.market]),
+      prompt: sections.join('\n\n')
+    })
+    return object.fixes
+  } catch (error) {
+    console.error('[analyze] visibility generation failed', error)
     return []
   }
 }
@@ -221,6 +324,9 @@ export type AlternateVariantsInput = {
   // Pinned to the analysis, not the current UI language, so alternates match the hypotheses they
   // sit next to even if the user switched languages after running the analysis.
   locale: Locale
+  // Pinned for the same reason: without it an alternate written later comes back in the analysis's
+  // language carrying another market's idea, next to a recommendation held to this one.
+  market: Market
 }
 
 // Writes the two alternates a hypothesis was not given during the analysis. Grounded in the stored
@@ -255,7 +361,7 @@ export async function generateAlternateVariants(
     model: anthropic(MODEL),
     schema: AlternateVariantsSchema,
     maxTokens: 2000,
-    system: alternateVariantsPrompt(AI_OUTPUT_LANGUAGE[input.locale]),
+    system: alternateVariantsPrompt(AI_OUTPUT_LANGUAGE[input.locale], MARKET_NAME[input.market]),
     prompt: sections.join('\n\n')
   })
 
@@ -310,15 +416,21 @@ function resolveTargets(input: {
   elements: PageElement[]
   researchBrief: string
   playbook: FlowFixOutput[]
+  visibility: VisibilityFixOutput[]
   structure: PageStructure
+  seo: PageSeo
+  market: Market
 }): AnalysisResult {
-  const { output, elements, researchBrief, playbook, structure } = input
+  const { output, elements, researchBrief, playbook, visibility, structure, seo, market } = input
   return {
     competitors: output.competitors,
     goalCandidates: goalCandidates(elements),
     researchBrief,
     playbook,
+    visibility,
     structure,
+    seo,
+    market,
     hypotheses: output.hypotheses.map((h) => {
       const resolved = resolveTarget(h.current_copy, elements)
       // Measured against the resolved on-page text, which is the copy the variant actually replaces.
@@ -337,7 +449,13 @@ function resolveTargets(input: {
 
 // Uses the official Anthropic SDK's web search server tool to find and read competitor
 // landing pages. Degrades gracefully (returns '') so generation still succeeds without it.
-async function researchCompetitors(pageContent: string): Promise<string> {
+//
+// `user_location` is what stopped this step from being the one place in the pipeline that ignored
+// where the product sells: without it the search runs from nowhere in particular, English-language
+// results win, and a Brazilian product is benchmarked against American companies it never competes
+// with. It is a parameter of the basic web_search_20250305 variant, so the Haiku constraints noted
+// above still hold.
+async function researchCompetitors(pageContent: string, market: Market): Promise<string> {
   if (!process.env.ANTHROPIC_API_KEY) return ''
 
   try {
@@ -346,12 +464,17 @@ async function researchCompetitors(pageContent: string): Promise<string> {
       model: RESEARCH_MODEL,
       max_tokens: 2048,
       tools: [
-        { type: 'web_search_20250305', name: 'web_search', max_uses: RESEARCH_MAX_SEARCHES }
+        {
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: RESEARCH_MAX_SEARCHES,
+          user_location: { type: 'approximate', ...MARKET_SEARCH_LOCATION[market] }
+        }
       ],
       messages: [
         {
           role: 'user',
-          content: `${COMPETITOR_RESEARCH_PROMPT}\n\nLanding page copy:\n\n${pageContent}`
+          content: `${competitorResearchPrompt(MARKET_NAME[market])}\n\nLanding page copy:\n\n${pageContent}`
         }
       ]
     })
