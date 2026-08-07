@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og'
 import { dictionaryFor } from '@/lib/i18n'
 import { t as fill } from '@/lib/i18n/format'
 import { DEFAULT_LOCALE, OG_COLORS, OG_IMAGE_SIZE } from '@/lib/constants'
-import { loadReport, reportHost } from '@/lib/report'
+import { loadReport, reportHost, reportIsWhiteLabelled } from '@/lib/report'
 import { OgFrame, OgStat, OgWordmark } from '@/components/og'
 
 // Unfurlers send no cookies, so the locale is DEFAULT_LOCALE rather than the reader's cookie.
@@ -34,12 +34,16 @@ export default async function Image({ params }: { params: Promise<{ embedKey: st
 
   const count = analysis.hypotheses.length
   const topImpact = analysis.hypotheses.reduce((max, h) => Math.max(max, h.impactScore), 0)
+  // The card is the first thing the reader sees when the owner pastes this link into an email, so a
+  // deliverable's unfurl must carry no mark of ours either. loadReport is cached and already ran
+  // above, so the plan costs nothing here.
+  const whiteLabel = reportIsWhiteLabelled(analysis)
 
   return new ImageResponse(
     (
       <OgFrame>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <OgWordmark />
+          {whiteLabel ? <div style={{ display: 'flex' }} /> : <OgWordmark />}
           <div style={{ display: 'flex', fontSize: 24, color: OG_COLORS.mutedForeground }}>
             {t.report.plan}
           </div>

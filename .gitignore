@@ -39,5 +39,5 @@ pnpm-debug.log*
 .DS_Store
 *.pem
 
-# Output of scripts/test-screenshot.mts
-screenshot-test/
+# Output of scripts/preview-screenshot.mts
+screenshot-preview/

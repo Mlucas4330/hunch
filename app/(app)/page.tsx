@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { SectionBadge } from '@/components/section-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
-import { PLAN_PRICES, FREE_ANALYSES_LIMIT } from '@/lib/constants'
-import { SUBSCRIPTION_PLAN, type Locale, type Section } from '@/lib/enums'
+import { WaitlistForm } from '@/components/waitlist-form'
+import type { Locale, Section } from '@/lib/enums'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { pageMetadata } from '@/lib/seo'
 import { formatNumber, t } from '@/lib/i18n/format'
@@ -141,70 +141,31 @@ export default async function LandingPage() {
           ))}
         </div>
       </section>
-
-      <section className="space-y-10">
+      <section className="space-y-10" id="contact">
         <header className="space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">
-            {d.landing.pricing.eyebrow}
+            {d.landing.contact.eyebrow}
           </p>
           <h2 className="font-display text-2xl font-bold tracking-tight">
-            {d.landing.pricing.heading}
+            {d.landing.contact.heading}
           </h2>
+          <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.contact.body}</p>
         </header>
         <div className="grid gap-6 sm:grid-cols-2">
-          {SUBSCRIPTION_PLAN.map((plan) => {
-            const featured = plan === 'solo'
-            return (
-              <Card
-                key={plan}
-                className={cn('flex flex-col', featured && 'border-purple ring-1 ring-purple')}
-              >
-                <CardContent className="flex flex-1 flex-col gap-4 p-5">
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-display text-lg font-semibold tracking-tight">
-                        {d.labels.plan[plan]}
-                      </span>
-                      {featured && (
-                        <span className="panel-label text-[0.6rem] text-purple">
-                          {d.landing.pricing.mostPopular}
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-mono text-2xl font-semibold tabular-nums">
-                      ${PLAN_PRICES[plan]}
-                      <span className="text-sm text-muted-foreground">
-                        {d.landing.pricing.perMonth}
-                      </span>
-                    </p>
-                    <p className="text-sm text-muted-foreground">{d.landing.plans[plan].line}</p>
-                  </div>
-                  <ul className="flex-1 space-y-2 text-sm">
-                    {d.landing.plans[plan].features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2">
-                        <span
-                          aria-hidden
-                          className="mt-2 h-1 w-1 shrink-0 rounded-full bg-foreground"
-                        />
-                        {t(feature, { limit: FREE_ANALYSES_LIMIT })}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button asChild variant={featured ? 'default' : 'outline'} className="w-full">
-                    <Link href={ctaHref}>
-                      {plan === 'free'
-                        ? d.landing.pricing.startFree
-                        : t(d.landing.pricing.choose, { plan: d.labels.plan[plan] })}
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            )
-          })}
+          <Card>
+            <CardContent className="p-5">
+              <WaitlistForm source="contact" copy={d.landing.contact.form} />
+            </CardContent>
+          </Card>
+          <ul className="space-y-3 self-center text-sm">
+            {d.landing.contact.points.map((point) => (
+              <li key={point} className="flex items-start gap-2">
+                <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-foreground" />
+                {point}
+              </li>
+            ))}
+          </ul>
         </div>
-        <p className="panel-label text-[0.65rem] text-muted-foreground">
-          {d.landing.pricing.footnote}
-        </p>
       </section>
 
       <section>

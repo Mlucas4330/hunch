@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
 
 jobs:
@@ -51,14 +51,11 @@ jobs:
 
       - run: npm run typecheck
 
-      # A security assertion, not a lint: it proves the SSRF guard still refuses private,
-      # loopback and encoded-IP targets.
-      - run: npm run check:url-guard
-
-      # The e2e suite runs on fixtures and never reaches market detection, so this is the only
-      # thing standing between a regression there and a Brazilian product benchmarked against
-      # American competitors.
-      - run: npm run check:market
+      # Pure-function coverage the e2e suite cannot reach: it runs on fixtures, which replace the
+      # pipeline before a page is ever scraped. It proves the SSRF guard still refuses private,
+      # loopback and encoded-IP targets, and it is the only thing standing between a regression in
+      # market detection and a Brazilian product benchmarked against American competitors.
+      - run: npm test
 
       - run: npx playwright install --with-deps chromium
 

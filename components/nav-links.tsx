@@ -6,8 +6,7 @@ import { useI18n } from '@/components/i18n-provider'
 import { cn } from '@/lib/utils'
 
 const LINKS = [
-  { href: '/dashboard', key: 'dashboard' },
-  { href: '/billing', key: 'billing' }
+  { href: '/dashboard', key: 'dashboard' }
 ] as const
 
 export function NavLinks() {

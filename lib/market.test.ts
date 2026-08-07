@@ -1,9 +1,11 @@
-import { detectMarket } from '../lib/market'
-import type { Market } from '../lib/enums'
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { detectMarket } from './market'
+import type { Market } from './enums'
 
 // detectMarket is the only thing standing between a Brazilian product and an analysis benchmarked
 // against American companies, and it is unreachable from the e2e suite -- E2E_FIXTURES=1 replaces the
-// whole pipeline before a page is ever scraped. This script is its only automated coverage.
+// whole pipeline before a page is ever scraped. This file is its only automated coverage.
 //
 // The cases are chosen around the two directions of failure, which are not equally bad: missing a
 // Brazilian page costs one unfocused competitor search, while marking a US page Brazilian rewrites
@@ -77,26 +79,9 @@ const CASES: Array<{ url: string; lang: string | null; expected: Market; why: st
   }
 ]
 
-function main() {
-  let failures = 0
-
-  for (const { url, lang, expected, why } of CASES) {
-    const actual = detectMarket({ url, lang })
-    const label = `${url} lang=${lang === null ? 'null' : `"${lang}"`}`
-    if (actual === expected) {
-      console.log(`ok    ${label} -> ${actual} (${why})`)
-    } else {
-      console.error(`FAIL  ${label} -> ${actual}, expected ${expected} (${why})`)
-      failures++
-    }
-  }
-
-  if (failures > 0) {
-    console.error(`\n${failures} market detection check(s) failed`)
-    process.exit(1)
-  }
-
-  console.log(`\nAll ${CASES.length} market detection checks passed`)
+for (const { url, lang, expected, why } of CASES) {
+  const label = `${url} lang=${lang === null ? 'null' : `"${lang}"`}`
+  test(`${label} -> ${expected}: ${why}`, () => {
+    assert.equal(detectMarket({ url, lang }), expected)
+  })
 }
-
-main()

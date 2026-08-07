@@ -12,24 +12,32 @@ import { DEFAULT_OG_IMAGE_PATH } from '@/lib/constants'
 // left out so the file convention fills it. Everyone else is pointed at the site-wide card by hand,
 // because the `openGraph` object returned here replaces the root layout's whole object -- and the
 // root card resolved there goes with it.
+// `unbranded` drops `siteName`, for a white-labelled public report. The unfurl is the first thing the
+// reader sees when the link is pasted into an email, and `siteName` is the one place our name reaches
+// it from outside the card image -- stripping the mark from the page and leaving this set would hand
+// an agency a "white-labelled" document whose preview still says Hunch.
 export async function pageMetadata(input: {
   title: string
   description: string
   path: string
   index: boolean
   ownImage?: boolean
+  unbranded?: boolean
 }): Promise<Metadata> {
   const { metadata } = await getDictionary()
-  const { title, description, path, index, ownImage } = input
+  const { title, description, path, index, ownImage, unbranded } = input
   const images = ownImage ? undefined : [DEFAULT_OG_IMAGE_PATH]
 
   return {
-    title,
+    // `absolute` opts out of the root layout's `%s | Hunch` template. Without it an unbranded report
+    // still says Hunch in the browser tab -- the one piece of branding that survives stripping the
+    // page, the card and the siteName.
+    title: unbranded ? { absolute: title } : title,
     description,
     alternates: { canonical: path },
     openGraph: {
       type: 'website',
-      siteName: metadata.title,
+      ...(unbranded ? {} : { siteName: metadata.title }),
       url: path,
       title,
       description,

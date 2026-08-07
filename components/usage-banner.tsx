@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/components/i18n-provider'
+import { CONTACT_PATH } from '@/lib/constants'
 import { t } from '@/lib/i18n/format'
 import { cn } from '@/lib/utils'
 
@@ -30,7 +31,7 @@ export function UsageBanner({ used, limit }: { used: number; limit: number | nul
           {blocked ? dictionary.usageBanner.limitReached : dictionary.usageBanner.almostOut}
         </p>
         <p className="text-sm font-medium">
-          <span className="font-mono tabular-nums">{used}</span> {dictionary.billing.usageOf}{' '}
+          <span className="font-mono tabular-nums">{used}</span> {dictionary.usageBanner.usageOf}{' '}
           <span className="font-mono tabular-nums">{limit}</span> {dictionary.usageBanner.used}{' '}
           {blocked
             ? dictionary.usageBanner.blockedNote
@@ -38,7 +39,7 @@ export function UsageBanner({ used, limit }: { used: number; limit: number | nul
         </p>
       </div>
       <Button asChild size="sm" variant={blocked ? 'default' : 'outline'}>
-        <Link href="/billing">{dictionary.common.upgrade}</Link>
+        <Link href={CONTACT_PATH}>{dictionary.common.upgrade}</Link>
       </Button>
     </div>
   )

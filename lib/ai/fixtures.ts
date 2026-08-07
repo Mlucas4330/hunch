@@ -5,7 +5,7 @@ import type {
   VisibilityFixOutput
 } from '@/lib/ai/schema'
 import type { Locale } from '@/lib/enums'
-import type { PageSeo, PageStructure } from '@/lib/scrape'
+import type { PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
 
 // Fixtures are written per locale for the same reason the real prompts take a language: the analysis
 // is written in the language the user is reading the app in, and E2E_FIXTURES must not be the one
@@ -58,6 +58,21 @@ export const FIXTURE_SEO: PageSeo = {
   hasOgDescription: true,
   hasOgImage: false,
   jsonLdTypes: []
+}
+
+// The load readout to match: a page slow enough that the fixture run exercises the readout's warning
+// thresholds rather than only its healthy branch. Nothing here reaches generation -- the performance
+// numbers are rendered by code and never enter a prompt -- so this exists purely so the e2e suite
+// sees the same section a real analysis produces.
+export const FIXTURE_PERFORMANCE: PagePerformance = {
+  ttfbMs: 410,
+  fcpMs: 1900,
+  lcpMs: 4200,
+  domContentLoadedMs: 2600,
+  loadMs: 5100,
+  transferredBytes: 3_400_000,
+  requestCount: 84,
+  domNodeCount: 1450
 }
 
 // The flow playbook under E2E_FIXTURES. Four fixes across distinct categories, ordered by impact

@@ -69,6 +69,16 @@ export async function POST(request: Request) {
           competitors: output.competitors,
           goalCandidates: output.goalCandidates,
           researchBrief: output.researchBrief || null,
+          // The measured readouts. Captured for generation since the scrape existed and discarded
+          // afterwards until now; the report states facts from these with no model in the loop.
+          structure: output.structure,
+          seo: output.seo,
+          performance: output.performance,
+          // Null rather than [] outside Competitor mode, so "we did not measure any competitor" and
+          // "we measured competitors and found none" stay distinguishable in the column.
+          competitorStructures: output.competitorStructures.length
+            ? output.competitorStructures
+            : null,
           locale,
           market: output.market
         })

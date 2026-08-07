@@ -16,6 +16,7 @@ import {
   FLOW_CATEGORY,
   HYPOTHESIS_STATUS,
   HYPOTHESIS_TARGET,
+  LEAD_SOURCE,
   LOCALE,
   MARKET,
   SECTIONS,
@@ -24,7 +25,13 @@ import {
   TRACK_EVENT,
   VARIANT_STATUS
 } from '@/lib/enums'
-import { DEFAULT_LOCALE, DEFAULT_MARKET } from '@/lib/constants'
+import { DEFAULT_LEAD_SOURCE, DEFAULT_LOCALE, DEFAULT_MARKET } from '@/lib/constants'
+import type {
+  CompetitorStructure,
+  PagePerformance,
+  PageSeo,
+  PageStructure
+} from '@/lib/scrape'
 
 export const subscriptionPlanEnum = pgEnum('subscription_plan', SUBSCRIPTION_PLAN)
 export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUS)
@@ -39,6 +46,7 @@ export const trackEventEnum = pgEnum('track_event', TRACK_EVENT)
 export const localeEnum = pgEnum('locale', LOCALE)
 export const marketEnum = pgEnum('market', MARKET)
 export const fixKindEnum = pgEnum('fix_kind', FIX_KIND)
+export const leadSourceEnum = pgEnum('lead_source', LEAD_SOURCE)
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -74,6 +82,17 @@ export const analyses = pgTable('analyses', {
   competitors: jsonb('competitors').$type<{ name: string; url: string }[]>(),
   goalCandidates: jsonb('goal_candidates').$type<{ text: string; selector: string }[]>(),
   researchBrief: text('research_brief'),
+  // The three measured readouts, kept so the report can state facts about the page without a model
+  // in the loop. They were captured for generation long before this and thrown away afterwards.
+  //
+  // All nullable, and that is a contract rather than convenience: every analysis created before these
+  // columns existed holds null, and MeasuredReadout renders nothing for a null exactly as FlowPlaybook
+  // renders nothing for an empty list. No backfill, nothing regenerated.
+  structure: jsonb('structure').$type<PageStructure>(),
+  seo: jsonb('seo').$type<PageSeo>(),
+  performance: jsonb('performance').$type<PagePerformance>(),
+  // Populated only in Competitor mode -- see CompetitorStructure.
+  competitorStructures: jsonb('competitor_structures').$type<CompetitorStructure[]>(),
   // The language the AI wrote this analysis in. Pinned at creation so alternates generated later
   // match the hypotheses already stored, even if the user switches the UI language afterwards.
   locale: localeEnum('locale').notNull().default(DEFAULT_LOCALE),
@@ -163,13 +182,24 @@ export const experiments = pgTable('experiments', {
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
-export const waitlist = pgTable('waitlist', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  email: text('email').notNull().unique(),
-  phone: text('phone'),
-  embedKey: uuid('embed_key'),
-  createdAt: timestamp('created_at').notNull().defaultNow()
-})
+export const waitlist = pgTable(
+  'waitlist',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull(),
+    phone: text('phone'),
+    embedKey: uuid('embed_key'),
+    source: leadSourceEnum('source').notNull().default(DEFAULT_LEAD_SOURCE),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  (table) => [
+    // Not `email` alone, which is what it was. The insert is onConflictDoNothing, so a unique email
+    // meant that someone who had already hit a report's wall and then filled in the contact form was
+    // discarded without a trace -- losing the highest-intent event the product has. Per source, the
+    // dedupe still stops a reload from writing the same lead twice.
+    unique().on(table.email, table.source)
+  ]
+)
 
 // Every Stripe event we have already acted on. Stripe retries on any non-2xx and can deliver out of
 // order, so without this a replayed event would be processed twice.

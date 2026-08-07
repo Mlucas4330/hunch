@@ -31,6 +31,17 @@ analyses
                    scrape; the conversion-goal picker offers these)
 - research_brief  (text, nullable: the competitor research output, kept so the on-demand alternate
                    variants are grounded without paying for a second web search)
+- structure       (jsonb, nullable: PageStructure, the readout of what the page DOES)
+- seo             (jsonb, nullable: PageSeo, how the page describes itself to machines)
+- performance     (jsonb, nullable: PagePerformance, what the page cost to load)
+- competitor_structures (jsonb, nullable: CompetitorStructure[], only in paid Competitor mode --
+                   the auto-search path never opens a competitor's page, so it stores null)
+                   ^ The three readouts were captured for generation and discarded from the moment
+                   the scrape existed. They are persisted so the report can state MEASURED facts with
+                   no model in the loop -- see lib/readout.ts. All four are nullable by contract, not
+                   convenience: an analysis created before these columns holds null and simply
+                   renders no readout section, exactly as an empty playbook renders no playbook. No
+                   backfill, nothing regenerated
 - embed_key       (uuid, unique: public opaque key the snippet uses; never expose analyses.id)
 - locale          (enum: LOCALE, default: en -- the language the AI wrote this analysis in, pinned
                    at creation so later alternates match the hypotheses already stored)
@@ -82,6 +93,12 @@ for the embed snippet to apply and nothing to A/B. A founder ships the steps by 
 both lists, and a page that forgot to filter would silently show conversion fixes under the
 discoverability heading -- so no surface filters inline.
 
+`splitVisibility` beside it makes the second cut, by `category === AI_FIX_CATEGORY`, into the SEO and
+"found by AI" tabs the two tabbed surfaces show. That split is **presentation, not a column**: no
+migration divides those rows, so an analysis generated before the tabs existed divides itself. The
+print report deliberately skips it and renders one combined visibility section, because on paper
+there is nothing to click.
+
 variants
 - id             (uuid, PK)
 - hypothesis_id  (FK -> hypotheses.id)
@@ -94,12 +111,19 @@ variants
                   to the live page, written to a local volume and served by the reverse proxy)
 - created_at     (timestamp)
 
-waitlist                        <- leads captured by the public report's paywall
+waitlist                        <- leads, from the public report's paywall or the landing's contact form
 - id         (uuid, PK)
-- email      (text, unique)
+- email      (text)
 - phone      (text, nullable)
 - embed_key  (uuid, nullable: which report the lead came from; not a FK)
+- source     (enum: LEAD_SOURCE, default report -- also the correct backfill, since the wall was the
+              only thing writing rows before the contact form existed)
 - created_at (timestamp)
+- unique(email, source)   <- NOT email alone, which is what it was. The insert is
+                             onConflictDoNothing, so a single-column unique meant someone who had
+                             already hit a report's wall and then deliberately filled in the contact
+                             form was dropped in silence -- losing the highest-intent event the
+                             product has. Per source, the dedupe still stops a reload double-writing
 
 experiments
 - id            (uuid, PK)
@@ -223,7 +247,16 @@ if (hasReachedFreeLimit(user)) {
 }
 ```
 
-`canExport(plan)` lives beside it: export is a paid-plan capability.
+`canExport(plan)` lives beside it: export is a paid-plan capability. So does `canWhiteLabel(plan)`,
+which decides whether a public report renders as the owner's deliverable or as our lead magnet --
+named rather than written as `plan !== 'free'` at each of the four places that ask.
+
+`loadReport` (`lib/report.ts`) is what carries the owner's plan to that unauthenticated page, and it
+selects **`user: { columns: { plan: true } }`** rather than `user: true`. That is a boundary, not an
+optimization: everything a server component reads reaches the RSC payload the reader receives, so the
+whole `users` row would publish the owner's email and `stripe_customer_id` inside the report they
+sent to their own client. `reportIsWhiteLabelled()` beside it is the one derivation, so the page, its
+metadata and its OG card cannot disagree -- `loadReport` is `cache()`d, so all three cost one query.
 
 `GET /api/analyses`
 Returns analysis history. Free users: last 3. Paid: paginated. Both this route and the dashboard
@@ -391,8 +424,15 @@ consequence is that a retry can start a second render of the same variant, leavi
 that the prune reclaims; `RATE_LIMITS.screenshot` bounds how often that can happen.
 
 `POST /api/waitlist`
-Body `{ email, phone?, embedKey? }`. Inserts a lead with `onConflictDoNothing`. Returns `201`.
-Read back by the admin-only `/admin/leads` page; there is no other way to see these rows.
+Body `{ email, phone?, embedKey?, source? }`. Inserts a lead with `onConflictDoNothing` against the
+`(email, source)` unique. Returns `201`. Read back by the admin-only `/admin/leads` page; there is no
+other way to see these rows.
+
+`source` defaults to `DEFAULT_LEAD_SOURCE` rather than being required, so a form or snippet cached
+from before it shipped still lands where it always did instead of failing validation. It also backs
+the landing page's contact section (`source: 'contact'`, no `embedKey`) -- that form deliberately
+reuses this route rather than adding one: it is already public, already CORS-open, already rate
+limited per IP, and already read by the operator.
 
 ### Cron
 
@@ -444,8 +484,14 @@ Four things about it are load-bearing:
 
 ### Billing
 
+**Nothing in the UI calls checkout or portal any more.** The self-serve shop window was removed with
+the published price: a plan is granted by a sale you close, invoiced through Stripe, and the
+**webhook** is what promotes the account. The other two routes stay live and authenticated but
+dormant, so reopening the shop window is a UI-only change - and both return to `POST_SIGNIN_REDIRECT`
+rather than to the deleted `/billing`.
+
 `POST /api/billing/checkout`
-Creates Stripe Checkout session.
+Creates Stripe Checkout session. Dormant; its input validation is still covered by e2e.
 
 Request:
 
@@ -665,6 +711,34 @@ the index.** It never promises a ranking or a citation, never estimates traffic,
 whether a model currently mentions the product -- none of that was measured, so any sentence in that
 direction is invented by construction.
 
+### 2f. The measured readout - `lib/readout.ts`
+
+The one place the product states numbers to a reader, and the only reason it may: `measuredFindings`
+is arithmetic over what the scrape counted, and it is **pure** -- no database, no model, no network.
+
+- A finding is `{ id, group, severity, value, unit }` and carries **no prose**. The label lives in
+  `dictionary.readout.findings[id]`, keyed by the `READOUT_FINDING` enum. That split is the whole
+  guarantee: a number cannot reach the reader without a code path putting it there.
+- Rendered as a **label and a value**, not a sentence. One string per finding then covers every
+  severity -- "Signup form fields / 7" is true whether 7 is fine or terrible, whereas a presence
+  finding's sentence ("there is no FAQ") is outright false in its own `ok` case.
+- Thresholds are `READOUT_THRESHOLDS` and deliberately loose. A false alert on a healthy page is the
+  expensive error: this is read by a stranger who can check it against their own site in one click,
+  and one wrong accusation discredits every true finding beside it.
+- `ok` is a real state and is rendered. A report that is all coral reads as a sales pitch; the rows
+  that came back fine are what make the rest believable.
+- **A metric the browser did not report is skipped, never defaulted.** A null LCP rendered as 0 is an
+  instant page, which is the opposite of what was measured. `PagePerformance` is nullable per field
+  for this reason and `measuredFindings` drops the row rather than filling it.
+- `noindex` is the one finding emitted only when true. Every other page is not noindexed, so an `ok`
+  row for it would cost a line on every report for no information -- while the true case is the most
+  severe thing the readout can find.
+- Values stay in the unit they were measured in (bytes, milliseconds). `MeasuredReadout` converts
+  once at the render edge, so nothing is rounded twice.
+- `readoutFor()` in `lib/analyses.ts` is the single place the four columns are gathered, for the same
+  reason `splitFixes` exists: three surfaces render this, and picking columns at each is three
+  chances to drop one silently.
+
 ### 2a. Structural readout
 
 `scrapePage` returns a `PageStructure` alongside `html` and `elements`: a flat record of what the
@@ -677,6 +751,22 @@ positive silently drops a real fix. Two rules follow from how it is measured:
   control must also read as an auth action, matched against `STRUCTURE_PATTERNS.auth`.
 - `bodyLinkCount` is named for what it counts. It is every short clickable outside nav/header/footer,
   including a feature card's "Learn more", so it must never be presented to the model as a CTA count.
+
+`scrapePage` returns a third readout beside these two: `PagePerformance`, read from the Performance
+API on the page already open (`navigation`, `paint`, `largest-contentful-paint` and `resource`
+entries) after `settlePage`, because LCP is not final until the largest element has painted. It costs
+no browser slot and no extra navigation.
+
+**LCP is the exception and must stay one.** `getEntriesByType('largest-contentful-paint')` returns
+nothing, on every page -- LCP is not in the performance timeline. The only way to receive the entries
+the browser already recorded is a `PerformanceObserver` with `buffered: true`, which delivers them on
+a later task, which is what `SCRAPE_LCP_FLUSH_MS` waits for. Reading it the timeline way fails
+*silently as a null*, so the headline load metric is simply absent and nothing errors. If `lcpMs`
+ever starts coming back null across the board again, this is why. Every field is `number | null` -- see the skip rule in 2f --
+and two limits are inherent to measuring here and are stated in the UI copy, not just in code: it is
+measured from the deploy's network so it is a **floor** a real visitor never beats, and
+`transferredBytes` **understates** a page with a hero video because `SCRAPE_ALLOWED_RESOURCE_TYPES`
+blocks `media`, which is why it renders as "at least".
 
 `scrapePage` sets a 1280x800 viewport, matching `screenshotVariant`. Both the visibility filter in
 `captureElements` and `aboveFoldCtaCount` are measured against it, so it cannot be left at
@@ -711,7 +801,7 @@ honesty contracts too (a signal only quoted when a majority of the corpus does i
 read so an empty corpus never costs the analysis).
 
 One non-obvious constraint, which matters to any script driving `scrapePage`/`screenshotVariant`
-outside the Next build (today `npm run test:screenshot`): functions handed to `page.evaluate()` are
+outside the Next build (today `npm run preview:screenshot`): functions handed to `page.evaluate()` are
 serialized as source, so esbuild's `__name` keepNames helper (injected when tsx runs the script) is
 not defined in the page. `openGuardedPage` declares `window.__name` as an identity function, which is
 what lets the scraper run outside the Next build at all.
@@ -742,6 +832,14 @@ every element wrapper survives by construction. Three rules make the result read
 
 The accepted trade-off: the split follows the *original* fragment sizes, so a span may wrap a
 different word than the designer chose. Strictly better than the span disappearing.
+
+`applyVariantCopy` is exported for `e2e/dom/apply-variant-copy.spec.ts`, its only automated
+coverage. That spec runs in the `dom` Playwright project, which has **no** dependency on the auth
+setup: it drives the function against `setContent` markup, so it needs no session and no database.
+It deliberately does not go through `screenshotVariant` -- that calls `assertPublicUrl` first, and
+the guard refuses loopback, so reaching a local fixture through it would mean weakening the SSRF
+check to enable a test. Each of the four rules above has a case; reverting the routine to
+`el.textContent = copy` turns four of the eight red.
 
 `awaitPaint` runs after the swap and after every screenshot. `settlePage` answers "has the text
 stopped changing", which is right for reading copy and wrong for taking a picture: a page whose text
@@ -804,6 +902,12 @@ prompt in the file, which the old `COMPETITOR_RESEARCH_PROMPT` const was not.
 When the user supplies `competitorUrls` (paid Competitor mode), this web-search step is skipped:
 `analyzeLandingPage` scrapes those pages concurrently and concatenates the cleaned copy into the
 brief instead. A URL that fails to scrape drops out of the brief rather than failing the batch.
+
+That path also **keeps the `PageStructure` each of those scrapes already returned** (it used to
+discard everything but the text), which is what makes the report's side-by-side comparison table
+possible at zero marginal cost -- the page was opened, measured and closed either way. The
+auto-search path stores none: its competitors are URLs a model cited without anyone loading them, and
+measuring them would mean 2-3 extra page loads on the critical path of every analysis.
 A founder `brief` (when present) is appended to the generation prompt so variants use those real
 facts and come back finished rather than as `[placeholder]` templates.
 
@@ -854,7 +958,8 @@ whatever language the search returns; generation translates its substance into t
 
 ## Middleware - `middleware.ts`
 
-Protect all `/dashboard`, `/analyses`, `/billing`, and `/admin` routes with NextAuth session check.
+Protect all `/dashboard`, `/analyses`, and `/admin` routes with NextAuth session check
+(`PROTECTED_PREFIXES`). `/billing` left that list when the page did.
 Exclude `/api/billing/webhook` from auth middleware - Stripe calls it directly.
 Exclude `/api/track` and `/embed.js` too - the snippet on the customer's site calls them
 cross-origin without a session.
@@ -890,7 +995,7 @@ bytes and drops resource types a text scrape does not need.
 
 `launchBrowser()` is the only place a browser is obtained, and it has two modes. With `BROWSER_URL`
 set it `connect()`s to the dedicated browser container; unset, it launches Chrome in-process exactly
-as before, which is what local dev, `npm run test:screenshot` and the e2e suite use. The guard is
+as before, which is what local dev, `npm run preview:screenshot` and the e2e suite use. The guard is
 unaffected either way: `openGuardedPage`'s interception runs app-side over CDP.
 
 `PUPPETEER_ALLOW_NO_SANDBOX` only affects the in-process launch, so it is irrelevant in production

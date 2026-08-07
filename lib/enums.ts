@@ -30,6 +30,23 @@ export type Section = (typeof SECTIONS)[number]
 export const FIX_KIND = ['flow', 'visibility'] as const
 export type FixKind = (typeof FIX_KIND)[number]
 
+// The tabs the analysis screen and the public report are split into. Presentation, not a column:
+// `seo` and `ai` are two slices of the same flow_fixes.kind = 'visibility' rows, cut by category, so
+// an existing analysis divides itself with no migration and no regeneration.
+// `tests` is last on purpose: deciding what to change comes before proving it, and the live test is
+// the step that happens after the work is won. It is also the one tab the public report never shows
+// -- it passes `tests: 0` and the empty-tab rule in AnalysisTabs does the rest, because a prospect
+// installs no snippet.
+export const ANALYSIS_TAB = ['flow', 'copy', 'seo', 'ai', 'tests'] as const
+export type AnalysisTab = (typeof ANALYSIS_TAB)[number]
+
+// The sections FlowPlaybook knows how to render. `visibility` is the single combined section the
+// print report still uses -- nothing may be hidden behind a tab on paper -- while `seo` and `ai` are
+// what the two tabbed surfaces pass. Derived from FIX_KIND so a kind added there cannot be forgotten
+// here.
+export const PLAYBOOK_SECTION = [...FIX_KIND, 'seo', 'ai'] as const
+export type PlaybookSection = (typeof PLAYBOOK_SECTION)[number]
+
 // What a fix unblocks, one family per kind. A copy hypothesis swaps one line of text; a fix changes
 // the page itself, so it is categorized by the blocker it removes rather than by a page section.
 //
@@ -55,6 +72,11 @@ export const VISIBILITY_FIX_CATEGORY = [
   'ai_answerability'
 ] as const
 export type VisibilityFixCategory = (typeof VISIBILITY_FIX_CATEGORY)[number]
+
+// The one visibility category about a language model quoting the page rather than a crawler reading
+// it. Named because it is the whole discriminator behind the `seo` / `ai` tab split -- see
+// `splitVisibility` in lib/analyses.ts.
+export const AI_FIX_CATEGORY: VisibilityFixCategory = 'ai_answerability'
 
 // Both families in one list: they share a table, a column, and a badge map, so the Postgres enum and
 // every Record keyed by category cover all of them.
@@ -106,3 +128,69 @@ export const RATE_LIMIT_KIND = [
   'signin'
 ] as const
 export type RateLimitKind = (typeof RATE_LIMIT_KIND)[number]
+
+// The measured readout: facts counted off the scraped page, never written by a model.
+//
+// This is the one family of numbers the product is allowed to show, and the enum is what keeps it
+// that way. `measuredFindings` (lib/readout.ts) may only emit an id from this list, every id has a
+// sentence in `dictionary.readout` with the value interpolated into it, and no value ever passes
+// through a prompt. The quantitative ban in playbookPrompt / visibilityPrompt is untouched and still
+// governs everything the model writes -- the two rules are about different producers.
+// Where a lead came from. `report` is someone who hit the waitlist wall on a public report;
+// `contact` is someone who filled the landing page's form and asked to talk.
+//
+// It exists because `waitlist.email` used to be unique on its own, and the insert is
+// `onConflictDoNothing` -- so a person who had already hit a wall and then deliberately raised their
+// hand was dropped in silence. Uniqueness is `(email, source)` so the second, far more valuable
+// event survives the first.
+export const LEAD_SOURCE = ['report', 'contact'] as const
+export type LeadSource = (typeof LEAD_SOURCE)[number]
+
+export const READOUT_FINDING = [
+  // Structure: what the page makes a visitor do.
+  'form_fields',
+  'no_social_signin',
+  'above_fold_ctas',
+  'nav_links',
+  'no_faq',
+  'no_testimonials',
+  // Metadata: what the page tells a machine about itself.
+  'noindex',
+  'no_meta_description',
+  'h1_count',
+  'images_missing_alt',
+  'no_structured_data',
+  'no_og_image',
+  // Load: what the page costs to open.
+  'lcp',
+  'page_weight',
+  'request_count'
+] as const
+export type ReadoutFinding = (typeof READOUT_FINDING)[number]
+
+// How a measured value reads against its threshold. Deliberately three states and not two: `ok` is
+// what makes the section an audit rather than a hit piece, and a report that only ever lists faults
+// is one a prospect discounts on sight.
+export const READOUT_SEVERITY = ['ok', 'warn', 'alert'] as const
+export type ReadoutSeverity = (typeof READOUT_SEVERITY)[number]
+
+// The readout groups, in the order they are measured and rendered.
+export const READOUT_GROUP = ['structure', 'metadata', 'load'] as const
+export type ReadoutGroup = (typeof READOUT_GROUP)[number]
+
+// How a finding's value is written out. The readout itself stays in the units it measured (bytes,
+// milliseconds) so nothing is rounded twice; this is what tells the component which formatter the
+// dictionary sentence expects.
+export const READOUT_UNIT = ['count', 'seconds', 'megabytes', 'presence'] as const
+export type ReadoutUnit = (typeof READOUT_UNIT)[number]
+
+// The metrics the side-by-side competitor table compares. A strict subset of PageStructure: only
+// things measured identically on every page and meaningful without context. Conversion rate is not
+// here and never can be -- we measure pages, not their traffic.
+export const READOUT_COMPARISON = [
+  'form_fields',
+  'social_signin',
+  'above_fold_ctas',
+  'nav_links'
+] as const
+export type ReadoutComparison = (typeof READOUT_COMPARISON)[number]

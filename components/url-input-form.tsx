@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/components/i18n-provider'
+import { CONTACT_PATH } from '@/lib/constants'
 import { t } from '@/lib/i18n/format'
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import type { SubscriptionPlan } from '@/lib/enums'
@@ -176,7 +177,7 @@ export function UrlInputForm({
           ) : (
             <p className="text-xs text-muted-foreground">
               {dictionary.urlForm.competitorLockedBefore}{' '}
-              <Link href="/billing" className="font-medium underline underline-offset-2">
+              <Link href={CONTACT_PATH} className="font-medium underline underline-offset-2">
                 {dictionary.common.upgrade}
               </Link>{' '}
               {dictionary.urlForm.competitorLockedAfter}

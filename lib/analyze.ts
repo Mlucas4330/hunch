@@ -26,6 +26,7 @@ import {
   MARKET_SEARCH_LOCATION
 } from '@/lib/constants'
 import {
+  FIXTURE_PERFORMANCE,
   FIXTURE_SEO,
   FIXTURE_STRUCTURE,
   fixtureAlternateVariants,
@@ -36,8 +37,10 @@ import {
 import { detectMarket } from '@/lib/market'
 import { fetchCrawlerAccess, type CrawlerAccess } from '@/lib/robots'
 import {
+  type CompetitorStructure,
   type GoalCandidate,
   type PageElement,
+  type PagePerformance,
   type PageSeo,
   type PageStructure,
   goalCandidates,
@@ -80,6 +83,11 @@ export type AnalysisResult = {
   goalCandidates: GoalCandidate[]
   structure: PageStructure
   seo: PageSeo
+  // Never reaches a prompt: the load readout is rendered by code straight from these numbers. It is
+  // carried here only so the route can persist it beside the other two readouts.
+  performance: PagePerformance
+  // Empty on the auto-research path, which never opens a competitor's page -- see CompetitorStructure.
+  competitorStructures: CompetitorStructure[]
   // Measured from the page, not taken from the UI locale. Pinned on the analysis so later alternates
   // are held to the same market as the hypotheses they sit beside.
   market: Market
@@ -126,12 +134,16 @@ export async function analyzeLandingPage(
       visibility: fixtureVisibility(locale),
       structure: FIXTURE_STRUCTURE,
       seo: FIXTURE_SEO,
+      performance: FIXTURE_PERFORMANCE,
+      // The fixture run scrapes nothing, so it measures no competitor either -- the same state a real
+      // analysis outside Competitor mode is in, which is what the e2e suite should be asserting on.
+      competitorStructures: [],
       market: fixtureMarket
     })
   }
 
   const startedAt = Date.now()
-  const { html, elements, structure, seo } = await scrapePage(url)
+  const { html, elements, structure, seo, performance } = await scrapePage(url)
   const content = preprocessHtml(html)
   // Measured from the page rather than taken from the UI locale: a Brazilian founder reading Hunch in
   // English still sells to Brazil, and it is the page that says so.
@@ -142,14 +154,15 @@ export async function analyzeLandingPage(
   // robots.txt rides alongside whichever path runs: it is one small fetch against an origin the
   // scrape already reached, and putting it in front of the research would add its latency to the
   // critical path for nothing.
-  const [research, crawlerAccess] = await Promise.all([
+  const [competitorResearch, crawlerAccess] = await Promise.all([
     options.competitorUrls?.length
       ? researchProvidedCompetitors(options.competitorUrls).then(
-          (provided) => provided ?? researchCompetitors(content, market)
+          async (provided) => provided ?? autoResearch(content, market)
         )
-      : researchCompetitors(content, market),
+      : autoResearch(content, market),
     fetchCrawlerAccess(url)
   ])
+  const research = competitorResearch.brief
   const researchedAt = Date.now()
 
   const briefSection = options.brief
@@ -220,6 +233,8 @@ export async function analyzeLandingPage(
     visibility,
     structure,
     seo,
+    performance,
+    competitorStructures: competitorResearch.structures,
     market
   })
 }
@@ -391,24 +406,49 @@ function hostnameOf(url: string): string {
   }
 }
 
+// What either research path produces: the brief generation is grounded in, plus the competitors that
+// were actually measured. Only the scraping path can fill `structures` -- the web search never opens
+// a page.
+type CompetitorResearch = {
+  brief: string
+  structures: CompetitorStructure[]
+}
+
+async function autoResearch(pageContent: string, market: Market): Promise<CompetitorResearch> {
+  return { brief: await researchCompetitors(pageContent, market), structures: [] }
+}
+
 // Builds a competitor brief from user-supplied landing pages (scrape + clean, no web search).
 // Degrades to null so generation can fall back to the auto research path.
-async function researchProvidedCompetitors(urls: string[]): Promise<string | null> {
+//
+// The scrape already returns a full structural readout of each page and this used to keep only the
+// text. Holding on to `structure` is what makes the report's side-by-side comparison possible, and it
+// costs nothing: the page was opened, measured and closed either way.
+async function researchProvidedCompetitors(urls: string[]): Promise<CompetitorResearch | null> {
   // Scraped concurrently: these are independent pages, and serially they cost one cold browser
   // boot each. A failed URL drops out of the brief instead of failing the batch.
   const scraped = await Promise.all(
     urls.map(async (url) => {
       try {
-        const { html } = await scrapePage(url)
-        return `Competitor: ${hostnameOf(url)} (${url})\n${preprocessHtml(html).slice(0, 2500)}`
+        const { html, structure } = await scrapePage(url)
+        const name = hostnameOf(url)
+        return {
+          part: `Competitor: ${name} (${url})\n${preprocessHtml(html).slice(0, 2500)}`,
+          competitor: { name, url, structure }
+        }
       } catch {
         return null
       }
     })
   )
 
-  const parts = scraped.filter((part): part is string => part !== null)
-  return parts.length ? parts.join('\n\n---\n\n') : null
+  const ok = scraped.filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+  if (!ok.length) return null
+
+  return {
+    brief: ok.map((entry) => entry.part).join('\n\n---\n\n'),
+    structures: ok.map((entry) => entry.competitor)
+  }
 }
 
 function resolveTargets(input: {
@@ -419,9 +459,22 @@ function resolveTargets(input: {
   visibility: VisibilityFixOutput[]
   structure: PageStructure
   seo: PageSeo
+  performance: PagePerformance
+  competitorStructures: CompetitorStructure[]
   market: Market
 }): AnalysisResult {
-  const { output, elements, researchBrief, playbook, visibility, structure, seo, market } = input
+  const {
+    output,
+    elements,
+    researchBrief,
+    playbook,
+    visibility,
+    structure,
+    seo,
+    performance,
+    competitorStructures,
+    market
+  } = input
   return {
     competitors: output.competitors,
     goalCandidates: goalCandidates(elements),
@@ -430,6 +483,8 @@ function resolveTargets(input: {
     visibility,
     structure,
     seo,
+    performance,
+    competitorStructures,
     market,
     hypotheses: output.hypotheses.map((h) => {
       const resolved = resolveTarget(h.current_copy, elements)

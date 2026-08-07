@@ -1,14 +1,16 @@
 /**
- * Manual test for the variant-preview screenshot pipeline.
+ * Manual visual check for the variant-preview pipeline. Not a test: it asserts nothing and cannot
+ * fail a build. It exists because applyVariantCopy distributes the new copy across the element's
+ * text nodes to avoid destroying its inline children, and whether a gradient span or a <br> survived
+ * that split is only answerable by looking at the two images.
  *
  * Drives the real production function (screenshotVariant) against a live landing page and writes
- * before/after PNGs to disk so you can eyeball the variant copy swapped onto the page. This is
- * exactly what POST /api/report/screenshot does, minus the Vercel Blob upload -- so it works
- * regardless of how the Blob store is configured.
+ * before/after PNGs straight to disk. It calls neither POST /api/report/screenshot nor
+ * saveScreenshot, so it needs no SCREENSHOT_DIR and writes nothing a report would later serve.
  *
  * Usage:
- *   npx tsx scripts/test-screenshot.mts [url] [selector] [outDir]
- *   npx tsx scripts/test-screenshot.mts https://vercel.com h1
+ *   npm run preview:screenshot                                  # defaults: https://vercel.com, h1
+ *   npm run preview:screenshot -- https://foo.com "h1" out-dir  # url, selector, output dir
  */
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -16,7 +18,7 @@ import { screenshotVariant } from '../lib/scrape.ts'
 
 const url = process.argv[2] ?? 'https://vercel.com'
 const selector = process.argv[3] ?? 'h1'
-const outDir = resolve(process.argv[4] ?? 'screenshot-test')
+const outDir = resolve(process.argv[4] ?? 'screenshot-preview')
 
 // A punchy, obviously-different headline so the swap is unmistakable in the "after" shot.
 const VARIANT_COPY = 'This headline was rewritten by Hunch'

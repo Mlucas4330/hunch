@@ -8,11 +8,13 @@ import { Wordmark } from '@/components/wordmark'
 import { SectionBadge } from '@/components/section-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
 import { FlowPlaybook } from '@/components/flow-playbook'
+import { WhyBlock } from '@/components/why-block'
 import { Button } from '@/components/ui/button'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { formatDate, t as fill } from '@/lib/i18n/format'
 import { hasPlaceholders } from '@/lib/utils'
-import { splitFixes } from '@/lib/analyses'
+import { MeasuredReadout } from '@/components/measured-readout'
+import { readoutFor, splitFixes } from '@/lib/analyses'
 import { isQuickWin } from '@/lib/constants'
 import { pageMetadata } from '@/lib/seo'
 
@@ -104,10 +106,15 @@ export default async function AnalysisReportPage({
         </div>
       )}
 
+      {/* Ahead of both lists on paper too: it is the evidence the rest of the document argues from. */}
+      <MeasuredReadout input={readoutFor(analysis)} />
+
       {/* Both lists, and neither passes expandFrom: nothing may be hidden on paper. */}
       <FlowPlaybook fixes={fixes.flow} />
 
-      <FlowPlaybook fixes={fixes.visibility} kind="visibility" />
+      {/* One combined visibility section rather than the SEO / AI tabs the two screens split it
+          into: on paper there is nothing to click, so the split would only mean two headings. */}
+      <FlowPlaybook fixes={fixes.visibility} section="visibility" />
 
       <div className="space-y-4">
         {ranked.map((hypothesis, index) => {
@@ -169,15 +176,10 @@ export default async function AnalysisReportPage({
                 </div>
               )}
 
-              <div className="space-y-1">
-                <p className="panel-label text-[0.6rem] text-muted-foreground">
-                  {t.report.whyThisWorks}
-                </p>
-                <p className="text-sm text-muted-foreground">{hypothesis.rationale}</p>
-                {recommended?.evidence && (
-                  <p className="text-sm text-muted-foreground">{recommended.evidence}</p>
-                )}
-              </div>
+              <WhyBlock label={t.report.whyThisWorks}>
+                <p>{hypothesis.rationale}</p>
+                {recommended?.evidence && <p>{recommended.evidence}</p>}
+              </WhyBlock>
             </article>
           )
         })}

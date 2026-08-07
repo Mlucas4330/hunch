@@ -33,10 +33,6 @@ export const en = {
         title: 'Run a test',
         description: 'Approve the challenger, set the conversion goal, and launch the live test.'
       },
-      billing: {
-        title: 'Plans & usage',
-        description: 'Manage your Hunch plan and see this month usage.'
-      },
       leads: {
         title: 'Waitlist leads',
         description: 'Leads captured by the public reports.'
@@ -50,7 +46,7 @@ export const en = {
   },
 
   common: {
-    upgrade: 'Upgrade',
+    upgrade: 'Talk to us',
     close: 'Close',
     cancel: 'Cancel',
     delete: 'Delete',
@@ -116,24 +112,25 @@ export const en = {
       keep_control: 'Keep current copy',
       inconclusive: 'Inconclusive - not enough traffic'
     },
+    // Display label only. The Postgres value stays `solo`, so changing this costs no migration --
+    // and "Solo" named the old audience, the founder working alone.
     plan: {
       free: 'Free',
-      solo: 'Solo'
+      solo: 'Pro'
+    },
+    leadSource: {
+      report: 'Report wall',
+      contact: 'Asked to talk'
     }
   },
 
   nav: {
     homeAria: 'Hunch home',
     dashboard: 'Dashboard',
-    billing: 'Billing',
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
     languageAria: 'Language'
-  },
-
-  footer: {
-    poweredBy: 'Powered by'
   },
 
   infoHint: {
@@ -152,11 +149,11 @@ export const en = {
   },
 
   landing: {
-    eyebrow: 'Conversion instrument for micro-SaaS',
-    headlineTop: 'Find what costs you signups.',
-    headlineBottom: 'Prove the fix when you want.',
-    lead: 'Paste your URL. Get the A/B tests worth running, ranked and already written.',
-    cta: 'Analyze your landing page',
+    eyebrow: 'Audit tooling for people who sell CRO',
+    headlineTop: 'Show the prospect what their page costs them.',
+    headlineBottom: 'Send it under your own name.',
+    lead: 'Paste any landing page. Get a measured teardown you can put in front of a client in minutes, with the ranked fixes and the copy already written.',
+    cta: 'Run a report',
     howItWorksLink: 'How it works',
 
     sample: [
@@ -185,65 +182,65 @@ export const en = {
 
     reality: {
       eyebrow: 'The reality',
-      heading: 'The problem was never effort. It was knowing where to point it.'
+      heading: 'The hard part of selling an audit is doing it before anyone has paid you.'
     },
     pains: [
       {
-        headline: 'Your traffic is too low to test everything.',
-        reality: 'A few hundred visitors a week buys you maybe one experiment a month. Pick the wrong one and you learn nothing.',
-        answer: 'Every hunch is ranked by predicted impact, so your one shot lands where it moves revenue.'
+        headline: 'A good teardown takes half a day.',
+        reality: 'Reading the page, checking the head, timing the load, looking at two competitors. Then you do it again for the next prospect who may never reply.',
+        answer: 'One URL, a few minutes, and the whole readout comes back measured rather than remembered.'
       },
       {
-        headline: "There is no growth team. It's you, at 11pm.",
-        reality: 'No CRO, no copywriter, no backlog of experiments. Just you and a page you have read a thousand times.',
-        answer: 'Paste the URL once. Get five to eight tests written for you, variant copy included.'
+        headline: 'Opinion does not survive a procurement meeting.',
+        reality: '"Your headline is weak" is a matter of taste to the person who wrote it. It stops being taste when it has a number beside it.',
+        answer: 'Form fields, calls to action above the fold, load time, alt text, structured data. Counted on their page, next to the competitors they named.'
       },
       {
-        headline: 'You never know where to start.',
-        reality: 'You know conversion matters. Every guide says "just test." None of them say what to test first.',
-        answer: 'Hunch turns the blank page into an ordered path: headline, then CTA, then proof.'
+        headline: 'A tool with someone else logo on it is not your deliverable.',
+        reality: 'You cannot send a document that advertises a vendor to your client, and you certainly cannot send one that asks them for their email.',
+        answer: 'On a paid plan the report carries no mark of ours, no wall, and nothing hidden. It is yours to send.'
       }
     ],
 
     how: {
       eyebrow: 'How it works',
-      heading: 'Take the plan and go. Or stay and prove it.',
-      intro: 'Two ways to use Hunch. Take the report: real competitors researched for you, plus ranked tests with finished variant copy you apply yourself. Or add one script tag and let Hunch run the A/B test live and measure the lift.'
+      heading: 'Win the meeting first. Prove the lift after you have signed.',
+      intro: 'The report is what gets you in the room: a measured teardown of a page you were never given access to. The live test is what keeps you there once the work is yours.'
     },
     tracks: [
       {
-        label: 'Get the plan',
-        note: 'Minutes, no code',
+        label: 'Send the report',
+        note: 'Minutes, no access needed',
         steps: [
           {
-            label: 'Paste your URL',
-            body: 'Drop in your live landing page. Hunch scrapes the copy and studies two to three real competitors in your space.'
+            label: 'Paste their URL',
+            body: 'Any public landing page. We load it, measure it, and study two to three real competitors in their market.'
           },
           {
-            label: 'Get ranked hunches',
-            body: 'Five to eight A/B tests, ordered by impact, each with variant copy and the competitor pattern it borrows.'
+            label: 'Read the teardown',
+            body: 'A measured readout of the page, then ranked fixes across flow, copy and discoverability, each with the replacement copy written.'
           },
           {
-            label: 'Ship or share the report',
-            body: 'Rewrite the page yourself today, export the report, or send the shareable link to whoever owns the copy.'
+            label: 'Send it as yours',
+            body: 'Share the link or hand over the printed version. On a paid plan there is nothing on it that says us.'
           }
         ]
       },
       {
-        label: 'Prove it live',
-        note: 'Optional',
+        label: 'Prove the lift',
+        note: 'After the contract',
         steps: [
           {
             label: 'Drop one script tag',
-            body: 'Pick a hunch and paste a single line on your page. Hunch shows the variant to half your visitors, no redeploy or code changes.'
+            body: 'Once you have access to the client site, one line runs the test. No redeploy and no change to their code.'
           },
           {
             label: 'Pick a window',
-            body: 'Choose 7, 14, or 30 days. Significance is read once at the finish line, so you never chase a false winner.'
+            body: 'Choose 7, 14, or 30 days. Significance is read once at the finish line, so nobody calls a winner early.'
           },
           {
-            label: 'Read the verdict',
-            body: 'The test auto-closes into a report: conversion lift, statistical significance, and a plain recommendation.'
+            label: 'Show the verdict',
+            body: 'The test closes into conversion lift, statistical significance and a plain recommendation. That is your renewal conversation.'
           }
         ]
       }
@@ -251,55 +248,48 @@ export const en = {
 
     value: {
       eyebrow: 'What you get',
-      heading: 'A plan you can act on today. Proof when you want it.'
+      heading: 'A document that argues for itself.'
     },
     proof: [
       {
-        title: 'Ranked, not brainstormed',
-        body: 'Every hunch carries an impact and effort score and the competitor pattern behind it, so the list itself tells you what to do first.'
+        title: 'Measured, not asserted',
+        body: 'The readout counts what is on the page: form fields, calls to action above the fold, load time, images with no alt text. Numbers we took, never numbers a model guessed.'
       },
       {
         title: 'Finished copy, not prompts',
-        body: 'Each hunch comes with variant copy you can paste straight onto the page. Add a business brief and it comes back with your real numbers in it.'
+        body: 'Every ranked fix carries the replacement copy and the reasoning behind it. Add a brief about the business and it comes back with their real details already in it.'
       },
       {
-        title: 'Proof when you want it',
-        body: 'Turn any hunch into a live, timed test with one script tag. It closes into conversion lift, significance, and a plain recommendation.'
+        title: 'Yours to send',
+        body: 'A paid report has no logo of ours, no waitlist wall, and nothing blurred. Paste the link in an email or hand over the printed version.'
       }
     ],
 
-    pricing: {
-      eyebrow: 'Pricing',
-      heading: 'Start free. Upgrade when this becomes a habit.',
-      mostPopular: 'Most popular',
-      perMonth: '/mo',
-      startFree: 'Start free',
-      choose: 'Choose {plan}',
-      footnote: 'Cancel anytime'
-    },
-    plans: {
-      free: {
-        line: 'Get a full ranked report on your own page.',
-        features: [
-          '{limit} full reports / month',
-          'Ranked hunches with variant copy',
-          'Shareable report link',
-          '1 live test at a time'
-        ]
-      },
-      solo: {
-        line: 'For the founder who ships every week.',
-        features: [
-          'Unlimited reports',
-          'Full history, export to markdown',
-          'Competitor mode',
-          'Unlimited live tests'
-        ]
+    // Replaced the pricing table. See the comment at its call site in app/(app)/page.tsx: the deal
+    // is negotiated by a person, and a published self-serve number anchors that conversation before
+    // it starts. Nothing here quotes a price.
+    contact: {
+      eyebrow: 'Talk to us',
+      heading: 'Tell us how many pages you audit a month.',
+      body: 'We will show you a real report on a page of your choosing, and what it costs to send it under your own name. No deck.',
+      points: [
+        'Reports with your name on them, not ours',
+        'Your client never sees a signup wall',
+        'One measured readout per page, not a template',
+        'We answer the same day'
+      ],
+      form: {
+        emailPlaceholder: 'you@agency.com',
+        phonePlaceholder: 'Phone (optional)',
+        join: 'Ask for a report',
+        joining: 'Sending...',
+        done: 'Got it. We will reply to that address today.',
+        error: 'Something went wrong. Please try again.'
       }
     },
 
     finalCta: {
-      heading: 'Stop rereading your own copy. Start with a hunch.'
+      heading: 'Pick a prospect. Run the report. See what you would have sent.'
     }
   },
 
@@ -337,14 +327,14 @@ export const en = {
     briefSummary: 'Add business details (optional)',
     briefPlaceholder: "Who it's for, your real numbers (users, trial length, pricing), and what makes you different. We use these to write finished copy instead of placeholders.",
     competitorSummary: 'Competitor mode',
-    competitorPaidOnly: '(Solo)',
+    competitorPaidOnly: '(Pro)',
     competitorHint: 'Paste up to {max} competitor landing pages to ground your hunches.',
     competitorPlaceholder: 'https://a-competitor.com',
     competitorLockedBefore: 'Ground your hunches on competitors you choose.',
     competitorLockedAfter: 'to unlock Competitor mode. Free analyses find competitors automatically.',
     errorInvalidUrl: 'Enter a valid URL, including https://',
     errorGeneric: 'Something went wrong. Please try again.',
-    errorLimitReached: 'You have reached the free plan limit. Upgrade to keep analyzing.',
+    errorLimitReached: 'You have reached the free plan limit. Talk to us to keep analyzing.',
     errorUnsupportedUrl: 'That URL is not valid or supported.',
     errorScrapeFailed: 'We could not load that page. Check the URL and try again.',
     errorAnalyzeFailed: 'Something went wrong while analyzing. Please try again.'
@@ -353,8 +343,11 @@ export const en = {
   usageBanner: {
     limitReached: 'Limit reached',
     almostOut: 'Almost out',
+    // "3 *of* 5 analyses used this month." Lived under `billing` by accident of origin, and outlived
+    // that whole subtree -- this component is the only thing that ever read it.
+    usageOf: 'of',
     used: 'analyses used this month.',
-    blockedNote: 'Upgrade to keep analyzing pages.',
+    blockedNote: 'Talk to us to keep analyzing pages.',
     remainingNote: '{remaining} left before you hit the free limit.'
   },
 
@@ -367,15 +360,25 @@ export const en = {
     eyebrow: 'What to test',
     title: 'Your test ideas',
     hintLabel: 'How to use this screen',
-    hint: 'Each card is a test idea, ranked by likely impact. For each one the AI recommends the strongest *challenger* to try against your current copy. Pick one and press *Set up test* - you run one test at a time, and the live results (not your guess) decide the winner. Install the snippet once and every test runs behind it.',
-    report: 'Report',
+    hint: 'Each tab is one kind of fix, ranked by likely impact. *Flow* and *SEO* are changes you ship by hand; *Copy* is the wording, and every idea there comes with the replacement already written. When you have access to the site and want to prove a change rather than argue it, the *Tests* tab is where you install the snippet and run one live test at a time.',
+    report: 'Print report',
     backToDashboard: 'Back to dashboard',
     benchmarkedAgainst: 'Benchmarked against:',
     marketNote: '(market: {market})',
-    copyReportLink: 'Copy report link'
+    copyReportLink: 'Copy report link',
+    copyFailed: 'Could not copy',
+    tabs: {
+      flow: 'Flow',
+      copy: 'Copy',
+      seo: 'SEO',
+      ai: 'Found by AI',
+      tests: 'Tests'
+    }
   },
 
-  playbook: {
+  // The four fix-section subtrees are keyed by PLAYBOOK_SECTION, so FlowPlaybook reads
+  // `dictionary[section]` with no mapping table in between.
+  flow: {
     eyebrow: 'Fix the flow',
     title: 'Before you test the words',
     hintLabel: 'Why these have no test button',
@@ -388,8 +391,12 @@ export const en = {
     }
   },
 
-  // Mirrors `playbook` key for key, because FlowPlaybook picks one of the two subtrees by `kind`.
-  // A key added to one has to be added to the other.
+  // `flow`, `visibility`, `seo` and `ai` mirror each other key for key, because FlowPlaybook picks
+  // one of the four subtrees by `section`. A key added to one has to be added to all of them or the
+  // union access in the component stops typechecking.
+  //
+  // `visibility` is the combined section the print report still renders; `seo` and `ai` are the two
+  // slices of those same rows that the tabbed surfaces render.
   visibility: {
     eyebrow: 'Get found',
     title: 'Can a search engine and an AI read this page',
@@ -397,6 +404,82 @@ export const en = {
     hint: 'These come from what your page *declares about itself* - its title, description, structured data, and what its robots.txt allows. We checked the page, *not* your search ranking: nothing here tells you where you rank or whether an AI mentions you today, only whether your page gives them what they need to find and quote you.',
     stepsLabel: 'How to ship it',
     evidenceLabel: 'Why'
+  },
+
+  seo: {
+    eyebrow: 'Get found',
+    title: 'What a search engine can read here',
+    hintLabel: 'What this section checked',
+    hint: 'These come from what your page *declares about itself* - its title, description, canonical, structured data, and what its robots.txt allows. We checked the page, *not* your search ranking: nothing here tells you where you rank or how much traffic you get, only whether your page gives a crawler what it needs to reach and read you.',
+    stepsLabel: 'How to ship it',
+    evidenceLabel: 'Why'
+  },
+
+  ai: {
+    eyebrow: 'Found by AI',
+    title: 'Can a language model quote this page',
+    hintLabel: 'What this section checked',
+    hint: 'An assistant answering a question about your category has to *read an answer off your page* to cite it. These are the things that make one findable: facts stated in text rather than locked inside an image, and questions answered where a model can see them. We checked the page, *not* what any model says today - nothing here tells you whether an AI mentions you right now.',
+    stepsLabel: 'How to ship it',
+    evidenceLabel: 'Why'
+  },
+
+  // The measured readout. Every string here describes WHAT WAS COUNTED and how -- never what the
+  // number will produce. "Your LCP is 4.2s" is a measurement; "this is costing you 12% of signups"
+  // is a promise nobody measured, and it is the sentence that would burn the report's credibility
+  // the first time it did not come true.
+  readout: {
+    eyebrow: 'Measured on your page',
+    title: 'What we counted',
+    hintLabel: 'Where these numbers come from',
+    hint: 'Everything here was *counted on your page* when we loaded it - nothing is estimated, averaged, or taken from a benchmark. Load times are measured from a data center on a clean connection, so treat them as *the best case*: a visitor on mobile sees slower than this, never faster.',
+    groups: {
+      structure: 'What the page asks of a visitor',
+      metadata: 'What the page tells a machine',
+      load: 'What the page costs to open'
+    },
+    // One label per READOUT_FINDING. The value is rendered beside it from the measurement, so these
+    // stay neutral: the label names the thing, the number says how much.
+    findings: {
+      form_fields: 'Signup form fields',
+      no_social_signin: 'Sign in with Google or GitHub',
+      above_fold_ctas: 'Calls to action above the fold',
+      nav_links: 'Navigation links out of the page',
+      no_faq: 'Questions answered on the page',
+      no_testimonials: 'Customer proof on the page',
+      noindex: 'Blocked from search engines',
+      no_meta_description: 'Meta description',
+      h1_count: 'H1 headings',
+      images_missing_alt: 'Images with no alt text',
+      no_structured_data: 'Structured data',
+      no_og_image: 'Social share image',
+      lcp: 'Largest content painted',
+      page_weight: 'Downloaded to open the page',
+      request_count: 'Network requests'
+    },
+    presence: {
+      yes: 'Yes',
+      no: 'No'
+    },
+    // Rendered against `page_weight` alone: SCRAPE_ALLOWED_RESOURCE_TYPES blocks media, so a page
+    // with a hero video really did transfer more than we measured. Understating is the safe
+    // direction for a claim made to a stranger about their own site, but it has to be said out loud.
+    atLeast: 'at least',
+    units: {
+      seconds: '{value}s',
+      megabytes: '{value} MB'
+    },
+    comparison: {
+      title: 'Your page next to the competitors you gave us',
+      hint: 'Measured the same way on each page, at the same screen size.',
+      you: 'Your page',
+      metrics: {
+        form_fields: 'Signup form fields',
+        social_signin: 'Social sign in',
+        above_fold_ctas: 'CTAs above the fold',
+        nav_links: 'Navigation links'
+      }
+    }
   },
 
   hypothesisList: {
@@ -413,11 +496,12 @@ export const en = {
       quickWins: 'Quick wins'
     },
     filterLabel: 'Show',
+    // Keyed by TargetFilter, so the component reads filter[option] with no mapping table. There is
+    // no "hide finished" here: that was test state, and test state lives on the Tests tab.
     filter: {
       all: 'All',
       auto: 'Automatic',
-      manual: 'Manual',
-      hideCompleted: 'Hide finished'
+      manual: 'Manual'
     },
     noMatches: 'No ideas match these filters.',
     resetFilters: 'Clear filters',
@@ -430,6 +514,14 @@ export const en = {
   embedSnippet: {
     title: 'Install the tracking snippet',
     body: 'Paste this once, just before the closing body tag on your landing page. It applies running variants and reports results back automatically.'
+  },
+
+  testList: {
+    eyebrow: 'Prove it',
+    title: 'Run a live test',
+    hintLabel: 'What belongs on this tab',
+    hint: 'Everything about running a test lives here, because it is the step you reach for *after* you have access to the site. Install the snippet once, then run one test at a time: the snippet shows the challenger to half the visitors and the result, not an opinion, decides the winner. Only ideas whose copy maps to a single element can run this way - the rest are shipped by hand from the other tabs.',
+    empty: 'None of the ideas in this analysis map to a single element, so there is nothing the snippet can swap. Ship them by hand from the other tabs.'
   },
 
   runTest: {
@@ -469,7 +561,7 @@ export const en = {
     recommendation: 'Recommendation',
     copyReport: 'Copy report',
     downloadMd: 'Download .md',
-    upgradeToExport: 'Upgrade to export',
+    upgradeToExport: 'Talk to us to export',
     noGoal: 'No conversion goal set, so no conversions are being recorded. Stop this test and relaunch it with a goal to get a result.',
     notEnoughData: 'Not enough data yet.',
     finalizing: 'Finalizing...',
@@ -529,31 +621,22 @@ export const en = {
     error: 'Something went wrong. Please try again.'
   },
 
+  // No self-serve checkout to send anyone to any more: every one of these leads to the contact
+  // section on the landing page, because the deal is closed by a person now.
   upgradePrompt: {
-    eyebrow: 'Solo',
-    title: 'Keep testing without a cap',
-    body: 'Solo unlocks unlimited analyses, competitor mode, unlimited live tests, and exporting any report.',
+    eyebrow: 'Pro',
+    title: 'Send this report under your own name',
+    body: 'On Pro the report carries no mark of ours and no signup wall, so you can hand it to a client. Unlimited analyses, competitor mode and export come with it.',
     dismiss: 'Not now',
     dismissAria: 'Dismiss upgrade prompt'
-  },
-
-  billing: {
-    eyebrow: 'Billing',
-    title: 'Plans & usage',
-    usageCounter: 'analyses used this month',
-    usageOf: 'of',
-    perMonth: '/mo',
-    manageBilling: 'Manage billing',
-    currentPlan: 'Current plan',
-    upgradeTo: 'Upgrade to {plan}',
-    closeCheckoutAria: 'Close checkout'
   },
 
   leads: {
     eyebrow: 'Admin',
     title: 'Waitlist leads',
-    empty: 'No leads yet. They arrive when someone submits the form on a public report.',
+    empty: 'No leads yet. They arrive from a public report wall or the contact form.',
     email: 'Email',
+    source: 'Source',
     phone: 'Phone',
     fromReport: 'From report',
     joined: 'Joined'

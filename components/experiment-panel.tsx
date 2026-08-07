@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SectionBadge } from '@/components/section-badge'
 import {
+  CONTACT_PATH,
   EXPERIMENT_RECOMMENDATION_BADGE_CLASS,
   EXPERIMENT_STATUS_BADGE_CLASS
 } from '@/lib/constants'
@@ -204,7 +205,7 @@ export function ExperimentPanel({
                 </div>
               ) : (
                 <Button asChild size="sm" variant="outline" data-testid="report-export-upgrade">
-                  <Link href="/billing">{dictionary.experimentPanel.upgradeToExport}</Link>
+                  <Link href={CONTACT_PATH}>{dictionary.experimentPanel.upgradeToExport}</Link>
                 </Button>
               )}
             </div>

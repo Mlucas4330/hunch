@@ -32,6 +32,17 @@ export function canExport(plan: User['plan']): boolean {
   return plan !== 'free'
 }
 
+// Whether this owner's public report is a deliverable rather than our lead magnet. A white-labelled
+// report carries no Hunch mark, no "powered by", and no waitlist wall -- it is handed to the
+// customer's own client, and a wall there would ask that client for an email on our behalf while
+// hiding half the work the owner is presenting.
+//
+// This is the capability the paid plan is actually bought for, so it is named rather than written as
+// `plan !== 'free'` at each of the four places that ask (page, footer, metadata, OG image).
+export function canWhiteLabel(plan: User['plan']): boolean {
+  return plan !== 'free'
+}
+
 export function usageFor(user: UsageUser, now: Date = new Date()) {
   return {
     analyses_count: effectiveAnalysesCount(user, now),

@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/current-user'
 import { stripe, priceIdForPlan } from '@/lib/stripe'
 import { appOrigin } from '@/lib/app-url'
 import { SUBSCRIPTION_PLAN } from '@/lib/enums'
+import { POST_SIGNIN_REDIRECT } from '@/lib/constants'
 
 const PAID_PLANS = SUBSCRIPTION_PLAN.filter((plan) => plan !== 'free')
 
@@ -39,7 +40,9 @@ export async function POST(request: Request) {
       mode: 'subscription',
       customer: customerId,
       line_items: [{ price, quantity: 1 }],
-      return_url: `${origin}/billing?checkout=complete&session_id={CHECKOUT_SESSION_ID}`,
+      // Dormant, and returning to the dashboard rather than to the deleted /billing -- see the note
+      // on the portal route.
+      return_url: `${origin}${POST_SIGNIN_REDIRECT}?checkout=complete&session_id={CHECKOUT_SESSION_ID}`,
       metadata: { userId: user.id, plan },
       subscription_data: { metadata: { userId: user.id, plan } }
     })

@@ -50,6 +50,20 @@
       "when": 1786054395336,
       "tag": "0006_closed_prodigy",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786136078685,
+      "tag": "0007_lonely_maximus",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786138846239,
+      "tag": "0008_sparkling_living_lightning",
+      "breakpoints": true
     }
   ]
 }

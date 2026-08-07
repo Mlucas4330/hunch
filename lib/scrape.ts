@@ -7,6 +7,7 @@ import {
   STRUCTURE_PATTERNS,
   SCRAPE_ALLOWED_RESOURCE_TYPES,
   SCRAPE_ASSET_READY_TIMEOUT_MS,
+  SCRAPE_LCP_FLUSH_MS,
   SCRAPE_MAX_CONCURRENT_PAGES,
   SCRAPE_MAX_RESPONSE_BYTES,
   SCRAPE_PAINT_SETTLE_MS,
@@ -53,6 +54,18 @@ export interface PageStructure {
   wordCount: number
 }
 
+// One competitor's page, measured the same way the analyzed page is. Only ever populated in paid
+// Competitor mode: there the URLs are scraped anyway to build the research brief, so keeping the
+// `structure` that scrape already returned costs nothing. The auto path's competitors are URLs a
+// model cited without anyone opening them, and measuring those would mean 2-3 extra page loads on the
+// critical path of every analysis -- so that path stores none and the comparison simply does not
+// render.
+export interface CompetitorStructure {
+  name: string
+  url: string
+  structure: PageStructure
+}
+
 // What a crawler and a language model can find, read, and cite. Sibling of PageStructure and held to
 // the same discipline -- flat, measured, no inference -- but a separate readout because it answers a
 // different question: PageStructure is what the page DOES, this is how the page is DESCRIBED.
@@ -81,6 +94,33 @@ export interface PageSeo {
   jsonLdTypes: string[]
 }
 
+// What the page COSTS to load. Third sibling of PageStructure and PageSeo, under the same discipline
+// -- flat, measured, no inference -- and the only one of the three read from the Performance API
+// rather than the DOM.
+//
+// Every field is nullable rather than defaulted, because the fallback for a metric a browser did not
+// report is not zero: a 0ms LCP renders as an instant page, which is the opposite of the fact. An
+// absent measurement has to stay absent all the way to the reader.
+//
+// Two limits are inherent to measuring here and must reach the reader as words, not just as this
+// comment (see the `readout` dictionary):
+//
+//   - It is measured from the deploy's network against a warm datacenter connection, so it is a
+//     FLOOR. A visitor on mobile is slower than this, never faster.
+//   - SCRAPE_ALLOWED_RESOURCE_TYPES blocks `media`, so `transferredBytes` UNDERSTATES a page with a
+//     hero video. Understating is the safe direction for a claim we make to a stranger about their
+//     own page, which is why it is stated as "at least" rather than corrected for.
+export interface PagePerformance {
+  ttfbMs: number | null
+  fcpMs: number | null
+  lcpMs: number | null
+  domContentLoadedMs: number | null
+  loadMs: number | null
+  transferredBytes: number | null
+  requestCount: number
+  domNodeCount: number
+}
+
 export type TargetMode = 'auto' | 'manual'
 
 export interface GoalCandidate {
@@ -100,6 +140,7 @@ export interface ScrapedPage {
   elements: PageElement[]
   structure: PageStructure
   seo: PageSeo
+  performance: PagePerformance
 }
 
 export class ScrapeError extends Error {
@@ -233,7 +274,7 @@ async function openGuardedPage(browser: Browser): Promise<Page> {
   page.setDefaultTimeout(SCRAPE_NAVIGATION_TIMEOUT_MS)
 
   // The functions handed to page.evaluate() are serialized as source, so whatever transpiled them
-  // comes along. esbuild (which is what runs `npm run test:screenshot` through tsx) wraps named
+  // comes along. esbuild (which is what runs `npm run preview:screenshot` through tsx) wraps named
   // functions in a __name() helper that lives in the module scope and therefore does not exist in
   // the page, making every evaluate throw "__name is not defined". Declaring it as an identity
   // function in the page is what lets the scraper run outside the Next build. Passed as a string so
@@ -314,7 +355,12 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
         ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
       })
       const seo = await page.evaluate(captureSeo)
-      return { url, html, elements, structure, seo }
+      // Last of the three readouts, and the only one that must run after settlePage rather than
+      // merely being allowed to: LCP is not final until the largest element has actually painted.
+      const performance = await page.evaluate(capturePerformance, {
+        lcpFlushMs: SCRAPE_LCP_FLUSH_MS
+      })
+      return { url, html, elements, structure, seo, performance }
     } catch (error) {
       throw new ScrapeError(`Failed to scrape ${url}`, { cause: error })
     } finally {
@@ -387,7 +433,10 @@ type ApplyOutcome = 'ok' | 'not_found' | 'mismatch'
 // replace, so every styled fragment keeps a share of the copy and still renders. The split point
 // follows the original fragment sizes, so a span may end up wrapping a different word than the
 // designer chose; that is strictly better than the span disappearing.
-function applyVariantCopy(options: {
+// Exported for e2e/apply-variant-copy.spec.ts, which drives it against synthetic markup in a real
+// browser. It stays a self-contained function referencing nothing from this module's scope, because
+// it is serialized as source into the page -- see the __name note in openGuardedPage.
+export function applyVariantCopy(options: {
   selector: string
   variantCopy: string
   controlCopy: string | null
@@ -731,6 +780,67 @@ function captureSeo(): PageSeo {
     hasOgDescription: attr('meta[property="og:description"]', 'content') !== null,
     hasOgImage: attr('meta[property="og:image"]', 'content') !== null,
     jsonLdTypes: Array.from(jsonLdTypes)
+  }
+}
+
+// Runs in the browser context: read what the page cost to load. Like captureSeo it takes no options,
+// because there is nothing to match against -- the Performance API either recorded an entry or it did
+// not, and "did not" is reported as null rather than smoothed into a number.
+async function capturePerformance(options: { lcpFlushMs: number }): Promise<PagePerformance> {
+  function round(value: number | null | undefined): number | null {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null
+    return Math.round(value)
+  }
+
+  // LCP is the one metric that is NOT in the performance timeline: getEntriesByType never returns a
+  // largest-contentful-paint entry, and reading it that way silently yields null on every page --
+  // measured, and exactly what this looked like before. A PerformanceObserver with `buffered: true`
+  // is the only way to receive the entries the browser already recorded, and it delivers them on a
+  // later task, which is what the wait below is for.
+  const lcpMs = await new Promise<number | null>((resolve) => {
+    let latest: number | null = null
+    try {
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) latest = entry.startTime
+      })
+      observer.observe({ type: 'largest-contentful-paint', buffered: true })
+      setTimeout(() => {
+        observer.disconnect()
+        resolve(latest)
+      }, options.lcpFlushMs)
+    } catch {
+      // A browser without the entry type reports nothing rather than failing the scrape.
+      resolve(null)
+    }
+  })
+
+  const navigation = window.performance.getEntriesByType('navigation')[0] as
+    | PerformanceNavigationTiming
+    | undefined
+
+  const paint = window.performance
+    .getEntriesByType('paint')
+    .find((entry) => entry.name === 'first-contentful-paint')
+
+  const resources = window.performance.getEntriesByType(
+    'resource'
+  ) as PerformanceResourceTiming[]
+
+  // A cross-origin response without Timing-Allow-Origin reports transferSize 0, so this is a sum over
+  // what the browser was allowed to tell us -- one more reason the total is reported as a floor.
+  const transferred =
+    (navigation?.transferSize ?? 0) +
+    resources.reduce((total, entry) => total + (entry.transferSize || 0), 0)
+
+  return {
+    ttfbMs: round(navigation?.responseStart),
+    fcpMs: round(paint?.startTime),
+    lcpMs: round(lcpMs),
+    domContentLoadedMs: round(navigation?.domContentLoadedEventEnd),
+    loadMs: round(navigation?.loadEventEnd),
+    transferredBytes: transferred > 0 ? transferred : null,
+    requestCount: resources.length,
+    domNodeCount: document.getElementsByTagName('*').length
   }
 }
 

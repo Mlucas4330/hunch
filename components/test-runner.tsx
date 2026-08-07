@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ExperimentPanel, type PanelExperiment } from '@/components/experiment-panel'
 import {
+  CONTACT_PATH,
   DEFAULT_EXPERIMENT_DURATION,
   GOAL_CANDIDATE_LIMIT,
   VARIANTS_PER_HYPOTHESIS
@@ -328,7 +329,7 @@ function LaunchForm({
       {gated && (
         <p className="text-sm text-red">
           {dictionary.testRunner.gatedBefore}{' '}
-          <Link href="/billing" className="font-medium underline underline-offset-2">
+          <Link href={CONTACT_PATH} className="font-medium underline underline-offset-2">
             {dictionary.common.upgrade}
           </Link>{' '}
           {dictionary.testRunner.gatedAfter}

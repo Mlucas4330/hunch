@@ -2,13 +2,12 @@
 
 | Route            | Page                | Description                                          |
 | ---------------- | ------------------- | ---------------------------------------------------- |
-| `/`              | Landing page        | Marketing: two tracks (report / optional live test), pricing tiers, CTA |
+| `/`              | Landing page        | Credibility surface for a human-led sale: two tracks, contact form, **no prices** |
 | `/auth/signin`   | Auth page           | Google OAuth sign in via NextAuth; returns to `callbackUrl` |
 | `/dashboard`     | Dashboard / history | List of past analyses, "New analysis" button         |
-| `/analyses/[id]` | What to test        | Install snippet, flow playbook, ranked hypotheses with a recommended challenger |
+| `/analyses/[id]` | What to test        | Five tabs: flow, copy, SEO, found-by-AI, and tests (snippet + launch) |
 | `/analyses/[id]/tests/[hypothesisId]` | Run a test | Approve/swap/edit the challenger, set the conversion goal, launch, monitor results |
-| `/billing`       | Billing / upgrade   | Stripe checkout trigger, plan display, usage counter |
-| `/r/[embedKey]`  | Public report       | Outreach surface: ranked teardown, variant previews, waitlist wall. No session |
+| `/r/[embedKey]`  | Public report       | Two shapes by owner plan: our lead magnet (free) or their unbranded deliverable (paid). No session |
 | `/admin/leads`   | Waitlist leads      | Operator-only (`ADMIN_EMAIL`); the only place waitlist rows can be read |
 
 ## Shared layout components
@@ -26,8 +25,8 @@
 - `components/language-toggle.tsx`: an EN / PT pair of submit buttons in one `<form>` posting to the
   `setLocale` server action (`lib/actions/locale.ts`), which writes the `locale` cookie and
   `revalidatePath('/', 'layout')`. No client JS, no URL change.
-- Rendered in `components/footer.tsx`, which both `(app)` and `(report)` layouts mount, so the toggle
-  is reachable signed-out, signed-in, and on the public report.
+- Mounted in `components/navbar.tsx` and, separately, in the public report's own header - the report
+  has no navbar, and it is read signed-out by someone who may not read English.
 
 ### i18n
 
@@ -45,7 +44,16 @@
 - Enum values (`SECTIONS`, `FLOW_CATEGORY`, `EXPERIMENT_STATUS`, ...) are Postgres enum values and
   are **never** translated - only their display labels under `dictionary.labels.*` are.
 - Dates and decimals go through `formatDate` / `formatDecimal` / `formatNumber` in
-  `lib/i18n/format.ts`. Prices stay in USD (Stripe is USD-only); only the `/mo` suffix is translated.
+  `lib/i18n/format.ts`.
+- **`pt-BR` is a rewrite, not a translation.** Two rules, both learned from real breakage:
+    - **A technical term the Brazilian market uses in English stays in English.** LCP, meta
+      description, alt, CTA, snippet, deploy, landing page, placeholder. Translating those does not
+      make the text clearer, it makes it harder to recognize - and the reader works in the field.
+      "Baixado para abrir a página" for page weight is the shape of the mistake.
+    - **Accents are not optional.** The whole `metadata` subtree once shipped stripped of them
+      ("analises", "voce", "conversao") - which is the browser tab and the unfurl. This is also why
+      the prompts' typographic rule restricts *punctuation* and must never be phrased as "plain
+      ASCII": that silently forbids the characters Portuguese requires.
 - AI-generated content (hypotheses, variant copy, rationales, flow fixes) is written in the UI locale
   the analysis was run in, pinned to `analyses.locale`. Switching language afterwards does not
   retranslate an existing analysis. `current_copy` is the exception: it quotes the analyzed page
@@ -57,6 +65,11 @@
 - Free users only: renders nothing when `limit` is null, and nothing until 1 analysis remains
 - Soft amber warning at 2/3; red hard block at 3/3, which also disables the URL form's input and
   submit via the `blocked` prop, so the gate is visible before submitting rather than as a 403 after
+- The count is the *effective* one from `usageFor()`, which reads 0 once the monthly window has
+  rolled over, so it never shows a stale number from a lapsed period
+- This is the **only** place the allowance is shown. There used to be a separate usage counter on
+  `/billing`; it went with that page, and its strings went with the `billing` dictionary subtree -
+  `usageOf` moved here, which is where the rest of this component's sentence already lived
 
 ### Empty state
 
@@ -65,16 +78,25 @@
 
 ## Landing page
 
-The page sells **two paths**, not one - the ranked report is the deliverable, the live test is the
-optional proof step. All copy comes from `dictionary.landing`.
+Written for the reader who **sells CRO to other people**, not for the founder auditing their own
+page. It is a credibility surface, not a self-serve funnel: the sale is run by a person, and what
+this page has to do is survive being googled after a cold report lands. All copy comes from
+`dictionary.landing`.
 
-- Hero: the report arrives in minutes with no code; the script tag and timed test are what you reach
-  for when you want proof.
-- `#how` renders `landing.tracks`: "Get the plan" (minutes, no code) and "Prove it live" (marked
-  optional), each a 3-step `<ol>` numbered from 01 within its own track.
-- The value cards (`landing.proof`) cover one benefit each: ranked-and-grounded hunches, finished
-  variant copy, and proof on demand. Never let all three be about live testing again.
-- Pricing maps `SUBSCRIPTION_PLAN` directly. Never render a tier that cannot be checked out.
+- Hero: the prospect's page, measured, sent under the reader's own name.
+- `#how` renders `landing.tracks`: "Send the report" (minutes, no access needed) and "Prove the lift"
+  (marked *after the contract*), each a 3-step `<ol>` numbered from 01 within its own track. The
+  second track is deliberately placed after the close - nobody installs a script tag for a prospect.
+- The value cards (`landing.proof`) cover one benefit each: measured-not-asserted, finished copy, and
+  yours-to-send. Never let all three be about live testing again.
+- **The page publishes no price, and that is not an oversight.** The pricing table was removed
+  because the deal is negotiated by a person and a visible self-serve number anchors that
+  conversation to itself before it starts. `/billing` still renders the real tiers for signed-in
+  users, and the old rule holds there: never render a tier that cannot be checked out. The e2e case
+  `publishes no price publicly` is what keeps a price from drifting back onto `/`.
+- `#contact` replaces it: `WaitlistForm` with `source="contact"`, posting to the existing
+  `/api/waitlist`. No new endpoint and no new table - the leads land beside the report ones and are
+  read in `/admin/leads`, separated by their `source`.
 
 ## Core feature components
 
@@ -107,31 +129,54 @@ written during the analysis) and the live test decides the actual winner.
   market is named there because it is the only thing that explains the list beside it: detection reads
   the page, and when it reads it wrong the failure surfaces as inexplicably foreign competitors unless
   the reader can see which market was used.
-- A one-time **Install snippet** card (`components/embed-snippet.tsx`) - site-level setup. It is
-  mounted by the **page**, not by `HypothesisList`, so the section order (snippet -> playbook ->
-  hypotheses) is decided in one place rather than by where the snippet happens to be rendered.
-- The **flow playbook** (`components/flow-playbook.tsx`) - fix the flow before testing the wording.
-- A ranked list of hypotheses (impact desc), **tiered rather than flat** - an analysis is 5-8 copy
-  tests on top of 3-6 flow fixes, and a stack of identical cards makes row 1 and row 14 read as
-  equally important when the founder's job is picking one:
-    - The first `HYPOTHESIS_EXPANDED_COUNT` (3) render as full cards: section badge, the problem,
-      impact/effort `ScoreIndicator`s, the recommended challenger copy (`variants[0]`), and a
-      **"Set up test"** button linking to Screen 2 (`/analyses/[id]/tests/[hypothesisId]`). The
-      top card carries a coral ring and the "Test this first" flag.
-    - Everything past that collapses into a `DisclosureCard` row (rank, badges, truncated problem,
-      compact scores) that opens into the same body. `HypothesisBody` is shared by both tiers, so
-      the challenger block and the CTA are written once.
-    - A hypothesis whose experiment is `running` opens by default whatever its rank. A live test is
-      never something the reader has to go hunting for.
+- Five tabs (`components/analysis-tabs.tsx`, over the `ANALYSIS_TAB` enum): **Flow** (the playbook),
+  **Copy** (the hypotheses), **SEO**, **Found by AI** and **Tests**. `flow` opens first - fix the
+  structure before testing the wording - and if it is empty the first non-empty tab opens instead.
+    - The two report surfaces render the same shell; only the print report stays stacked.
+    - Every panel stays mounted and inactive ones are `hidden`, so switching tabs never remounts
+      `TestList` (which would refetch `/api/experiments`) or an already-rendered preview.
+    - **`tests` never appears on the public report.** That surface passes `tests: 0` and the
+      empty-tab rule below holds it out - a prospect reading someone else's teardown installs no
+      snippet. It is also the last tab on purpose: deciding what to change comes before proving it.
+    - **An empty tab is not rendered.** `FlowPlaybook` returns `null` for an empty list, so the shell
+      computes emptiness itself. This is the normal case for analyses generated before the
+      visibility audit existed: their rows are all `flow`, so SEO and AI are genuinely empty.
+    - `seo` and `ai` are the same `kind = 'visibility'` rows split by category (`splitVisibility` in
+      `lib/analyses.ts`), not a column. No migration divides them.
+- A ranked list of hypotheses (impact desc). **Every row is a `DisclosureCard`** - one shape, no
+  tiers. The first `HYPOTHESIS_EXPANDED_COUNT` (3) merely start open. Being open is always a
+  default, never a state the reader is stuck in:
+  there used to be a separate always-open card component, and a reader who had finished with row 1
+  had no way to fold it away.
+    - The body carries the recommended challenger copy (`variants[0]`) and the **"Why this works"**
+      block. The top row carries a coral ring and the "Test this first" flag.
+    - **No "Set up test" button, and no experiment status.** Launching moved to the Tests tab along
+      with the snippet, so this list knows nothing about experiments - which is also why it makes no
+      request at all any more.
 - A sort/filter bar (`components/hypothesis-filters.tsx`), rendered only once there are
   `HYPOTHESIS_FILTER_THRESHOLD` (4) hypotheses - below that it is noise. Sort by impact / effort /
   quick wins (`isQuickWin` in `lib/constants.ts`, the same definition the print report's summary
-  cell uses); filter by `HYPOTHESIS_TARGET` and hide finished tests. Pure client state over rows
-  already loaded - no new request, no URL params.
+  cell uses) and filter by `HYPOTHESIS_TARGET`. Pure client state over rows already loaded - no new
+  request, no URL params. There is deliberately **no "hide finished"** chip: that is test state, and
+  test state lives one tab over.
 - **"Test this first" is tied to the default order.** It renders only under impact sort with no
   filters applied; under any other order the first row is the first match, not a recommendation.
-- The list fetches the analysis's experiments (`GET /api/experiments?analysisId=`); a hypothesis that
-  already has a test shows its `EXPERIMENT_STATUS` badge and a **"View test"** button instead.
+
+**The Tests tab** (`components/test-list.tsx`):
+
+- Everything about running a live test, in one place, because testing is the step you reach for
+  *after* the work is won and you have access to the site. It used to be split between a snippet
+  card above the tabs and a button inside every copy idea, which put setup in front of readers who
+  were not testing and hid it from the ones who were.
+- Holds the `EmbedSnippet` card plus one row per **`auto`** hypothesis: section badge,
+  `EXPERIMENT_STATUS` pill, impact chip, and the Set up / View test link to Screen 2.
+- Rows are not `DisclosureCard`s. The ranked lists are things to read and weigh; this is a list of
+  things to launch, so each row is one line.
+- The tab's count is the number of `auto` hypotheses, so an analysis where every idea is `manual`
+  has **no Tests tab and no snippet card** - there would be nothing for the snippet to swap.
+- It owns the `GET /api/experiments?analysisId=` fetch that `HypothesisList` used to make. The
+  request moved rather than multiplied. A `running` experiment sorts to the top, which is where the
+  old "a running test always starts open" rule went.
 
 **Screen 2 - "Run the test"** (`app/analyses/[id]/tests/[hypothesisId]/page.tsx` +
 `components/test-runner.tsx`):
@@ -159,6 +204,35 @@ written during the analysis) and the live test decides the actual winner.
 - Launching a second test on a hypothesis that still has one running answers `409 already_running`
   and surfaces `testRunner.alreadyRunning` inline, beside the existing `403` and `422` branches.
 
+### Measured readout (`components/measured-readout.tsx`)
+
+The only section of the product that states numbers, and everything in it was counted on the scraped
+page by `lib/readout.ts`. Nothing here was written by a model and nothing here is passed to one - the
+quantitative ban on generated `evidence` is untouched and governs a different producer.
+
+- Mounted on **all three** analysis surfaces, like `FlowPlaybook`, fed by `readoutFor(analysis)`:
+  above the tabs on `/analyses/[id]`, between the `<h1>` and the tabs on the public report, and ahead
+  of both fix lists on the print report.
+- **Outside every wall on the public report.** It is the part a stranger can check against their own
+  page in one click, so it is what earns the rest of the document a reading; gating a measurement of
+  someone's own site behind an email reads as a trick.
+- Returns `null` when nothing was measured, so an analysis created before the columns existed has no
+  section rather than an empty heading - the same contract `FlowPlaybook` has with an empty list.
+- Rendered as a **grid of label + value**, not sentences, over `READOUT_GROUP`. A single string per
+  finding then covers every severity; a sentence would have to be rewritten per state, and a presence
+  finding's sentence is false in its own `ok` case.
+- Severity colours come from `READOUT_SEVERITY_CLASS`: `ok` green, `warn` amber, `alert` coral. Green
+  is load-bearing - a readout that is all coral reads as a sales pitch.
+- Units convert **here and only here** (`BYTES_PER_MEGABYTE`, `MS_PER_SECOND`); the readout keeps
+  bytes and milliseconds so nothing is rounded twice. `page_weight` renders behind
+  `readout.atLeast`, because the scrape blocks media.
+- The comparison table is the one wide element, so it lives in its own `overflow-x-auto` - the report
+  is read on a phone as often as not. It renders only in Competitor mode, where the competitor pages
+  were genuinely opened and measured.
+- Copy discipline: every string says **what was measured and how**, never what the number will
+  produce. Do not let a "this is costing you X%" line in here - it is the promise that burns the
+  report the first time it does not come true.
+
 ### Flow playbook and visibility audit (`components/flow-playbook.tsx`)
 
 **Two ranked lists, one component.** The flow playbook (structural conversion fixes) and the
@@ -167,35 +241,44 @@ identical shape and share one table, so one component renders both on **all thre
 surfaces: the analysis screen, the owner print report, and the public report. Nothing is duplicated
 per surface or per kind.
 
-`kind` (`flow` by default, or `visibility`) selects the dictionary subtree and the `data-testid`, and
-nothing else -- there is no branch on it below the heading, which is the point. Consequences:
+`section` (`PLAYBOOK_SECTION`: `flow` by default, or `visibility` / `seo` / `ai`) selects the
+dictionary subtree and the `data-testid`, and nothing else -- there is no branch on it below the
+heading, which is the point. Consequences:
 
-- `dictionary.visibility` mirrors `dictionary.playbook` key for key. A key added to one must be added
-  to the other or the union access in the component stops typechecking.
-- Test ids are `${kind}-playbook` and `${kind}-fix`, so the flow section keeps `flow-playbook` /
-  `flow-fix` exactly and the existing e2e counts hold. **A shared `flow-fix` id across both sections
-  would have broken those counts silently** -- the e2e asserts the two families never merge.
-- Rows are split by `splitFixes` (`lib/analyses.ts`), never filtered inline at a call site.
+- `dictionary.flow`, `.visibility`, `.seo` and `.ai` mirror each other key for key, and are keyed by
+  the enum value so the component reads `dictionary[section]` with no mapping table. A key added to
+  one must be added to all four or the union access stops typechecking.
+- Test ids are `${section}-playbook` and `${section}-fix`, so no two families can be counted as one.
+  **A shared `flow-fix` id across sections would break the e2e counts silently** -- those counts are
+  what assert the families never merge.
+- Rows are split by `splitFixes` and `splitVisibility` (`lib/analyses.ts`), never filtered inline at
+  a call site.
+- **`visibility` is not dead.** It is the single combined section the print report renders, because
+  on paper there is nothing to click and the SEO / AI split would only mean two headings.
 
 They render as separate sections rather than one impact-ranked list: a founder deciding what to test
-first should not have "write a meta description" ranked in among the conversion fixes. On the analysis
-screen the visibility section sits **last**, after the hypotheses, for the same reason.
+first should not have "write a meta description" ranked in among the conversion fixes.
 
-- Per fix: `FlowCategoryBadge`, two `ScoreIndicator`s, the title, the problem, the `steps` as an
-  `<ol>` numbered `01`-style (`font-mono tabular-nums`, the same idiom as `landing.tracks`), and the
-  evidence line. Cards carry `break-inside-avoid` because one of the three surfaces is a print view.
+- Per fix: `FlowCategoryBadge`, two `ScoreIndicator`s, the title, the problem, the **"Why" block**
+  (`components/why-block.tsx`) and then the `steps` as an `<ol>` numbered `01`-style (`font-mono
+  tabular-nums`, the same idiom as `landing.tracks`). Cards carry `break-inside-avoid` because one of
+  the three surfaces is a print view.
+- **The "Why" comes before the steps, and is a panel rather than a footnote.** It used to be 12px
+  muted text under the steps block, with a 9.6px label - readers reported never noticing the
+  reasoning existed at all. Do not shrink it back below the copy it explains.
 - **There is deliberately no "Set up test" button.** A flow fix changes structure, not one line of
   text, so the embed snippet has nothing to swap and there is nothing to A/B. The `InfoHint` on the
   heading exists to say exactly that; do not add a test action here.
 - Renders `null` when there are no fixes, so an analysis whose playbook generation failed simply has
-  no playbook section rather than an empty heading.
-- `expandFrom` is the index past which fixes collapse into `DisclosureCard` rows. The analysis screen
-  and the public report pass `PLAYBOOK_EXPANDED_COUNT` (2); the **print report passes nothing**, so
-  every fix stays open - nothing may be hidden on paper. Collapsed rows keep `data-testid="flow-fix"`
-  so the e2e counts hold across both renderings.
-- On the public report both sections sit in front of `WaitlistWall` and outside
-  `REPORT_PREVIEW_LIMIT`: they are the strongest reason a prospect keeps reading, so they are never
-  what gets blurred.
+  no playbook section rather than an empty heading. `AnalysisTabs` relies on this and hides a tab
+  whose count is 0.
+- **Every fix is a `DisclosureCard`.** `expandFrom` is the index past which they *start* closed - the
+  two tabbed surfaces pass `PLAYBOOK_EXPANDED_COUNT` (2), the **print report passes nothing**, so
+  every fix starts open (nothing may be hidden on paper). Either way a row can be closed.
+- On the public report every tab is gated on its own: `REPORT_FIX_PREVIEW_LIMIT` (2) fixes, or
+  `REPORT_PREVIEW_LIMIT` (3) hypotheses, then that tab's own `WaitlistWall` and the rest blurred. One
+  wall per tab, not one per page -- a tab the reader never opens cannot be what asks for an email.
+  Blurred placeholder rows carry **no** `data-testid`, so the e2e counts keep meaning "shown".
 - The visibility section's `hint` states the limit of what was measured: the audit read the page, not
   the index. It promises nothing about ranking and nothing about whether an AI mentions the product
   today. Do not soften that into a claim the audit cannot support.
@@ -222,6 +305,40 @@ screen the visibility section sits **last**, after the hypotheses, for the same 
     - `navigation` -> gray
     - `other` -> gray
 
+### Info hint (`components/info-hint.tsx`)
+
+The `i` beside a section heading. Opens on hover, on click and on keyboard focus; closes on `Escape`,
+on a click outside, or when the pointer leaves. Hover and click are held as two pieces of state, so
+clicking an icon the pointer is already over pins the panel instead of toggling it shut.
+
+Dismissal is a document-level `pointerdown` listener, **never a `fixed inset-0` catcher element**.
+That is what it used to be, and it did not work: `.animate-fade-up` runs with
+`animation-fill-mode: both`, so the analysis page's root keeps a `transform` forever after the
+animation ends, and a transform other than `none` makes that element the containing block for its
+`position: fixed` descendants (and opens a stacking context around them). The catcher covered the
+analysis container rather than the viewport. A listener has no geometry to get wrong.
+
+The panel is width-capped against the viewport (`max-w-[min(18rem,calc(100vw-2rem))]`): it is
+anchored to a 16px icon, so a fixed width runs off-screen wherever that icon sits near an edge.
+
+### Report links (`components/copy-report-link.tsx`)
+
+**One control, not three.** The header used to carry "open shareable report", "copy report link" and
+"print report" side by side - the first two went to the same place, and a row of equal-weight buttons
+was the reason none of them read as the primary action.
+
+What is left: a **copy report link** button, and a `lucide-react` printer **icon** linking to
+`/analyses/[id]/report`. Opening the link is gone (copying it is what you came to do, and the reader
+can open what they pasted); printing is the rarer action, so it is an icon.
+
+- The icon is `aria-hidden` and the accessible name is on the link - an icon-only control with no
+  name is invisible to a screen reader, and the label doubles as the tooltip for everyone else.
+- The copy button keeps its explicit failure state and `document.execCommand` fallback, because
+  `navigator.clipboard` is undefined outside a secure context: on plain http the promise rejected
+  unhandled and the button was simply dead.
+- The origin has its trailing slash stripped, the same normalization
+  [`siteOrigin()`](lib/app-url.ts) does.
+
 ### Score indicator
 
 - Visual bar or numbered badge for `impact_score` and `effort_score` (1-10)
@@ -234,15 +351,30 @@ screen the visibility section sits **last**, after the hypotheses, for the same 
 
 ### Disclosure card (`components/disclosure-card.tsx`)
 
-The collapsed row shared by `HypothesisList` and `FlowPlaybook`. A native `<details>` wrapping a
+**Every** ranked row, on every surface: hypotheses and fixes alike. A native `<details>` wrapping a
 `Card`, not React state: it costs no client JS and renders identically inside the server-rendered
 public report and the client-rendered analysis list, so one component covers both surfaces. The
 `+` / `-` affordance is `aria-hidden` - the summary's title is the accessible name.
+
+Top rows arrive with `defaultOpen` rather than through a separate always-open card component. That
+is the point of the shape: what a row starts as is a default, never a state the reader is stuck in.
 
 An open row **is** a full card and is dressed like one: the title stops truncating and `openScores`
 (full `ScoreIndicator` gauges) replaces the compact chips. Both score sets are rendered and swapped
 with `group-open:`, so the component stays CSS-only. They carry identical aria-labels and a
 `display:none` element is not announced, so the swap is invisible to a screen reader.
+
+The title renders as an `<h3>` inside the `<summary>`. Since every row is one of these, a `<span>`
+there would leave the section's items with no headings at all - for a screen reader walking the page
+or for anything selecting them by role.
+
+### Why block (`components/why-block.tsx`)
+
+The reasoning behind a ranked item, on all three surfaces. It is a component because it was
+previously neither consistent nor readable: a fix's `evidence` was 12px muted text under the steps
+panel, the public report folded the same text into a 9.6px `<details>`, and a hypothesis's
+`rationale` - which the model is required to write - was **never rendered on the analysis screen at
+all**. Body-sized foreground text in a tinted panel; do not quiet it back down.
 
 ## Live experiment components
 
@@ -250,8 +382,8 @@ with `group-open:`, so the component stays CSS-only. They carry identical aria-l
 
 - Copy-to-clipboard card showing `<script src="<APP_URL>/embed.js" data-key="<embedKey>"></script>`.
 - `APP_URL` comes from `NEXT_PUBLIC_APP_URL`, falling back to `window.location.origin`.
-- One tag per landing page (keyed on `analyses.embedKey`), installed once on Screen 1; the same tag
-  serves whichever test is running.
+- One tag per landing page (keyed on `analyses.embedKey`), installed once from the **Tests tab**; the
+  same tag serves whichever test is running.
 
 ### Experiment results panel (`components/experiment-panel.tsx`)
 
@@ -274,30 +406,31 @@ with `group-open:`, so the component stays CSS-only. They carry identical aria-l
 - Experiment status -> pill color: `running` -> amber, `completed` -> green, `stopped` -> gray
   (from `EXPERIMENT_STATUS_BADGE_CLASS`).
 
-## Billing components
+## Plan prompts
 
-### Plan card
+**There is no billing UI.** `/billing`, the checkout dialog and the manage-billing button are gone
+with the rest of the self-serve shop window: the deal is closed by a person, and the landing page
+publishes no price. Every "you need a paid plan for this" prompt therefore points at `CONTACT_PATH`
+(`/#contact`, in `lib/constants.ts`) rather than at four different dead ends.
 
-- Displays free / solo tiers
-- Features list per tier
-- CTA button triggers `POST /api/billing/checkout`
-
-### Usage counter
-
-- "2 of 3 analyses used this month"
-- Pulls from `GET /api/usage`
-- Only visible to free tier users
-- The count is the *effective* one from `usageFor()`, which reads 0 once the monthly window has
-  rolled over, so it never shows a stale number from a lapsed period
+What stays is everything that *grants* the plan: the `plan` column, `canWhiteLabel` / `canExport`,
+and the three routes under `app/api/billing/`. The webhook is the load-bearing one - a sale you close
+and invoice through Stripe still promotes the account with nobody editing the database. `checkout`
+and `portal` are dormant but live, so reopening the shop window later is a UI-only change; both
+return to `POST_SIGNIN_REDIRECT`, because a dormant route that lands a paying customer on the deleted
+`/billing` is a trap for whoever re-enables it.
 
 ### Upgrade prompt (`components/upgrade-prompt.tsx`)
 
-The post-value upsell, and the counterpart to the public report: the report captures a *prospect's*
-email, this converts your own free users. Rendered at the end of `/analyses/[id]` when
-`user.plan === 'free'`, so it is never what stands between someone and the analysis they asked for.
+The post-value ask, and the counterpart to the public report: the report captures a *prospect's*
+email, this starts a conversation with your own free users. Rendered at the end of `/analyses/[id]`
+when `user.plan === 'free'`, so it is never what stands between someone and the analysis they asked
+for.
 
+- It sells **white-label**, not volume: the report going out without our mark and without a signup
+  wall is the thing a paid plan is bought for.
 - Deliberately says nothing about the remaining allowance. `UsageBanner` already counts that on the
-  dashboard and the experiment panel already offers the export upgrade - three components repeating
+  dashboard and the experiment panel already offers the export prompt - three components repeating
   one number is how a paywall starts to feel like nagging.
 - Dismissal is written to `localStorage` under `UPGRADE_PROMPT_DISMISSED_KEY`, so it is per browser,
   not per user. Making it per user needs a `users` column and a write endpoint, which is more than a
@@ -308,16 +441,53 @@ email, this converts your own free users. Rendered at the end of `/analyses/[id]
 - Only the paid half is covered by e2e. The suite signs in through the credentials hatch, which forces
   that user to `solo` (`auth.ts`), so what the fixture can prove is that a paying customer is **never**
   shown an upsell. The free-plan half needs a genuinely free account and is checked by hand.
+- The **public report's two shapes have exactly the same limitation**, for exactly the same reason:
+  the suite can assert the unbranded, unwalled paid report and cannot reach the free, walled one.
+  Anything that must hold for the free shape is verified by hand.
 
 ## Public report (`app/(report)/r/[embedKey]/page.tsx`)
 
 The outreach surface: no session, no navbar, its own layout. Read by a prospect who never asked for
 it, so nothing here may 404 loudly or leak whether an unknown key exists.
 
-- The **flow playbook** in full, after the competitor pills and in front of the wall. It does not
-  count toward `REPORT_PREVIEW_LIMIT`.
-- Ranked teardown of the analysis, `REPORT_PREVIEW_LIMIT` hypotheses shown in full. Auto-targetable
-  ideas are ordered first so the previews on top are real ones.
+**It has two shapes, decided by the owner's plan** via `reportIsWhiteLabelled()` (`lib/report.ts`)
+over `canWhiteLabel()` (`lib/usage.ts`):
+
+- **Free** - unchanged, and it is our lead magnet: our `Wordmark`, the "Generated by Hunch" footer,
+  and a `WaitlistWall` per tab.
+- **Paid** - the owner's deliverable, handed to *their* client. No mark of ours anywhere, no wall,
+  and nothing blurred. This is what the paid plan is actually bought for.
+
+Our name reaches the report from three independent places and **all three** are gated on that one
+boolean. Strip two and the third still hands an agency a "white-labelled" document that advertises
+us:
+
+1. The page: `Wordmark`, `report.generatedBy`, `report.footerQuestion`, and `WaitlistWall`.
+2. `openGraph.siteName` and the root layout's `%s | Hunch` title template, both handled by
+   `pageMetadata({ unbranded })` (the title via `{ absolute }`).
+3. `opengraph-image.tsx` - `OgWordmark` on the unfurl card. **The one most easily forgotten**, and
+   the first thing the reader sees when the link is pasted into an email.
+
+`app/(report)/layout.tsx` deliberately mounts no site chrome: it sits above the `[embedKey]` segment,
+so it cannot know whose report it is and therefore cannot make this decision.
+
+The cut itself goes through **one** `gate()` helper in the page, not per tab. It used to be written
+twice (once in `fixPanel`, once for the copy tab), which is exactly how one tab stays walled after
+someone "removes the wall".
+
+- The same four tabs as the analysis screen (`AnalysisTabs`), after the competitor pills. The header,
+  the title, the two summary cells and the `MeasuredReadout` stay above them - the readout ungated,
+  for the reason given in its own section.
+- **Every tab is gated on its own**: its top items in full, then that tab's own `WaitlistWall`, then
+  the rest blurred. `REPORT_FIX_PREVIEW_LIMIT` (2) for the three fix tabs, `REPORT_PREVIEW_LIMIT` (3)
+  for the copy tab. A tab whose whole list fits inside its limit renders no wall at all.
+  The playbook used to sit in front of a single wall and never be blurred; the wall now cuts all four
+  tabs, which trades some of that hook for lead capture. That is a deliberate call, not drift.
+- Ranked teardown of the analysis in the copy tab, as `DisclosureCard` rows that all **start open** -
+  unlike the owner's screen, because a prospect who has to click to see anything sees nothing.
+  Auto-targetable ideas are ordered first so the previews on top are real ones.
+- The **"Why this works"** block is open on each shown idea, not folded into a `<details>` summary:
+  it is the argument for the change the prospect is being asked to believe.
 - **Variant preview** (`components/variant-preview.tsx`): renders the landing page with the
   recommended copy swapped in, **on request only**. Each preview boots a browser against the
   customer's real page, so it POSTs to `/api/report/screenshot` from a click and never from mount -

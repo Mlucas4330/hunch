@@ -28,8 +28,18 @@ export default defineConfig({
   },
   projects: [
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    // e2e/dom holds specs that drive a browser function against synthetic markup: no session, no
+    // request to the app, no database row. They deliberately do NOT depend on `setup` -- a broken
+    // database or an expired credentials hatch must not be able to hide a regression in the DOM
+    // routines, which are the least forgiving code in the repo and the cheapest to check.
+    {
+      name: 'dom',
+      testMatch: /dom[\\/].*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] }
+    },
     {
       name: 'chromium',
+      testIgnore: /dom[\\/]/,
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/admin.json' },
       dependencies: ['setup']
     }

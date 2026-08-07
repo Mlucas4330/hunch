@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { formatDate } from '@/lib/i18n/format'
 import { pageMetadata } from '@/lib/seo'
+import { LEAD_SOURCE_BADGE_CLASS } from '@/lib/constants'
 
 export async function generateMetadata() {
   const { metadata } = await getDictionary()
@@ -50,6 +51,7 @@ export default async function LeadsPage() {
             <thead className="border-b bg-muted/50">
               <tr>
                 <Th>{t.leads.email}</Th>
+                <Th>{t.leads.source}</Th>
                 <Th>{t.leads.phone}</Th>
                 <Th>{t.leads.fromReport}</Th>
                 <Th>{t.leads.joined}</Th>
@@ -62,6 +64,13 @@ export default async function LeadsPage() {
                     <a href={`mailto:${row.email}`} className="font-medium hover:underline">
                       {row.email}
                     </a>
+                  </Td>
+                  <Td>
+                    <span
+                      className={`rounded px-1.5 py-0.5 panel-label text-[0.6rem] ${LEAD_SOURCE_BADGE_CLASS[row.source]}`}
+                    >
+                      {t.labels.leadSource[row.source]}
+                    </span>
                   </Td>
                   <Td>{row.phone ?? t.common.none}</Td>
                   <Td>

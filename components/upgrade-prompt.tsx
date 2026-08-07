@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/components/i18n-provider'
-import { UPGRADE_PROMPT_DISMISSED_KEY } from '@/lib/constants'
+import { CONTACT_PATH, UPGRADE_PROMPT_DISMISSED_KEY } from '@/lib/constants'
 
 // The post-value upsell: shown to free plans once the analysis they came for is on screen, never
 // before it. Deliberately says nothing about the remaining allowance -- UsageBanner already counts
@@ -58,7 +58,7 @@ export function UpgradePrompt() {
           {dictionary.upgradePrompt.dismiss}
         </Button>
         <Button asChild size="sm">
-          <Link href="/billing">{dictionary.common.upgrade}</Link>
+          <Link href={CONTACT_PATH}>{dictionary.common.upgrade}</Link>
         </Button>
       </div>
     </div>

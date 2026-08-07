@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { DisclosureCard } from '@/components/disclosure-card'
 import { SectionBadge } from '@/components/section-badge'
+import { WhyBlock } from '@/components/why-block'
 import { ScoreIndicator } from '@/components/score-indicator'
 import {
   HypothesisFilters,
@@ -13,13 +13,11 @@ import {
   type TargetFilter
 } from '@/components/hypothesis-filters'
 import {
-  EXPERIMENT_STATUS_BADGE_CLASS,
   HYPOTHESIS_EXPANDED_COUNT,
   HYPOTHESIS_FILTER_THRESHOLD,
   isQuickWin
 } from '@/lib/constants'
 import { useI18n } from '@/components/i18n-provider'
-import type { ExperimentStatus } from '@/lib/enums'
 import type { Hypothesis, Variant } from '@/db/schema'
 import { cn, hasPlaceholders } from '@/lib/utils'
 
@@ -35,59 +33,33 @@ const SORTERS: Record<
     Number(isQuickWin(b)) - Number(isQuickWin(a)) || b.impactScore - a.impactScore
 }
 
-export function HypothesisList({
-  analysisId,
-  hypotheses
-}: {
-  analysisId: string
-  hypotheses: HypothesisWithVariants[]
-}) {
+export function HypothesisList({ hypotheses }: { hypotheses: HypothesisWithVariants[] }) {
   const { dictionary } = useI18n()
-  const [statusByHypothesis, setStatusByHypothesis] = useState<Record<string, ExperimentStatus>>({})
   const [sort, setSort] = useState<HypothesisSort>('impact')
   const [target, setTarget] = useState<TargetFilter>('all')
-  const [hideCompleted, setHideCompleted] = useState(false)
 
-  useEffect(() => {
-    fetch(`/api/experiments?analysisId=${analysisId}`)
-      .then((res) => (res.ok ? res.json() : { experiments: [] }))
-      .then((data) => {
-        const map: Record<string, ExperimentStatus> = {}
-        for (const exp of data.experiments) map[exp.hypothesisId] = exp.status
-        setStatusByHypothesis(map)
-      })
-      .catch(() => {})
-  }, [analysisId])
-
+  // No experiment status is read here any more, and with it went the /api/experiments fetch and the
+  // "hide finished" filter. Both were about test state, which is the Tests tab's subject now -- this
+  // list answers what to change, not what is being proven.
   const visible = useMemo(() => {
-    const kept = hypotheses.filter((hypothesis) => {
-      if (target !== 'all' && hypothesis.target !== target) return false
-      if (hideCompleted && statusByHypothesis[hypothesis.id] === 'completed') return false
-      return true
-    })
+    const kept = hypotheses.filter(
+      (hypothesis) => target === 'all' || hypothesis.target === target
+    )
     return kept.sort(SORTERS[sort])
-  }, [hypotheses, sort, target, hideCompleted, statusByHypothesis])
+  }, [hypotheses, sort, target])
 
   // The recommendation only holds while the list is showing everything in impact order. Under any
   // other sort or filter the first row is simply the first match, not the thing to test first.
-  const isDefaultOrder = sort === 'impact' && target === 'all' && !hideCompleted
+  const isDefaultOrder = sort === 'impact' && target === 'all'
   const resetFilters = () => {
     setSort('impact')
     setTarget('all')
-    setHideCompleted(false)
   }
 
   return (
     <div className="space-y-3">
       {hypotheses.length >= HYPOTHESIS_FILTER_THRESHOLD && (
-        <HypothesisFilters
-          sort={sort}
-          onSort={setSort}
-          target={target}
-          onTarget={setTarget}
-          hideCompleted={hideCompleted}
-          onHideCompleted={setHideCompleted}
-        />
+        <HypothesisFilters sort={sort} onSort={setSort} target={target} onTarget={setTarget} />
       )}
 
       {visible.length === 0 ? (
@@ -98,98 +70,55 @@ export function HypothesisList({
           </Button>
         </Card>
       ) : (
-        visible.map((hypothesis, index) => {
-          const status = statusByHypothesis[hypothesis.id]
-          const shared = { analysisId, hypothesis, status }
-
-          if (index < HYPOTHESIS_EXPANDED_COUNT) {
-            return (
-              <HypothesisCard
-                key={hypothesis.id}
-                {...shared}
-                isTop={index === 0 && isDefaultOrder}
-              />
-            )
-          }
-
-          return (
-            <CollapsedHypothesis key={hypothesis.id} {...shared} rank={index + 1} />
-          )
-        })
+        visible.map((hypothesis, index) => (
+          <HypothesisRow
+            key={hypothesis.id}
+            hypothesis={hypothesis}
+            rank={index + 1}
+            isTop={index === 0 && isDefaultOrder}
+            defaultOpen={index < HYPOTHESIS_EXPANDED_COUNT}
+          />
+        ))
       )}
     </div>
   )
 }
 
-function HypothesisCard({
-  analysisId,
+// One shape for every rank. The top ones merely start open: a reader who has read the first idea can
+// fold it away instead of scrolling past it forever.
+function HypothesisRow({
   hypothesis,
-  status,
-  isTop
+  rank,
+  isTop,
+  defaultOpen
 }: {
-  analysisId: string
   hypothesis: HypothesisWithVariants
-  status?: ExperimentStatus
+  rank: number
   isTop: boolean
+  defaultOpen: boolean
 }) {
   const { dictionary } = useI18n()
 
   return (
-    <Card className={cn(isTop && 'ring-1 ring-coral/40')} data-testid="hypothesis-card">
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0">
-        <div className="flex items-center gap-2">
+    <DisclosureCard
+      rank={rank}
+      title={hypothesis.problem}
+      testId="hypothesis-card"
+      className={cn(isTop && 'ring-1 ring-coral/40')}
+      defaultOpen={defaultOpen}
+      badge={
+        <span className="flex shrink-0 items-center gap-1.5">
           <SectionBadge section={hypothesis.section} />
           {hypothesis.target === 'manual' && (
             <span className="rounded-full bg-neutral/15 px-2 py-0.5 text-xs font-medium text-neutral">
               {dictionary.hypothesisList.manualSetup}
             </span>
           )}
-          {isTop && !status && (
+          {isTop && (
             <span className="panel-label text-[0.6rem] text-coral">
               {dictionary.hypothesisList.testThisFirst}
             </span>
           )}
-          <StatusBadge status={status} />
-        </div>
-        <div className="flex gap-2">
-          <ScoreIndicator score={hypothesis.impactScore} kind="impact" />
-          <ScoreIndicator score={hypothesis.effortScore} kind="effort" />
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <h2 className="font-display text-lg font-semibold leading-snug tracking-tight">
-          {hypothesis.problem}
-        </h2>
-        <HypothesisBody analysisId={analysisId} hypothesis={hypothesis} status={status} />
-      </CardContent>
-    </Card>
-  )
-}
-
-// Everything past the expanded tier: a one-line row that opens into the same body the full card
-// shows. A hypothesis with a live test always opens, whatever its rank -- a running experiment must
-// never be something the reader has to go looking for.
-function CollapsedHypothesis({
-  analysisId,
-  hypothesis,
-  status,
-  rank
-}: {
-  analysisId: string
-  hypothesis: HypothesisWithVariants
-  status?: ExperimentStatus
-  rank: number
-}) {
-  return (
-    <DisclosureCard
-      rank={rank}
-      title={hypothesis.problem}
-      testId="hypothesis-row"
-      defaultOpen={status === 'running'}
-      badge={
-        <span className="flex shrink-0 items-center gap-1.5">
-          <SectionBadge section={hypothesis.section} />
-          <StatusBadge status={status} />
         </span>
       }
       scores={
@@ -205,20 +134,12 @@ function CollapsedHypothesis({
         </>
       }
     >
-      <HypothesisBody analysisId={analysisId} hypothesis={hypothesis} status={status} />
+      <HypothesisBody hypothesis={hypothesis} />
     </DisclosureCard>
   )
 }
 
-function HypothesisBody({
-  analysisId,
-  hypothesis,
-  status
-}: {
-  analysisId: string
-  hypothesis: HypothesisWithVariants
-  status?: ExperimentStatus
-}) {
+function HypothesisBody({ hypothesis }: { hypothesis: HypothesisWithVariants }) {
   const { dictionary } = useI18n()
   const recommended = hypothesis.variants[0]
 
@@ -235,29 +156,17 @@ function HypothesisBody({
           )}
         </div>
       )}
-      <div className="flex justify-end">
-        <Button asChild size="sm" variant={status ? 'outline' : 'default'}>
-          <Link href={`/analyses/${analysisId}/tests/${hypothesis.id}`}>
-            {status ? dictionary.hypothesisList.viewTest : dictionary.hypothesisList.setUpTest}
-          </Link>
-        </Button>
-      </div>
+
+      {/* The model is required to write a rationale for every hypothesis, and an evidence line for
+          every variant. Neither reached this screen until now -- they were rendered only on the two
+          report surfaces, so the reader was asked to pick a test with the argument for it missing. */}
+      {/* No "Set up test" button here any more. Launching lives on the Tests tab, which is also
+          where the snippet is installed -- a reader deciding what to change should not be asked to
+          set up infrastructure in the middle of it. */}
+      <WhyBlock label={dictionary.report.whyThisWorks}>
+        <p>{hypothesis.rationale}</p>
+        {recommended?.evidence && <p>{recommended.evidence}</p>}
+      </WhyBlock>
     </>
-  )
-}
-
-function StatusBadge({ status }: { status?: ExperimentStatus }) {
-  const { dictionary } = useI18n()
-  if (!status) return null
-
-  return (
-    <span
-      className={cn(
-        'rounded-full px-2 py-0.5 text-xs font-medium',
-        EXPERIMENT_STATUS_BADGE_CLASS[status]
-      )}
-    >
-      {dictionary.labels.experimentStatus[status]}
-    </span>
   )
 }

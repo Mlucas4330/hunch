@@ -12,9 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "check:url-guard": "tsx scripts/check-url-guard.ts",
-    "check:market": "tsx scripts/check-market.ts",
-    "test:screenshot": "tsx --env-file=.env scripts/test-screenshot.mts",
+    "test": "tsx --test \"lib/**/*.test.ts\"",
+    "preview:screenshot": "tsx --env-file=.env scripts/preview-screenshot.mts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },

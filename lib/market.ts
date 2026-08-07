@@ -9,7 +9,7 @@ export interface MarketInput {
 }
 
 // Which market a landing page sells into. Pure: no DOM, no network, no clock -- so
-// scripts/check-market.ts can assert it without a browser, the same reason lib/url-guard.ts is its
+// lib/market.test.ts can assert it without a browser, the same reason lib/url-guard.ts is its
 // own module.
 //
 // Only two signals, and both are decisive on their own: nobody registers a .com.br to sell in the US,

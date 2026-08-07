@@ -4,9 +4,11 @@ import type {
   ExperimentStatus,
   FlowCategory,
   HypothesisStatus,
+  LeadSource,
   Locale,
   Market,
   RateLimitKind,
+  ReadoutSeverity,
   Section,
   SubscriptionPlan,
   VariantStatus
@@ -18,11 +20,16 @@ export const FALLBACK_APP_ORIGIN = 'http://localhost:3000'
 
 // Session-gated page prefixes. Middleware redirects them when signed out and robots.txt disallows
 // them, so the two can never drift.
-export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/billing', '/admin']
+export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/admin']
 
 // Where sign-in lands when there is no callbackUrl to honour, and the fallback safeCallbackUrl
 // returns for anything off-site.
 export const POST_SIGNIN_REDIRECT = '/dashboard'
+
+// Where every "you need a paid plan for this" prompt now sends the reader. There is no self-serve
+// checkout to point at any more -- the deal is closed by a person -- so all of them land on the
+// landing page's contact section rather than on four different dead ends.
+export const CONTACT_PATH = '/#contact'
 
 // Query param middleware uses to carry the page a signed-out visitor was trying to reach.
 export const CALLBACK_URL_PARAM = 'callbackUrl'
@@ -250,6 +257,10 @@ export const DEFAULT_EXPERIMENT_DURATION: ExperimentDuration = 14
 // remaining ones are blurred behind the waitlist wall.
 export const REPORT_PREVIEW_LIMIT = 3
 
+// The same gate for the report's three fix tabs. Lower than the hypothesis limit because a fix card
+// carries its whole steps list, so two of them already fill a screen.
+export const REPORT_FIX_PREVIEW_LIMIT = 2
+
 // What the preview button promises before it is clicked. A variant preview boots a browser and
 // renders the customer's real page, so the wait is long enough that it has to be stated up front
 // rather than hidden behind a spinner.
@@ -313,6 +324,49 @@ export const PLAYBOOK_STEPS_MAX = 5
 // already renders nothing for an empty list.
 export const VISIBILITY_MAX = 6
 
+// How long capturePerformance waits for a PerformanceObserver to deliver the LCP entries the browser
+// already buffered. They arrive on a task after observe() returns, so this is a handoff and not a
+// measurement window -- the page has already finished settling by the time it runs.
+export const SCRAPE_LCP_FLUSH_MS = 50
+
+// Also what every row already in the table is: the waitlist wall on the public report was the only
+// thing writing leads before the landing page's contact form existed, so this doubles as the correct
+// backfill for the column's default.
+export const DEFAULT_LEAD_SOURCE: LeadSource = 'report'
+
+// The readout measures in bytes and milliseconds and converts once, at the render edge.
+export const BYTES_PER_MEGABYTE = 1024 * 1024
+
+export const MS_PER_SECOND = 1000
+
+// Thresholds for the measured readout (lib/readout.ts). Every one of these turns a measurement into
+// `warn` or `alert`; nothing here invents a number that reaches the reader, because what is rendered
+// is always the page's own value and these only decide its colour.
+//
+// They are deliberately loose. A false `alert` on a page that is fine is the expensive error here --
+// this report is read by a stranger who can check it against their own site in one click, and one
+// wrong accusation costs the credibility of every true finding beside it.
+export const READOUT_THRESHOLDS = {
+  // Signup friction. Email + password is 2, so 4 is already asking for things a landing page does
+  // not need and 7 is a form that belongs after the signup, not before it.
+  formFieldsWarn: 4,
+  formFieldsAlert: 7,
+  // Zero above the fold means a visitor has to scroll to find out what to do. Past four, the
+  // "primary" action is whichever one they happen to see first.
+  aboveFoldCtasWarn: 5,
+  // Every nav link is an exit from the page a visitor arrived on.
+  navLinksWarn: 8,
+  navLinksAlert: 14,
+  // Google's own "good" LCP boundary is 2.5s and its "poor" boundary is 4s. Measured from a
+  // datacenter these are generous, which is the intended direction -- see PagePerformance.
+  lcpWarnMs: 2_500,
+  lcpAlertMs: 4_000,
+  pageWeightWarnBytes: 2 * BYTES_PER_MEGABYTE,
+  pageWeightAlertBytes: 5 * BYTES_PER_MEGABYTE,
+  requestCountWarn: 75,
+  requestCountAlert: 150
+} as const
+
 // Where a hypothesis lands when the model answers with a section outside the enum -- it has returned
 // the element's HTML tag before. The catch-all SECTIONS member, named here so the schema's fallback
 // is not a bare string literal.
@@ -362,11 +416,6 @@ export const OG_IMAGE_SIZE = { width: 1200, height: 630 }
 // its own `openGraph` replaces the root layout's entirely -- the file convention does not survive
 // that merge, so every such page has to point back here. See lib/seo.ts.
 export const DEFAULT_OG_IMAGE_PATH = '/opengraph-image'
-
-export const PLAN_PRICES: Record<SubscriptionPlan, number> = {
-  free: 0,
-  solo: 29
-}
 
 // Color tokens are defined in app/globals.css (@theme). These maps only reference
 // semantic token utility classes -- never raw Tailwind color classes or hex values.
@@ -422,6 +471,21 @@ export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
   metadata: 'bg-purple/15 text-purple',
   structured_data: 'bg-blue/15 text-blue',
   ai_answerability: 'bg-teal/15 text-teal'
+}
+
+// The measured readout's three states. Green is load-bearing here: a report that is all coral reads
+// as a sales pitch, and the rows that came back fine are what make the rest believable.
+export const READOUT_SEVERITY_CLASS: Record<ReadoutSeverity, string> = {
+  ok: 'bg-green/15 text-green',
+  warn: 'bg-amber/15 text-amber',
+  alert: 'bg-coral/15 text-coral'
+}
+
+// `contact` is green because it is the one that means someone asked to talk, and it has to be
+// findable at a glance in a list dominated by wall hits.
+export const LEAD_SOURCE_BADGE_CLASS: Record<LeadSource, string> = {
+  report: 'bg-neutral/15 text-neutral',
+  contact: 'bg-green/15 text-green'
 }
 
 export const PLAN_BADGE_CLASS: Record<SubscriptionPlan, string> = {

@@ -6,7 +6,8 @@ import { analyses } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
 import { HypothesisList } from '@/components/hypothesis-list'
 import { FlowPlaybook } from '@/components/flow-playbook'
-import { EmbedSnippet } from '@/components/embed-snippet'
+import { AnalysisTabs } from '@/components/analysis-tabs'
+import { TestList } from '@/components/test-list'
 import { InfoHint } from '@/components/info-hint'
 import { CopyReportLink } from '@/components/copy-report-link'
 import { UpgradePrompt } from '@/components/upgrade-prompt'
@@ -14,7 +15,8 @@ import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
 import { getDictionary } from '@/lib/i18n'
 import { t as fill } from '@/lib/i18n/format'
-import { splitFixes } from '@/lib/analyses'
+import { MeasuredReadout } from '@/components/measured-readout'
+import { readoutFor, splitFixes, splitVisibility } from '@/lib/analyses'
 import { PLAYBOOK_EXPANDED_COUNT } from '@/lib/constants'
 import { pageMetadata } from '@/lib/seo'
 
@@ -46,6 +48,11 @@ export default async function AnalysisDetailPage({
   if (!analysis) notFound()
 
   const fixes = splitFixes(analysis.flowFixes)
+  const visibility = splitVisibility(analysis.flowFixes)
+  // Only `auto` ideas can run as a live test: the snippet swaps one element's text, so a `manual`
+  // idea has nothing for it to target. An analysis where every idea is manual has no Tests tab at
+  // all -- and no snippet card, which there would be nothing to install.
+  const testable = analysis.hypotheses.filter((hypothesis) => hypothesis.target === 'auto')
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -64,10 +71,8 @@ export default async function AnalysisDetailPage({
           <CopyReportLink
             reportUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
             embedKey={analysis.embedKey}
+            analysisId={analysis.id}
           />
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/analyses/${analysis.id}/report`}>{t.analysis.report}</Link>
-          </Button>
           <Button asChild variant="ghost" size="sm">
             <Link href="/dashboard">{t.analysis.backToDashboard}</Link>
           </Button>
@@ -100,20 +105,45 @@ export default async function AnalysisDetailPage({
         </p>
       )}
 
-      {/* Section order lives here rather than inside HypothesisList: site-level setup first, then
-          the structural fixes, then the copy tests that run behind the snippet, and last the
-          discoverability audit -- what the reader came for is the ranked tests, and an SEO task
-          interleaved among them competes for the decision they are here to make. */}
-      <EmbedSnippet
-        appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
-        embedKey={analysis.embedKey}
+      {/* Above the tabs, like the snippet, because it is not one of the four lists: it is the
+          measurement all four are about. Renders nothing for an analysis created before the
+          measured columns existed. */}
+      <MeasuredReadout input={readoutFor(analysis)} />
+
+      {/* Tab order is the order of the work: fix the flow, then the words, then make sure the page
+          can be found at all -- and only then prove a change live. An SEO task ranked in among the
+          conversion tests would compete for the decision the reader is here to make. */}
+      <AnalysisTabs
+        counts={{
+          flow: fixes.flow.length,
+          copy: analysis.hypotheses.length,
+          seo: visibility.seo.length,
+          ai: visibility.ai.length,
+          tests: testable.length
+        }}
+        panels={{
+          flow: <FlowPlaybook fixes={fixes.flow} expandFrom={PLAYBOOK_EXPANDED_COUNT} />,
+          copy: <HypothesisList hypotheses={analysis.hypotheses} />,
+          seo: (
+            <FlowPlaybook
+              fixes={visibility.seo}
+              section="seo"
+              expandFrom={PLAYBOOK_EXPANDED_COUNT}
+            />
+          ),
+          ai: (
+            <FlowPlaybook fixes={visibility.ai} section="ai" expandFrom={PLAYBOOK_EXPANDED_COUNT} />
+          ),
+          tests: (
+            <TestList
+              analysisId={analysis.id}
+              embedKey={analysis.embedKey}
+              appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
+              hypotheses={testable}
+            />
+          )
+        }}
       />
-
-      <FlowPlaybook fixes={fixes.flow} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
-
-      <HypothesisList analysisId={analysis.id} hypotheses={analysis.hypotheses} />
-
-      <FlowPlaybook fixes={fixes.visibility} kind="visibility" expandFrom={PLAYBOOK_EXPANDED_COUNT} />
 
       {user.plan === 'free' && <UpgradePrompt />}
     </div>
