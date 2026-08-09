@@ -16,8 +16,12 @@ deprecated and `railway.json` must never name it again.
 | `browser` | `railway.browser.json` (*Config as code*, set by hand) | **no variables, no public domain** |
 | `Postgres` | Railway plugin | |
 | `Redis` | Railway plugin | rate limit counters only |
-| `cron-finalize` | `curlimages/curl`, cron `0 8 * * *` | calls `/api/cron/finalize-experiments` |
-| `cron-prune` | `curlimages/curl`, cron `0 9 * * *` | calls `/api/cron/prune-screenshots`; own hour so the two never hit `app` together |
+| `cron-finalize` | `railway.cron-finalize.json` (*Config as code*, set by hand) | calls `/api/cron/finalize-experiments` |
+| `cron-prune` | `railway.cron-prune.json` (*Config as code*, set by hand) | calls `/api/cron/prune-screenshots`; own hour so the two never hit `app` together |
+
+Every service but the plugins is the **same repo** pointed at a different config file. The schedules
+live in `deploy.cronSchedule` in those files rather than in the dashboard, so a changed cron time
+arrives as a diff.
 
 ## After importing
 
@@ -33,24 +37,56 @@ Railway creates exactly one service per import, so:
 3. Mount a volume on `app` at `/data/screenshots`.
 4. Add a second service from the same repo, set *Config as code* to `railway.browser.json`, give it
    **no variables and no domain**, then point `BROWSER_URL` on `app` at its internal address.
-5. Add the `cron-finalize` and `cron-prune` services and give **each** of them `CRON_SECRET`.
+5. Add `cron-finalize` and `cron-prune`, both from the same repo, pointed at
+   `railway.cron-finalize.json` and `railway.cron-prune.json`. Give **each** of them these two, as
+   references rather than copies:
 
-**Steps 4 and 5 stay manual on purpose.** The browser service's empty environment is the entire
-mitigation for its missing sandbox ([security.md](security.md)), and merging it into `app` would put an
-unsandboxed renderer in the same container as `DATABASE_URL` and `ANTHROPIC_API_KEY`. Pointing each
-service at its own config file is also what keeps `watchPatterns` meaningful: without it every push to
-the app would rebuild `browser` too, and that image reinstalls Chromium from apt each time.
+   ```
+   CRON_SECRET = ${{ app.CRON_SECRET }}
+   APP_URL     = https://${{ app.RAILWAY_PUBLIC_DOMAIN }}
+   ```
+
+**Steps 4 and 5 stay manual on purpose.** Railway creates one service per import and the config path
+is a dashboard setting, so nothing in the repo can create a service or choose its own file. The
+browser service's empty environment is also the entire mitigation for its missing sandbox
+([security.md](security.md)), and merging it into `app` would put an unsandboxed renderer in the same
+container as `DATABASE_URL` and `ANTHROPIC_API_KEY`. Pointing each service at its own config file is
+what keeps `watchPatterns` meaningful: without it every push to the app would rebuild `browser` too,
+and that image reinstalls Chromium from apt each time.
+
+**Reference the two cron variables, never retype them.** A hand-copied `CRON_SECRET` that drifts from
+`app`'s is the likeliest way this breaks, and it fails as a `401` that looks like a broken route.
+`APP_URL` is a per-environment origin under the same rule as step 2, which is exactly why it is a
+variable instead of a literal in the committed start command.
 
 The crons are **two services rather than one command hitting both URLs**: `curl` exits 0 on a non-2xx,
 so `curl A && curl B` is really `A; B`, and adding `-f` to fix that would let a failed finalize silently
 skip the prune. Separate services also keep the schedules independent, which is the point of the
-staggered hour.
+staggered hour — and they are what makes `--fail-with-body` in `scripts/cron-call.sh` safe, so a `401`
+or a `500` surfaces as a failed run instead of a green one.
 
 `railway.browser.json` carries **no `healthcheckPath`**. CDP's `/json/version` would answer a probe, but
 Chrome rejects it unless the prober sends an IP or `localhost`, and a failing healthcheck gates the
 deploy — so the line meant to catch a wedged Chromium would instead turn every `browser` deploy into a
 rollback. A wedged browser is handled app-side by the connect retry in
 [scraping.md](scraping.md#browser-lifecycle-and-the-concurrency-cap).
+
+## The cron image
+
+`Dockerfile.cron` is `curlimages/curl` at a pinned tag plus `scripts/cron-call.sh`. It builds an image
+that adds nothing to its base, and it exists only because a service needs *something* to build —
+without a Dockerfile, Railpack would build the whole Next app to run one `curl`.
+
+The call is a **script rather than an inline start command**, because Railway runs a custom start
+command for a Dockerfile service **in exec form, without a shell**. `curl -H "Authorization: Bearer
+$CRON_SECRET"` written straight into `startCommand` sends curl those fourteen literal characters and
+gets a `401` — indistinguishable, in the logs, from a secret that is actually wrong. The script takes
+the route as `$1`, so both services share it and differ only in `startCommand` and `cronSchedule`.
+
+`restartPolicyType` is **`NEVER`** on both. A cron container is expected to exit; `ON_FAILURE` would
+turn one failed call into a restart loop against `app`. Railway also **skips** a scheduled run whose
+predecessor is still going, and guarantees no better than a few minutes' accuracy, which is why these
+are daily jobs and not a substitute for anything time-sensitive.
 
 ## Stripe
 
@@ -59,7 +95,7 @@ Two things, both on the Stripe side, and the plan is granted by neither alone:
 1. A **webhook endpoint** at `https://<domain>/api/billing/webhook` subscribed to
    `checkout.session.completed`, `customer.subscription.updated` and `customer.subscription.deleted`.
    Its signing secret is `STRIPE_WEBHOOK_SECRET`.
-2. A **payment link** charging the price in `STRIPE_PRICE_SOLO`. That link is the whole purchase flow —
+2. A **payment link** charging the price in `STRIPE_PRICE_ID`. That link is the whole purchase flow —
    the seller sends it after the call, and nothing in the app links to it. A link on any other price
    takes the payment and leaves the account on `free`.
 
@@ -145,6 +181,13 @@ an app that never came up.
   browser completely, including reading files inside its container.
 - **No secrets in project-level shared variables.** Railway propagates those into every service,
   including `browser`.
+- **`scripts/cron-call.sh` must stay LF.** It runs inside a Linux container, and a CRLF committed from
+  a Windows checkout makes `sh` read the trailing `\r` as part of the URL — a malformed-URL failure
+  that points nowhere near line endings. `.gitattributes` pins `*.sh`; do not remove it.
+- **`railway.json`'s `watchPatterns` negations are load-bearing.** They exist so a push touching only
+  `Dockerfile.browser`, `Dockerfile.cron`, `scripts/cron-call.sh` or a `railway.*.json` does not
+  redeploy `app`. `railway.*.json` deliberately does not match `railway.json` itself, which must keep
+  triggering a deploy so its own changes take effect.
 - **Rate limiting fails open** — see
   [invariants.md](invariants.md#rate-limiting-fails-open-deliberately). Confirm with a real 429 rather
   than by reading the config.

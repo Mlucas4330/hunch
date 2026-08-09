@@ -1,0 +1,4 @@
+# cron-call.sh runs inside a Linux container. A CRLF committed from a Windows checkout makes sh read
+# the trailing \r as part of the last argument, which fails as a malformed URL rather than as
+# anything pointing at line endings.
+*.sh text eol=lf

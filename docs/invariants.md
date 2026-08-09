@@ -149,7 +149,7 @@ and the `checkout` and `portal` routes are gone, and so is every client-side Str
 paid-plan prompt points at `CONTACT_PATH` (`/#contact`).
 
 The one route that stays is the webhook, and the payment link is the only way an account is ever
-promoted automatically — so **the link must charge the price in `STRIPE_PRICE_SOLO`**, which is how
+promoted automatically — so **the link must charge the price in `STRIPE_PRICE_ID`**, which is how
 the webhook names the plan when the subscription carries no `metadata.plan`.
 
 The e2e case `publishes no price publicly` is what keeps a price from drifting back onto `/`.

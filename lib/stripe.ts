@@ -12,7 +12,7 @@ export const stripe = new Stripe(apiKey || 'sk_test_placeholder', {
 })
 
 const PLAN_PRICE_IDS: Partial<Record<SubscriptionPlan, string | undefined>> = {
-  solo: process.env.STRIPE_PRICE_SOLO
+  solo: process.env.STRIPE_PRICE_ID
 }
 
 export function planForPriceId(priceId: string): SubscriptionPlan | undefined {

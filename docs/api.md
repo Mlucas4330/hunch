@@ -191,7 +191,7 @@ is skipped rather than re-granting the plan the cancellation revoked.
 
 **Entitlement is never granted from metadata alone.** `metadata.plan` is writable from the Stripe
 dashboard, so it is accepted only when it is a real `SUBSCRIPTION_PLAN` value and otherwise falls
-through to the price id — which is why the payment link must charge `STRIPE_PRICE_SOLO`.
+through to the price id — which is why the payment link must charge `STRIPE_PRICE_ID`.
 
 **The user is resolved in three steps, and the payment link is the reason there are three.** A link
 carries no `userId`, so the first two ways of identifying the buyer are empty on a first purchase:

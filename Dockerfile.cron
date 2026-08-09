@@ -1,0 +1,9 @@
+# curl, alone. Both cron services build this same image and differ only in the path their
+# startCommand passes to the script -- see railway.cron-finalize.json and railway.cron-prune.json.
+#
+# The tag is pinned rather than `latest` for the reason engines.node is pinned: an unpinned base is
+# how a deploy starts failing on a commit that changed nothing.
+FROM curlimages/curl:8.21.0
+
+# Invoked as `/bin/sh /cron-call.sh`, so this needs neither the executable bit nor its shebang.
+COPY scripts/cron-call.sh /cron-call.sh
