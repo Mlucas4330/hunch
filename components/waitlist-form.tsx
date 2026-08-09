@@ -7,9 +7,6 @@ import { useI18n } from '@/components/i18n-provider'
 import { DEFAULT_LEAD_SOURCE } from '@/lib/constants'
 import type { LeadSource } from '@/lib/enums'
 
-// The six strings the form needs. `landing.contact.form` mirrors `waitlist` key for key so one
-// component serves both callers -- the report's wall and the landing page's contact section are the
-// same three inputs and the same endpoint, differing only in `source` and in what they say.
 type FormCopy = {
   done: string
   emailPlaceholder: string

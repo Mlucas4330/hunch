@@ -1,23 +1,8 @@
 import { test, expect, type Page } from '@playwright/test'
 import { applyVariantCopy } from '../../lib/scrape'
 
-// applyVariantCopy is the most delicate code in the repo: it walks an element's text nodes and
-// distributes the new copy across them so inline children survive, rather than doing
-// `el.textContent = copy` and deleting the styling the preview exists to show.
-//
-// It runs in a browser and mutates a real DOM, so it cannot be reached from `npm test`. It also
-// cannot be reached through screenshotVariant, whose first act is assertPublicUrl -- and that refuses
-// loopback, so pointing it at a local fixture would mean punching a hole in the SSRF guard to enable
-// a test. Driving the function directly against setContent markup avoids the guarded path entirely.
-//
-// What is left for `npm run preview:screenshot` is the part no assertion can make: whether the
-// gradient span landed on a word that still looks good.
-
 const COPY = 'Ship your product faster than ever before'
 
-// Mirrors openGuardedPage: page.evaluate serializes the function as source, so a transform that
-// wraps named functions in a __name() helper leaves that helper undefined inside the page. Passed as
-// a string so it cannot itself be rewritten.
 async function withShim(page: Page, html: string) {
   await page.setContent(html)
   await page.evaluate('window.__name = window.__name || ((fn) => fn)')
@@ -41,7 +26,6 @@ test.describe('applyVariantCopy', () => {
     })
 
     expect(outcome).toBe('ok')
-    // The regression this whole routine exists to prevent: textContent assignment deletes both.
     await expect(page.locator('#hero span.gradient')).toHaveCount(1)
     await expect(page.locator('#hero br')).toHaveCount(1)
   })
@@ -59,8 +43,6 @@ test.describe('applyVariantCopy', () => {
   })
 
   test('leaves no styled fragment empty when there are words to go around', async ({ page }) => {
-    // The middle fragment's proportional share rounds to zero against its neighbours; the reserve is
-    // what keeps it rendering rather than collapsing the span to nothing.
     await withShim(
       page,
       `<h1 id="hero">An extremely long opening fragment here <span id="tiny">x</span> and another extremely long closing fragment</h1>`
@@ -74,8 +56,6 @@ test.describe('applyVariantCopy', () => {
   test('never writes into whitespace-only nodes, so words do not glue together', async ({
     page
   }) => {
-    // The single space between the two spans is its own text node. Writing to it is what used to
-    // produce "Shipfaster".
     await withShim(page, `<h1 id="hero"><span>Ship</span> <span>Faster</span></h1>`)
 
     await apply(page, { selector: '#hero', variantCopy: 'Launch sooner', controlCopy: null })
@@ -92,8 +72,6 @@ test.describe('applyVariantCopy', () => {
 
     await apply(page, { selector: '#hero', variantCopy: 'Launch sooner', controlCopy: null })
 
-    // The split point between these two spans is ours, not the page's, so the copy must not render
-    // as one glued word.
     expect(await page.locator('#hero').innerText()).toBe('Launch sooner')
   })
 
@@ -107,8 +85,6 @@ test.describe('applyVariantCopy', () => {
     })
 
     expect(outcome).toBe('mismatch')
-    // The check has to stay ahead of the mutation: once one node is rewritten there is no original
-    // text left to compare against.
     expect(await page.locator('#hero').innerText()).toBe('The fastest way to ship')
   })
 
@@ -125,8 +101,6 @@ test.describe('applyVariantCopy', () => {
   })
 
   test('fills an element that holds no text node at all', async ({ page }) => {
-    // captureElements can land on something whose only child is an <img>; textContent is not an
-    // option there either, because it would delete the image.
     await withShim(page, `<h1 id="hero"><img alt="" src="data:,"></h1>`)
 
     const outcome = await apply(page, {

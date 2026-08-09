@@ -49,17 +49,11 @@ export function TestRunner({
   const { dictionary } = useI18n()
   const [experiment, setExperiment] = useState<TestExperiment | null>(initialExperiment)
 
-  // Stable identity: the panel keeps this in its polling effect's dependencies, and a fresh arrow
-  // every render would tear the interval down and rebuild it on each tick.
   const handleStatusChange = useCallback(
     (status: ExperimentStatus) => setExperiment((e) => (e ? { ...e, status } : e)),
     []
   )
 
-  // A finished test keeps its panel -- the numbers are the deliverable -- but it must never be what
-  // stands between the user and the next test. Without this the launch form is unreachable forever
-  // after a stop, which is exactly what the panel's own "stop and relaunch with a goal" note asks
-  // the user to do.
   if (experiment) {
     return (
       <div className="space-y-4">
@@ -106,9 +100,6 @@ function LaunchForm({
   const [alreadyRunning, setAlreadyRunning] = useState(false)
   const [error, setError] = useState(false)
 
-  // The analysis only writes the recommended challenger; the alternates are generated the first
-  // time someone actually opens this screen. Fail quiet -- the recommendation is already usable,
-  // and launching must not wait on this.
   const needsAlternates = variants.length < VARIANTS_PER_HYPOTHESIS
   const [loadingAlternates, setLoadingAlternates] = useState(needsAlternates)
 

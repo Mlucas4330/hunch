@@ -8,8 +8,6 @@ import { Button } from '@/components/ui/button'
 import { dictionaryFor, getLocale } from '@/lib/i18n'
 
 export async function Navbar() {
-  // The same memoized lookup the pages use, so a signed-in render resolves one user, not two. A
-  // stale token resolves to null here and correctly renders as signed out.
   const user = await getCurrentUser()
   const locale = await getLocale()
   const t = dictionaryFor(locale)

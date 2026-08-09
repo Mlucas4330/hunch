@@ -15,15 +15,11 @@ export function OPTIONS() {
 
 export async function GET(request: Request) {
   const key = new URL(request.url).searchParams.get('key')
-  // Best-effort: a missing or malformed key returns an empty config, never an error,
-  // so a bad snippet install can never break the host page.
   const parsedKey = z.string().uuid().safeParse(key)
   if (!parsedKey.success) {
     return NextResponse.json({ experiments: [] }, { headers: CORS_HEADERS })
   }
 
-  // Keyed on the embed key rather than the IP: this is one landing page's real visitor traffic
-  // arriving from many addresses, so a per-IP window would throttle the wrong thing.
   const limited = await enforceRateLimit('track_config', parsedKey.data, CORS_HEADERS)
   if (limited) return limited
 
@@ -46,8 +42,6 @@ export async function GET(request: Request) {
       goalSelector: experiments.goalSelector
     })
     .from(experiments)
-    // Past its end date is over, whether or not the cron has got to it yet. A test whose window
-    // closed must stop rewriting the page immediately, not on the next nightly sweep.
     .where(
       and(
         eq(experiments.analysisId, analysis.id),

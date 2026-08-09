@@ -14,74 +14,56 @@ import type {
   VariantStatus
 } from '@/lib/enums'
 
-// Only reached when NEXT_PUBLIC_APP_URL is unset, which is local dev and the e2e run. In production
-// it is what canonical, Open Graph and sitemap URLs are built from, so it must be set there.
+// Only reached when NEXT_PUBLIC_APP_URL is unset: local dev and the e2e run.
 export const FALLBACK_APP_ORIGIN = 'http://localhost:3000'
 
-// Session-gated page prefixes. Middleware redirects them when signed out and robots.txt disallows
-// them, so the two can never drift.
+// Shared by middleware.ts and app/robots.ts so the two can never drift.
 export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/admin']
 
-// Where sign-in lands when there is no callbackUrl to honour, and the fallback safeCallbackUrl
-// returns for anything off-site.
 export const POST_SIGNIN_REDIRECT = '/dashboard'
 
-// Where every "you need a paid plan for this" prompt now sends the reader. There is no self-serve
-// checkout to point at any more -- the deal is closed by a person -- so all of them land on the
-// landing page's contact section rather than on four different dead ends.
+// Where every paid-plan prompt sends the reader. See docs/invariants.md.
 export const CONTACT_PATH = '/#contact'
 
-// Query param middleware uses to carry the page a signed-out visitor was trying to reach.
 export const CALLBACK_URL_PARAM = 'callbackUrl'
 
 export const DEFAULT_LOCALE: Locale = 'en'
 
 export const LOCALE_COOKIE = 'locale'
 
-// Where UpgradePrompt remembers a dismissal. localStorage rather than a cookie: nothing server-side
-// reads it, so it never needs to travel with a request.
+// localStorage rather than a cookie: nothing server-side reads it.
 export const UPGRADE_PROMPT_DISMISSED_KEY = 'hunch.upgrade-prompt.dismissed'
 
-// Language names stay in their own language -- never translated.
+// Never translated.
 export const LOCALE_LABEL: Record<Locale, string> = {
   en: 'EN',
   'pt-BR': 'PT'
 }
 
-// How each locale is named to the model when it is told which language to write the analysis in.
 export const AI_OUTPUT_LANGUAGE: Record<Locale, string> = {
   en: 'English',
   'pt-BR': 'Brazilian Portuguese (pt-BR)'
 }
 
-// A language choice is a UI preference, not a session: it outlives sign-out and belongs to the
-// browser, so it is never tied to the user row.
+// A UI preference, not a session: it outlives sign-out and is never tied to the user row.
 export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
-// Where an analysis lands when no market signal fires. US-first, per the product's own positioning.
 export const DEFAULT_MARKET: Market = 'us'
 
-// Passed as `user_location` on the web search tool so competitor research is scoped to the market the
-// page actually sells into. `country` is ISO 3166-1 alpha-2 and `timezone` is IANA, which is the shape
-// the tool accepts.
+// `user_location` on the web search tool. ISO 3166-1 alpha-2 + IANA, the shape the tool accepts.
 export const MARKET_SEARCH_LOCATION: Record<Market, { country: string; timezone: string }> = {
   us: { country: 'US', timezone: 'America/New_York' },
   br: { country: 'BR', timezone: 'America/Sao_Paulo' }
 }
 
-// How each market is named to the model, in the same spirit as AI_OUTPUT_LANGUAGE. Prompt input, so
-// it is written in the prompts' language and never translated.
+// Prompt input, so it is written in the prompts' language and never translated.
 export const MARKET_NAME: Record<Market, string> = {
   us: 'the United States',
   br: 'Brazil'
 }
 
-// The detection vocabulary for lib/market.ts. Every signal here is decisive on its own, which is why
-// the list is short: a weaker signal blended in (a BRL price, say) would fire on the global pricing
-// tables that list one, and a false positive benchmarks a US product against the wrong country.
+// Every signal is decisive on its own, which is why the list is short -- see docs/invariants.md.
 // `langExceptions` keeps Portugal out of a prefix match on `pt`; matched lowercased.
-//
-// Keyed by the non-default markets, because the default is what you get when nothing matches.
 export const MARKET_SIGNALS: Record<
   Exclude<Market, 'us'>,
   { tlds: string[]; langPrefixes: string[]; langExceptions: string[] }
@@ -93,9 +75,7 @@ export const MARKET_SIGNALS: Record<
   }
 }
 
-// Crawlers that feed AI answers, checked against the page's robots.txt. A `Disallow: /` for one of
-// these is the literal, verifiable answer to "can an AI find my product" -- everything else the
-// visibility audit reports is about whether a model could read the page once it got there.
+// Crawlers that feed AI answers, checked against the page's robots.txt.
 export const AI_CRAWLER_AGENTS = [
   'GPTBot',
   'OAI-SearchBot',
@@ -106,66 +86,53 @@ export const AI_CRAWLER_AGENTS = [
   'CCBot'
 ]
 
-// robots.txt is one small text file on the same origin the scrape already reached. Kept short because
-// it runs alongside competitor research and must never be what makes an analysis slow.
+// Short: it runs alongside competitor research and must never be what makes an analysis slow.
 export const ROBOTS_FETCH_TIMEOUT_MS = 5_000
 
-// A robots.txt larger than this is not a robots.txt. Bounded for the same reason the scrape caps
-// response bytes: the far end is not ours.
+// A robots.txt larger than this is not a robots.txt. The far end is not ours.
 export const ROBOTS_MAX_BYTES = 512 * 1024
 
-// Redirects are followed by hand so each hop can be re-validated against the SSRF guard, which means
-// the depth has to be bounded here rather than by fetch. Enough for the http -> https -> www chains
-// that are the reason redirects are followed at all.
+// Hops are followed by hand to re-validate each one, so the depth is bounded here, not by fetch.
+// Enough for the http -> https -> www chains that are the reason redirects are followed at all.
 export const ROBOTS_MAX_REDIRECTS = 3
 
-// Outbound scraping is driven by user-supplied URLs, so every hop is validated against these before
-// a browser is pointed at it. See lib/url-guard.ts.
+// See lib/url-guard.ts.
 export const ALLOWED_SCRAPE_PROTOCOLS = ['http:', 'https:']
 
 export const ALLOWED_SCRAPE_PORTS = [80, 443, 8080]
 
-// Hostnames that resolve inside the deploy no matter what DNS says.
+// Resolve inside the deploy no matter what DNS says.
 export const BLOCKED_HOST_SUFFIXES = ['localhost', '.localhost', '.local', '.internal', '.home.arpa']
 
-// One scrape touches many subresources on a handful of hosts; resolving each host once per scrape
-// keeps the guard off the critical path without letting a verdict go stale across analyses.
+// One scrape touches many subresources on few hosts; long enough to resolve each once, short
+// enough that a verdict never goes stale across analyses.
 export const HOST_RESOLUTION_CACHE_TTL_MS = 60 * 1000
 
-// A real desktop fold. Every scrape and every screenshot renders at exactly this size, so the
-// visibility filter in captureElements, aboveFoldCtaCount and the preview image's intrinsic
-// dimensions all agree by construction rather than by three copies of the same pair of numbers.
+// A real desktop fold. captureElements, aboveFoldCtaCount and the preview image all measure
+// against it, so it cannot be left at Puppeteer's 800x600 default.
 export const SCRAPE_VIEWPORT = { width: 1280, height: 800 }
 
 export const SCRAPE_NAVIGATION_TIMEOUT_MS = 30_000
 
-// How long to keep waiting for a client-rendered page to paint after navigation reports idle.
-// Generous on purpose: a page that renders fast settles in about two polls and never spends this
-// budget, so the only thing a bigger number costs is the pathological case. Measured against a real
-// target, an app whose API backend cold-starts took ~8s to swap its "Carregando..." skeleton for
-// content -- well past navigation, and enough that a 10s budget lost the race intermittently.
+// Calibrated against a real ~8s cold-start skeleton; 10s lost the race intermittently. Generous on
+// purpose -- a fast page never spends it. See docs/scraping.md.
 export const SCRAPE_SETTLE_TIMEOUT_MS = 25_000
 
 export const SCRAPE_SETTLE_POLL_MS = 250
 
-// Below this the rendered text is a skeleton or a spinner, not a landing page, so an unchanged
-// sample that short is treated as "still rendering" rather than as settled.
+// Below this the text is a skeleton, not a landing page: still rendering, not settled.
 export const SCRAPE_SETTLE_MIN_TEXT_LENGTH = 200
 
-// Rendered text never goes perfectly still: a countdown, a live counter or a rotating headline
-// rewrites a few characters forever. Settling is therefore "stopped changing meaningfully" rather
-// than "identical", or every page carrying one would wait out the full timeout for nothing.
+// A countdown or a live counter rewrites a few characters forever, so settling is "stopped
+// changing meaningfully" rather than "identical".
 export const SCRAPE_SETTLE_TEXT_TOLERANCE = 8
 
-// A page is read for its copy, so anything past this is padding -- and an unbounded response is a
-// straightforward way to exhaust the function's memory.
+// Past this it is padding, and an unbounded response exhausts the function's memory.
 export const SCRAPE_MAX_RESPONSE_BYTES = 25 * 1024 * 1024
 
-// Resource types worth fetching to render text and take a screenshot. Media, websockets and
-// prefetches only cost time. `preflight` is here because a cross-origin stylesheet or webfont served
-// behind CORS never issues its real request once the OPTIONS is aborted, so blocking it renders the
-// page unstyled -- and the screenshot is read as a preview of the customer's own site. It is not a
-// hole in the guard: the request handler runs isPublicUrl on a preflight like any other request.
+// Media, websockets and prefetches only cost time. `preflight` is here because blocking the OPTIONS
+// stops the real request for a CORS-served stylesheet or webfont, rendering the page unstyled -- and
+// it is not a hole in the guard, since isPublicUrl runs on a preflight like any other request.
 export const SCRAPE_ALLOWED_RESOURCE_TYPES = [
   'document',
   'stylesheet',
@@ -178,71 +145,54 @@ export const SCRAPE_ALLOWED_RESOURCE_TYPES = [
   'other'
 ]
 
-// A screenshot is judged on how it looks, so it waits for webfonts and pending images after the text
-// has settled -- an unstyled fallback face reads as a broken preview. Fail-soft and short: an asset
-// that never resolves costs the preview this budget, never the screenshot.
+// A screenshot is judged on how it looks, so it waits for webfonts after the text settles.
+// Fail-soft: an asset that never resolves costs this budget, never the screenshot.
 export const SCRAPE_ASSET_READY_TIMEOUT_MS = 3_000
 
-// Lets the scroll land and freshly triggered lazy images paint before the shutter.
 export const SCRAPE_PAINT_SETTLE_MS = 250
 
-// The scarce resource is tabs on the single `browser` service, not CPU here: every scrape and every
-// preview opens a page on the same shared Chromium. Without a cap, a burst of previews on a public
-// report can OOM that container -- and its restartPolicyType is ALWAYS, so the restart kills every
-// in-flight scrape with it, including the paid analyses. A free, unauthenticated route must never be
-// able to do that.
-//
-// The cap is per process, which is only equivalent to per deploy because railway.json pins
-// numReplicas: 1 (the volume requires it). Scaling `app` would multiply the real tab count.
+// Tabs on the single shared `browser` service are the scarce resource, and per process only equals
+// per deploy because railway.json pins numReplicas: 1. See docs/scraping.md.
 export const SCRAPE_MAX_CONCURRENT_PAGES = 3
 
-// Waiting for a slot is deliberately asymmetric, because failing costs the two callers very
-// different amounts. A preview that gives up degrades to a button the reader can press again and
-// costs a prospect nothing.
+// Asymmetric by call site: a preview that gives up degrades to a retry button and costs nothing.
 export const SCREENSHOT_QUEUE_MAX_WAIT_MS = 5_000
 
-// An analysis, by contrast, has already spent (or is about to spend) a Sonnet call, and its
-// competitor fan-out needs several slots at once -- so it waits rather than throwing away a paid
-// request because three previews arrived first.
+// An analysis has already committed to a Sonnet call and needs several slots at once, so it waits.
 export const SCRAPE_QUEUE_MAX_WAIT_MS = 120_000
 
-// Long enough for a restarting browser container to start listening on CDP, short enough that a
-// genuinely absent BROWSER_URL still fails the request rather than stalling it.
+// Long enough for a restarting container to listen on CDP, short enough that an absent
+// BROWSER_URL still fails the request rather than stalling it.
 export const BROWSER_CONNECT_RETRY_DELAY_MS = 1_000
 
 const MINUTE_MS = 60 * 1000
 const HOUR_MS = 60 * MINUTE_MS
 
-// Sized by what each route costs us, not by what a plan allows. The two LLM/Puppeteer routes are
-// the expensive ones; the tracking routes carry a landing page's real traffic and must stay generous
-// enough that a busy customer is never throttled.
+// Sized by what each route costs us, not by what a plan allows. The tracking routes carry a landing
+// page's real traffic and must stay generous enough that a busy customer is never throttled.
 export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: number }> = {
   analysis: { tokens: 5, windowMs: HOUR_MS },
   variants: { tokens: 20, windowMs: HOUR_MS },
   experiment: { tokens: 30, windowMs: HOUR_MS },
   screenshot: { tokens: 10, windowMs: HOUR_MS },
+  // Looser than `analysis` because it buys no generation, tighter than `variants` because it
+  // opens a browser.
+  measure: { tokens: 10, windowMs: HOUR_MS },
   waitlist: { tokens: 5, windowMs: HOUR_MS },
   track_event: { tokens: 120, windowMs: MINUTE_MS },
   track_config: { tokens: 300, windowMs: MINUTE_MS },
   signin: { tokens: 5, windowMs: 15 * MINUTE_MS }
 }
 
-// Where variant previews are served from. They live on a volume rather than object storage, so they
-// are same-origin: no next/image remote pattern, and img-src 'self' already covers them.
+// Same-origin, so no next/image remote pattern and img-src 'self' already covers them.
 export const SCREENSHOT_PUBLIC_PATH = '/screenshots'
 
-// Exactly what saveScreenshot() writes: a uuid, a hyphen, a uuid, `.png`. The serving route
-// allowlists against this instead of sanitizing the request path, so no separator or dot segment
-// can survive the check in the first place.
+// Exactly what saveScreenshot() writes. An allowlist, not a sanitizer: no separator or dot segment
+// survives it. See docs/security.md.
 export const SCREENSHOT_FILENAME_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.png$/
 
-// How long a rendered preview is kept before the nightly prune reclaims it. Nothing used to delete
-// these, so the volume grew monotonically until writeFile hit ENOSPC -- which the screenshot route
-// catches and reports as `url: null`, i.e. previews silently stop working with no error anywhere.
-//
-// The cost of the window being this short is that a cold-outreach link opened months after it was
-// generated asks for a click again. That is accepted: it cannot be made an LRU instead, because
-// serving a file does not touch its mtime and atime on a network volume is not dependable.
+// It cannot be made an LRU instead: serving a file does not touch its mtime, and atime on a network
+// volume is not dependable. See docs/deployment.md.
 export const SCREENSHOT_RETENTION_DAYS = 30
 
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
@@ -253,28 +203,21 @@ export const FREE_EXPERIMENTS_LIMIT = 1
 
 export const DEFAULT_EXPERIMENT_DURATION: ExperimentDuration = 14
 
-// Public outreach report: how many top hypotheses are shown in full before the
-// remaining ones are blurred behind the waitlist wall.
+// How many hypotheses the public report shows in full before the wall.
 export const REPORT_PREVIEW_LIMIT = 3
 
-// The same gate for the report's three fix tabs. Lower than the hypothesis limit because a fix card
-// carries its whole steps list, so two of them already fill a screen.
+// Lower than the hypothesis limit: a fix card carries its whole steps list, so two fill a screen.
 export const REPORT_FIX_PREVIEW_LIMIT = 2
 
-// What the preview button promises before it is clicked. A variant preview boots a browser and
-// renders the customer's real page, so the wait is long enough that it has to be stated up front
-// rather than hidden behind a spinner.
+// What the button promises before the click. The wait is long enough to state rather than hide.
 export const PREVIEW_ESTIMATE_SECONDS = 15
 
-// Everything the server can legitimately spend on one preview that is not one of the timeouts below:
-// the DNS lookup in assertPublicUrl, another in launchBrowser, the CDP connect, the page.evaluate
-// round trips, writing the PNG, and two database queries.
+// Everything not covered by a timeout below: two DNS lookups, the CDP connect, the page.evaluate
+// round trips, writing the PNG, two queries.
 const PREVIEW_TIMEOUT_SLACK_MS = 15_000
 
-// Derived rather than written down, because a hardcoded number is wrong the first time any budget
-// below it moves. The navigation and settle deadlines are additive: settlePage only starts counting
-// once goto has returned, so the real worst case is their sum and not the larger of the two. The
-// queue wait belongs here too -- once a slot has to be acquired, that wait precedes the render.
+// Derived, never written down: a literal is wrong the first time a budget under it moves. The
+// deadlines are additive -- settlePage only starts counting once goto has returned.
 export const PREVIEW_REQUEST_TIMEOUT_MS =
   SCREENSHOT_QUEUE_MAX_WAIT_MS +
   SCRAPE_NAVIGATION_TIMEOUT_MS +
@@ -283,55 +226,55 @@ export const PREVIEW_REQUEST_TIMEOUT_MS =
   SCRAPE_PAINT_SETTLE_MS +
   PREVIEW_TIMEOUT_SLACK_MS
 
-// Variant targeting: a hypothesis is only "auto" (safe to swap in a screenshot or live test) when
-// its current copy resolves to a single element whose word count is within this ratio of the copy.
-// Guards against snapping a long merged string onto a tiny element (e.g. a 3-word badge).
+// The wait here is the scrape's, not a request's, so it is stated rather than hidden.
+export const MEASURE_ESTIMATE_SECONDS = 20
+
+// Everything not covered by a deadline below: two DNS lookups, the CDP connect, the three readouts'
+// round trips, the LCP observer handoff, one update.
+const MEASURE_TIMEOUT_SLACK_MS = 10_000
+
+// Derived like PREVIEW_REQUEST_TIMEOUT_MS. The queue wait is the scrape's generous one, because
+// measuring goes through scrapePage rather than failing fast the way a preview does.
+export const MEASURE_REQUEST_TIMEOUT_MS =
+  SCRAPE_QUEUE_MAX_WAIT_MS +
+  SCRAPE_NAVIGATION_TIMEOUT_MS +
+  SCRAPE_SETTLE_TIMEOUT_MS +
+  MEASURE_TIMEOUT_SLACK_MS
+
+// Guards a matching heuristic, so it stays tight: being wrong means snapping a long merged string
+// onto a tiny element. NOT the same as VARIANT_WORD_BUDGET_RATIO below.
 export const TARGET_MATCH_MAX_WORD_RATIO = 1.3
 
-// Conversion goals are pinned to clickable elements. Anything wordier than this is prose with a link
-// in it, not a CTA, so it never becomes a goal candidate.
+// Anything wordier is prose with a link in it, not a CTA.
 export const GOAL_CANDIDATE_MAX_WORDS = 8
 
-// How much longer than the copy it replaces a variant may be. Deliberately NOT
-// TARGET_MATCH_MAX_WORD_RATIO: that one guards a matching heuristic, where being wrong means
-// previewing the wrong element, so it must stay tight. This one is a writing constraint and has to
-// leave room for a genuinely better line. A pure ratio is nonsense at the short end (a 2-word CTA at
-// 1.5x is 3 words, which forbids "Start free, no card required"), hence the floor. Ceilings run
-// 2 -> 5, 6 -> 9, 10 -> 15: a hero headline stays one line instead of becoming a paragraph.
+// A writing constraint, deliberately looser than TARGET_MATCH_MAX_WORD_RATIO above -- do not
+// unify them. The floor exists because a pure ratio is nonsense at the short end: a 2-word CTA at
+// 1.5x is 3 words, which forbids "Start free, no card required".
 export const VARIANT_WORD_BUDGET_RATIO = 1.5
 
 export const VARIANT_WORD_BUDGET_FLOOR = 3
 
-// How many goal candidates the test runner offers before falling back to the free-text selector.
 export const GOAL_CANDIDATE_LIMIT = 12
 
-// The recommendation plus its two alternates. Only the recommendation is generated during the
-// analysis; the alternates are written on demand by the run-a-test screen.
+// The recommendation plus its two alternates, which are written on demand. See docs/ai-pipeline.md.
 export const VARIANTS_PER_HYPOTHESIS = 3
 
-// The flow playbook: structural fixes that sit beside the copy hypotheses. Bounded because a founder
-// acts on a short list, and because the playbook shares the analysis's generation budget.
+// Bounded because a founder acts on a short list, and the playbook shares the generation budget.
 export const PLAYBOOK_MIN = 3
 
 export const PLAYBOOK_MAX = 6
 
 export const PLAYBOOK_STEPS_MAX = 5
 
-// The visibility audit is bounded the same way, with one deliberate difference: there is no minimum.
-// Every page has structural room to convert better, so PLAYBOOK_MIN asks for something that is always
-// there. Discoverability is not like that -- a page can genuinely be well covered, and a floor would
-// buy an invented finding to fill the quota. Zero findings is a correct answer, and FlowPlaybook
-// already renders nothing for an empty list.
+// No minimum, unlike PLAYBOOK_MIN: zero findings is a correct answer. See docs/ai-pipeline.md.
 export const VISIBILITY_MAX = 6
 
-// How long capturePerformance waits for a PerformanceObserver to deliver the LCP entries the browser
-// already buffered. They arrive on a task after observe() returns, so this is a handoff and not a
-// measurement window -- the page has already finished settling by the time it runs.
+// A handoff, not a measurement window: buffered LCP entries arrive on a task after observe()
+// returns. See docs/scraping.md.
 export const SCRAPE_LCP_FLUSH_MS = 50
 
-// Also what every row already in the table is: the waitlist wall on the public report was the only
-// thing writing leads before the landing page's contact form existed, so this doubles as the correct
-// backfill for the column's default.
+// Also the correct backfill: the wall was the only thing writing leads before the contact form.
 export const DEFAULT_LEAD_SOURCE: LeadSource = 'report'
 
 // The readout measures in bytes and milliseconds and converts once, at the render edge.
@@ -339,26 +282,18 @@ export const BYTES_PER_MEGABYTE = 1024 * 1024
 
 export const MS_PER_SECOND = 1000
 
-// Thresholds for the measured readout (lib/readout.ts). Every one of these turns a measurement into
-// `warn` or `alert`; nothing here invents a number that reaches the reader, because what is rendered
-// is always the page's own value and these only decide its colour.
-//
-// They are deliberately loose. A false `alert` on a page that is fine is the expensive error here --
-// this report is read by a stranger who can check it against their own site in one click, and one
-// wrong accusation costs the credibility of every true finding beside it.
+// These decide a finding's colour and nothing else -- what is rendered is always the page's own
+// value. Deliberately loose: a false alert is the expensive error. See docs/readout.md.
 export const READOUT_THRESHOLDS = {
-  // Signup friction. Email + password is 2, so 4 is already asking for things a landing page does
-  // not need and 7 is a form that belongs after the signup, not before it.
+  // Email + password is 2, so 4 already asks for things a landing page does not need.
   formFieldsWarn: 4,
   formFieldsAlert: 7,
-  // Zero above the fold means a visitor has to scroll to find out what to do. Past four, the
-  // "primary" action is whichever one they happen to see first.
+  // Past four, the "primary" action is whichever one they happen to see first.
   aboveFoldCtasWarn: 5,
-  // Every nav link is an exit from the page a visitor arrived on.
   navLinksWarn: 8,
   navLinksAlert: 14,
-  // Google's own "good" LCP boundary is 2.5s and its "poor" boundary is 4s. Measured from a
-  // datacenter these are generous, which is the intended direction -- see PagePerformance.
+  // Google's own "good" and "poor" LCP boundaries. Generous when measured from a datacenter,
+  // which is the intended direction.
   lcpWarnMs: 2_500,
   lcpAlertMs: 4_000,
   pageWeightWarnBytes: 2 * BYTES_PER_MEGABYTE,
@@ -367,14 +302,10 @@ export const READOUT_THRESHOLDS = {
   requestCountAlert: 150
 } as const
 
-// Where a hypothesis lands when the model answers with a section outside the enum -- it has returned
-// the element's HTML tag before. The catch-all SECTIONS member, named here so the schema's fallback
-// is not a bare string literal.
+// Named so the schema's fallback is not a bare literal. See docs/ai-pipeline.md.
 export const SECTION_FALLBACK: Section = 'other'
 
-// Text a login button carries when it delegates auth to a provider. Used to tell a page that already
-// offers social sign in from one that would benefit from it, so the playbook never recommends adding
-// what is already there. Detection patterns, not domain values -- matched case-insensitively.
+// Detection patterns, not domain values -- matched case-insensitively.
 export const OAUTH_PROVIDER_PATTERNS: Record<string, string[]> = {
   google: ['google'],
   github: ['github'],
@@ -386,9 +317,8 @@ export const OAUTH_PROVIDER_PATTERNS: Record<string, string[]> = {
   sso: ['sso', 'single sign on', 'saml', 'okta']
 }
 
-// The rest of the structural detection vocabulary, matched case-insensitively against element text,
-// headings, or iframe sources. A provider name alone is not enough to call something social sign in
-// (a dev tool links to GitHub in its nav), so `auth` has to match on the same control.
+// Matched case-insensitively against element text, headings or iframe sources. A provider name
+// alone is never social sign in, so `auth` has to match on the same control.
 export const STRUCTURE_PATTERNS = {
   auth: ['sign in', 'signin', 'sign up', 'signup', 'log in', 'login', 'continue with', 'register'],
   faq: ['faq', "faq's", 'frequently asked', 'common questions', 'questions', 'perguntas'],
@@ -397,10 +327,8 @@ export const STRUCTURE_PATTERNS = {
   videoHosts: ['youtube.com', 'youtu.be', 'vimeo.com', 'loom.com', 'wistia', 'mux.com']
 }
 
-// Open Graph images are rasterized by Satori, which parses neither oklch() nor a CSS custom
-// property -- so the design tokens in app/globals.css cannot be referenced there. These are those
-// same tokens (--ink, --paper, --rule, --muted-foreground, --purple, --coral) as sRGB hex, and the
-// only place in the codebase where a hex value is legitimate. Keep them in step with globals.css.
+// Satori parses neither oklch() nor a CSS variable, so these mirror the tokens in globals.css as
+// sRGB hex -- the only place a hex value is legitimate. Keep them in step.
 export const OG_COLORS = {
   ink: '#1b1d24',
   paper: '#fbfbfd',
@@ -412,13 +340,11 @@ export const OG_COLORS = {
 
 export const OG_IMAGE_SIZE = { width: 1200, height: 630 }
 
-// The site-wide card rendered by app/opengraph-image.tsx. Named explicitly because a page that sets
-// its own `openGraph` replaces the root layout's entirely -- the file convention does not survive
-// that merge, so every such page has to point back here. See lib/seo.ts.
+// Named explicitly because a page setting its own `openGraph` replaces the root layout's entirely,
+// taking the file-convention image with it. See docs/seo.md.
 export const DEFAULT_OG_IMAGE_PATH = '/opengraph-image'
 
-// Color tokens are defined in app/globals.css (@theme). These maps only reference
-// semantic token utility classes -- never raw Tailwind color classes or hex values.
+// Semantic token utilities from app/globals.css -- never raw Tailwind colors or hex values.
 export const SECTION_BADGE_CLASS: Record<Section, string> = {
   headline: 'bg-purple/15 text-purple',
   subheadline: 'bg-purple/10 text-purple-soft',
@@ -431,7 +357,6 @@ export const SECTION_BADGE_CLASS: Record<Section, string> = {
   other: 'bg-neutral/15 text-neutral'
 }
 
-// Filled style for a selected option card (mirrors SECTION_BADGE_CLASS colors).
 export const SECTION_SELECTED_CLASS: Record<Section, string> = {
   headline: 'border-purple bg-purple/15 ring-2 ring-purple',
   subheadline: 'border-purple-soft bg-purple/10 ring-2 ring-purple-soft',
@@ -456,9 +381,7 @@ export const SECTION_DOT_CLASS: Record<Section, string> = {
   other: 'bg-neutral'
 }
 
-// Hues repeat across the two families (coral is both signup_friction and indexability). That is fine
-// and deliberate: the two never render in the same list, so a colour only has to separate the
-// categories it sits beside.
+// Hues repeat across the two families on purpose: they never render in the same list.
 export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
   signup_friction: 'bg-coral/15 text-coral',
   cta_placement: 'bg-purple/15 text-purple',
@@ -473,16 +396,14 @@ export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
   ai_answerability: 'bg-teal/15 text-teal'
 }
 
-// The measured readout's three states. Green is load-bearing here: a report that is all coral reads
-// as a sales pitch, and the rows that came back fine are what make the rest believable.
+// Green is load-bearing: a report that is all coral reads as a sales pitch.
 export const READOUT_SEVERITY_CLASS: Record<ReadoutSeverity, string> = {
   ok: 'bg-green/15 text-green',
   warn: 'bg-amber/15 text-amber',
   alert: 'bg-coral/15 text-coral'
 }
 
-// `contact` is green because it is the one that means someone asked to talk, and it has to be
-// findable at a glance in a list dominated by wall hits.
+// `contact` is green: it means someone asked to talk, in a list dominated by wall hits.
 export const LEAD_SOURCE_BADGE_CLASS: Record<LeadSource, string> = {
   report: 'bg-neutral/15 text-neutral',
   contact: 'bg-green/15 text-green'
@@ -531,7 +452,6 @@ export function effortScoreBadgeClass(score: number): string {
   return 'bg-red/15 text-red'
 }
 
-// Solid channel color for the segmented gauge fill (mirrors the badge score ranges).
 export function impactScoreFillClass(score: number): string {
   if (score >= 8) return 'bg-coral'
   if (score >= 5) return 'bg-amber'
@@ -544,16 +464,13 @@ export function effortScoreFillClass(score: number): string {
   return 'bg-red'
 }
 
-// High payoff for little work. The print report's summary cell and the analysis screen's "Quick
-// wins" sort read the same definition, so the two can never disagree about what one is.
+// One definition, read by both the print report's summary cell and the "Quick wins" sort.
 export function isQuickWin(scores: { impactScore: number; effortScore: number }): boolean {
   return scores.impactScore >= 7 && scores.effortScore <= 3
 }
 
-// How many hypotheses stay open before the rest collapse into scannable rows, and the point past
-// which the sort/filter bar earns its space.
+// A default, never a state the reader is stuck in -- every row can still be closed.
 export const HYPOTHESIS_EXPANDED_COUNT = 3
 export const HYPOTHESIS_FILTER_THRESHOLD = 4
-// The playbook keeps fewer open: it sits above the hypotheses on every surface, and its cards are
-// the tallest thing on the page once the steps list is showing.
+// Fewer: playbook cards are the tallest thing on the page once the steps list is showing.
 export const PLAYBOOK_EXPANDED_COUNT = 2

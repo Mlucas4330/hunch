@@ -10,9 +10,6 @@ import { VARIANTS_PER_HYPOTHESIS } from '@/lib/constants'
 
 export const runtime = 'nodejs'
 
-// Writes the two alternates the analysis deliberately skipped, so the expensive generation stays
-// off the analysis critical path. Idempotent: a hypothesis that already has its full set is
-// returned as is, so a double-fetch or a reload never produces duplicates.
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -55,8 +52,6 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       researchBrief: hypothesis.analysis.researchBrief,
       founderBrief: hypothesis.analysis.brief,
       locale: hypothesis.analysis.locale,
-      // Read from the stored analysis, never re-detected: the alternate has to be held to the market
-      // its hypothesis was written for.
       market: hypothesis.analysis.market
     })
   } catch {

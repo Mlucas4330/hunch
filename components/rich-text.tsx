@@ -1,5 +1,3 @@
-// Renders *asterisk-wrapped* spans of a translated string as bold, so emphasis travels with the
-// words instead of being hardcoded as JSX around them.
 export function RichText({ children }: { children: string }) {
   return (
     <>

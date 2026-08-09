@@ -27,8 +27,6 @@ export async function POST(request: Request) {
   const parsed = BodySchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return json(null)
 
-  // The embed key is printed in plaintext on the customer's own page, so anyone can read it and
-  // start launching browsers here. This is the only thing standing between that and the bill.
   const limited = await enforceRateLimit(
     'screenshot',
     `${parsed.data.embedKey}:${clientIp(request)}`,
@@ -45,13 +43,11 @@ export async function POST(request: Request) {
       }
     })
 
-    // Authorize purely by matching the opaque embed key -- never leak existence otherwise.
     if (!hypothesis || hypothesis.analysis.embedKey !== parsed.data.embedKey) return json(null)
 
     const variant = hypothesis.variants[0]
     if (!variant) return json(null)
     if (variant.screenshotUrl) return json(variant.screenshotUrl)
-    // Only auto-targetable hypotheses can be shown "applied"; manual ones degrade to copy-only.
     if (hypothesis.target !== 'auto' || !hypothesis.selector) return json(null)
     if (process.env.E2E_FIXTURES === '1') return json(null)
 
@@ -66,9 +62,6 @@ export async function POST(request: Request) {
     await db.update(variants).set({ screenshotUrl: url }).where(eq(variants.id, variant.id))
     return json(url)
   } catch (error) {
-    // Fail-safe: the report must never break. Log so misconfigurations (e.g. an unwritable
-    // screenshot volume, a bad selector, an unreachable page) are diagnosable instead of
-    // silently empty.
     console.error('[report/screenshot] generation failed', error)
     return json(null)
   }

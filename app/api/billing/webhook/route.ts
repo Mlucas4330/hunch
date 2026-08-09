@@ -1,11 +1,10 @@
-// Stripe calls this route directly, so middleware.ts's matcher excludes it from the auth check. The
-// signature verification below is what stands in for a session here.
 import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { stripeEvents, subscriptions, users } from '@/db/schema'
 import { stripe, planForPriceId } from '@/lib/stripe'
+import { isUuid } from '@/lib/uuid'
 import { SUBSCRIPTION_PLAN } from '@/lib/enums'
 import type { SubscriptionPlan, SubscriptionStatus } from '@/lib/enums'
 
@@ -15,8 +14,6 @@ function mapStatus(status: Stripe.Subscription.Status): SubscriptionStatus {
   return 'canceled'
 }
 
-// metadata is writable from the Stripe dashboard, so it is a hint about which plan was bought, not
-// an authority on it. An unrecognised value falls through to the price id, which we control.
 function planFromSubscription(subscription: Stripe.Subscription): SubscriptionPlan | undefined {
   const metadataPlan = subscription.metadata?.plan
   if (metadataPlan && SUBSCRIPTION_PLAN.includes(metadataPlan as SubscriptionPlan)) {
@@ -26,11 +23,22 @@ function planFromSubscription(subscription: Stripe.Subscription): SubscriptionPl
   return priceId ? planForPriceId(priceId) : undefined
 }
 
-// Resolves the user from the Stripe customer rather than from metadata.userId alone: the customer
-// id is what we recorded at checkout, so it cannot be pointed at someone else's account.
+function customerIdOf(subscription: Stripe.Subscription): string | null {
+  if (typeof subscription.customer === 'string') return subscription.customer
+  return subscription.customer?.id ?? null
+}
+
+async function payerEmail(customerId: string): Promise<string | null> {
+  try {
+    const customer = await stripe.customers.retrieve(customerId)
+    return customer.deleted ? null : customer.email
+  } catch {
+    return null
+  }
+}
+
 async function userIdForSubscription(subscription: Stripe.Subscription): Promise<string | null> {
-  const customerId =
-    typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id
+  const customerId = customerIdOf(subscription)
 
   if (customerId) {
     const owner = await db.query.users.findFirst({
@@ -41,13 +49,26 @@ async function userIdForSubscription(subscription: Stripe.Subscription): Promise
   }
 
   const metadataUserId = subscription.metadata?.userId
-  if (!metadataUserId) return null
+  if (isUuid(metadataUserId)) {
+    const claimed = await db.query.users.findFirst({
+      where: eq(users.id, metadataUserId),
+      columns: { id: true }
+    })
+    if (claimed) return claimed.id
+  }
 
-  const claimed = await db.query.users.findFirst({
-    where: eq(users.id, metadataUserId),
-    columns: { id: true }
-  })
-  return claimed?.id ?? null
+  if (customerId) {
+    const email = await payerEmail(customerId)
+    if (email) {
+      const payer = await db.query.users.findFirst({
+        where: sql`lower(${users.email}) = ${email.toLowerCase()}`,
+        columns: { id: true }
+      })
+      if (payer) return payer.id
+    }
+  }
+
+  return null
 }
 
 async function syncSubscription(subscription: Stripe.Subscription, plan: SubscriptionPlan) {
@@ -75,11 +96,13 @@ async function syncSubscription(subscription: Stripe.Subscription, plan: Subscri
       set: { plan, status, currentPeriodEnd }
     })
 
-  await db.update(users).set({ plan }).where(eq(users.id, userId))
+  const customerId = customerIdOf(subscription)
+  await db
+    .update(users)
+    .set(customerId ? { plan, stripeCustomerId: customerId } : { plan })
+    .where(eq(users.id, userId))
 }
 
-// Records the event and reports whether this delivery is the first one. Stripe retries until it
-// gets a 2xx, so without this a retry re-runs the whole handler.
 async function claimEvent(event: Stripe.Event, subscriptionId: string | null): Promise<boolean> {
   const inserted = await db
     .insert(stripeEvents)
@@ -95,8 +118,6 @@ async function claimEvent(event: Stripe.Event, subscriptionId: string | null): P
   return inserted.length > 0
 }
 
-// Guards ordering, which idempotency alone does not: a `subscription.updated` delayed past this
-// subscription's `subscription.deleted` would otherwise re-grant the plan the deletion revoked.
 async function supersededByCancellation(
   event: Stripe.Event,
   subscriptionId: string
@@ -135,7 +156,6 @@ export async function POST(request: Request) {
 
   const subscriptionId = subscriptionIdOf(event)
 
-  // Claimed before any work is done, so a retry of a partially-applied event is still a no-op.
   if (!(await claimEvent(event, subscriptionId))) {
     return NextResponse.json({ received: true, duplicate: true })
   }

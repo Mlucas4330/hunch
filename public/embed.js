@@ -7,9 +7,8 @@
 
   var api = script.getAttribute('data-api') || new URL(script.src).origin
 
-  // How long to keep waiting for a client-rendered page to paint the control copy before giving up
-  // on this experiment. Local to this file on purpose: it is served straight from public/ and can
-  // never import from lib/.
+  // Served straight from public/, so this file can never import from lib/. The duplication below is
+  // deliberate -- do not "fix" it. See docs/experiments.md.
   var LOCATE_TIMEOUT_MS = 3000
 
   function store(name) {
@@ -26,9 +25,8 @@
     } catch {}
   }
 
-  // A stable per-browser id. The server dedupes on it, so a reload -- or a replayed beacon --
-  // counts once instead of inflating the arm. Falls back to a fresh id when storage is blocked,
-  // which loses dedupe for that visitor rather than dropping the event.
+  // The server dedupes on this. Blocked storage loses dedupe for that visitor rather than
+  // dropping the event.
   function visitor() {
     var id = store('hunch_vid')
     if (!id) {
@@ -53,8 +51,7 @@
       visitorId: visitor()
     })
     try {
-      // A false return means the beacon was never queued (the queue is full, the payload is too
-      // big). Falling through to fetch is the difference between a dropped event and a counted one.
+      // A false return means the beacon was never queued; fetch is the fallback.
       if (
         navigator.sendBeacon &&
         navigator.sendBeacon(api + '/api/track/event', new Blob([body], { type: 'text/plain' }))
@@ -78,8 +75,8 @@
     return (text || '').replace(/\s+/g, ' ').trim().toLowerCase()
   }
 
-  // A "text unit" is a block-level element whose only element children are inline formatting, so its
-  // full text is one coherent string -- mirroring how the scraper captured it.
+  // A block element whose only element children are inline, so its text is one coherent string --
+  // mirroring how the scraper captured it.
   function isTextUnit(el) {
     var kids = el.children
     for (var i = 0; i < kids.length; i++) {
@@ -100,8 +97,7 @@
     return null
   }
 
-  // Only return an element we are confident is the control: a stored selector still pointing at the
-  // original copy, else an exact full-text match. Never hand back a drifted element to overwrite.
+  // Never hand back a drifted element to overwrite.
   function locate(exp) {
     var target = normalize(exp.controlCopy)
     if (exp.selector) {
@@ -123,10 +119,8 @@
     return arm
   }
 
-  // Navigation is not paint. A client-rendered page reaches this script with nothing but a skeleton
-  // in the DOM, so locating once and giving up would silently drop every SPA. Waits for the document
-  // to stop being parsed, then watches for the control copy to appear, bounded so a page that never
-  // renders it costs one timer rather than a permanent observer.
+  // Navigation is not paint: a client-rendered page reaches this script holding only a skeleton, so
+  // locating once and giving up would silently drop every SPA.
   function whenLocatable(exp, cb) {
     function attempt() {
       var el = locate(exp)
@@ -153,11 +147,8 @@
     attempt()
   }
 
-  // An impression only exists once the page is confirmed to be in the state the test assumes. If the
-  // control copy is not on the page, the visitor could never have been shown the challenger, and
-  // counting them into the variant arm would report an A/A test as a real result -- with a real
-  // looking rate, p-value and recommendation on top of it. Bucketing happens after that check for
-  // the same reason: an arm written to localStorage here would stick for every later visit too.
+  // Bucketing MUST stay after whenLocatable: a visit that could not be served must write no arm and
+  // no impression, or an A/A test reports as a real result. See docs/experiments.md.
   function run(exp) {
     whenLocatable(exp, function (el) {
       var arm = armFor(exp)
@@ -169,14 +160,10 @@
         send(exp.experimentId, arm, 'impression')
       }
 
-      // A conversion is only ever a click on the declared goal. Never fall back to the swapped
-      // element -- clicking a headline is not a conversion, and counting it would quietly poison
-      // the result with numbers that look real.
+      // Never fall back to the swapped element: clicking a headline is not a conversion.
       if (!exp.goalSelector) return
 
-      // Delegated from the document rather than bound to the element: a CTA rendered later -- by a
-      // modal, by hydration, by infinite scroll -- would otherwise never carry a listener, and the
-      // test would collect impressions forever without a single conversion.
+      // Delegated from the document: a CTA rendered later would otherwise never carry a listener.
       document.addEventListener('click', function (event) {
         var target = event.target
         if (!target || !target.closest) return

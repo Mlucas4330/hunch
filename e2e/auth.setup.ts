@@ -15,7 +15,7 @@ setup('authenticate as admin', async ({ page }) => {
   await page.click('button:has-text("Sign in as admin")')
 
   await page.waitForURL(/\/dashboard/)
-  await expect(page.getByRole('heading', { name: 'Your analyses' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your clients' })).toBeVisible()
 
   await page.context().storageState({ path: authFile })
 })

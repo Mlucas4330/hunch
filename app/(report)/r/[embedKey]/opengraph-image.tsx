@@ -2,10 +2,10 @@ import { ImageResponse } from 'next/og'
 import { dictionaryFor } from '@/lib/i18n'
 import { t as fill } from '@/lib/i18n/format'
 import { DEFAULT_LOCALE, OG_COLORS, OG_IMAGE_SIZE } from '@/lib/constants'
-import { loadReport, reportHost, reportIsWhiteLabelled } from '@/lib/report'
+import { displayHost } from '@/lib/host'
+import { loadReport, reportIsWhiteLabelled } from '@/lib/report'
 import { OgFrame, OgStat, OgWordmark } from '@/components/og'
 
-// Unfurlers send no cookies, so the locale is DEFAULT_LOCALE rather than the reader's cookie.
 const t = dictionaryFor(DEFAULT_LOCALE)
 
 export const alt = t.metadata.ogImageAlt
@@ -16,8 +16,6 @@ export default async function Image({ params }: { params: Promise<{ embedKey: st
   const { embedKey } = await params
   const analysis = await loadReport(embedKey)
 
-  // An unknown key renders the plain branded card rather than throwing: this URL is fetched by
-  // someone else's unfurler, and a 500 there is a broken-looking link.
   if (!analysis) {
     return new ImageResponse(
       (
@@ -34,9 +32,6 @@ export default async function Image({ params }: { params: Promise<{ embedKey: st
 
   const count = analysis.hypotheses.length
   const topImpact = analysis.hypotheses.reduce((max, h) => Math.max(max, h.impactScore), 0)
-  // The card is the first thing the reader sees when the owner pastes this link into an email, so a
-  // deliverable's unfurl must carry no mark of ours either. loadReport is cached and already ran
-  // above, so the plan costs nothing here.
   const whiteLabel = reportIsWhiteLabelled(analysis)
 
   return new ImageResponse(
@@ -62,7 +57,7 @@ export default async function Image({ params }: { params: Promise<{ embedKey: st
               color: OG_COLORS.ink
             }}
           >
-            {reportHost(analysis.url)}
+            {displayHost(analysis.url)}
           </div>
           <div style={{ display: 'flex', fontSize: 32, color: OG_COLORS.mutedForeground }}>
             {fill(t.report.heading, { count })}

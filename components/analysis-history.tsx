@@ -3,12 +3,19 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { Check, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useI18n } from '@/components/i18n-provider'
 import { t } from '@/lib/i18n/format'
 
-type HistoryItem = { id: string; url: string; date: string }
+type HistoryItem = {
+  id: string
+  url: string
+  client: string
+  market: string
+  date: string
+}
 
 export function AnalysisHistory({ analyses }: { analyses: HistoryItem[] }) {
   const { dictionary } = useI18n()
@@ -28,56 +35,71 @@ export function AnalysisHistory({ analyses }: { analyses: HistoryItem[] }) {
   }
 
   return (
-    <div className="space-y-3" data-testid="analysis-history">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="analysis-history">
       {analyses.map((analysis) => {
         const confirming = confirmingId === analysis.id
         const deleting = deletingId === analysis.id
         return (
           <Card
             key={analysis.id}
-            className="relative transition-all hover:-translate-y-0.5 hover:border-foreground/20"
+            className="relative flex flex-col transition-all hover:-translate-y-0.5 hover:border-foreground/20"
           >
-            <CardContent className="flex items-center justify-between gap-4 p-4">
+            <CardContent className="flex flex-1 flex-col gap-3 p-4">
               <Link
                 href={`/analyses/${analysis.id}`}
                 aria-label={t(dictionary.history.openAria, { url: analysis.url })}
                 className="absolute inset-0 rounded-lg"
               />
-              <span className="truncate font-mono text-sm">{analysis.url}</span>
-              <div className="relative z-10 flex shrink-0 items-center gap-3">
-                <span className="panel-label text-[0.65rem] text-muted-foreground">
-                  {analysis.date}
-                </span>
-                {confirming ? (
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={deleting}
-                      onClick={() => onDelete(analysis.id)}
-                    >
-                      {deleting ? dictionary.common.deleting : dictionary.common.delete}
-                    </Button>
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="truncate font-display text-base font-semibold tracking-tight">
+                  {analysis.client}
+                </h2>
+                <div className="relative z-10 flex shrink-0 items-center gap-1">
+                  {confirming ? (
+                    <>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={deleting}
+                        aria-label={
+                          deleting ? dictionary.common.deleting : dictionary.common.delete
+                        }
+                        onClick={() => onDelete(analysis.id)}
+                      >
+                        <Check aria-hidden className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={deleting}
+                        aria-label={dictionary.common.cancel}
+                        onClick={() => setConfirmingId(null)}
+                      >
+                        <X aria-hidden className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
                     <Button
                       variant="ghost"
-                      size="sm"
-                      disabled={deleting}
-                      onClick={() => setConfirmingId(null)}
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-red"
+                      aria-label={t(dictionary.history.deleteAria, { url: analysis.url })}
+                      onClick={() => setConfirmingId(analysis.id)}
                     >
-                      {dictionary.common.cancel}
+                      <Trash2 aria-hidden className="h-4 w-4" />
                     </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={t(dictionary.history.deleteAria, { url: analysis.url })}
-                    onClick={() => setConfirmingId(analysis.id)}
-                    className="text-muted-foreground hover:text-red"
-                  >
-                    {dictionary.common.delete}
-                  </Button>
-                )}
+                  )}
+                </div>
+              </div>
+
+              <p className="break-all font-mono text-xs text-muted-foreground">{analysis.url}</p>
+
+              <div className="panel-label mt-auto flex items-center gap-2 text-[0.65rem] text-muted-foreground">
+                <span>{analysis.date}</span>
+                <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-border" />
+                <span className="truncate">{analysis.market}</span>
               </div>
             </CardContent>
           </Card>

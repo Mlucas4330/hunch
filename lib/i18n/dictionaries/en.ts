@@ -1,8 +1,4 @@
-// Emphasis inside a sentence is marked with *asterisks* and rendered by <RichText>, so a
-// translator moves the emphasis with the words instead of reassembling JSX.
 export const en = {
-  // Titles and descriptions for search results and link unfurls. The site name doubles as the
-  // og:siteName and as the suffix Next appends to every child title.
   metadata: {
     title: 'Hunch',
     description: 'Turn your landing page into ranked, competitor-grounded A/B test hunches.',
@@ -18,8 +14,8 @@ export const en = {
         description: 'Sign in to Hunch with Google.'
       },
       dashboard: {
-        title: 'Your analyses',
-        description: 'Every landing page you have analyzed, and the tests each one produced.'
+        title: 'Your clients',
+        description: 'Every client landing page you have analyzed, and the tests each one produced.'
       },
       analysis: {
         title: 'Your test ideas',
@@ -112,8 +108,6 @@ export const en = {
       keep_control: 'Keep current copy',
       inconclusive: 'Inconclusive - not enough traffic'
     },
-    // Display label only. The Postgres value stays `solo`, so changing this costs no migration --
-    // and "Solo" named the old audience, the founder working alone.
     plan: {
       free: 'Free',
       solo: 'Pro'
@@ -126,7 +120,7 @@ export const en = {
 
   nav: {
     homeAria: 'Hunch home',
-    dashboard: 'Dashboard',
+    dashboard: 'Clients',
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
@@ -141,7 +135,6 @@ export const en = {
     impact: 'Impact',
     effort: 'Effort',
     aria: '{label} {score} of 10',
-    // One letter, prefixed to the number on a compact chip: "I9", "E3".
     short: {
       impact: 'I',
       effort: 'E'
@@ -265,9 +258,6 @@ export const en = {
       }
     ],
 
-    // Replaced the pricing table. See the comment at its call site in app/(app)/page.tsx: the deal
-    // is negotiated by a person, and a published self-serve number anchors that conversation before
-    // it starts. Nothing here quotes a price.
     contact: {
       eyebrow: 'Talk to us',
       heading: 'Tell us how many pages you audit a month.',
@@ -304,13 +294,13 @@ export const en = {
   },
 
   dashboard: {
-    eyebrow: 'Dashboard',
-    title: 'Your analyses',
+    eyebrow: 'Clients',
+    title: 'Your clients',
     hintLabel: 'How analysis works',
-    hint: 'Paste your live landing page URL. Hunch scans the copy, studies competitors, and generates ranked A/B test ideas. Add *business details* so the copy comes back finished instead of with [placeholders]. On paid plans, paste competitor URLs (*Competitor mode*) to ground the ideas; free analyses find competitors automatically.',
-    subtitle: 'Paste a landing page URL to generate ranked A/B test hypotheses.',
-    emptyTitle: 'No analyses yet',
-    emptyDescription: 'Paste a landing page URL above to run your first analysis.'
+    hint: "Paste your client's live landing page URL. Hunch scans the copy, studies competitors, and generates ranked A/B test ideas. Add *business details* so the copy comes back finished instead of with [placeholders]. On paid plans, paste competitor URLs (*Competitor mode*) to ground the ideas; free analyses find competitors automatically.",
+    subtitle: "Paste a client's landing page URL to generate their ranked teardown.",
+    emptyTitle: 'No clients yet',
+    emptyDescription: "Paste a client's landing page URL above to run your first analysis."
   },
 
   urlForm: {
@@ -343,8 +333,6 @@ export const en = {
   usageBanner: {
     limitReached: 'Limit reached',
     almostOut: 'Almost out',
-    // "3 *of* 5 analyses used this month." Lived under `billing` by accident of origin, and outlived
-    // that whole subtree -- this component is the only thing that ever read it.
     usageOf: 'of',
     used: 'analyses used this month.',
     blockedNote: 'Talk to us to keep analyzing pages.',
@@ -362,7 +350,7 @@ export const en = {
     hintLabel: 'How to use this screen',
     hint: 'Each tab is one kind of fix, ranked by likely impact. *Flow* and *SEO* are changes you ship by hand; *Copy* is the wording, and every idea there comes with the replacement already written. When you have access to the site and want to prove a change rather than argue it, the *Tests* tab is where you install the snippet and run one live test at a time.',
     report: 'Print report',
-    backToDashboard: 'Back to dashboard',
+    backToDashboard: 'Back to clients',
     benchmarkedAgainst: 'Benchmarked against:',
     marketNote: '(market: {market})',
     copyReportLink: 'Copy report link',
@@ -376,8 +364,6 @@ export const en = {
     }
   },
 
-  // The four fix-section subtrees are keyed by PLAYBOOK_SECTION, so FlowPlaybook reads
-  // `dictionary[section]` with no mapping table in between.
   flow: {
     eyebrow: 'Fix the flow',
     title: 'Before you test the words',
@@ -391,12 +377,6 @@ export const en = {
     }
   },
 
-  // `flow`, `visibility`, `seo` and `ai` mirror each other key for key, because FlowPlaybook picks
-  // one of the four subtrees by `section`. A key added to one has to be added to all of them or the
-  // union access in the component stops typechecking.
-  //
-  // `visibility` is the combined section the print report still renders; `seo` and `ai` are the two
-  // slices of those same rows that the tabbed surfaces render.
   visibility: {
     eyebrow: 'Get found',
     title: 'Can a search engine and an AI read this page',
@@ -424,10 +404,6 @@ export const en = {
     evidenceLabel: 'Why'
   },
 
-  // The measured readout. Every string here describes WHAT WAS COUNTED and how -- never what the
-  // number will produce. "Your LCP is 4.2s" is a measurement; "this is costing you 12% of signups"
-  // is a promise nobody measured, and it is the sentence that would burn the report's credibility
-  // the first time it did not come true.
   readout: {
     eyebrow: 'Measured on your page',
     title: 'What we counted',
@@ -438,8 +414,6 @@ export const en = {
       metadata: 'What the page tells a machine',
       load: 'What the page costs to open'
     },
-    // One label per READOUT_FINDING. The value is rendered beside it from the measurement, so these
-    // stay neutral: the label names the thing, the number says how much.
     findings: {
       form_fields: 'Signup form fields',
       no_social_signin: 'Sign in with Google or GitHub',
@@ -461,9 +435,6 @@ export const en = {
       yes: 'Yes',
       no: 'No'
     },
-    // Rendered against `page_weight` alone: SCRAPE_ALLOWED_RESOURCE_TYPES blocks media, so a page
-    // with a hero video really did transfer more than we measured. Understating is the safe
-    // direction for a claim made to a stranger about their own site, but it has to be said out loud.
     atLeast: 'at least',
     units: {
       seconds: '{value}s',
@@ -479,6 +450,15 @@ export const en = {
         above_fold_ctas: 'CTAs above the fold',
         nav_links: 'Navigation links'
       }
+    },
+    measure: {
+      explain:
+        'This analysis was generated before we started counting. Load the page again and we will measure it: form fields, calls to action above the fold, load time, images with no alt text.',
+      cta: 'Measure this page',
+      loading: 'Measuring the page...',
+      hint: 'Takes about {seconds} seconds. We open the page the same way a visitor does.',
+      failed: 'We could not load the page this time. Nothing was changed in this analysis.',
+      retry: 'Try again'
     }
   },
 
@@ -496,8 +476,6 @@ export const en = {
       quickWins: 'Quick wins'
     },
     filterLabel: 'Show',
-    // Keyed by TargetFilter, so the component reads filter[option] with no mapping table. There is
-    // no "hide finished" here: that was test state, and test state lives on the Tests tab.
     filter: {
       all: 'All',
       auto: 'Automatic',
@@ -621,8 +599,6 @@ export const en = {
     error: 'Something went wrong. Please try again.'
   },
 
-  // No self-serve checkout to send anyone to any more: every one of these leads to the contact
-  // section on the landing page, because the deal is closed by a person now.
   upgradePrompt: {
     eyebrow: 'Pro',
     title: 'Send this report under your own name',

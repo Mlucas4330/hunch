@@ -16,7 +16,9 @@ import { Button } from '@/components/ui/button'
 import { getDictionary } from '@/lib/i18n'
 import { t as fill } from '@/lib/i18n/format'
 import { MeasuredReadout } from '@/components/measured-readout'
+import { MeasurePage } from '@/components/measure-page'
 import { readoutFor, splitFixes, splitVisibility } from '@/lib/analyses'
+import { hasReadout, readout } from '@/lib/readout'
 import { PLAYBOOK_EXPANDED_COUNT } from '@/lib/constants'
 import { pageMetadata } from '@/lib/seo'
 
@@ -49,10 +51,8 @@ export default async function AnalysisDetailPage({
 
   const fixes = splitFixes(analysis.flowFixes)
   const visibility = splitVisibility(analysis.flowFixes)
-  // Only `auto` ideas can run as a live test: the snippet swaps one element's text, so a `manual`
-  // idea has nothing for it to target. An analysis where every idea is manual has no Tests tab at
-  // all -- and no snippet card, which there would be nothing to install.
   const testable = analysis.hypotheses.filter((hypothesis) => hypothesis.target === 'auto')
+  const measured = hasReadout(readout(readoutFor(analysis)))
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -95,9 +95,6 @@ export default async function AnalysisDetailPage({
               </a>
             </span>
           ))}
-          {/* The market is named here because it is the only thing that explains the list above it.
-              Detection reads the page, and when it reads it wrong the failure surfaces as
-              inexplicably foreign competitors -- unless the reader can see which market was used. */}
           <span className="text-muted-foreground">
             {' '}
             {fill(t.analysis.marketNote, { market: t.labels.market[analysis.market] })}
@@ -105,14 +102,12 @@ export default async function AnalysisDetailPage({
         </p>
       )}
 
-      {/* Above the tabs, like the snippet, because it is not one of the four lists: it is the
-          measurement all four are about. Renders nothing for an analysis created before the
-          measured columns existed. */}
-      <MeasuredReadout input={readoutFor(analysis)} />
+      {measured ? (
+        <MeasuredReadout input={readoutFor(analysis)} />
+      ) : (
+        <MeasurePage analysisId={analysis.id} />
+      )}
 
-      {/* Tab order is the order of the work: fix the flow, then the words, then make sure the page
-          can be found at all -- and only then prove a change live. An SEO task ranked in among the
-          conversion tests would compete for the decision the reader is here to make. */}
       <AnalysisTabs
         counts={{
           flow: fixes.flow.length,

@@ -8,6 +8,7 @@ import { AnalysisHistory } from '@/components/analysis-history'
 import { InfoHint } from '@/components/info-hint'
 import { RichText } from '@/components/rich-text'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { displayHost } from '@/lib/host'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { formatDate } from '@/lib/i18n/format'
 import { pageMetadata } from '@/lib/seo'
@@ -19,9 +20,6 @@ export async function generateMetadata() {
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
-  // Middleware gates pages, but it only proves a session exists -- a token whose user row is gone
-  // still passes it. Guarding here is what makes that a trip back to sign-in rather than a silently
-  // empty dashboard.
   if (!user) redirect('/auth/signin')
 
   const locale = await getLocale()
@@ -66,6 +64,8 @@ export default async function DashboardPage() {
           analyses={rows.map((analysis) => ({
             id: analysis.id,
             url: analysis.url,
+            client: displayHost(analysis.url),
+            market: t.labels.market[analysis.market],
             date: formatDate(analysis.createdAt, locale)
           }))}
         />

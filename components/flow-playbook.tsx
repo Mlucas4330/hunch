@@ -11,19 +11,6 @@ import type { FlowFix } from '@/db/schema'
 import type { PlaybookSection } from '@/lib/enums'
 import { cn } from '@/lib/utils'
 
-// Every ranked list of fixes, rendered by one component because they are one shape: the flow
-// playbook (structural conversion fixes) and the visibility audit (what a crawler and a model can
-// reach, read, and cite). `section` selects the copy and the test id, and nothing else -- there is
-// no branch on it below the heading, which is the point.
-//
-// `visibility` is the audit as one combined section, which the print report still renders; `seo` and
-// `ai` are the two slices of those same rows that the tabbed surfaces render instead.
-//
-// There is no "Set up test" action in any of them by design: these change the page itself rather
-// than one line of text, so the embed snippet has nothing to swap and there is nothing to A/B.
-//
-// `expandFrom` is the index past which fixes start closed. Omitting it opens everything, which is
-// what the print report needs -- nothing may be hidden on paper. Every row can be closed either way.
 export function FlowPlaybook({
   fixes,
   section = 'flow',
@@ -94,8 +81,6 @@ function FlowFixBody({ fix, section }: { fix: FlowFix; section: PlaybookSection 
     <>
       <p className="text-sm text-muted-foreground">{fix.problem}</p>
 
-      {/* The reasoning comes before the steps, not after them. Below the steps panel it was the last
-          thing on the card and read as a footnote -- readers reported never noticing it existed. */}
       {fix.evidence && <WhyBlock label={copy.evidenceLabel}>{fix.evidence}</WhyBlock>}
 
       <div className="space-y-2 rounded-md bg-muted p-3">

@@ -3,16 +3,12 @@ import { FREE_ANALYSES_LIMIT, FREE_EXPERIMENTS_LIMIT } from '@/lib/constants'
 
 type UsageUser = Pick<User, 'plan' | 'analysesCount' | 'usagePeriodStart'>
 
-// The free allowance is monthly, but nothing resets it on a schedule -- it rolls lazily. Every read
-// and every write asks "is the stored period still the current one?", so a missed cron or an idle
-// month can never leave a user permanently capped.
 export function periodExpired(periodStart: Date, now: Date = new Date()): boolean {
   const next = new Date(periodStart)
   next.setMonth(next.getMonth() + 1)
   return now >= next
 }
 
-// The count as it should be read right now: zero once the stored period has rolled over.
 export function effectiveAnalysesCount(user: UsageUser, now: Date = new Date()): number {
   return periodExpired(user.usagePeriodStart, now) ? 0 : user.analysesCount
 }
@@ -32,13 +28,6 @@ export function canExport(plan: User['plan']): boolean {
   return plan !== 'free'
 }
 
-// Whether this owner's public report is a deliverable rather than our lead magnet. A white-labelled
-// report carries no Hunch mark, no "powered by", and no waitlist wall -- it is handed to the
-// customer's own client, and a wall there would ask that client for an email on our behalf while
-// hiding half the work the owner is presenting.
-//
-// This is the capability the paid plan is actually bought for, so it is named rather than written as
-// `plan !== 'free'` at each of the four places that ask (page, footer, metadata, OG image).
 export function canWhiteLabel(plan: User['plan']): boolean {
   return plan !== 'free'
 }

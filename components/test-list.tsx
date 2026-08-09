@@ -15,15 +15,6 @@ import type { ExperimentStatus } from '@/lib/enums'
 import type { HypothesisWithVariants } from '@/components/hypothesis-list'
 import { cn } from '@/lib/utils'
 
-// Everything about running a live test, in one place. It used to be split between a snippet card
-// mounted above the tabs and a "Set up test" button inside every idea on the Copy tab, which put the
-// setup step in front of readers who are not testing anything -- and hid it from the ones who are.
-//
-// This is also the tab that reflects when testing happens now: after the work is won and you have
-// access to the site. The Copy tab answers "what should change"; this one answers "prove it".
-//
-// It owns the /api/experiments fetch that HypothesisList used to make for its status badges. The
-// request did not multiply -- it moved, along with the only thing that needed it.
 export function TestList({
   analysisId,
   embedKey,
@@ -50,8 +41,6 @@ export function TestList({
       .catch(() => {})
   }, [analysisId])
 
-  // A running test is never something the reader has to hunt for, so it sorts to the top. Below
-  // that, impact order -- the same order the Copy tab recommends acting in.
   const ordered = [...hypotheses].sort((a, b) => {
     const running = Number(statusByHypothesis[b.id] === 'running') -
       Number(statusByHypothesis[a.id] === 'running')
@@ -92,8 +81,6 @@ export function TestList({
   )
 }
 
-// Deliberately not a DisclosureCard. The ranked lists are things to read and weigh; this is a list of
-// things to launch, so each row is one line: what it changes, where it stands, and the way in.
 function TestRow({
   analysisId,
   hypothesis,

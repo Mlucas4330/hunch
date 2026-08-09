@@ -5,16 +5,6 @@ import { ANALYSIS_TAB, type AnalysisTab } from '@/lib/enums'
 import { useI18n } from '@/components/i18n-provider'
 import { cn } from '@/lib/utils'
 
-// The four sections of an analysis, as tabs. One shell for both surfaces that show them: the owner's
-// analysis screen and the public report. The print report deliberately does not use it -- nothing may
-// be hidden behind a tab on paper.
-//
-// Panels arrive already rendered, as ReactNode, so a server component can hand server-rendered
-// children to this client shell and the public report stays server-rendered inside it.
-//
-// Every panel stays mounted and the inactive ones are `hidden`, rather than only rendering the
-// active one. Switching tabs must not remount HypothesisList (which would refetch /api/experiments)
-// or a VariantPreview that has already rendered a screenshot.
 export function AnalysisTabs({
   panels,
   counts,
@@ -27,10 +17,6 @@ export function AnalysisTabs({
   const { dictionary } = useI18n()
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
-  // An empty tab is not rendered at all: the fix components return null for an empty list, so a tab
-  // bar built from the enum alone would offer a tab that opens onto nothing. This is the normal case
-  // for analyses generated before the visibility audit existed -- their rows are all `flow`, so SEO
-  // and AI are genuinely empty rather than broken.
   const available = useMemo(
     () => ANALYSIS_TAB.filter((tab) => counts[tab] > 0),
     [counts]

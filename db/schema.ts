@@ -82,23 +82,11 @@ export const analyses = pgTable('analyses', {
   competitors: jsonb('competitors').$type<{ name: string; url: string }[]>(),
   goalCandidates: jsonb('goal_candidates').$type<{ text: string; selector: string }[]>(),
   researchBrief: text('research_brief'),
-  // The three measured readouts, kept so the report can state facts about the page without a model
-  // in the loop. They were captured for generation long before this and thrown away afterwards.
-  //
-  // All nullable, and that is a contract rather than convenience: every analysis created before these
-  // columns existed holds null, and MeasuredReadout renders nothing for a null exactly as FlowPlaybook
-  // renders nothing for an empty list. No backfill, nothing regenerated.
   structure: jsonb('structure').$type<PageStructure>(),
   seo: jsonb('seo').$type<PageSeo>(),
   performance: jsonb('performance').$type<PagePerformance>(),
-  // Populated only in Competitor mode -- see CompetitorStructure.
   competitorStructures: jsonb('competitor_structures').$type<CompetitorStructure[]>(),
-  // The language the AI wrote this analysis in. Pinned at creation so alternates generated later
-  // match the hypotheses already stored, even if the user switches the UI language afterwards.
   locale: localeEnum('locale').notNull().default(DEFAULT_LOCALE),
-  // The market the analyzed page sells into, measured from the page itself rather than taken from the
-  // UI locale. Pinned for the same reason as `locale`: an alternate written later must be held to the
-  // market its hypothesis was written for.
   market: marketEnum('market').notNull().default(DEFAULT_MARKET),
   embedKey: uuid('embed_key').notNull().defaultRandom().unique(),
   createdAt: timestamp('created_at').notNull().defaultNow()
@@ -134,18 +122,11 @@ export const variants = pgTable('variants', {
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
-// The flow playbook: structural fixes that cannot be applied by swapping one line of text, so they
-// never become a live test. No variants, no target, no status -- a founder either ships the steps or
-// does not, and there is nothing for the embed snippet to measure.
 export const flowFixes = pgTable('flow_fixes', {
   id: uuid('id').primaryKey().defaultRandom(),
   analysisId: uuid('analysis_id')
     .notNull()
     .references(() => analyses.id, { onDelete: 'cascade' }),
-  // Which ranked list this fix belongs to. Conversion fixes and discoverability fixes have the
-  // identical shape and share this table and one component, so this is the only thing keeping them
-  // two sections rather than one list where they compete for the same slot. `position` is assigned
-  // per kind, so each section ranks from 1.
   kind: fixKindEnum('kind').notNull().default('flow'),
   category: flowCategoryEnum('category').notNull(),
   title: text('title').notNull(),
@@ -193,29 +174,18 @@ export const waitlist = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow()
   },
   (table) => [
-    // Not `email` alone, which is what it was. The insert is onConflictDoNothing, so a unique email
-    // meant that someone who had already hit a report's wall and then filled in the contact form was
-    // discarded without a trace -- losing the highest-intent event the product has. Per source, the
-    // dedupe still stops a reload from writing the same lead twice.
     unique().on(table.email, table.source)
   ]
 )
 
-// Every Stripe event we have already acted on. Stripe retries on any non-2xx and can deliver out of
-// order, so without this a replayed event would be processed twice.
 export const stripeEvents = pgTable('stripe_events', {
   id: text('id').primaryKey(),
   type: text('type').notNull(),
-  // Which subscription the event concerned, so ordering can be judged per subscription rather
-  // than against unrelated customers' events.
   subscriptionId: text('subscription_id'),
-  // event.created, not our clock: this is what makes a late event recognisable as stale.
   eventCreatedAt: timestamp('event_created_at').notNull(),
   receivedAt: timestamp('received_at').notNull().defaultNow()
 })
 
-// One row per (visitor, experiment, arm, event), so a reload or a forged replay cannot increment
-// experiment_stats twice. Also the statistically correct unit: a conversion rate is per visitor.
 export const experimentEvents = pgTable(
   'experiment_events',
   {

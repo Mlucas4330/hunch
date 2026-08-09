@@ -23,12 +23,7 @@ export default async function SignInPage({
   const params = await searchParams
   const t = await getDictionary()
   const error = params.error
-  // Middleware puts the page the visitor was trying to reach here, so sign-in returns them to it
-  // instead of always to the dashboard. Validated because it reaches `redirectTo` -- see
-  // safeCallbackUrl.
   const callbackUrl = safeCallbackUrl(params[CALLBACK_URL_PARAM])
-  // Read from exactly the condition the provider itself checks, so the form is never offered
-  // when it cannot work.
   const showCredentialsForm = credentialsLoginAllowed()
 
   return (
@@ -51,7 +46,6 @@ export default async function SignInPage({
             </Button>
           </form>
 
-          {/* Local/e2e only -- the credentials provider itself refuses in production. */}
           {showCredentialsForm && (
             <>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -70,8 +64,6 @@ export default async function SignInPage({
                       redirectTo: callbackUrl
                     })
                   } catch (err) {
-                    // The callbackUrl rides along, so a mistyped password does not cost the deep
-                    // link the visitor arrived with.
                     if (err instanceof AuthError) {
                       const retry = new URLSearchParams({
                         error: 'credentials',

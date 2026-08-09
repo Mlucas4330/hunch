@@ -30,10 +30,6 @@ export interface PageElement {
   tag: string
 }
 
-// What the page DOES, as opposed to what it says. The copy hypotheses only ever need `elements`;
-// the flow playbook needs to know whether a fix it is about to recommend is already implemented.
-// Flat and boolean/numeric only: it is serialized straight into the playbook prompt, where a nested
-// shape would cost tokens without telling the model anything the flat one does not.
 export interface PageStructure {
   hasOauth: boolean
   oauthProviders: string[]
@@ -44,8 +40,6 @@ export interface PageStructure {
   hasTestimonials: boolean
   hasVideo: boolean
   hasStickyCta: boolean
-  // Every short clickable in the body, not only real calls to action -- a feature card's "Learn
-  // more" counts. Named for what it measures so the model never reads it as "you have 68 CTAs".
   bodyLinkCount: number
   aboveFoldCtaCount: number
   navLinkCount: number
@@ -54,62 +48,28 @@ export interface PageStructure {
   wordCount: number
 }
 
-// One competitor's page, measured the same way the analyzed page is. Only ever populated in paid
-// Competitor mode: there the URLs are scraped anyway to build the research brief, so keeping the
-// `structure` that scrape already returned costs nothing. The auto path's competitors are URLs a
-// model cited without anyone opening them, and measuring those would mean 2-3 extra page loads on the
-// critical path of every analysis -- so that path stores none and the comparison simply does not
-// render.
 export interface CompetitorStructure {
   name: string
   url: string
   structure: PageStructure
 }
 
-// What a crawler and a language model can find, read, and cite. Sibling of PageStructure and held to
-// the same discipline -- flat, measured, no inference -- but a separate readout because it answers a
-// different question: PageStructure is what the page DOES, this is how the page is DESCRIBED.
-//
-// Nearly all of it is the <head>, which preprocessHtml strips before any model sees the page, so
-// without this capture none of it reaches generation at all.
 export interface PageSeo {
   title: string | null
   metaDescription: string | null
   canonical: string | null
-  // The <meta name="robots"> content verbatim. A page can be noindex without anyone noticing.
   robotsMeta: string | null
-  // <html lang>. Also what detectMarket reads, which is why the two features share one capture.
   lang: string | null
   h1Count: number
-  // Images are how a landing page states its strongest claims, and alt text is the only version of
-  // them a crawler or a model receives.
   imageCount: number
   imagesMissingAlt: number
   internalLinkCount: number
   hasOgTitle: boolean
   hasOgDescription: boolean
   hasOgImage: boolean
-  // The @type of every JSON-LD block on the page (Organization, Product, FAQPage, ...). The most
-  // direct citability signal there is: it is the page telling a machine what it is, in machine terms.
   jsonLdTypes: string[]
 }
 
-// What the page COSTS to load. Third sibling of PageStructure and PageSeo, under the same discipline
-// -- flat, measured, no inference -- and the only one of the three read from the Performance API
-// rather than the DOM.
-//
-// Every field is nullable rather than defaulted, because the fallback for a metric a browser did not
-// report is not zero: a 0ms LCP renders as an instant page, which is the opposite of the fact. An
-// absent measurement has to stay absent all the way to the reader.
-//
-// Two limits are inherent to measuring here and must reach the reader as words, not just as this
-// comment (see the `readout` dictionary):
-//
-//   - It is measured from the deploy's network against a warm datacenter connection, so it is a
-//     FLOOR. A visitor on mobile is slower than this, never faster.
-//   - SCRAPE_ALLOWED_RESOURCE_TYPES blocks `media`, so `transferredBytes` UNDERSTATES a page with a
-//     hero video. Understating is the safe direction for a claim we make to a stranger about their
-//     own page, which is why it is stated as "at least" rather than corrected for.
 export interface PagePerformance {
   ttfbMs: number | null
   fcpMs: number | null
@@ -150,10 +110,6 @@ export class ScrapeError extends Error {
   }
 }
 
-// Pages open concurrently against the shared browser are capped, and the counter lives on globalThis
-// for the same reason the Redis client does (lib/rate-limit.ts): Next re-evaluates modules on every
-// edit in dev and splits server bundles per route, so a module-scope counter risks being per-bundle
-// rather than per-process -- a cap that silently is not one.
 const globalForBrowserPool = globalThis as unknown as {
   browserPool?: { active: number; waiting: Array<() => void> }
 }
@@ -164,9 +120,6 @@ function browserPool() {
   return globalForBrowserPool.browserPool
 }
 
-// The invariant that makes the pool safe: nothing may await scrapePage or screenshotVariant while
-// already holding a slot. Nothing does today -- analyze.ts fans its competitor scrapes out flat --
-// but a nested call self-deadlocks at the cap and presents as an analysis that simply hangs.
 async function withBrowserSlot<T>(maxWaitMs: number, run: () => Promise<T>): Promise<T> {
   const pool = browserPool()
 
@@ -181,8 +134,6 @@ async function withBrowserSlot<T>(maxWaitMs: number, run: () => Promise<T>): Pro
 
       pool.waiting.push(grant)
 
-      // Presence in the queue is what says "not yet granted", so there is nothing to clear: a slot
-      // that arrived first took `grant` off the queue, and the expiry then finds nothing to do.
       setTimeout(() => {
         const queued = pool.waiting.indexOf(grant)
         if (queued === -1) return
@@ -196,39 +147,23 @@ async function withBrowserSlot<T>(maxWaitMs: number, run: () => Promise<T>): Pro
   try {
     return await run()
   } finally {
-    // Decrement first, then hand the freed slot to the next waiter, which re-increments it. Waking a
-    // waiter without decrementing would raise the effective cap by one on every handoff.
     pool.active -= 1
     pool.waiting.shift()?.()
   }
 }
 
 async function connectToBrowser(remote: string): Promise<Browser> {
-  // Chrome's DevTools endpoint refuses any Host header that is not an IP or localhost -- its own
-  // DNS-rebinding guard -- so a service name has to be resolved before connecting.
   const { hostname, port, protocol } = new URL(remote)
   const { address, family } = await lookup(hostname)
-  // Railway's internal DNS answers with IPv6, and a bare v6 literal in a URL is malformed --
-  // it has to be bracketed or the connection never reaches Chrome.
   const host = family === 6 ? `[${address}]` : address
 
   return puppeteer.connect({ browserURL: `${protocol}//${host}:${port}` })
 }
 
-// The single place a browser is obtained, so the sandbox flags and the request guard below can
-// never drift apart between call sites.
-//
-// In production BROWSER_URL points at a dedicated browser service: it holds no DB or API
-// credentials, so a renderer escape finds nothing worth stealing. Unset -- local dev, the ingest
-// CLI, the e2e suite -- falls back to launching Chrome in this process exactly as before.
 async function launchBrowser(): Promise<Browser> {
   const remote = process.env.BROWSER_URL
 
   if (remote) {
-    // Retried once, because the browser service restarts on its own (restartPolicyType: ALWAYS) and
-    // the window where Chrome is coming back up is otherwise a hard failure for whatever asked
-    // first. The hostname is resolved inside the attempt: a restarted container can come back on a
-    // different internal address, so a cached resolution is exactly what must not be reused.
     try {
       return await connectToBrowser(remote)
     } catch {
@@ -238,9 +173,6 @@ async function launchBrowser(): Promise<Browser> {
     }
   }
 
-  // The Chrome sandbox is what keeps a renderer exploit -- from a page we do not control -- away
-  // from this process's env, which holds the DB and API credentials. Disabling it is opt-in and
-  // explicit, never the silent default, because some serverless runtimes cannot provide it.
   const sandboxless = process.env.PUPPETEER_ALLOW_NO_SANDBOX === '1'
 
   return puppeteer.launch({
@@ -253,9 +185,6 @@ async function launchBrowser(): Promise<Browser> {
   })
 }
 
-// The mirror of launchBrowser: a connected browser is shared by every later request, so closing it
-// would take the whole container down with one scrape. The page is closed either way -- against a
-// long-lived browser, relying on close() to reap it leaks a tab per scrape.
 async function releaseBrowser(browser: Browser, page: Page | null): Promise<void> {
   await page?.close().catch(() => {})
 
@@ -267,18 +196,10 @@ async function releaseBrowser(browser: Browser, page: Page | null): Promise<void
   await browser.close().catch(() => {})
 }
 
-// assertPublicUrl only vets the URL we were handed. Redirects and anything the page requests on its
-// own are re-checked here, which is what actually closes DNS rebinding and 302-to-metadata.
 async function openGuardedPage(browser: Browser): Promise<Page> {
   const page = await browser.newPage()
   page.setDefaultTimeout(SCRAPE_NAVIGATION_TIMEOUT_MS)
 
-  // The functions handed to page.evaluate() are serialized as source, so whatever transpiled them
-  // comes along. esbuild (which is what runs `npm run preview:screenshot` through tsx) wraps named
-  // functions in a __name() helper that lives in the module scope and therefore does not exist in
-  // the page, making every evaluate throw "__name is not defined". Declaring it as an identity
-  // function in the page is what lets the scraper run outside the Next build. Passed as a string so
-  // it cannot itself be rewritten by the same transform.
   await page.evaluateOnNewDocument('window.__name = window.__name || ((fn) => fn)')
 
   await page.setRequestInterception(true)
@@ -309,11 +230,6 @@ async function openGuardedPage(browser: Browser): Promise<Page> {
   return page
 }
 
-// `networkidle2` is a network condition, not a rendering one: it fires once the sockets go quiet,
-// which a client-rendered page satisfies while its skeleton is still the only thing on screen.
-// Everything downstream reads the DOM -- the copy, the element list, the structural readout, the
-// screenshot -- so the capture waits here until the rendered text stops growing. Bounded and
-// fail-soft: a page that never settles is captured as-is rather than failing the scrape.
 async function settlePage(page: Page): Promise<void> {
   const deadline = Date.now() + SCRAPE_SETTLE_TIMEOUT_MS
   let previous = -1
@@ -321,8 +237,6 @@ async function settlePage(page: Page): Promise<void> {
   while (Date.now() < deadline) {
     const length = await page.evaluate(() => document.body?.innerText.length ?? 0)
 
-    // A stable sample that is still skeleton-sized means the frame has not painted yet, not that
-    // the page is finished, so only a stable *and* substantial one ends the wait early.
     const stable = Math.abs(length - previous) <= SCRAPE_SETTLE_TEXT_TOLERANCE
     if (stable && length >= SCRAPE_SETTLE_MIN_TEXT_LENGTH) return
 
@@ -332,7 +246,6 @@ async function settlePage(page: Page): Promise<void> {
 }
 
 export async function scrapePage(url: string): Promise<ScrapedPage> {
-  // Guarded before a slot is taken, so a refused URL never spends capacity the render path needs.
   const target = await assertPublicUrl(url)
 
   return withBrowserSlot(SCRAPE_QUEUE_MAX_WAIT_MS, async () => {
@@ -355,8 +268,6 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
         ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
       })
       const seo = await page.evaluate(captureSeo)
-      // Last of the three readouts, and the only one that must run after settlePage rather than
-      // merely being allowed to: LCP is not final until the largest element has actually painted.
       const performance = await page.evaluate(capturePerformance, {
         lcpFlushMs: SCRAPE_LCP_FLUSH_MS
       })
@@ -369,11 +280,6 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
   })
 }
 
-// Renders the landing page with the variant copy swapped into its target element and captures an
-// above-the-fold viewport PNG -- the changed element is scrolled to center so the report shows it
-// in context, surrounded by its real neighbors. When a selector is given but the element can no
-// longer be found or its text has drifted from `controlCopy` (stale selector), throws ScrapeError
-// rather than silently shooting an unchanged page, so callers can degrade honestly.
 export async function screenshotVariant(
   url: string,
   selector: string | null,
@@ -422,20 +328,6 @@ export async function screenshotVariant(
 
 type ApplyOutcome = 'ok' | 'not_found' | 'mismatch'
 
-// Runs in the browser context: swap the variant copy into the target element WITHOUT touching its
-// markup. `el.textContent = copy` used to do this, and it deleted every child node -- which is
-// exactly the styling the preview exists to show, because captureElements targets the innermost
-// block element with its inline children folded in, so the selector usually points at something like
-// `<h1>The <span class="gradient">fastest</span> way to ship</h1>`. Writing only into the existing
-// text nodes means gradient spans, <br>, icons and their CSS survive by construction.
-//
-// The new words are spread across those text nodes in proportion to the fragment lengths they
-// replace, so every styled fragment keeps a share of the copy and still renders. The split point
-// follows the original fragment sizes, so a span may end up wrapping a different word than the
-// designer chose; that is strictly better than the span disappearing.
-// Exported for e2e/apply-variant-copy.spec.ts, which drives it against synthetic markup in a real
-// browser. It stays a self-contained function referencing nothing from this module's scope, because
-// it is serialized as source into the page -- see the __name note in openGuardedPage.
 export function applyVariantCopy(options: {
   selector: string
   variantCopy: string
@@ -444,8 +336,6 @@ export function applyVariantCopy(options: {
   const el = document.querySelector(options.selector)
   if (!el) return 'not_found'
 
-  // Must stay ahead of the mutation: once a single node is rewritten there is no original text left
-  // to compare, and a stale selector would be reported as a successful swap of the wrong element.
   if (options.controlCopy) {
     const own = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase()
     const control = options.controlCopy.replace(/\s+/g, ' ').trim().toLowerCase()
@@ -459,8 +349,6 @@ export function applyVariantCopy(options: {
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const text = node as Text
     if (skip.has(text.parentElement?.tagName || '')) continue
-    // Whitespace-only nodes are the layout gaps between inline fragments. Writing to them would glue
-    // words together, so they are left exactly as the page wrote them.
     if (!(text.nodeValue || '').trim()) continue
     nodes.push(text)
   }
@@ -468,7 +356,6 @@ export function applyVariantCopy(options: {
   const words = options.variantCopy.split(/\s+/).filter(Boolean)
 
   if (nodes.length === 0) {
-    // Never textContent here either: the element may hold an <img> or an <svg> and nothing else.
     el.appendChild(document.createTextNode(options.variantCopy))
   } else {
     const weights = nodes.map((node) => (node.nodeValue || '').trim().length)
@@ -478,15 +365,9 @@ export function applyVariantCopy(options: {
 
     nodes.forEach((node, index) => {
       const value = node.nodeValue || ''
-      // Adjacent fragments with no whitespace between them are legitimate markup
-      // (`<span>Ship</span><span>Faster</span>`), but the split point is ours, not the page's, so a
-      // separator has to be added or the copy renders as one glued word.
       const lead = value.match(/^\s*/)?.[0] || (wrote ? ' ' : '')
       const trail = value.match(/\s*$/)?.[0] ?? ''
 
-      // Hold one word back for each fragment still to come, so a span whose proportional share
-      // rounds to zero keeps a word and keeps rendering. The last node takes whatever is left, so
-      // rounding can never drop a word.
       const remaining = words.length - taken
       const reserve = Math.min(nodes.length - index - 1, remaining)
       const ceiling = remaining - reserve
@@ -507,10 +388,6 @@ export function applyVariantCopy(options: {
   return 'ok'
 }
 
-// settlePage answers "has the text stopped changing", which is the right question for reading copy
-// and the wrong one for taking a picture: a page whose text is final can still be painting its
-// webfonts and its lazy images. Bounded and fail-soft -- an asset that never resolves costs the
-// preview SCRAPE_ASSET_READY_TIMEOUT_MS, never the screenshot.
 async function awaitPaint(page: Page): Promise<void> {
   await page
     .evaluate(async (timeout) => {
@@ -536,14 +413,8 @@ async function awaitPaint(page: Page): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, SCRAPE_PAINT_SETTLE_MS))
 }
 
-// Runs in the browser context: collect each visible "text unit" with a stable CSS path. A text unit
-// is the innermost block-level element -- one whose only element children are inline formatting
-// (span, a, strong, ...) -- captured with its FULL text so inline styling spans inside a heading are
-// folded back in, while real blocks (a badge vs the headline beside it) stay separate entries.
 function captureElements(): PageElement[] {
   const SKIP = new Set(['script', 'style', 'noscript', 'svg', 'head', 'meta', 'link', 'title'])
-  // Inline formatting tags fold into their parent's text. Any other child tag makes the parent a
-  // container, so its block children are captured on their own instead of merged together.
   const INLINE = new Set([
     'span', 'a', 'strong', 'em', 'b', 'i', 'u', 's', 'mark', 'small', 'sub', 'sup', 'code',
     'abbr', 'time', 'cite', 'q', 'kbd', 'samp', 'var', 'ins', 'del', 'wbr', 'br', 'bdi', 'bdo',
@@ -588,9 +459,6 @@ function captureElements(): PageElement[] {
   for (const el of Array.from(document.querySelectorAll('*'))) {
     const tag = el.tagName.toLowerCase()
     if (SKIP.has(tag)) continue
-    // A text unit has no block child; capture it as the outermost inline-only element (skipping the
-    // inner span fragments folded into it). Links and buttons are ALSO captured individually so a CTA
-    // still resolves on its own even when a flex row folds several anchors into one merged entry.
     if (hasBlockChild(el)) continue
     const parent = el.parentElement
     const outermost = !parent || parent.tagName === 'BODY' || hasBlockChild(parent)
@@ -606,9 +474,6 @@ function captureElements(): PageElement[] {
   return out
 }
 
-// Runs in the browser context: measure what the page already does, so the playbook never recommends
-// adding something that is already there. Every signal is deliberately conservative -- a false
-// negative costs one redundant suggestion, a false positive silently drops a real fix.
 function captureStructure(options: {
   oauthProviders: Record<string, string[]>
   patterns: typeof STRUCTURE_PATTERNS
@@ -638,8 +503,6 @@ function captureStructure(options: {
 
   const clickables = Array.from(document.querySelectorAll('a, button')).filter(isVisible)
 
-  // A provider name alone means nothing (a dev tool links to GitHub in its nav). The same control
-  // has to also read as an auth action for this to be social sign in.
   const providers = new Set<string>()
   for (const el of clickables) {
     const text = label(el)
@@ -714,9 +577,6 @@ function captureStructure(options: {
   }
 }
 
-// Runs in the browser context: read how the page describes itself to machines. Takes no options --
-// unlike captureStructure there is no vocabulary to match against, only tags that either exist or do
-// not, which is what keeps every field here a fact rather than a judgement.
 function captureSeo(): PageSeo {
   function attr(selector: string, name: string): string | null {
     const value = document.querySelector(selector)?.getAttribute(name)
@@ -724,9 +584,6 @@ function captureSeo(): PageSeo {
     return trimmed.length > 0 ? trimmed : null
   }
 
-  // Every @type in the document's JSON-LD, including the ones nested in an @graph, which is how most
-  // real sites emit more than one. Malformed JSON is skipped rather than thrown: a broken block is a
-  // finding for the audit, not a reason to lose the whole scrape.
   const jsonLdTypes = new Set<string>()
   for (const script of Array.from(
     document.querySelectorAll('script[type="application/ld+json"]')
@@ -750,7 +607,6 @@ function captureSeo(): PageSeo {
       }
       collect(JSON.parse(script.textContent || ''))
     } catch {
-      // Unparseable block: nothing to record.
     }
   }
 
@@ -765,7 +621,6 @@ function captureSeo(): PageSeo {
     lang: attr('html', 'lang'),
     h1Count: document.querySelectorAll('h1').length,
     imageCount: images.length,
-    // A decorative image is correctly alt="", so only a MISSING attribute counts as missing.
     imagesMissingAlt: images.filter((img) => !img.hasAttribute('alt')).length,
     internalLinkCount: Array.from(document.querySelectorAll('a[href]')).filter((a) => {
       const href = a.getAttribute('href') || ''
@@ -783,20 +638,12 @@ function captureSeo(): PageSeo {
   }
 }
 
-// Runs in the browser context: read what the page cost to load. Like captureSeo it takes no options,
-// because there is nothing to match against -- the Performance API either recorded an entry or it did
-// not, and "did not" is reported as null rather than smoothed into a number.
 async function capturePerformance(options: { lcpFlushMs: number }): Promise<PagePerformance> {
   function round(value: number | null | undefined): number | null {
     if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null
     return Math.round(value)
   }
 
-  // LCP is the one metric that is NOT in the performance timeline: getEntriesByType never returns a
-  // largest-contentful-paint entry, and reading it that way silently yields null on every page --
-  // measured, and exactly what this looked like before. A PerformanceObserver with `buffered: true`
-  // is the only way to receive the entries the browser already recorded, and it delivers them on a
-  // later task, which is what the wait below is for.
   const lcpMs = await new Promise<number | null>((resolve) => {
     let latest: number | null = null
     try {
@@ -809,7 +656,6 @@ async function capturePerformance(options: { lcpFlushMs: number }): Promise<Page
         resolve(latest)
       }, options.lcpFlushMs)
     } catch {
-      // A browser without the entry type reports nothing rather than failing the scrape.
       resolve(null)
     }
   })
@@ -826,8 +672,6 @@ async function capturePerformance(options: { lcpFlushMs: number }): Promise<Page
     'resource'
   ) as PerformanceResourceTiming[]
 
-  // A cross-origin response without Timing-Allow-Origin reports transferSize 0, so this is a sum over
-  // what the browser was allowed to tell us -- one more reason the total is reported as a floor.
   const transferred =
     (navigation?.transferSize ?? 0) +
     resources.reduce((total, entry) => total + (entry.transferSize || 0), 0)
@@ -844,10 +688,6 @@ async function capturePerformance(options: { lcpFlushMs: number }): Promise<Page
   }
 }
 
-// The clickable elements a conversion can be pinned to. `captureElements` already emits anchors and
-// buttons individually with a stable selector, so this is a filter over that output rather than a
-// second DOM pass. Ordered longest-lived-CTA-first: real CTAs read like actions, so the wordier nav
-// links sink below them and the default goal lands on something worth measuring.
 export function goalCandidates(elements: PageElement[]): GoalCandidate[] {
   return elements
     .filter((e) => e.tag === 'a' || e.tag === 'button')
@@ -860,10 +700,6 @@ function normalize(value: string): string {
   return value.replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
-// Resolves a hypothesis's current copy to a single captured element, and classifies how safely it
-// can be applied. `auto` only when the copy maps to exactly one element of a compatible size (so a
-// long merged string never snaps onto a tiny badge); otherwise `manual`, with a null selector, and
-// the report/embed degrade honestly instead of swapping the wrong element.
 export function resolveTarget(currentCopy: string, elements: PageElement[]): ResolvedTarget {
   const manual: ResolvedTarget = { selector: null, mode: 'manual', text: null }
   const target = normalize(currentCopy)
@@ -886,7 +722,6 @@ export function resolveTarget(currentCopy: string, elements: PageElement[]): Res
     .sort((a, b) => a.ratio - b.ratio)
 
   if (near.length === 0) return manual
-  // Ambiguous when the two best candidates are equally close.
   if (near.length > 1 && near[0].ratio === near[1].ratio) return manual
   return { selector: near[0].el.selector, mode: 'auto', text: near[0].el.text }
 }

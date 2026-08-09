@@ -12,8 +12,6 @@ import { cn } from '@/lib/utils'
 
 const SEGMENTS = Array.from({ length: 10 }, (_, i) => i)
 
-// `compact` trades the gauge for a single tinted chip. A screen that stacks ten or more rows cannot
-// afford ten gauges; the aria-label is identical either way, so nothing is lost to a screen reader.
 export function ScoreIndicator({
   score,
   kind,

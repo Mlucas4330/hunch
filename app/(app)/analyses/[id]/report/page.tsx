@@ -16,15 +16,18 @@ import { hasPlaceholders } from '@/lib/utils'
 import { MeasuredReadout } from '@/components/measured-readout'
 import { readoutFor, splitFixes } from '@/lib/analyses'
 import { isQuickWin } from '@/lib/constants'
+import { canWhiteLabel } from '@/lib/usage'
 import { pageMetadata } from '@/lib/seo'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const { metadata } = await getDictionary()
+  const user = await getCurrentUser()
   return pageMetadata({
     ...metadata.pages.analysisReport,
     path: `/analyses/${id}/report`,
-    index: false
+    index: false,
+    unbranded: user ? canWhiteLabel(user.plan) : false
   })
 }
 
@@ -47,6 +50,8 @@ export default async function AnalysisReportPage({
 
   if (!analysis) notFound()
 
+  const whiteLabel = canWhiteLabel(user.plan)
+
   const ranked = [...analysis.hypotheses].sort((a, b) => b.impactScore - a.impactScore)
   const fixes = splitFixes(analysis.flowFixes)
   const quickWins = ranked.filter(isQuickWin).length
@@ -65,7 +70,13 @@ export default async function AnalysisReportPage({
       </div>
 
       <header className="flex items-end justify-between gap-4 border-b pb-4">
-        <Wordmark />
+        {whiteLabel ? (
+          <span />
+        ) : (
+          <span data-testid="report-brand">
+            <Wordmark />
+          </span>
+        )}
         <div className="text-right">
           <p className="panel-label text-[0.65rem] text-muted-foreground">{t.report.teardown}</p>
           <p className="font-display text-sm font-medium">{t.report.plan}</p>
@@ -106,14 +117,10 @@ export default async function AnalysisReportPage({
         </div>
       )}
 
-      {/* Ahead of both lists on paper too: it is the evidence the rest of the document argues from. */}
       <MeasuredReadout input={readoutFor(analysis)} />
 
-      {/* Both lists, and neither passes expandFrom: nothing may be hidden on paper. */}
       <FlowPlaybook fixes={fixes.flow} />
 
-      {/* One combined visibility section rather than the SEO / AI tabs the two screens split it
-          into: on paper there is nothing to click, so the split would only mean two headings. */}
       <FlowPlaybook fixes={fixes.visibility} section="visibility" />
 
       <div className="space-y-4">
@@ -185,10 +192,12 @@ export default async function AnalysisReportPage({
         })}
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
-        <p className="font-mono text-sm">{t.report.footerQuestion}</p>
-        <p className="text-sm text-muted-foreground">{t.report.generatedBy}</p>
-      </footer>
+      {!whiteLabel && (
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+          <p className="font-mono text-sm">{t.report.footerQuestion}</p>
+          <p className="text-sm text-muted-foreground">{t.report.generatedBy}</p>
+        </footer>
+      )}
     </div>
   )
 }
@@ -201,4 +210,3 @@ function SummaryCell({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
-

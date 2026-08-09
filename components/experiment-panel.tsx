@@ -43,9 +43,6 @@ export function ExperimentPanel({
   experiment: PanelExperiment
   url: string
   canExport: boolean
-  // The panel owns its status once mounted -- it is what polls and what acts on it -- so an owner
-  // that renders something else off the same status has to be told when it moves. Without this the
-  // parent still believes the test is running long after the panel has stopped it.
   onStatusChange?: (status: ExperimentStatus) => void
 }) {
   const { locale, dictionary } = useI18n()

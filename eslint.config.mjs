@@ -10,7 +10,6 @@ const compat = new FlatCompat({
 })
 
 const eslintConfig = [
-  // Build output and test artifacts are generated code -- linting them only produces noise.
   {
     ignores: [
       '.next*/**',

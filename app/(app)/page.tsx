@@ -12,8 +12,6 @@ import { formatNumber, t } from '@/lib/i18n/format'
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import { cn } from '@/lib/utils'
 
-// The readout is a static illustration of a finished analysis, so its shape lives here while the
-// copy for each row comes from the dictionary.
 const SAMPLE_SECTIONS: Section[] = ['headline', 'cta', 'social_proof']
 const SAMPLE_SCORES = [
   { impact: 9, effort: 2 },

@@ -4,8 +4,6 @@ export type Plural = { one: string; other: string }
 
 type Vars = Record<string, string | number>
 
-// Dictionaries cross the server -> client boundary, so entries are plain data with {token}
-// placeholders rather than functions.
 export function t(entry: string | Plural, vars: Vars = {}): string {
   const template = typeof entry === 'string' ? entry : entry[vars.count === 1 ? 'one' : 'other']
 

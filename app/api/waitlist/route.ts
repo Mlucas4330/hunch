@@ -13,8 +13,6 @@ const BodySchema = z.object({
   email: z.string().email(),
   phone: z.string().min(1).optional(),
   embedKey: z.string().uuid().optional(),
-  // Defaulted rather than required, so a snippet or a form cached from before this shipped still
-  // lands where it always did instead of failing validation.
   source: z.enum(LEAD_SOURCE).default(DEFAULT_LEAD_SOURCE)
 })
 
@@ -32,8 +30,6 @@ export async function POST(request: Request) {
   }
 
   const { email, phone, embedKey, source } = parsed.data
-  // Conflicts on (email, source) now, so someone who hit a report's wall and later asked to talk is
-  // recorded twice on purpose -- two different events, and the second is the one worth acting on.
   await db.insert(waitlist).values({ email, phone, embedKey, source }).onConflictDoNothing()
 
   return NextResponse.json({ ok: true }, { status: 201, headers: CORS_HEADERS })

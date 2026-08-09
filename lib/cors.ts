@@ -1,6 +1,3 @@
-// The snippet and the public report run on customer domains we do not know in advance, so the
-// wildcard is the point. It is only safe while Access-Control-Allow-Credentials is absent: adding
-// it would expose session-authenticated responses to every origin on the internet. Never add it.
 export const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',

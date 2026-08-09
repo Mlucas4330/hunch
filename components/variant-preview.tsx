@@ -11,9 +11,6 @@ import {
 import { t } from '@/lib/i18n/format'
 import Image from 'next/image'
 
-// Rendering a preview boots a browser against the customer's real page, so it is never speculative:
-// nothing is requested until the reader asks for this one. Mounting three of these on a cold report
-// used to launch three browsers before anyone had scrolled to them.
 export function VariantPreview({
   embedKey,
   hypothesisId,
@@ -29,10 +26,6 @@ export function VariantPreview({
     initialUrl ? 'ready' : 'idle'
   )
 
-  // Bounded because the server's worst case is minutes, not the seconds the hint promises, and a
-  // pulsing skeleton with no end is worse than an error with a retry. Aborting does not cancel the
-  // render: nothing reads request.signal, so it finishes and caches, and the retry click returns it
-  // immediately. The timeout buys the reader an answer, not a smaller bill.
   async function render() {
     setState('loading')
 
@@ -74,11 +67,6 @@ export function VariantPreview({
             width={SCRAPE_VIEWPORT.width}
             height={SCRAPE_VIEWPORT.height}
             className="h-auto w-full"
-            // A cached screenshot_url is server-rendered straight into initialUrl, so this is the
-            // only place a file that has been pruned, lost with its volume, or left truncated by an
-            // interrupted write can be caught -- the POST route never runs on that path. Falling
-            // back to the button re-renders it on demand instead of showing a broken image on the
-            // one surface a prospect sees.
             onError={() => {
               setUrl(null)
               setState('idle')
@@ -105,7 +93,6 @@ export function VariantPreview({
         </div>
       ) : null}
 
-      {/* The reader clicked, so silence would read as a broken button. */}
       {state === 'error' ? (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">{dictionary.report.previewUnavailable}</p>

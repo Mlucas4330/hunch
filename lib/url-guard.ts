@@ -29,7 +29,6 @@ function isPrivateV6(ip: string): boolean {
   const addr = ip.toLowerCase().split('%')[0]
   if (addr === '::' || addr === '::1') return true
 
-  // v4-mapped, in either the dotted (::ffff:127.0.0.1) or hex (::ffff:7f00:1) spelling.
   if (addr.startsWith('::ffff:')) {
     const rest = addr.slice(7)
     if (isIP(rest) === 4) return isPrivateV4(rest)
@@ -75,8 +74,6 @@ async function resolvesPublicly(host: string): Promise<boolean> {
   return ok
 }
 
-// Every result of the DNS lookup must be public, not just the first: a host that answers with both
-// a routable address and 127.0.0.1 is a rebinding attempt, not a valid target.
 export async function assertPublicUrl(raw: string): Promise<URL> {
   let url: URL
   try {
@@ -108,9 +105,6 @@ export async function assertPublicUrl(raw: string): Promise<URL> {
   return url
 }
 
-// The check above cannot see a redirect or a fetch() the page makes itself, so the same rules are
-// re-applied per request inside the browser. Returns a boolean rather than throwing: a blocked
-// subresource aborts one request, it does not fail the scrape.
 export async function isPublicUrl(raw: string): Promise<boolean> {
   try {
     await assertPublicUrl(raw)

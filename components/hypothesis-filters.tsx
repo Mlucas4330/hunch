@@ -11,9 +11,6 @@ export type HypothesisSort = (typeof HYPOTHESIS_SORT)[number]
 export type TargetFilter = HypothesisTarget | 'all'
 const TARGET_FILTERS: TargetFilter[] = ['all', ...HYPOTHESIS_TARGET]
 
-// No "hide finished" chip: whether a test has finished is test state, and test state moved to the
-// Tests tab along with everything else about running one. Keeping it here would have been the only
-// reason this list still needed /api/experiments.
 export function HypothesisFilters({
   sort,
   onSort,

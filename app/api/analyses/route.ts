@@ -22,8 +22,6 @@ export async function POST(request: Request) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  // Distinct from the plan quota below: paid plans are unlimited by the month but still must not
-  // be able to run the scraper and the model in a loop.
   const limited = await enforceRateLimit('analysis', user.id)
   if (limited) return limited
 
@@ -35,7 +33,6 @@ export async function POST(request: Request) {
   }
 
   const brief = parsed.data.brief || undefined
-  // Competitor mode is a paid feature: free users always fall back to auto web-search.
   const competitorUrls = user.plan === 'free' ? undefined : parsed.data.competitorUrls
   const locale = await getLocale()
 
@@ -43,15 +40,12 @@ export async function POST(request: Request) {
   try {
     output = await analyzeLandingPage(parsed.data.url, { brief, competitorUrls, locale })
   } catch (error) {
-    // A URL that points inside the deploy is a rejected input, not a failed scrape.
     if (error instanceof UnsafeUrlError) {
       return NextResponse.json({ error: 'invalid_url' }, { status: 422 })
     }
     if (error instanceof ScrapeError) {
       return NextResponse.json({ error: 'scrape_failed' }, { status: 502 })
     }
-    // A bare 500 here is undiagnosable: generation failures are the most likely cause and they
-    // carry the schema or API detail that explains them.
     console.error('[api/analyses] analysis failed', error)
     return NextResponse.json({ error: 'analysis_failed' }, { status: 500 })
   }
@@ -69,13 +63,9 @@ export async function POST(request: Request) {
           competitors: output.competitors,
           goalCandidates: output.goalCandidates,
           researchBrief: output.researchBrief || null,
-          // The measured readouts. Captured for generation since the scrape existed and discarded
-          // afterwards until now; the report states facts from these with no model in the loop.
           structure: output.structure,
           seo: output.seo,
           performance: output.performance,
-          // Null rather than [] outside Competitor mode, so "we did not measure any competitor" and
-          // "we measured competitors and found none" stay distinguishable in the column.
           competitorStructures: output.competitorStructures.length
             ? output.competitorStructures
             : null,
@@ -115,10 +105,6 @@ export async function POST(request: Request) {
         )
         .returning()
 
-      // Both families are ranked the same way as the hypotheses and inserted into the same table,
-      // with `position` counted per kind so each section ranks from 1. Either list can be empty --
-      // the playbook when its generation failed, the visibility audit for that reason or because the
-      // page genuinely has nothing left to fix. An analysis missing either is still complete.
       const rankedFixes = [
         ...[...output.playbook]
           .sort((a, b) => b.impact_score - a.impact_score)
@@ -147,8 +133,6 @@ export async function POST(request: Request) {
             .returning()
         : []
 
-      // Roll the monthly window on write: a lapsed period restarts at this analysis rather than
-      // carrying a stale count forward.
       const rolled = periodExpired(user.usagePeriodStart)
       await tx
         .update(users)

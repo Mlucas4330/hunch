@@ -38,9 +38,6 @@ export function HypothesisList({ hypotheses }: { hypotheses: HypothesisWithVaria
   const [sort, setSort] = useState<HypothesisSort>('impact')
   const [target, setTarget] = useState<TargetFilter>('all')
 
-  // No experiment status is read here any more, and with it went the /api/experiments fetch and the
-  // "hide finished" filter. Both were about test state, which is the Tests tab's subject now -- this
-  // list answers what to change, not what is being proven.
   const visible = useMemo(() => {
     const kept = hypotheses.filter(
       (hypothesis) => target === 'all' || hypothesis.target === target
@@ -48,8 +45,6 @@ export function HypothesisList({ hypotheses }: { hypotheses: HypothesisWithVaria
     return kept.sort(SORTERS[sort])
   }, [hypotheses, sort, target])
 
-  // The recommendation only holds while the list is showing everything in impact order. Under any
-  // other sort or filter the first row is simply the first match, not the thing to test first.
   const isDefaultOrder = sort === 'impact' && target === 'all'
   const resetFilters = () => {
     setSort('impact')
@@ -84,8 +79,6 @@ export function HypothesisList({ hypotheses }: { hypotheses: HypothesisWithVaria
   )
 }
 
-// One shape for every rank. The top ones merely start open: a reader who has read the first idea can
-// fold it away instead of scrolling past it forever.
 function HypothesisRow({
   hypothesis,
   rank,
@@ -157,12 +150,6 @@ function HypothesisBody({ hypothesis }: { hypothesis: HypothesisWithVariants }) 
         </div>
       )}
 
-      {/* The model is required to write a rationale for every hypothesis, and an evidence line for
-          every variant. Neither reached this screen until now -- they were rendered only on the two
-          report surfaces, so the reader was asked to pick a test with the argument for it missing. */}
-      {/* No "Set up test" button here any more. Launching lives on the Tests tab, which is also
-          where the snippet is installed -- a reader deciding what to change should not be asked to
-          set up infrastructure in the middle of it. */}
       <WhyBlock label={dictionary.report.whyThisWorks}>
         <p>{hypothesis.rationale}</p>
         {recommended?.evidence && <p>{recommended.evidence}</p>}

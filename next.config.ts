@@ -1,16 +1,13 @@
 import type { NextConfig } from 'next'
 
-// Next inlines its own bootstrap script and Tailwind emits inline styles, so a nonce-free policy
-// needs 'unsafe-inline'. Rather than ship a policy that is wrong in either direction, it is sent
-// report-only until CSP_ENFORCE=1: violations show up in the console without breaking the app.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://js.stripe.com",
+  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://lh3.googleusercontent.com",
   "font-src 'self' data:",
-  "connect-src 'self' https://api.stripe.com",
-  "frame-src https://js.stripe.com https://hooks.stripe.com",
+  "connect-src 'self'",
+  "frame-src 'none'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -33,18 +30,11 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['puppeteer'],
-  // Variant previews are written to a local volume and served from our own origin, so they need no
-  // remotePatterns entry and no img-src host: 'self' already covers both. That is the whole reason
-  // they are not on object storage -- see README.
 
-  // Isolate the e2e dev server's build output so it never contends with a
-  // separately running `npm run dev` over the shared .next/cache.
   distDir: process.env.E2E_FIXTURES === '1' ? '.next-e2e' : '.next',
   async headers() {
     return [
       { source: '/:path*', headers: SECURITY_HEADERS },
-      // embed.js is meant to be loaded by any customer's landing page, so the restrictive
-      // defaults above would defeat the product.
       {
         source: '/embed.js',
         headers: [

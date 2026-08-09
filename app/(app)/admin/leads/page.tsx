@@ -15,11 +15,7 @@ export async function generateMetadata() {
   return pageMetadata({ ...metadata.pages.leads, path: '/admin/leads', index: false })
 }
 
-// Waitlist rows come from the public report, which has no session -- so this is the only place the
-// leads it captures can be read. Restricted to the operator identity, not sold as a user feature.
 export default async function LeadsPage() {
-  // Repeated from the segment layout on purpose: the data below is third-party PII, so it does not
-  // rest on one check.
   const user = await getCurrentUser()
   if (!isAdmin(user?.email)) notFound()
 

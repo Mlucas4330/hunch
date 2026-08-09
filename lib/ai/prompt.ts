@@ -17,13 +17,6 @@ market, say so plainly rather than returning them as if they were competitors.
 Return a concise brief: for each competitor, its name, landing page URL, and the specific patterns
 worth borrowing or beating. This brief will ground a set of A/B test hypotheses, so be concrete.`
 
-// What the model may and may not do with the market it is told about. Shared by every prompt that
-// receives one, because the risk is identical in all of them and must not be phrased three ways.
-//
-// The market is a FILTER, never a source of evidence. The analysis measured one page; it measured
-// nothing whatsoever about a country. So the market can rule an idea out (do not tell a Brazilian
-// founder to add a trust seal nobody here recognizes) but it can never license a claim about what
-// people in that market do, expect, or prefer -- that number, or that assertion, would be invented.
 const marketRules = (market: string) => `- This product sells in ${market}. Every recommendation must
   be something the founder can actually implement there: never suggest a payment method, an
   authentication provider, a trust seal, a compliance certification, a review platform, or an
@@ -33,9 +26,6 @@ const marketRules = (market: string) => `- This product sells in ${market}. Ever
   prefer, trust, or do, and never cite a local statistic, adoption rate, or norm. Argue from what this
   page shows, exactly as you would for any other market.`
 
-// Output language and typography. Shared by EVERY prompt, including the playbook, which writes no
-// copy at all: the language and punctuation discipline is not specific to variants and must never
-// drift between the things a single analysis produces.
 const writingRules = (language: string) => `- Write every field you author in ${language}. Write it as a native speaker of that language would,
   using its natural idiom, its correct spelling, and its accented characters. Do not translate word
   for word from English, and do not leave English phrases in the output.
@@ -46,9 +36,6 @@ const writingRules = (language: string) => `- Write every field you author in ${
   character. Do not use arrows or other typographic glyphs. This restricts punctuation only: the
   accented letters your language requires are expected and must not be stripped or approximated.`
 
-// Everything that governs how a single variant is written. Shared verbatim by the analysis prompt
-// and the on-demand alternates prompt so a variant written on Screen 2 obeys the same rules as the
-// recommendation written during the analysis.
 const variantCopyRules = (language: string) => `Every variant's copy field is the finished, ready to paste replacement text for that one section:
 the exact words a visitor would read on the page. It is never an instruction to the founder. Do not
 write directions such as "Add...", "Replace X with...", "Rewrite each...", or "Lead each card
@@ -179,13 +166,6 @@ ${marketRules(market)}
 
 ${writingRules(language)}`
 
-// The visibility audit. Same output shape as the playbook and the same evidence discipline, but a
-// different ground truth: a measured readout of the page's own metadata plus its robots.txt.
-//
-// The load-bearing rule is the one about the index. This call knows what the page says about itself
-// and which crawlers its robots.txt disallows. It knows NOTHING about search rankings, about traffic,
-// or about whether any model currently mentions this product -- so any sentence in that direction is
-// invented, and the whole feature's credibility rests on it never being written.
 export const visibilityPrompt = (
   language: string,
   market: string

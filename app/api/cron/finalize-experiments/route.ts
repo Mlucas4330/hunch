@@ -31,9 +31,6 @@ export async function GET(request: Request) {
         )
       )
 
-    // Finishing on its own is the normal way a test ends, so this is where most variants get their
-    // verdict. Leaving them in `testing` would mean the status only ever resolves for the minority
-    // of tests someone closed by hand.
     const stats = await tx
       .select()
       .from(experimentStats)

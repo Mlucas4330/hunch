@@ -7,20 +7,6 @@ import type {
 import type { Locale } from '@/lib/enums'
 import type { PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
 
-// Fixtures are written per locale for the same reason the real prompts take a language: the analysis
-// is written in the language the user is reading the app in, and E2E_FIXTURES must not be the one
-// path that ignores that. Each map is Record<Locale, T>, so a new locale without a fixture fails
-// typecheck exactly like a missing dictionary key.
-//
-// What is NOT translated, mirroring the prompt contracts in lib/ai/prompt.ts:
-// - current_copy quotes the (English) fictional page these fixtures pretend to have scraped, and is
-//   what analyzeLandingPage synthesizes its elements from. Translating it would break target
-//   resolution.
-// - competitors, section and category are proper names and Postgres enum values.
-
-// The structural readout the fixture analysis pretends to have scraped: a page with no social sign
-// in, no FAQ, a long form, and competing calls to action, so every fixture flow fix has a cause.
-// Numeric and boolean throughout, so it is language independent.
 export const FIXTURE_STRUCTURE: PageStructure = {
   hasOauth: false,
   oauthProviders: [],
@@ -39,11 +25,6 @@ export const FIXTURE_STRUCTURE: PageStructure = {
   wordCount: 720
 }
 
-// The metadata readout to match: a page that declares a title and Open Graph tags but no description,
-// no canonical, no structured data, and several images with no alt text -- so every fixture
-// visibility fix below is traceable to a null or high field here, exactly as the flow fixes are to
-// FIXTURE_STRUCTURE. `lang` is `en`, which is also what makes detectMarket resolve the fixture run to
-// the default market.
 export const FIXTURE_SEO: PageSeo = {
   title: 'Acme - The workspace for modern teams',
   metaDescription: null,
@@ -60,10 +41,6 @@ export const FIXTURE_SEO: PageSeo = {
   jsonLdTypes: []
 }
 
-// The load readout to match: a page slow enough that the fixture run exercises the readout's warning
-// thresholds rather than only its healthy branch. Nothing here reaches generation -- the performance
-// numbers are rendered by code and never enter a prompt -- so this exists purely so the e2e suite
-// sees the same section a real analysis produces.
 export const FIXTURE_PERFORMANCE: PagePerformance = {
   ttfbMs: 410,
   fcpMs: 1900,
@@ -75,8 +52,6 @@ export const FIXTURE_PERFORMANCE: PagePerformance = {
   domNodeCount: 1450
 }
 
-// The flow playbook under E2E_FIXTURES. Four fixes across distinct categories, ordered by impact
-// descending, each one traceable to a false/high field in FIXTURE_STRUCTURE above.
 const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
   en: [
     {
@@ -196,10 +171,6 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
   ]
 }
 
-// The visibility audit under E2E_FIXTURES. Three fixes, each traceable to a null or high field in
-// FIXTURE_SEO. Note what is absent: no robots.txt finding, because the fixture run performs no fetch
-// and the audit must never invent one -- and no evidence line carries a number, a ranking, or a
-// promise that a model will cite the page, which is the contract visibilityPrompt enforces.
 const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
   en: [
     {
@@ -289,8 +260,6 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
   ]
 }
 
-// Returned by generateAlternateVariants under E2E_FIXTURES so the challenger picker on the
-// run-a-test screen has its three pills without calling Claude.
 const ALTERNATE_VARIANTS: Record<Locale, VariantOutput[]> = {
   en: [
     {
@@ -318,10 +287,6 @@ const ALTERNATE_VARIANTS: Record<Locale, VariantOutput[]> = {
   ]
 }
 
-// Deterministic output used when E2E_FIXTURES=1 so end-to-end tests can run without
-// scraping, web search, or calling Claude. Ordered by impact_score descending.
-// Variants are templates (with [placeholders]) inspired by competitor strategy -- never
-// fabricated numbers, quotes, or competitor names in the copy itself.
 const COMPETITORS: AnalysisOutput['competitors'] = [
   { name: 'Linear', url: 'https://linear.app' },
   { name: 'Vercel', url: 'https://vercel.com' },

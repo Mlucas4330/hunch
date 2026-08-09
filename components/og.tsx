@@ -1,8 +1,5 @@
 import { OG_COLORS } from '@/lib/constants'
 
-// Shared chrome for the Open Graph images. Satori renders a small flexbox subset with no class
-// names and no CSS variables, so these are plain inline styles rather than the app's Tailwind
-// tokens -- see OG_COLORS. Every element carries an explicit `display`, which Satori requires.
 export function OgFrame({ children }: { children: React.ReactNode }) {
   return (
     <div

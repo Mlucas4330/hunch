@@ -3,10 +3,6 @@ import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 export const ptBR: Dictionary = {
   metadata: {
     title: 'Hunch',
-    // Este bloco estava inteiro sem acento ("analises", "voce", "conversao"). A regra tipográfica dos
-    // prompts restringe *pontuação*, nunca o alfabeto -- e é exatamente por isso que ela nunca pode
-    // ser escrita como "ASCII puro": em português isso apaga os acentos que a língua exige. É o texto
-    // da aba do navegador e do unfurl, então o erro aparecia antes de qualquer outra coisa.
     description:
       'Transforme uma landing page em um diagnóstico medido, com testes A/B rankeados e baseados em concorrentes reais.',
     ogImageAlt: 'Hunch - diagnóstico de conversão rankeado para uma landing page',
@@ -21,8 +17,9 @@ export const ptBR: Dictionary = {
         description: 'Entre no Hunch com o Google.'
       },
       dashboard: {
-        title: 'Suas análises',
-        description: 'Todas as landing pages que você analisou e os testes que cada uma gerou.'
+        title: 'Seus clientes',
+        description:
+          'Todas as landing pages de clientes que você analisou e os testes que cada uma gerou.'
       },
       analysis: {
         title: 'Suas ideias de teste',
@@ -115,8 +112,6 @@ export const ptBR: Dictionary = {
       keep_control: 'Mantenha o texto atual',
       inconclusive: 'Inconclusivo - tráfego insuficiente'
     },
-    // Rótulo de exibição apenas. O valor no Postgres continua `solo`, então trocar isto não custa
-    // migration nenhuma -- e "Solo" nomeava o público antigo, o fundador sozinho.
     plan: {
       free: 'Gratuito',
       solo: 'Pro'
@@ -129,7 +124,7 @@ export const ptBR: Dictionary = {
 
   nav: {
     homeAria: 'Início do Hunch',
-    dashboard: 'Painel',
+    dashboard: 'Clientes',
     signIn: 'Entrar',
     signOut: 'Sair',
     account: 'Conta',
@@ -310,13 +305,14 @@ export const ptBR: Dictionary = {
   },
 
   dashboard: {
-    eyebrow: 'Painel',
-    title: 'Suas análises',
+    eyebrow: 'Clientes',
+    title: 'Seus clientes',
     hintLabel: 'Como a análise funciona',
-    hint: 'Cole a URL da sua landing page no ar. O Hunch lê o texto, estuda concorrentes e gera ideias de teste A/B rankeadas. Adicione *detalhes do negócio* para o texto voltar pronto em vez de com [placeholders]. Nos planos pagos, cole URLs de concorrentes (*Modo concorrentes*) para embasar as ideias; análises gratuitas encontram concorrentes automaticamente.',
-    subtitle: 'Cole a URL de uma landing page para gerar hipóteses de teste A/B rankeadas.',
-    emptyTitle: 'Nenhuma análise ainda',
-    emptyDescription: 'Cole a URL de uma landing page acima para rodar sua primeira análise.'
+    hint: 'Cole a URL da landing page do seu cliente. O Hunch lê o texto, estuda concorrentes e gera ideias de teste A/B rankeadas. Adicione *detalhes do negócio* para o texto voltar pronto em vez de com [placeholders]. Nos planos pagos, cole URLs de concorrentes (*Modo concorrentes*) para embasar as ideias; análises gratuitas encontram concorrentes automaticamente.',
+    subtitle: 'Cole a URL da landing page de um cliente para gerar o diagnóstico dele.',
+    emptyTitle: 'Nenhum cliente ainda',
+    emptyDescription:
+      'Cole a URL da landing page de um cliente acima para rodar sua primeira análise.'
   },
 
   urlForm: {
@@ -370,7 +366,7 @@ export const ptBR: Dictionary = {
     hintLabel: 'Como usar esta tela',
     hint: 'Cada aba é um tipo de correção, ordenada pelo impacto provável. *Fluxo* e *SEO* são mudanças que alguém aplica à mão; *Copy* é o texto, e ali cada ideia já vem com a versão nova escrita. Quando você tiver acesso ao site e quiser provar uma mudança em vez de discutir, a aba *Testes* é onde se instala o snippet e roda um teste por vez.',
     report: 'Versão para impressão',
-    backToDashboard: 'Voltar ao painel',
+    backToDashboard: 'Voltar para clientes',
     benchmarkedAgainst: 'Comparado com:',
     marketNote: '(mercado: {market})',
     copyReportLink: 'Copiar link do relatório',
@@ -434,9 +430,6 @@ export const ptBR: Dictionary = {
       metadata: 'O que a página conta para as máquinas',
       load: 'Quanto custa abrir a página'
     },
-    // Termo técnico que o mercado brasileiro usa em inglês fica em inglês: LCP, meta description,
-    // alt, CTA. Traduzir não deixa mais claro, deixa mais difícil de reconhecer -- e quem lê isto
-    // trabalha com a área.
     findings: {
       form_fields: 'Campos no formulário de cadastro',
       no_social_signin: 'Login com Google ou GitHub',
@@ -473,6 +466,15 @@ export const ptBR: Dictionary = {
         above_fold_ctas: 'CTAs acima da dobra',
         nav_links: 'Links do menu'
       }
+    },
+    measure: {
+      explain:
+        'Esta análise foi gerada antes de começarmos a contar. Carregamos a página de novo e medimos: campos de formulário, CTAs acima da dobra, tempo de carregamento, imagens sem alt.',
+      cta: 'Medir esta página',
+      loading: 'Medindo a página...',
+      hint: 'Leva cerca de {seconds} segundos. Abrimos a página do mesmo jeito que um visitante abre.',
+      failed: 'Não conseguimos carregar a página desta vez. Nada foi alterado nesta análise.',
+      retry: 'Tentar de novo'
     }
   },
 

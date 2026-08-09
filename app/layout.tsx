@@ -12,10 +12,6 @@ const plexMono = IBM_Plex_Mono({
   variable: '--font-plex-mono'
 })
 
-// The defaults every route inherits. `metadataBase` is what lets each page declare its canonical and
-// og:url as a path -- without it Next cannot turn those into absolute URLs. The title template is
-// kept in code rather than in the dictionary: Next's `%s` is not a `{token}`, so a translator only
-// gets the site name to move around.
 export async function generateMetadata(): Promise<Metadata> {
   const { metadata } = await getDictionary()
 

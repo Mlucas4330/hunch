@@ -12,8 +12,6 @@ import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import type { SubscriptionPlan } from '@/lib/enums'
 import { cn } from '@/lib/utils'
 
-// Paced to the real pipeline (scrape ~4s, web-search ~42s, generation ~67s) so the label
-// tracks what is actually happening instead of claiming "saving" for two minutes.
 const PHASE_SCHEDULE: { at: number; phase: number }[] = [
   { at: 4000, phase: 1 },
   { at: 46000, phase: 2 },

@@ -7,8 +7,6 @@ import { CONTACT_PATH } from '@/lib/constants'
 import { t } from '@/lib/i18n/format'
 import { cn } from '@/lib/utils'
 
-// Free plans get a warning as the allowance runs low and a hard block once it is gone. Paid plans
-// have no allowance to warn about, so the banner renders nothing.
 export function UsageBanner({ used, limit }: { used: number; limit: number | null }) {
   const { dictionary } = useI18n()
 

@@ -3,8 +3,6 @@ import { dictionaryFor } from '@/lib/i18n'
 import { DEFAULT_LOCALE, OG_COLORS, OG_IMAGE_SIZE } from '@/lib/constants'
 import { OgFrame, OgWordmark } from '@/components/og'
 
-// Read by unfurlers, which send no cookies -- so the locale is always DEFAULT_LOCALE here rather
-// than getDictionary()'s cookie lookup, and the image stays statically generated.
 const t = dictionaryFor(DEFAULT_LOCALE)
 
 export const alt = t.metadata.ogImageAlt

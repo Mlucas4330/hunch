@@ -4,14 +4,6 @@ import { comparisonRows, hasReadout, measuredFindings, readout } from './readout
 import { READOUT_THRESHOLDS } from './constants'
 import type { CompetitorStructure, PagePerformance, PageSeo, PageStructure } from './scrape'
 
-// measuredFindings is where the product's one exception to "no numbers" lives, and the exception only
-// holds because every number it emits was counted off the page. The e2e suite cannot reach any of
-// this -- E2E_FIXTURES=1 replaces the pipeline before a page is scraped -- so this file is its only
-// automated coverage, exactly like market.test.ts is for detectMarket.
-//
-// The load-bearing case is `no invented values`: it is the assertion that turns "we promise the
-// numbers are measured" into something CI can fail on.
-
 const STRUCTURE: PageStructure = {
   hasOauth: false,
   oauthProviders: [],
@@ -78,8 +70,6 @@ function find(
 }
 
 test('every emitted value comes from the input, never from a literal in the module', () => {
-  // The whole point of the module. Each id below is checked against the exact field it must have
-  // read, using values that appear nowhere in readout.ts, so a hardcoded fallback fails here.
   const findings = findingsFor({
     structure: { formFieldCount: 9, aboveFoldCtaCount: 3, navLinkCount: 17 },
     seo: { h1Count: 4, imagesMissingAlt: 6 },
@@ -97,8 +87,6 @@ test('every emitted value comes from the input, never from a literal in the modu
 })
 
 test('a presence finding reads as yes/no on the positive form of its label', () => {
-  // Every presence label names the thing the page should have, so `1` is always the healthy side --
-  // the one exception, noindex, is asserted separately below.
   const missing = findingsFor({
     seo: { metaDescription: null, jsonLdTypes: [], hasOgImage: false }
   })
@@ -114,8 +102,6 @@ test('a presence finding reads as yes/no on the positive form of its label', () 
 })
 
 test('a page with no form is not asked about its form', () => {
-  // Zero fields on a page with no signup is a question that was never asked, not a perfect score --
-  // and offering social sign in where there is nothing to sign in to is noise.
   const findings = findingsFor({ structure: { formCount: 0, formFieldCount: 0, hasOauth: false } })
 
   assert.equal(find(findings, 'form_fields'), undefined)
@@ -141,8 +127,6 @@ test('no call to action above the fold is an alert, not a low count', () => {
 })
 
 test('a load metric the browser did not report is skipped, not reported as fast', () => {
-  // The failure this prevents: a null LCP defaulting to 0 and rendering as an instant page, which is
-  // the opposite of what was measured.
   const findings = findingsFor({ performance: { lcpMs: null, transferredBytes: null } })
 
   assert.equal(find(findings, 'lcp'), undefined)
@@ -156,13 +140,10 @@ test('noindex is emitted only when the page is actually noindexed', () => {
 
   const flagged = find(findingsFor({ seo: { robotsMeta: 'NOINDEX, nofollow' } }), 'noindex')
   assert.equal(flagged?.severity, 'alert', 'and the match is case insensitive')
-  // The one row whose label names something bad, so present is the alert and not the healthy state.
   assert.equal(flagged?.value, 1)
 })
 
 test('a null readout produces nothing at all', () => {
-  // An analysis created before the columns existed. It must render no section rather than an empty
-  // heading or a row of zeroes.
   const empty = readout({ structure: null, seo: null, performance: null, competitors: null })
 
   assert.deepEqual(empty.findings, [])

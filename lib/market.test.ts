@@ -3,13 +3,6 @@ import assert from 'node:assert/strict'
 import { detectMarket } from './market'
 import type { Market } from './enums'
 
-// detectMarket is the only thing standing between a Brazilian product and an analysis benchmarked
-// against American companies, and it is unreachable from the e2e suite -- E2E_FIXTURES=1 replaces the
-// whole pipeline before a page is ever scraped. This file is its only automated coverage.
-//
-// The cases are chosen around the two directions of failure, which are not equally bad: missing a
-// Brazilian page costs one unfocused competitor search, while marking a US page Brazilian rewrites
-// the entire analysis around the wrong country.
 const CASES: Array<{ url: string; lang: string | null; expected: Market; why: string }> = [
   {
     url: 'https://acme.com.br',

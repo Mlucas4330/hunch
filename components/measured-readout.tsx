@@ -10,13 +10,6 @@ import { hasReadout, readout, type MeasuredFinding, type ReadoutInput } from '@/
 import type { Locale } from '@/lib/enums'
 import { cn } from '@/lib/utils'
 
-// The one section of the product that states numbers. Everything it renders was counted on the
-// scraped page by lib/readout.ts; nothing here was written by a model, and nothing here is passed to
-// one. The quantitative ban on generated `evidence` is untouched and unrelated -- see lib/readout.ts.
-//
-// Rendered on all three analysis surfaces, like FlowPlaybook, and returns null when there is nothing
-// measured. That null is what lets every analysis created before these columns existed simply not
-// have the section, with no migration and nothing regenerated.
 export function MeasuredReadout({
   input,
   className
@@ -77,7 +70,6 @@ export function MeasuredReadout({
           <p className="panel-label text-[0.6rem] text-muted-foreground">
             {copy.comparison.title}
           </p>
-          {/* The one wide element on the page, and the report is read on a phone as often as not. */}
           <div className="overflow-x-auto">
             <table className="w-full min-w-md border-collapse text-sm">
               <thead>
@@ -122,8 +114,6 @@ export function MeasuredReadout({
 
 type ReadoutCopy = ReturnType<typeof useI18n>['dictionary']['readout']
 
-// The readout keeps every measurement in the unit it was taken in, so this is the only place bytes
-// become MB and milliseconds become seconds -- rounding once, at the edge, rather than twice.
 function renderValue(finding: MeasuredFinding, copy: ReadoutCopy, locale: Locale): string {
   switch (finding.unit) {
     case 'presence':
@@ -136,8 +126,6 @@ function renderValue(finding: MeasuredFinding, copy: ReadoutCopy, locale: Locale
       const size = t(copy.units.megabytes, {
         value: formatDecimal(finding.value / BYTES_PER_MEGABYTE, locale, 1)
       })
-      // Media is blocked during the scrape, so a page with a hero video transferred more than this.
-      // Saying so is cheaper than being caught overstating by a reader who checks.
       return `${copy.atLeast} ${size}`
     }
     default:

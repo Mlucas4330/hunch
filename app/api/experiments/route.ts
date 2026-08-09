@@ -19,8 +19,6 @@ const BodySchema = z.object({
   goalSelector: z.string().optional(),
   splitPercent: z.number().int().min(1).max(99).optional(),
   variantCopy: z.string().trim().min(1).max(1000).optional(),
-  // Derived from the enum the UI renders its buttons from, so a duration added there can never be
-  // offered by a button the server then rejects with a 422.
   durationDays: z
     .custom<ExperimentDuration>((value) =>
       EXPERIMENT_DURATIONS.includes(value as ExperimentDuration)
@@ -61,8 +59,6 @@ export async function POST(request: Request) {
 
   if (!target) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
-  // The embed snippet can only auto-swap a single-element target; manual/structural ideas must be
-  // applied by hand and can't be measured as a live text test.
   if (target.applyMode !== 'auto') {
     return NextResponse.json({ error: 'manual_target' }, { status: 422 })
   }
@@ -73,8 +69,6 @@ export async function POST(request: Request) {
     .innerJoin(analyses, eq(experiments.analysisId, analyses.id))
     .where(and(eq(analyses.userId, user.id), eq(experiments.status, 'running')))
 
-  // Two live tests on one hypothesis means two experiments racing to rewrite the same element, and
-  // the snippet has no way to choose between them.
   if (running.some((row) => row.hypothesisId === parsed.data.hypothesisId)) {
     return NextResponse.json({ error: 'already_running' }, { status: 409 })
   }

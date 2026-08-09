@@ -8,16 +8,6 @@ import { useI18n } from '@/components/i18n-provider'
 
 type CopyState = 'idle' | 'copied' | 'failed'
 
-// The two things you do with a finished report: copy its link, or print it. They used to be three
-// controls sitting side by side -- "open shareable report", "copy report link" and "print report" --
-// where the first two went to the same place and the third read like a fourth destination.
-//
-// Opening the link is gone: copying it is what you came to do, and the reader can open what they
-// pasted. Printing is an icon rather than a third button, because it is the rarer of the two and a
-// row of equal-weight buttons was the reason none of them read as the primary action.
-//
-// The copy button keeps its explicit failure state: `navigator.clipboard` is undefined outside a
-// secure context, so on plain http the promise rejected unhandled and the button was simply dead.
 export function CopyReportLink({
   reportUrl,
   embedKey,
@@ -51,8 +41,6 @@ export function CopyReportLink({
             ? dictionary.analysis.copyFailed
             : dictionary.analysis.copyReportLink}
       </Button>
-      {/* The label is on the link, not on the icon: an icon-only control with no accessible name is
-          invisible to a screen reader, and it doubles as the tooltip for everyone else. */}
       <Button asChild variant="ghost" size="sm">
         <Link href={`/analyses/${analysisId}/report`} aria-label={dictionary.analysis.report}>
           <Printer aria-hidden className="h-4 w-4" />
@@ -62,9 +50,6 @@ export function CopyReportLink({
   )
 }
 
-// The async Clipboard API only exists in a secure context, which a deploy reached over plain http or
-// by LAN address is not. Falling back to the legacy command keeps the button working there instead
-// of leaving it silently inert.
 async function writeToClipboard(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard?.writeText) {
@@ -72,8 +57,6 @@ async function writeToClipboard(text: string): Promise<boolean> {
       return true
     }
   } catch {
-    // Falls through to the legacy path: a rejection here is a permission or context failure, both of
-    // which execCommand can still survive.
   }
 
   try {

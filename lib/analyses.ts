@@ -8,10 +8,6 @@ import type { ReadoutInput } from '@/lib/readout'
 const MAX_PAGE_SIZE = 50
 const DEFAULT_PAGE_SIZE = 10
 
-// The flow playbook and the visibility audit share one table, so every surface that renders them has
-// to split the rows the same way. Done here rather than at each call site: three pages render both
-// lists, and a page that forgot to filter would silently show conversion fixes under the
-// discoverability heading.
 export function splitFixes(fixes: FlowFix[]): Record<FixKind, FlowFix[]> {
   return {
     flow: fixes.filter((fix) => fix.kind === 'flow'),
@@ -19,10 +15,6 @@ export function splitFixes(fixes: FlowFix[]): Record<FixKind, FlowFix[]> {
   }
 }
 
-// The second cut, made only by the two tabbed surfaces: `ai_answerability` is what decides whether a
-// language model can quote the page, everything else is what a crawler can read. The print report
-// deliberately does not call this -- it keeps one combined section, because nothing may be hidden
-// behind a tab on paper.
 export function splitVisibility(fixes: FlowFix[]): { seo: FlowFix[]; ai: FlowFix[] } {
   const visibility = splitFixes(fixes).visibility
   return {
@@ -31,9 +23,6 @@ export function splitVisibility(fixes: FlowFix[]): { seo: FlowFix[]; ai: FlowFix
   }
 }
 
-// The four measured columns, gathered for MeasuredReadout. Here for the same reason splitFixes is:
-// three surfaces render the readout, and picking the columns at each of them is three chances to
-// forget one -- which shows up as a section quietly missing rows rather than as an error.
 export function readoutFor(
   analysis: Pick<Analysis, 'structure' | 'seo' | 'performance' | 'competitorStructures'>
 ): ReadoutInput {
@@ -45,8 +34,6 @@ export function readoutFor(
   }
 }
 
-// Free plans see only their most recent analyses. Both the dashboard and GET /api/analyses read
-// through here so the history cap can never drift between the page and the route that feeds it.
 export async function listAnalysesForUser(
   user: Pick<User, 'id' | 'plan'>,
   options: { page?: number; limit?: number } = {}
