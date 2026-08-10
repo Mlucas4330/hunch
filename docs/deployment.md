@@ -36,7 +36,10 @@ Railway creates exactly one service per import, so:
    into every build is dead weight.
 3. Mount a volume on `app` at `/data/screenshots`.
 4. Add a second service from the same repo, set *Config as code* to `railway.browser.json`, give it
-   **no variables and no domain**, then point `BROWSER_URL` on `app` at its internal address.
+   **no variables and no domain**, then set `BROWSER_URL` on `app` to
+   `http://${{browser.RAILWAY_PRIVATE_DOMAIN}}:9222` — as a reference, and with both the `http://`
+   and the `:9222` spelled out. See [scraping.md](scraping.md#browser-lifecycle-and-the-concurrency-cap)
+   for what each half of that value is load-bearing for.
 5. Add `cron-finalize` and `cron-prune`, both from the same repo, pointed at
    `railway.cron-finalize.json` and `railway.cron-prune.json`. Give **each** of them these two, as
    references rather than copies:
@@ -64,6 +67,31 @@ so `curl A && curl B` is really `A; B`, and adding `-f` to fix that would let a 
 skip the prune. Separate services also keep the schedules independent, which is the point of the
 staggered hour — and they are what makes `--fail-with-body` in `scripts/cron-call.sh` safe, so a `401`
 or a `500` surfaces as a failed run instead of a green one.
+
+## The browser image
+
+`Dockerfile.browser` is Chromium plus `scripts/browser-entrypoint.sh`, which starts a `socat`
+forwarder on 9222 and then `exec`s Chrome on **9223**, loopback. Chrome is never asked to bind the
+reachable address, and that is deliberate:
+
+- **`--remote-debugging-address` binds one family.** `0.0.0.0` is IPv4 only, and Railway's internal
+  DNS answers with IPv6, so the app's connect is refused by a container that looks perfectly healthy.
+  `socat` listens on v6 with `ipv6only=0` and therefore answers both, whichever family `lookup()`
+  happens to pick.
+- **Chrome ignores the flag often enough to matter.** It came up on `127.0.0.1` regardless, and the
+  only evidence was one line in the browser service's log.
+
+**`DevTools listening on ws://127.0.0.1:9223` is now the healthy line** — loopback and 9223 are what
+the script asks for. Read the log for the port, not the address: a `9222` there means the entrypoint
+was bypassed. Everything else in that log (dbus, GCM `PHONE_REGISTRATION_ERROR`, Vulkan `Found no
+drivers`) is noise from running a desktop browser in a bare container, and none of it breaks CDP.
+
+The app never learns about 9223: Chrome builds `webSocketDebuggerUrl` from the `Host` header it
+receives, so it echoes back the address that arrived through the forwarder. That is the same
+mechanism as the rebinding guard in [scraping.md](scraping.md#browser-lifecycle-and-the-concurrency-cap).
+
+**A custom start command in the dashboard overrides the `ENTRYPOINT` and undoes all of this**,
+silently. It is the first thing to check when the log says `127.0.0.1` after a rebuild.
 
 `railway.browser.json` carries **no `healthcheckPath`**. CDP's `/json/version` would answer a probe, but
 Chrome rejects it unless the prober sends an IP or `localhost`, and a failing healthcheck gates the
@@ -181,9 +209,10 @@ an app that never came up.
   browser completely, including reading files inside its container.
 - **No secrets in project-level shared variables.** Railway propagates those into every service,
   including `browser`.
-- **`scripts/cron-call.sh` must stay LF.** It runs inside a Linux container, and a CRLF committed from
-  a Windows checkout makes `sh` read the trailing `\r` as part of the URL — a malformed-URL failure
-  that points nowhere near line endings. `.gitattributes` pins `*.sh`; do not remove it.
+- **`scripts/cron-call.sh` and `scripts/browser-entrypoint.sh` must stay LF.** They run inside Linux
+  containers, and a CRLF committed from a Windows checkout makes `sh` read the trailing `\r` as part
+  of the last argument — a malformed-URL failure in one, a rejected Chrome flag in the other, neither
+  pointing anywhere near line endings. `.gitattributes` pins `*.sh`; do not remove it.
 - **`railway.json`'s `watchPatterns` negations are load-bearing.** They exist so a push touching only
   `Dockerfile.browser`, `Dockerfile.cron`, `scripts/cron-call.sh` or a `railway.*.json` does not
   redeploy `app`. `railway.*.json` deliberately does not match `railway.json` itself, which must keep

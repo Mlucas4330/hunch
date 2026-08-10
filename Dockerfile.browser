@@ -17,33 +17,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       fonts-liberation \
       fonts-noto-color-emoji \
       dumb-init \
+      socat \
   && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system --gid 1001 chrome \
   && useradd --system --uid 1001 --gid chrome --create-home chrome
 
+COPY --chmod=0755 scripts/browser-entrypoint.sh /usr/local/bin/browser-entrypoint.sh
+
 USER chrome
+
+# The port socat listens on, not the one Chrome binds. This service must never be given a public
+# domain or TCP proxy: anyone who reaches 9222 controls this browser completely, including reading
+# files inside this container. The flags, and why a forwarder sits in front, are in the script.
 EXPOSE 9222
 
-# --remote-debugging-address=0.0.0.0 is required for the app service to reach CDP at all. This
-# service must therefore never be given a public domain or TCP proxy: anyone who reaches 9222
-# controls this browser completely, including reading files inside this container.
-# --remote-allow-origins is what lets puppeteer.connect complete its WebSocket upgrade.
-#
-# --no-sandbox is here because Chrome's sandbox needs user namespaces, whose clone/unshare syscalls
-# Docker's default seccomp profile blocks, and Railway does not support attaching a custom profile
-# (security_opt). On a host that does, the fix is that profile -- not this flag. The mitigation for
-# running without it is the empty environment above, plus rebuilding this image regularly so the
-# Chromium underneath stays patched.
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["chromium", \
-     "--headless=new", \
-     "--remote-debugging-port=9222", \
-     "--remote-debugging-address=0.0.0.0", \
-     "--remote-allow-origins=*", \
-     "--no-sandbox", \
-     "--disable-setuid-sandbox", \
-     "--disable-dev-shm-usage", \
-     "--disable-gpu", \
-     "--no-first-run", \
-     "--no-default-browser-check"]
+ENTRYPOINT ["dumb-init", "--", "/usr/local/bin/browser-entrypoint.sh"]

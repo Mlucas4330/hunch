@@ -137,6 +137,17 @@ a bare v6 literal is not a valid URL host, so the resolved address is bracketed 
 `connect()` is retried once after `BROWSER_CONNECT_RETRY_DELAY_MS`, resolving the hostname inside each
 attempt because a restarted container can return on a different internal address.
 
+That resolution is also what makes the browser container's forwarder work, and the two must be read
+together. `getWSEndpoint` returns `webSocketDebuggerUrl` **verbatim** — puppeteer never rewrites its
+host — and Chrome builds that URL from the `Host` header it was sent. So the address the app dials is
+the address it gets handed back: dial the resolved IP, and Chrome echoes a ws URL on that same IP,
+which routes back through the forwarder. This is the same mechanism as the rebinding guard above, seen
+from the other side, and it is why nothing here may "simplify" by passing the service name through.
+
+**`BROWSER_URL` must be `http` and must carry `:9222`.** Both failures are far louder than their
+cause: an `https` value dies as `ERR_TLS_CERT_ALTNAME_INVALID`, because the hostname was already
+replaced by an IP no certificate lists; a missing port silently becomes 443.
+
 **`withBrowserSlot` caps how many pages exist against that shared browser at once**
 (`SCRAPE_MAX_CONCURRENT_PAGES`). Without it, a burst of previews on a public report can OOM that
 container — and its restart kills every in-flight scrape with it, so an unauthenticated route could

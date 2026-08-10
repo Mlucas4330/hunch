@@ -7,6 +7,7 @@
       "!Dockerfile.browser",
       "!Dockerfile.cron",
       "!scripts/cron-call.sh",
+      "!scripts/browser-entrypoint.sh",
       "!railway.*.json"
     ]
   },

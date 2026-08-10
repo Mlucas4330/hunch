@@ -3,7 +3,7 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile.browser",
-    "watchPatterns": ["Dockerfile.browser"]
+    "watchPatterns": ["Dockerfile.browser", "scripts/browser-entrypoint.sh"]
   },
   "deploy": {
     "restartPolicyType": "ALWAYS",
