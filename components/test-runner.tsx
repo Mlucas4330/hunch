@@ -290,7 +290,7 @@ function LaunchForm({
       </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="panel-label text-[0.7rem] text-muted-foreground">
             {dictionary.testRunner.testLength}
           </span>

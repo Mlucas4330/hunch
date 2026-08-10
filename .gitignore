@@ -41,3 +41,6 @@ pnpm-debug.log*
 
 # Output of scripts/preview-screenshot.mts
 screenshot-preview/
+
+
+.vscode/

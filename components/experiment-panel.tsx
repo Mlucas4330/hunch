@@ -135,7 +135,7 @@ export function ExperimentPanel({
             )}
           </div>
           {state.status === 'running' && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" disabled={busy} onClick={() => act('stop')}>
                 {dictionary.experimentPanel.stop}
               </Button>
@@ -192,7 +192,7 @@ export function ExperimentPanel({
                 </span>
               </div>
               {canExport ? (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onClick={copyReport} data-testid="report-copy">
                     {copied ? dictionary.common.copied : dictionary.experimentPanel.copyReport}
                   </Button>

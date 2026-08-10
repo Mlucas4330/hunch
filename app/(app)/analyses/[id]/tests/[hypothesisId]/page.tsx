@@ -78,7 +78,7 @@ export default async function RunTestPage({
 
   return (
     <div className="animate-fade-up space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <p className="panel-label text-[0.7rem] text-muted-foreground">
@@ -90,7 +90,7 @@ export default async function RunTestPage({
           </div>
           <h1 className="font-display text-2xl font-bold tracking-tight">{hypothesis.problem}</h1>
         </div>
-        <Button asChild variant="ghost" size="sm" className="shrink-0">
+        <Button asChild variant="ghost" size="sm" className="sm:shrink-0">
           <Link href={`/analyses/${id}`}>{t.runTest.backToIdeas}</Link>
         </Button>
       </div>

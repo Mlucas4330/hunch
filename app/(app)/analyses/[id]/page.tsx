@@ -56,7 +56,7 @@ export default async function AnalysisDetailPage({
 
   return (
     <div className="animate-fade-up space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
         <div className="min-w-0 space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">{t.analysis.eyebrow}</p>
           <div className="flex items-center gap-2">
@@ -67,7 +67,7 @@ export default async function AnalysisDetailPage({
           </div>
           <p className="truncate font-mono text-sm text-muted-foreground">{analysis.url}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
           <CopyReportLink
             reportUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
             embedKey={analysis.embedKey}

@@ -96,7 +96,7 @@ export default async function PublicReportPage({
 
   return (
     <div className="space-y-8">
-      <header className="flex items-end justify-between gap-4 border-b pb-4">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-4">
         {whiteLabel ? (
           <span />
         ) : (

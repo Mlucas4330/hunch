@@ -42,7 +42,7 @@ export function AnalysisTabs({
       <div
         role="tablist"
         aria-label={dictionary.analysis.title}
-        className="flex flex-wrap gap-1 border-b"
+        className="flex flex-wrap"
       >
         {available.map((tab, index) => (
           <button
@@ -59,10 +59,10 @@ export function AnalysisTabs({
             onClick={() => setSelected(tab)}
             onKeyDown={(event) => onKeyDown(event, index)}
             className={cn(
-              '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+              'flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
               tab === active
                 ? 'border-purple text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                : 'border-border text-muted-foreground hover:text-foreground'
             )}
           >
             {dictionary.analysis.tabs[tab]}
