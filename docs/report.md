@@ -42,7 +42,8 @@ the wall".
   The playbook used to sit in front of a single wall and never be blurred; the wall now cuts all four
   tabs, which trades some of that hook for lead capture. **A deliberate call, not drift.**
 - Blurred placeholder rows carry **no** `data-testid`, so the e2e counts keep meaning "shown".
-- Copy-tab rows are `DisclosureCard`s that all **start open**, unlike the owner's screen — a prospect who
+- Copy-tab rows are the same `HypothesisCard` the owner's list renders ([components.md](components.md)),
+  with this surface's own body, and they all **start open**, unlike the owner's screen — a prospect who
   has to click to see anything sees nothing. Auto-targetable ideas are ordered first so the previews on
   top are real ones.
 - The **"Why this works"** block is open on each shown idea, not folded into a `<details>` summary: it is

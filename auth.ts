@@ -6,7 +6,8 @@ import { users } from '@/db/schema'
 import { authConfig } from '@/auth.config'
 import { clientIp, enforceRateLimit } from '@/lib/rate-limit'
 import { secretsMatch } from '@/lib/secure-compare'
-import { credentialsLoginAllowed } from '@/lib/auth-policy'
+import { credentialsLoginAllowed, isAdminEmail } from '@/lib/auth-policy'
+import { ADMIN_ROLE, DEFAULT_USER_ROLE } from '@/lib/constants'
 import type { SubscriptionPlan } from '@/lib/enums'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -36,8 +37,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         await db
           .insert(users)
-          .values({ email: ADMIN_EMAIL, name: 'Admin', plan: 'solo' })
-          .onConflictDoUpdate({ target: users.email, set: { plan: 'solo' } })
+          .values({ email: ADMIN_EMAIL, name: 'Admin', plan: 'pro', role: ADMIN_ROLE })
+          .onConflictDoUpdate({ target: users.email, set: { plan: 'pro', role: ADMIN_ROLE } })
 
         return { email: ADMIN_EMAIL, name: 'Admin' }
       }
@@ -53,13 +54,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const name = user.name ?? user.email
       const avatarUrl = user.image ?? null
 
+      // Promotes, never demotes: the role outlives a changed ADMIN_EMAIL and a hand-granted admin
+      // survives their next sign-in. See docs/invariants.md.
+      const grantedRole = isAdminEmail(user.email) ? ADMIN_ROLE : undefined
+
       if (isOAuth) {
         await db
           .insert(users)
-          .values({ email: user.email, name, avatarUrl })
+          .values({ email: user.email, name, avatarUrl, role: grantedRole ?? DEFAULT_USER_ROLE })
           .onConflictDoUpdate({
             target: users.email,
-            set: avatarUrl ? { name, avatarUrl } : { name }
+            set: {
+              name,
+              ...(avatarUrl ? { avatarUrl } : {}),
+              ...(grantedRole ? { role: grantedRole } : {})
+            }
           })
       } else {
         await db.insert(users).values({ email: user.email, name, avatarUrl }).onConflictDoNothing()

@@ -2,8 +2,7 @@ import type { ReactNode } from 'react'
 import { notFound } from 'next/navigation'
 import { Wordmark } from '@/components/wordmark'
 import { SectionBadge } from '@/components/section-badge'
-import { ScoreIndicator } from '@/components/score-indicator'
-import { DisclosureCard } from '@/components/disclosure-card'
+import { HypothesisCard } from '@/components/hypothesis-card'
 import { VariantPreview } from '@/components/variant-preview'
 import { FlowPlaybook } from '@/components/flow-playbook'
 import { AnalysisTabs } from '@/components/analysis-tabs'
@@ -165,42 +164,12 @@ export default async function PublicReportPage({
               {visible.map((hypothesis, index) => {
                 const recommended = hypothesis.variants[0]
                 return (
-                  <DisclosureCard
+                  <HypothesisCard
                     key={hypothesis.id}
+                    hypothesis={hypothesis}
                     rank={index + 1}
-                    title={hypothesis.problem}
-                    testId="hypothesis-card"
+                    isTop={index === 0}
                     defaultOpen
-                    badge={
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        <SectionBadge section={hypothesis.section} />
-                        {index === 0 && (
-                          <span className="panel-label text-[0.6rem] text-coral">
-                            {t.report.testThisFirst}
-                          </span>
-                        )}
-                      </span>
-                    }
-                    scores={
-                      <>
-                        <ScoreIndicator
-                          score={hypothesis.impactScore}
-                          kind="impact"
-                          variant="compact"
-                        />
-                        <ScoreIndicator
-                          score={hypothesis.effortScore}
-                          kind="effort"
-                          variant="compact"
-                        />
-                      </>
-                    }
-                    openScores={
-                      <>
-                        <ScoreIndicator score={hypothesis.impactScore} kind="impact" />
-                        <ScoreIndicator score={hypothesis.effortScore} kind="effort" />
-                      </>
-                    }
                   >
                     {recommended && (
                       <div className="space-y-2">
@@ -250,7 +219,7 @@ export default async function PublicReportPage({
                       <p>{hypothesis.rationale}</p>
                       {recommended?.evidence && <p>{recommended.evidence}</p>}
                     </WhyBlock>
-                  </DisclosureCard>
+                  </HypothesisCard>
                 )
               })}
 

@@ -110,7 +110,7 @@ export const en = {
     },
     plan: {
       free: 'Free',
-      solo: 'Pro'
+      pro: 'Pro'
     },
     leadSource: {
       report: 'Report wall',

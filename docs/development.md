@@ -102,7 +102,7 @@ the routine to `el.textContent = copy` turns four of the eight red.
 
 ### What the fixture user can and cannot prove
 
-The credentials hatch forces that user to `solo` (`auth.ts`), so the suite can assert that **a paying
+The credentials hatch forces that user to `pro` (`auth.ts`), so the suite can assert that **a paying
 customer is never shown an upsell** and that the **unbranded, unwalled paid report** renders correctly.
 
 It cannot reach the free, walled shape of either surface — that needs a genuinely free account and is

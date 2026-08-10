@@ -179,6 +179,20 @@ is never made from a peeked-at interim result.
 
 ## Security
 
+### `ADMIN_EMAIL` grants the role, `users.role` authorizes the request
+
+Sign-in promotes the row to `admin` when the email matches `ADMIN_EMAIL` (`isAdminEmail`); every request
+is then gated on the **stored** role (`isAdmin`), never on the variable. The two halves are separate
+functions in `lib/auth-policy.ts` precisely so no call site can confuse them.
+
+The promotion is one-way. A sign-in never writes the role back down, which means **removing `ADMIN_EMAIL`
+revokes nothing** — revoking is `update users set role = 'user'`, and it takes effect on the next request
+rather than the next login, because the gate reads the row and the role is deliberately kept out of the
+JWT. The same one-way rule is what lets an `update` promote a second operator without their next sign-in
+undoing it.
+
+*Governs:* [security.md](security.md), [data-model.md](data-model.md)
+
 ### Rate limiting fails open, deliberately
 
 A missing `REDIS_URL`, a wrong one, or a Redis that is simply down means no limit at all on the public

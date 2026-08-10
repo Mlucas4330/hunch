@@ -33,7 +33,7 @@ export function DisclosureCard({
             </span>
           )}
           {badge}
-          <h3 className="min-w-32 flex-1 truncate font-display text-sm font-medium leading-snug group-open:overflow-visible group-open:whitespace-normal group-open:text-base group-open:font-semibold">
+          <h3 className="min-w-0 flex-1 truncate font-display text-sm font-medium leading-snug group-open:order-last group-open:basis-full group-open:overflow-visible group-open:whitespace-normal group-open:text-base group-open:font-semibold">
             {title}
           </h3>
           {scores && (

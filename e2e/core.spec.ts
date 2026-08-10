@@ -131,7 +131,7 @@ test.describe('core features', () => {
 
   test('hides the free-tier allowance from paid plans', async ({ page }) => {
     await page.goto('/dashboard')
-    await expect(page.getByTestId('analysis-history')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Your clients' })).toBeVisible()
     await expect(page.getByTestId('usage-banner')).toHaveCount(0)
   })
 

@@ -23,9 +23,15 @@ import {
   SUBSCRIPTION_PLAN,
   SUBSCRIPTION_STATUS,
   TRACK_EVENT,
+  USER_ROLE,
   VARIANT_STATUS
 } from '@/lib/enums'
-import { DEFAULT_LEAD_SOURCE, DEFAULT_LOCALE, DEFAULT_MARKET } from '@/lib/constants'
+import {
+  DEFAULT_LEAD_SOURCE,
+  DEFAULT_LOCALE,
+  DEFAULT_MARKET,
+  DEFAULT_USER_ROLE
+} from '@/lib/constants'
 import type {
   CompetitorStructure,
   PagePerformance,
@@ -47,6 +53,7 @@ export const localeEnum = pgEnum('locale', LOCALE)
 export const marketEnum = pgEnum('market', MARKET)
 export const fixKindEnum = pgEnum('fix_kind', FIX_KIND)
 export const leadSourceEnum = pgEnum('lead_source', LEAD_SOURCE)
+export const userRoleEnum = pgEnum('user_role', USER_ROLE)
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -54,6 +61,7 @@ export const users = pgTable('users', {
   name: text('name').notNull(),
   avatarUrl: text('avatar_url'),
   plan: subscriptionPlanEnum('plan').notNull().default('free'),
+  role: userRoleEnum('role').notNull().default(DEFAULT_USER_ROLE),
   stripeCustomerId: text('stripe_customer_id'),
   analysesCount: integer('analyses_count').notNull().default(0),
   usagePeriodStart: timestamp('usage_period_start').notNull().defaultNow(),

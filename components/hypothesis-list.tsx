@@ -3,10 +3,8 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { DisclosureCard } from '@/components/disclosure-card'
-import { SectionBadge } from '@/components/section-badge'
+import { HypothesisCard } from '@/components/hypothesis-card'
 import { WhyBlock } from '@/components/why-block'
-import { ScoreIndicator } from '@/components/score-indicator'
 import {
   HypothesisFilters,
   type HypothesisSort,
@@ -19,7 +17,7 @@ import {
 } from '@/lib/constants'
 import { useI18n } from '@/components/i18n-provider'
 import type { Hypothesis, Variant } from '@/db/schema'
-import { cn, hasPlaceholders } from '@/lib/utils'
+import { hasPlaceholders } from '@/lib/utils'
 
 export type HypothesisWithVariants = Hypothesis & { variants: Variant[] }
 
@@ -90,45 +88,16 @@ function HypothesisRow({
   isTop: boolean
   defaultOpen: boolean
 }) {
-  const { dictionary } = useI18n()
-
   return (
-    <DisclosureCard
+    <HypothesisCard
+      hypothesis={hypothesis}
       rank={rank}
-      title={hypothesis.problem}
-      testId="hypothesis-card"
-      className={cn(isTop && 'ring-1 ring-coral/40')}
+      isTop={isTop}
       defaultOpen={defaultOpen}
-      badge={
-        <span className="flex shrink-0 items-center gap-1.5">
-          <SectionBadge section={hypothesis.section} />
-          {hypothesis.target === 'manual' && (
-            <span className="rounded-full bg-neutral/15 px-2 py-0.5 text-xs font-medium text-neutral">
-              {dictionary.hypothesisList.manualSetup}
-            </span>
-          )}
-          {isTop && (
-            <span className="panel-label text-[0.6rem] text-coral">
-              {dictionary.hypothesisList.testThisFirst}
-            </span>
-          )}
-        </span>
-      }
-      scores={
-        <>
-          <ScoreIndicator score={hypothesis.impactScore} kind="impact" variant="compact" />
-          <ScoreIndicator score={hypothesis.effortScore} kind="effort" variant="compact" />
-        </>
-      }
-      openScores={
-        <>
-          <ScoreIndicator score={hypothesis.impactScore} kind="impact" />
-          <ScoreIndicator score={hypothesis.effortScore} kind="effort" />
-        </>
-      }
+      showManualBadge
     >
       <HypothesisBody hypothesis={hypothesis} />
-    </DisclosureCard>
+    </HypothesisCard>
   )
 }
 

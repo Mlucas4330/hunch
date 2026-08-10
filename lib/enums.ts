@@ -1,5 +1,9 @@
-export const SUBSCRIPTION_PLAN = ['free', 'solo'] as const
+export const SUBSCRIPTION_PLAN = ['free', 'pro'] as const
 export type SubscriptionPlan = (typeof SUBSCRIPTION_PLAN)[number]
+
+// Granted from ADMIN_EMAIL at sign-in, never revoked by one. See docs/invariants.md.
+export const USER_ROLE = ['user', 'admin'] as const
+export type UserRole = (typeof USER_ROLE)[number]
 
 export const LOCALE = ['en', 'pt-BR'] as const
 export type Locale = (typeof LOCALE)[number]

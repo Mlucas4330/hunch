@@ -88,6 +88,10 @@ lookup by id.
 `app/(app)/admin/layout.tsx` via `isAdmin()`, so a page added under that segment is operator-only by
 default — and `/admin/leads` repeats the check, because the waitlist rows it shows are third-party PII.
 
+`isAdmin()` reads `users.role`, which sign-in granted from `ADMIN_EMAIL` — see
+[invariants.md](invariants.md#admin_email-grants-the-role-usersrole-authorizes-the-request) for why the
+grant and the gate are separate, and for how the role is revoked.
+
 ## Outbound request guard — `lib/url-guard.ts`
 
 Scraping points a browser at a URL the user chose, and the result is read back to them through the

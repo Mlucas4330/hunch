@@ -9,6 +9,8 @@ users
 - name               (text)
 - avatar_url         (text, nullable)
 - plan               (enum: SUBSCRIPTION_PLAN, default: free)
+- role               (enum: USER_ROLE, default: user)   <- gates /admin; granted at sign-in from
+                     ADMIN_EMAIL and never revoked by one, see invariants.md
 - stripe_customer_id (text, nullable: written only by the webhook, see api.md#post-apibillingwebhook)
 - analyses_count     (int, default: 0)   <- free tier usage gate
 - usage_period_start (timestamp, default now: start of the current monthly allowance window)

@@ -17,7 +17,7 @@ export async function generateMetadata() {
 
 export default async function LeadsPage() {
   const user = await getCurrentUser()
-  if (!isAdmin(user?.email)) notFound()
+  if (!isAdmin(user)) notFound()
 
   const rows = await db.select().from(waitlist).orderBy(desc(waitlist.createdAt))
   const locale = await getLocale()

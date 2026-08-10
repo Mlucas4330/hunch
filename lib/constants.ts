@@ -11,6 +11,7 @@ import type {
   ReadoutSeverity,
   Section,
   SubscriptionPlan,
+  UserRole,
   VariantStatus
 } from '@/lib/enums'
 
@@ -277,6 +278,11 @@ export const SCRAPE_LCP_FLUSH_MS = 50
 // Also the correct backfill: the wall was the only thing writing leads before the contact form.
 export const DEFAULT_LEAD_SOURCE: LeadSource = 'report'
 
+export const DEFAULT_USER_ROLE: UserRole = 'user'
+
+// The one role sign-in may grant. See docs/invariants.md.
+export const ADMIN_ROLE: UserRole = 'admin'
+
 // The readout measures in bytes and milliseconds and converts once, at the render edge.
 export const BYTES_PER_MEGABYTE = 1024 * 1024
 
@@ -411,7 +417,7 @@ export const LEAD_SOURCE_BADGE_CLASS: Record<LeadSource, string> = {
 
 export const PLAN_BADGE_CLASS: Record<SubscriptionPlan, string> = {
   free: 'bg-neutral/15 text-neutral',
-  solo: 'bg-purple/15 text-purple'
+  pro: 'bg-purple/15 text-purple'
 }
 
 export const HYPOTHESIS_STATUS_BADGE_CLASS: Record<HypothesisStatus, string> = {

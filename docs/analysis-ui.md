@@ -11,7 +11,7 @@
 | `/analyses/[id]/tests/[hypothesisId]` | Run a test | Approve/swap/edit the challenger, set the goal, launch, monitor |
 | `/analyses/[id]/report` | Print report | One stacked page, owner-authenticated — see [report.md](report.md) |
 | `/r/[embedKey]` | Public report | Two shapes by owner plan. No session — see [report.md](report.md) |
-| `/admin/leads` | Waitlist leads | Operator-only (`ADMIN_EMAIL`); the only place waitlist rows can be read |
+| `/admin/leads` | Waitlist leads | Operator-only (`users.role`); the only place waitlist rows can be read |
 
 The app routes live under the `(app)` route group (`app/(app)/analyses/...`); the public report has its
 own group, `app/(report)/r/[embedKey]/`.
@@ -119,7 +119,8 @@ instead.
 
 ### The ranked hypothesis list — `components/hypothesis-list.tsx`
 
-Impact descending. **Every row is a `DisclosureCard`** — one shape, no tiers. The first
+Impact descending. **Every row is a `HypothesisCard`**, the shared header the public report renders
+too — see [components.md](components.md) — over one `DisclosureCard` shape, no tiers. The first
 `HYPOTHESIS_EXPANDED_COUNT` (3) merely start open; being open is always a default, never a state the
 reader is stuck in. There used to be a separate always-open card component, and a reader who had
 finished with row 1 had no way to fold it away.

@@ -114,7 +114,7 @@ export const ptBR: Dictionary = {
     },
     plan: {
       free: 'Gratuito',
-      solo: 'Pro'
+      pro: 'Pro'
     },
     leadSource: {
       report: 'Muro do relatório',

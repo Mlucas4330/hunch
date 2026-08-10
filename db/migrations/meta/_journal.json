@@ -64,6 +64,20 @@
       "when": 1786138846239,
       "tag": "0008_sparkling_living_lightning",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786399742028,
+      "tag": "0009_rename_solo_plan_to_pro",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786400108767,
+      "tag": "0010_add_user_role",
+      "breakpoints": true
     }
   ]
 }

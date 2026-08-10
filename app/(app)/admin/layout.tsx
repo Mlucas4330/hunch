@@ -4,7 +4,7 @@ import { isAdmin } from '@/lib/auth-policy'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser()
-  if (!isAdmin(user?.email)) notFound()
+  if (!isAdmin(user)) notFound()
 
   return <>{children}</>
 }

@@ -13,7 +13,7 @@ Never use hardcoded hex values or raw Tailwind color classes; every colour below
 - Logo, nav links, and an account menu (`components/account-menu.tsx`).
 - **Account menu**: a native `<details>` dropdown with the avatar/name as the summary; the panel shows
   name, email, the plan badge, and a `Sign out` button (a server action calling `signOut`).
-- Plan badge maps `SUBSCRIPTION_PLAN` to a coloured pill: free = gray, solo = purple.
+- Plan badge maps `SUBSCRIPTION_PLAN` to a coloured pill: free = gray, pro = purple.
 - Consumes `getCurrentUser()` rather than calling `auth()` itself — see [security.md](security.md).
 - `print:hidden`, so it never reaches paper.
 
@@ -38,9 +38,28 @@ An open row **is** a full card and is dressed like one: the title stops truncati
 with `group-open:`, so the component stays CSS-only. They carry identical aria-labels and a
 `display:none` element is not announced, so the swap is invisible to a screen reader.
 
+**Open, the title takes a row of its own** (`group-open:order-last group-open:basis-full`), below the
+rank, badges and gauges. Sharing one wrapping line with them does not work: the gauges are `shrink-0`
+and eat roughly 290px, so the title is squeezed to whatever is left and an untruncated sentence
+renders as a tall narrow column. `order` is visual only — the `<h3>` stays in DOM order, which is what
+a screen reader reads and what names the `summary`. Closed, the title is back on the line and
+truncates, so the collapsed list stays one row per item. The print report reaches the same shape
+without `<details>`.
+
 The title renders as an `<h3>` inside the `<summary>`. Since every row is one of these, a `<span>`
 there would leave the section's items with no headings at all — for a screen reader walking the page or
 for anything selecting them by role.
+
+## Hypothesis card — `components/hypothesis-card.tsx`
+
+The `DisclosureCard` header of a hypothesis — rank, section badge, "Test this first" flag, compact
+chips and open gauges — wired once. The owner's list and the public report both render it and pass
+their own body as `children`, which is the only part that legitimately differs between them.
+
+It exists because that wiring was **copied** into the report page, and the two drifted the moment one
+of them was touched. The bodies stay separate; the header must not.
+
+`showManualBadge` is the owner's list only: the report already explains manual setup in the body.
 
 ## Why block — `components/why-block.tsx`
 
