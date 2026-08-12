@@ -7,6 +7,7 @@ import { VariantPreview } from '@/components/variant-preview'
 import { FlowPlaybook } from '@/components/flow-playbook'
 import { AnalysisTabs } from '@/components/analysis-tabs'
 import { WaitlistWall } from '@/components/waitlist-wall'
+import { ReportViewPing } from '@/components/report-view-ping'
 import { WhyBlock } from '@/components/why-block'
 import { hasPlaceholders } from '@/lib/utils'
 import { MeasuredReadout } from '@/components/measured-readout'
@@ -95,6 +96,7 @@ export default async function PublicReportPage({
 
   return (
     <div className="space-y-8">
+      <ReportViewPing embedKey={embedKey} />
       <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-4">
         {whiteLabel ? (
           <span />

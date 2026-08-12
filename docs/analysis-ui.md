@@ -12,6 +12,7 @@
 | `/analyses/[id]/report` | Print report | One stacked page, owner-authenticated — see [report.md](report.md) |
 | `/r/[embedKey]` | Public report | Two shapes by owner plan. No session — see [report.md](report.md) |
 | `/admin/leads` | Waitlist leads | Operator-only (`users.role`); the only place waitlist rows can be read |
+| `/admin/reports` | Report opens | Operator-only; open count and last open per analysis — see [report.md](report.md) |
 
 The app routes live under the `(app)` route group (`app/(app)/analyses/...`); the public report has its
 own group, `app/(report)/r/[embedKey]/`.
@@ -40,8 +41,9 @@ after a cold report lands. All copy comes from `dictionary.landing`.
 the reader runs is one of *their* clients. That is a rename plus a layout, and deliberately **not** a
 schema change — there is no `client_name` column and no `clients` table.
 
-- `grid gap-4 sm:grid-cols-2 lg:grid-cols-3`, so three cards a row fit the `max-w-5xl` container
-  `app/(app)/layout.tsx` already sets. The `Card` is `flex flex-col` and the footer is `mt-auto`, so
+- `grid gap-4 sm:grid-cols-2 lg:grid-cols-3`, so three cards a row fit the `CONTAINER_CLASS` measure
+  `app/(app)/layout.tsx` already sets — see [components.md](components.md). The `Card` is
+  `flex flex-col` and the footer is `mt-auto`, so
   cards in a row end level whatever the host and url lengths are.
 - **The client is the hostname**, derived by `displayHost()` (`lib/host.ts`) — the one helper the public
   report's title, its OG card and the competitor brief all read, so a host is spelled the same way
@@ -166,12 +168,12 @@ hid it from the ones who were.
   `POST /api/hypotheses/[id]/variants` on mount, shows a "Writing alternates..." note, and adds Variant
   B and C when they land. **Fail-quiet by design**: the recommendation is already usable and launching
   never waits on the alternates.
-- **Conversion goal card.** Pills for `analyses.goal_candidates` (highest-ranked CTA preselected) plus a
-  free-text CSS selector input. Clearing it warns that the test would record visitors but no
-  conversions — see [experiments.md](experiments.md).
+- **Conversion goal card.** No longer a picker: it names the one fixed attribute and shows the markup
+  to copy. There is nothing to choose and nothing that can drift — see
+  [experiments.md](experiments.md#a-conversion-is-one-fixed-attribute-not-a-selector).
 - **"Launch test"** -> `POST /api/experiments`. `403 limit_reached` shows an inline upgrade CTA,
   `422 manual_target` explains the idea has to be applied by hand, `409 already_running` surfaces
-  `testRunner.alreadyRunning`.
+  `testRunner.alreadyRunning`, and `422 goal_missing` says the attribute is not on the page yet.
 - Once an experiment exists (loaded server-side or just launched), the results panel renders in place.
 - **A finished test never blocks the next one.** The panel keeps its numbers, but once the experiment is
   no longer `running` a "Run another test" button sits under it and clears the local state back to the

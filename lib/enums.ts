@@ -105,6 +105,7 @@ export const RATE_LIMIT_KIND = [
   // Its own kind rather than `analysis`: the backfill spends no allowance. See docs/api.md.
   'measure',
   'waitlist',
+  'report_view',
   'track_event',
   'track_config',
   'signin'

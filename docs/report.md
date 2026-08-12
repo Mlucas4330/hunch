@@ -18,8 +18,11 @@ so nothing here may 404 loudly or leak whether an unknown key exists. Authorizat
 - **Paid** — the owner's deliverable, handed to *their* client. No mark of ours anywhere, no wall,
   nothing blurred. This is what the paid plan is actually bought for.
 
-`app/(report)/layout.tsx` deliberately mounts no site chrome: it sits above the `[embedKey]` segment, so
-it cannot know whose report it is and therefore cannot make this decision.
+`app/(report)/layout.tsx` deliberately mounts no site chrome — no navbar and **no site footer** — for one
+reason: it sits above the `[embedKey]` segment, so it cannot know whose report it is and therefore
+cannot make this decision. Everything of ours on this page is inside the page, under `whiteLabel`. What
+the layout does set is the shared `CONTAINER_CLASS`, the same measure the app pages use, so the report
+is not a different width from the screen the owner sent it from.
 
 The `Wordmark` is wrapped in `data-testid="report-brand"` so its absence is assertable. It has to be a
 **wrapper** rather than a locator on the mark itself: `Wordmark` renders a `<span>`, and the e2e used to
@@ -104,6 +107,11 @@ Three things go on a paid plan, and the third is the one that gets forgotten:
    a PDF whose header reads `| Hunch` is not white-labelled. `getCurrentUser()` is `cache()`d, so
    reading the plan there and in the component costs one query.
 
+The page sits in the `(app)` group, so the navbar and the site footer render around it on screen. Both
+are `print:hidden` and neither is part of the document, which is the whole reason the white-label list
+counts *this page's* header and footer rather than the app chrome: the owner is signed in and looking at
+our product, and what leaves the building is the print.
+
 **The navbar is not part of this.** It is `print:hidden`, so it never reaches paper, and the owner
 seeing our mark inside their own account is not what this fixes. What *cannot* be fixed in code: with
 the browser's own headers turned on, Chrome prints the page URL in the margin, and that URL is our
@@ -136,6 +144,27 @@ An abort does **not** cancel the render — nothing reads `request.signal` — s
 the retry click returns instantly. The timeout buys the reader an answer, not a smaller bill. The
 accepted consequence is that a retry can start a second render of the same variant, leaving one orphaned
 file that the prune reclaims; `RATE_LIMITS.screenshot` bounds how often that can happen.
+
+### `POST /api/report/view`
+
+Body `{ embedKey }`. Inserts one `report_views` row and answers `204` — always, whether or not the key
+resolved, so it leaks nothing the page itself does not. A failed insert is logged and swallowed: this
+is the operator's outreach signal, never something a reader should see break.
+
+**It is fired from the client, by `components/report-view-ping.tsx`, and that is the whole point.**
+Recording the view server-side in the page would have been simpler and no new route — but the reports
+go out over WhatsApp and Instagram DM, and those platforms fetch the link to build the unfurl. A
+server-side count marks every report "opened" the moment it is *pasted*, which destroys exactly the
+signal it exists to capture. Crawlers do not run JS. **Do not move this to the server component.**
+
+`sendBeacon` first, `fetch(keepalive)` as the fallback: a prospect who opens the link and closes it
+five seconds later is the view most worth catching, and a plain `fetch` is cancelled on unload. A
+`useRef` guard keeps development's double-effect from writing two rows.
+
+Read back by the admin-only `/admin/reports`, which lists each analysis with its open count and last
+open, most-recently-opened first. See
+[data-model.md](data-model.md#report_views-stores-a-row-per-open-and-is-the-one-table-written-by-a-client)
+for what the number does and does not mean.
 
 ### `POST /api/waitlist`
 

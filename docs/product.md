@@ -55,10 +55,11 @@ shapes, and why the deal is closed by a person rather than a checkout button.
 
 **Prove**
 
-- Install a one-line tracking snippet on the landing page
+- Install a one-line tracking snippet on the landing page, and mark the element a click on which
+  counts as a conversion with one fixed attribute
 - Launch a live A/B test from a chosen variant, over a 7 / 14 / 30-day window
-- Choose what counts as a conversion, from the CTAs captured during the scrape
-- Auto-apply the variant copy client-side (no code changes on the user's site)
+- Auto-apply the variant copy client-side, so **the copy** needs no change to the page; marking the
+  conversion element is the one edit the install does require
 - Measure conversion rate and statistical significance per test
 - Auto-finalize a test at its end date (daily cron) and produce a report with a recommendation
 - Declare a winner or stop a running test

@@ -37,6 +37,10 @@ export const ptBR: Dictionary = {
         title: 'Leads da lista de espera',
         description: 'Leads capturados pelos relatórios públicos.'
       },
+      reports: {
+        title: 'Aberturas de relatório',
+        description: 'Quais relatórios públicos foram abertos, e quando.'
+      },
       report: {
         title: 'Plano de testes A/B para {host}',
         description:
@@ -128,7 +132,13 @@ export const ptBR: Dictionary = {
     signIn: 'Entrar',
     signOut: 'Sair',
     account: 'Conta',
-    languageAria: 'Idioma'
+    languageAria: 'Idioma',
+    menuAria: 'Abrir menu'
+  },
+
+  footer: {
+    copyright: 'Copyright {year} Hunch. Todos os direitos reservados.',
+    contact: 'Fale com a gente'
   },
 
   infoHint: {
@@ -195,7 +205,7 @@ export const ptBR: Dictionary = {
         reality:
           '"Seu título é fraco" é questão de gosto para quem escreveu o título. Deixa de ser gosto quando tem um número do lado.',
         answer:
-          'Campos de formulário, CTAs acima da dobra, tempo de carregamento, texto alternativo, dados estruturados. Contados na página dele, ao lado dos concorrentes que ele citou.'
+          'Campos de formulário, CTAs sem precisar rolar a página, tempo de carregamento, texto alternativo, dados estruturados. Contados na página dele, ao lado dos concorrentes que ele citou.'
       },
       {
         headline: 'Ferramenta com a logo dos outros não é o seu entregável.',
@@ -235,8 +245,8 @@ export const ptBR: Dictionary = {
         note: 'Depois do contrato',
         steps: [
           {
-            label: 'Cole uma linha de script',
-            body: 'Assim que você tem acesso ao site do cliente, uma linha roda o teste. Sem novo deploy e sem mexer no código dele.'
+            label: 'Instale uma vez',
+            body: 'Assim que você tem acesso ao site do cliente: uma linha de script, mais um attribute no botão que conta como conversão. Depois disso a copy muda daqui, sem novo deploy.'
           },
           {
             label: 'Escolha a janela',
@@ -257,7 +267,7 @@ export const ptBR: Dictionary = {
     proof: [
       {
         title: 'Medido, não afirmado',
-        body: 'O readout conta o que está na página: campos de formulário, CTAs acima da dobra, tempo de carregamento, imagens sem texto alternativo. Números que a gente tirou, nunca números que um modelo chutou.'
+        body: 'O readout conta o que está na página: campos de formulário, CTAs sem precisar rolar a página, tempo de carregamento, imagens sem texto alternativo. Números que a gente tirou, nunca números que um modelo chutou.'
       },
       {
         title: 'Texto pronto, não prompts',
@@ -427,13 +437,13 @@ export const ptBR: Dictionary = {
     hint: 'Tudo aqui foi *contado na própria página* na hora em que a carregamos - nada é estimativa, média de mercado ou benchmark. Os tempos vêm de um data center com conexão boa, então são *o melhor cenário*: no celular o visitante espera mais que isso, nunca menos.',
     groups: {
       structure: 'O que a página exige de quem chega',
-      metadata: 'O que a página conta para as máquinas',
-      load: 'Quanto custa abrir a página'
+      metadata: 'O que a IA precisa está aqui?',
+      load: 'A página está otimizada?'
     },
     findings: {
       form_fields: 'Campos no formulário de cadastro',
       no_social_signin: 'Login com Google ou GitHub',
-      above_fold_ctas: 'CTAs acima da dobra',
+      above_fold_ctas: 'CTAs sem precisar rolar a página',
       nav_links: 'Links do menu que tiram o visitante da página',
       no_faq: 'Dúvidas respondidas na página',
       no_testimonials: 'Depoimentos de clientes',
@@ -463,13 +473,13 @@ export const ptBR: Dictionary = {
       metrics: {
         form_fields: 'Campos no formulário',
         social_signin: 'Login social',
-        above_fold_ctas: 'CTAs acima da dobra',
+        above_fold_ctas: 'CTAs sem precisar rolar a página',
         nav_links: 'Links do menu'
       }
     },
     measure: {
       explain:
-        'Esta análise foi gerada antes de começarmos a contar. Carregamos a página de novo e medimos: campos de formulário, CTAs acima da dobra, tempo de carregamento, imagens sem alt.',
+        'Esta análise foi gerada antes de começarmos a contar. Carregamos a página de novo e medimos: campos de formulário, CTAs sem precisar rolar a página, tempo de carregamento, imagens sem alt.',
       cta: 'Medir esta página',
       loading: 'Medindo a página...',
       hint: 'Leva cerca de {seconds} segundos. Abrimos a página do mesmo jeito que um visitante abre.',
@@ -508,7 +518,13 @@ export const ptBR: Dictionary = {
 
   embedSnippet: {
     title: 'Instale o snippet de rastreamento',
-    body: 'Cole isto uma vez, logo antes da tag de fechamento do body da landing page. Ele aplica as variantes em andamento e envia os resultados de volta sozinho.'
+    body: 'Passo um. Cole isto uma vez, logo antes da tag de fechamento do body da landing page. Ele aplica as variantes em andamento e envia os resultados de volta sozinho.',
+    goalTitle: 'Passo dois: marque o que conta como conversão',
+    goalBody: 'Adicione este attribute no elemento que o visitante clica ao converter, normalmente o seu call to action principal. Sem ele o snippet conta visitantes mas nunca um resultado, e nenhum teste pode ser lançado.',
+    troubleshootTitle: 'Teste rodando mas sem registrar nada?',
+    cspBody: 'Confira isto antes de qualquer outra coisa. A causa mais comum é um Content-Security-Policy na landing page: um header de segurança que lista quais domínios podem rodar scripts. O snippet vem de outro domínio, então uma policy restritiva bloqueia ele. Peça para quem cuida do site liberar esta origem nas duas diretivas abaixo.',
+    cspBoth: 'As duas são necessárias. Só com a primeira, o snippet carrega e depois não reporta nada, em silêncio.',
+    debugBody: 'Para ver o que o snippet está fazendo, adicione data-debug="1" na tag e abra o console do navegador na landing page. Ele conta o que encontrou, qual variante aplicou e o que enviou.'
   },
 
   testList: {
@@ -536,11 +552,10 @@ export const ptBR: Dictionary = {
     placeholderWarning:
       'Este texto ainda tem [placeholders] como [duração do teste]. Substitua pelos seus dados reais antes de lançar, ou seus visitantes verão os colchetes.',
     goalTitle: 'O que conta como conversão',
-    goalPlaceholder: 'a.cta',
     goalHelp:
-      'Um clique neste elemento é uma conversão. Escolha o botão que seus visitantes clicam ao converter, ou cole o seu próprio seletor CSS.',
-    goalWarning:
-      'Sem uma meta, este teste registra visitantes mas nunca conversões, então nunca produz um resultado.',
+      'Adicione este attribute no elemento que o visitante clica ao converter, normalmente o seu call to action principal. Um clique nele é uma conversão. Isso substitui o chute em um seletor CSS, que quebra em silêncio no próximo redesign da página.',
+    goalMissing:
+      'Esse attribute ainda não está na página, então este teste só conseguiria registrar visitantes e nunca um resultado. Adicione, publique a página, e então lance o teste.',
     testLength: 'Duração do teste',
     days: '{days} dias',
     launch: 'Lançar teste',
@@ -562,8 +577,6 @@ export const ptBR: Dictionary = {
     copyReport: 'Copiar relatório',
     downloadMd: 'Baixar .md',
     upgradeToExport: 'Fale com a gente para exportar',
-    noGoal:
-      'Nenhuma meta de conversão definida, então nenhuma conversão está sendo registrada. Interrompa este teste e relance com uma meta para obter um resultado.',
     notEnoughData: 'Dados insuficientes por enquanto.',
     finalizing: 'Finalizando...',
     endsIn: { one: 'Termina em {days} dia', other: 'Termina em {days} dias' },
@@ -642,6 +655,18 @@ export const ptBR: Dictionary = {
     phone: 'Telefone',
     fromReport: 'Do relatório',
     joined: 'Entrou em'
+  },
+
+  reports: {
+    eyebrow: 'Admin',
+    title: 'Aberturas de relatório',
+    empty:
+      'Nenhuma análise ainda. Um relatório começa a contar aberturas na primeira vez que alguém carrega o link dele.',
+    page: 'Página',
+    owner: 'Dono',
+    views: 'Aberturas',
+    lastOpened: 'Aberto pela última vez',
+    never: 'Nunca'
   },
 
   export: {

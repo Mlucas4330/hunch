@@ -38,8 +38,7 @@ export async function GET(request: Request) {
       selector: experiments.selector,
       controlCopy: experiments.controlCopy,
       variantCopy: experiments.variantCopy,
-      splitPercent: experiments.splitPercent,
-      goalSelector: experiments.goalSelector
+      splitPercent: experiments.splitPercent
     })
     .from(experiments)
     .where(

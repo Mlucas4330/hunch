@@ -98,7 +98,7 @@ export function UrlInputForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           name="url"
           type="url"

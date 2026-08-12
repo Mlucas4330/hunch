@@ -8,6 +8,13 @@ Never use hardcoded hex values or raw Tailwind color classes; every colour below
 
 ## Layout
 
+### One container — `CONTAINER_CLASS`
+
+`mx-auto w-full max-w-5xl px-4` in `lib/constants.ts`, read by the navbar, `app/(app)/layout.tsx`,
+`app/(report)/layout.tsx` and the site footer. **Every surface is the same measure**, so the wordmark
+lines up with the content under it and `/r` is not a different width from `/analyses`. The print report
+sets no width of its own; it inherits the app container.
+
 ### Navbar
 
 - Logo, nav links, and an account menu (`components/account-menu.tsx`).
@@ -16,6 +23,31 @@ Never use hardcoded hex values or raw Tailwind color classes; every colour below
 - Plan badge maps `SUBSCRIPTION_PLAN` to a coloured pill: free = gray, pro = purple.
 - Consumes `getCurrentUser()` rather than calling `auth()` itself — see [security.md](security.md).
 - `print:hidden`, so it never reaches paper.
+
+**Below `md` the whole right-hand cluster collapses into `components/mobile-menu.tsx`** — links, the
+language toggle and the account block, in one `<details>` behind a hamburger. The two clusters are the
+same components rendered twice and swapped with `hidden md:flex` / `md:hidden`, not a second
+implementation: the account block is `AccountPanel`, exported from `account-menu.tsx` and rendered both
+inside the desktop dropdown and inside the mobile panel.
+
+Both copies are in the DOM at every width, which is what an e2e has to account for: a locator for
+anything in the menu must be scoped to `account-menu` or `mobile-menu`, or it matches twice. Role
+queries are the exception — a closed `<details>` is out of the accessibility tree.
+
+`MobileMenu` is the one client component in the header, for one reason: a native `<details>` keeps its
+`open` state across a client-side navigation, so the panel would stay hanging over the page the link
+just went to. It watches `usePathname()` and closes itself.
+
+### Site footer — `components/site-footer.tsx`
+
+Wordmark, copyright line and a link to `CONTACT_PATH`, on the same container as everything else.
+Mounted in `app/(app)/layout.tsx`, so it reaches every app page including the print report, where
+`print:hidden` keeps it off paper.
+
+**It is deliberately not mounted in `app/(report)/layout.tsx`.** Our name in a global footer would be a
+fifth white-label surface on a document an agency hands to their client — see
+[invariants.md](invariants.md#white-label-hangs-off-one-boolean-on-four-independent-surfaces). The
+public report has its own footer, already gated on the plan.
 
 ### Language toggle — `components/language-toggle.tsx`
 
@@ -124,6 +156,17 @@ to a 16px icon, so a fixed width runs off-screen wherever that icon sits near an
 Copy-to-clipboard card showing the one script tag. `APP_URL` comes from `NEXT_PUBLIC_APP_URL`, falling
 back to `window.location.origin`. One tag per landing page, installed once from the Tests tab — see
 [experiments.md](experiments.md).
+
+**Installing is two steps and the card says so**: paste the tag, then mark the element whose click
+counts as a conversion with `GOAL_ATTRIBUTE`. Both blocks are generated from constants rather than
+written out, so neither can drift from what the snippet actually looks for.
+
+**It also carries the troubleshooting, because the reader is not the person who will debug it.** The
+snippet is pasted onto someone else's site by someone else's developer, and its failures all look
+identical from the outside: the test runs and records nothing. So the card names the first thing to
+check (a `Content-Security-Policy` blocking a script from another origin), prints the two directives
+that origin needs to be allowed in, and points at `data-debug="1"` for the rest. The copy-paste
+directives are generated from the same `origin` as the tag, so they cannot drift from it.
 
 ## Upgrade prompt — `components/upgrade-prompt.tsx`
 

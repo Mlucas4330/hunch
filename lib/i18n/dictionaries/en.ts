@@ -33,6 +33,10 @@ export const en = {
         title: 'Waitlist leads',
         description: 'Leads captured by the public reports.'
       },
+      reports: {
+        title: 'Report opens',
+        description: 'Which public reports have been opened, and when.'
+      },
       report: {
         title: 'A/B test plan for {host}',
         description:
@@ -124,7 +128,13 @@ export const en = {
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
-    languageAria: 'Language'
+    languageAria: 'Language',
+    menuAria: 'Open menu'
+  },
+
+  footer: {
+    copyright: 'Copyright {year} Hunch. All rights reserved.',
+    contact: 'Talk to us'
   },
 
   infoHint: {
@@ -224,8 +234,8 @@ export const en = {
         note: 'After the contract',
         steps: [
           {
-            label: 'Drop one script tag',
-            body: 'Once you have access to the client site, one line runs the test. No redeploy and no change to their code.'
+            label: 'Install it once',
+            body: 'Once you have access to the client site: one script tag, plus one attribute on the button that counts as a conversion. After that the copy changes from here, with no further deploys.'
           },
           {
             label: 'Pick a window',
@@ -491,7 +501,13 @@ export const en = {
 
   embedSnippet: {
     title: 'Install the tracking snippet',
-    body: 'Paste this once, just before the closing body tag on your landing page. It applies running variants and reports results back automatically.'
+    body: 'Step one. Paste this once, just before the closing body tag on your landing page. It applies running variants and reports results back automatically.',
+    goalTitle: 'Step two: mark what counts as a conversion',
+    goalBody: 'Add this attribute to the element a visitor clicks when they convert, usually your main call to action. Without it the snippet can count visitors but never a result, and a test cannot be launched.',
+    troubleshootTitle: 'Test running but recording nothing?',
+    cspBody: 'Check this before anything else. The usual cause is a Content-Security-Policy on the landing page: a security header listing which domains are allowed to run scripts. The snippet is served from another domain, so a strict policy blocks it. Ask whoever manages the site to allow this origin in both directives below.',
+    cspBoth: 'Both are needed. With only the first, the snippet loads and then reports nothing, silently.',
+    debugBody: 'To see what the snippet is doing, add data-debug="1" to the tag and open the browser console on the landing page. It reports what it found, which variant it applied and what it sent.'
   },
 
   testList: {
@@ -518,9 +534,8 @@ export const en = {
     writingAlternates: 'Writing alternates...',
     placeholderWarning: 'This copy still has [placeholders] like [trial length]. Replace them with your real details before launching, or your visitors will see the brackets.',
     goalTitle: 'What counts as a conversion',
-    goalPlaceholder: 'a.cta',
-    goalHelp: 'A click on this element is one conversion. Pick the button your visitors press when they convert, or paste your own CSS selector.',
-    goalWarning: 'Without a goal this test records visitors but never conversions, so it can never produce a result.',
+    goalHelp: 'Add this attribute to the element a visitor clicks when they convert, usually your main call to action. One click on it is one conversion. It replaces guessing at a CSS selector, which breaks silently the next time the page is redesigned.',
+    goalMissing: 'That attribute is not on the page yet, so this test could only ever record visitors and never a result. Add it, publish the page, then launch.',
     testLength: 'Test length',
     days: '{days} days',
     launch: 'Launch test',
@@ -540,7 +555,6 @@ export const en = {
     copyReport: 'Copy report',
     downloadMd: 'Download .md',
     upgradeToExport: 'Talk to us to export',
-    noGoal: 'No conversion goal set, so no conversions are being recorded. Stop this test and relaunch it with a goal to get a result.',
     notEnoughData: 'Not enough data yet.',
     finalizing: 'Finalizing...',
     endsIn: { one: 'Ends in {days} day', other: 'Ends in {days} days' },
@@ -616,6 +630,17 @@ export const en = {
     phone: 'Phone',
     fromReport: 'From report',
     joined: 'Joined'
+  },
+
+  reports: {
+    eyebrow: 'Admin',
+    title: 'Report opens',
+    empty: 'No analyses yet. A report starts counting opens the first time someone loads its link.',
+    page: 'Page',
+    owner: 'Owner',
+    views: 'Opens',
+    lastOpened: 'Last opened',
+    never: 'Never'
   },
 
   export: {

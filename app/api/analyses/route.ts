@@ -61,7 +61,6 @@ export async function POST(request: Request) {
           url: parsed.data.url,
           brief: brief ?? null,
           competitors: output.competitors,
-          goalCandidates: output.goalCandidates,
           researchBrief: output.researchBrief || null,
           structure: output.structure,
           seo: output.seo,

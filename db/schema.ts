@@ -1,5 +1,6 @@
 import { relations } from 'drizzle-orm'
 import {
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -88,7 +89,6 @@ export const analyses = pgTable('analyses', {
   url: text('url').notNull(),
   brief: text('brief'),
   competitors: jsonb('competitors').$type<{ name: string; url: string }[]>(),
-  goalCandidates: jsonb('goal_candidates').$type<{ text: string; selector: string }[]>(),
   researchBrief: text('research_brief'),
   structure: jsonb('structure').$type<PageStructure>(),
   seo: jsonb('seo').$type<PageSeo>(),
@@ -162,7 +162,6 @@ export const experiments = pgTable('experiments', {
   selector: text('selector'),
   controlCopy: text('control_copy').notNull(),
   variantCopy: text('variant_copy').notNull(),
-  goalSelector: text('goal_selector'),
   splitPercent: integer('split_percent').notNull().default(50),
   durationDays: integer('duration_days').notNull().default(14),
   startedAt: timestamp('started_at').notNull().defaultNow(),
@@ -184,6 +183,18 @@ export const waitlist = pgTable(
   (table) => [
     unique().on(table.email, table.source)
   ]
+)
+
+export const reportViews = pgTable(
+  'report_views',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    embedKey: uuid('embed_key')
+      .notNull()
+      .references(() => analyses.embedKey, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').notNull().defaultNow()
+  },
+  (table) => [index('report_views_embed_key_idx').on(table.embedKey)]
 )
 
 export const stripeEvents = pgTable('stripe_events', {

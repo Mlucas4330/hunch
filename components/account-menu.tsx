@@ -3,16 +3,14 @@ import { PlanBadge } from '@/components/plan-badge'
 import type { SubscriptionPlan } from '@/lib/enums'
 import { getDictionary } from '@/lib/i18n'
 
+type AccountUser = { name?: string | null; email?: string | null; plan: SubscriptionPlan }
+
 async function signOutAction() {
   'use server'
   await signOut({ redirectTo: '/auth/signin' })
 }
 
-export async function AccountMenu({
-  user
-}: {
-  user: { name?: string | null; email?: string | null; plan: SubscriptionPlan }
-}) {
+export async function AccountMenu({ user }: { user: AccountUser }) {
   const t = await getDictionary()
   const label = user.name ?? user.email ?? t.nav.account
   const initial = label.charAt(0).toUpperCase()
@@ -27,22 +25,32 @@ export async function AccountMenu({
       </summary>
 
       <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border bg-card p-3 shadow-sm">
-        <div className="space-y-1">
-          {user.name && <p className="text-sm font-medium">{user.name}</p>}
-          {user.email && <p className="truncate text-xs text-muted-foreground">{user.email}</p>}
-          <div className="pt-1">
-            <PlanBadge plan={user.plan} />
-          </div>
-        </div>
-        <form action={signOutAction} className="mt-3 border-t pt-3">
-          <button
-            type="submit"
-            className="w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
-          >
-            {t.nav.signOut}
-          </button>
-        </form>
+        <AccountPanel user={user} />
       </div>
     </details>
+  )
+}
+
+export async function AccountPanel({ user }: { user: AccountUser }) {
+  const t = await getDictionary()
+
+  return (
+    <>
+      <div className="space-y-1">
+        {user.name && <p className="text-sm font-medium">{user.name}</p>}
+        {user.email && <p className="truncate text-xs text-muted-foreground">{user.email}</p>}
+        <div className="pt-1">
+          <PlanBadge plan={user.plan} />
+        </div>
+      </div>
+      <form action={signOutAction} className="mt-3 border-t pt-3">
+        <button
+          type="submit"
+          className="w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+        >
+          {t.nav.signOut}
+        </button>
+      </form>
+    </>
   )
 }

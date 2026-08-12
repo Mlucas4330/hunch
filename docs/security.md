@@ -86,7 +86,8 @@ lookup by id.
 
 `redirect('/auth/signin')` on the user's own pages, `notFound()` under `/admin`. `/admin` is gated in
 `app/(app)/admin/layout.tsx` via `isAdmin()`, so a page added under that segment is operator-only by
-default — and `/admin/leads` repeats the check, because the waitlist rows it shows are third-party PII.
+default — and `/admin/leads` and `/admin/reports` repeat the check, because the waitlist rows and owner
+emails they show are third-party PII.
 
 `isAdmin()` reads `users.role`, which sign-in granted from `ADMIN_EMAIL` — see
 [invariants.md](invariants.md#admin_email-grants-the-role-usersrole-authorizes-the-request) for why the

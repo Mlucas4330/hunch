@@ -71,7 +71,6 @@ export default async function RunTestPage({
       variantCopy: withResult.variantCopy,
       durationDays: withResult.durationDays,
       endsAt: withResult.endsAt ? withResult.endsAt.toISOString() : null,
-      goalSelector: withResult.goalSelector,
       result: withResult.result
     }
   }
@@ -104,7 +103,6 @@ export default async function RunTestPage({
           currentCopy: hypothesis.currentCopy,
           variants: hypothesis.variants.map((v) => ({ id: v.id, copy: v.copy }))
         }}
-        goals={hypothesis.analysis.goalCandidates ?? []}
         canExport={canExport(user.plan)}
         initialExperiment={initialExperiment}
       />

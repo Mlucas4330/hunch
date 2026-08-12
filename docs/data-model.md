@@ -31,8 +31,6 @@ analyses
 - url             (text)
 - brief           (text, nullable: optional business details the founder supplied for finished copy)
 - competitors     (jsonb, nullable: { name, url }[] benchmarked against)
-- goal_candidates (jsonb, nullable: { text, selector }[] clickable elements captured during the
-                   scrape; the conversion-goal picker offers these)
 - research_brief  (text, nullable: the competitor research output, kept so the on-demand alternate
                    variants are grounded without paying for a second web search)
 - structure       (jsonb, nullable: PageStructure, the readout of what the page DOES)
@@ -91,6 +89,12 @@ waitlist                        <- leads, from the report's paywall or the landi
 - created_at (timestamp)
 - unique(email, source)
 
+report_views                    <- one row per human open of a public report
+- id         (uuid, PK)
+- embed_key  (FK -> analyses.embed_key, cascade)
+- created_at (timestamp)
+- index(embed_key)
+
 experiments
 - id            (uuid, PK)
 - analysis_id   (FK -> analyses.id)
@@ -100,7 +104,6 @@ experiments
 - selector      (text, nullable: snapshot from hypothesis at launch)
 - control_copy  (text: snapshot of original copy)
 - variant_copy  (text: snapshot of challenger copy)
-- goal_selector (text, nullable: element whose click counts as a conversion)
 - split_percent (int, default 50: % of visitors bucketed into the variant arm)
 - duration_days (int, default 14: one of EXPERIMENT_DURATIONS 7/14/30)
 - started_at    (timestamp)
@@ -194,6 +197,19 @@ highest-intent event the product records. Per source, the dedupe still stops a r
 
 `source` defaults to `report`, which is also the correct backfill: the wall was the only thing writing
 rows before the contact form existed.
+
+### `report_views` stores a row per open, and is the one table written by a client
+
+Unlike `waitlist.embed_key`, this one **is** a FK with `on delete cascade`: the row is written from a
+surface that already proved the analysis exists, so a key with no analysis behind it is junk rather
+than a lead worth keeping.
+
+A row per open rather than a counter on `analyses`, because the operator's question is *when* and *how
+often*, not *how many* — "opened it three times this week" is what decides a follow-up, and a counter
+throws that away irreversibly. Nothing dedupes a reload; `RATE_LIMITS.report_view` bounds the noise.
+
+**It counts opens, not readers, and it counts your own.** There is no session on the public report, so
+an operator checking their own link is indistinguishable from a prospect reading it.
 
 ## Where rows are split — never inline at a call site
 

@@ -11,15 +11,25 @@ It never appears on the public report: a prospect reading someone else's teardow
 Launches a live test for a chosen `(hypothesis, variant)`. Ownership via `hypotheses -> analyses`.
 
 ```json
-{ "hypothesisId": "uuid", "variantId": "uuid", "goalSelector": "a.cta", "splitPercent": 50, "durationDays": 14, "variantCopy": "edited copy" }
+{ "hypothesisId": "uuid", "variantId": "uuid", "splitPercent": 50, "durationDays": 14, "variantCopy": "edited copy" }
 ```
 
-Two gates:
+Three gates:
 
 - **Free users may have only `FREE_EXPERIMENTS_LIMIT` (1) `running` experiment** -> `403 limit_reached`.
 - **On any plan, a hypothesis that already has a `running` experiment** -> `409 already_running`. Two
   live tests on one hypothesis means two experiments racing to rewrite the same element, and the
   snippet cannot choose between them.
+- **The page must already carry the goal attribute** -> `422 goal_missing`, via `pageHasGoalTarget`
+  (`lib/scrape.ts`). It runs **last**, because it opens a browser and the other two are queries.
+
+  A test whose goal is not on the page can only ever record impressions, and it would take its whole
+  window to say so. That is the failure this gate exists to prevent, and it is only possible because
+  the goal is now a fixed attribute: an arbitrary selector could not be checked for meaningfully.
+
+  **A page that cannot be reached does not block the launch.** The check is wrapped in a `try` and a
+  failure is logged and ignored, because refusing on a transient network error would be worse than
+  the thing being prevented. The snippet's own warning is the backstop.
 
 In a transaction: snapshots `control_copy` / `variant_copy` / `selector`, inserts the experiment plus
 its two `experiment_stats` rows, and flips the variant and hypothesis to `testing`.
@@ -28,10 +38,27 @@ its two `experiment_stats` rows, and flips the variant and hypothesis to `testin
 (optional) lets the user edit at launch and is snapshotted instead of the stored variant copy — the
 **control copy is never editable**.
 
-`goalSelector` is what a conversion actually *is*. The run-a-test screen always sends one, preselected
-from `analyses.goal_candidates`. Without it the snippet records impressions and no conversions, so the
-test can never produce a result — and it records **no conversions at all** rather than counting a
-click on the swapped element, so a result is never manufactured from the wrong event.
+### A conversion is one fixed attribute, not a selector
+
+`GOAL_ATTRIBUTE` (`data-ab-goal`, `lib/constants.ts`) is what a conversion *is*: a click on the
+element the site owner marked. Nothing is chosen at launch and nothing is stored per experiment.
+
+It replaced `experiments.goal_selector`, a CSS selector picked from `analyses.goal_candidates` that
+the scrape had harvested. That was a **snapshot of markup**, so a class rename or a redesign drifted
+it and the snippet then recorded impressions and never one conversion — for the test's whole window,
+with nothing anywhere saying why. Marking the element inverts the contract from "we guessed how to
+find your button" to "you marked your button", and nothing can drift.
+
+**The attribute is unbranded on purpose.** It lands permanently in a white-labelled client's source
+where the agency cannot strip it — see
+[invariants.md](invariants.md#white-label-hangs-off-one-boolean-on-four-independent-surfaces).
+
+The cost is that installing is **two steps**: paste the snippet, mark the element. Both live on the
+`EmbedSnippet` card. This is why `product.md` no longer claims the snippet needs no code changes on
+the page.
+
+The snippet still records **no conversions at all** rather than falling back to counting a click on
+the swapped element, so a result is never manufactured from the wrong event.
 
 Response: `{ experiment: ExperimentWithResult, embedKey }`.
 
@@ -98,11 +125,76 @@ Rules it must keep:
   control, and counting them reports an A/A test as a real result — with a real-looking rate, p-value
   and recommendation on top of it. **Bucketing therefore happens after the element is located**, so a
   visit that could not be served never writes an arm to storage either.
+- **The swap removes no node, and `swapText` is a port of `applyVariantCopy` (`lib/scrape.ts`).**
+  `textContent` would delete every child, and a framework still holding references to those children
+  throws `Failed to execute 'removeChild' on 'Node'` on the next unmount — taking down the host page,
+  which the fail-safe rule above forbids. So a headline split across pieces
+  (`<h1>Ship <span>faster</span></h1>`) keeps every piece: the variant's words are shared out across
+  the existing text nodes by weight, each fragment is reserved at least one word so a styled span is
+  never left empty, and whitespace-only nodes are skipped so words cannot glue together.
+
+  **The two copies must stay in step.** `applyVariantCopy` renders the variant preview an agency
+  shows its client; this one renders it to live visitors. A divergence means the preview is a picture
+  of something no visitor ever saw. The snippet cannot import from `lib/`, which is the only reason
+  the logic exists twice — the `[dom]` project in `e2e/dom/apply-variant-copy.spec.ts` pins the
+  behaviour of the original.
+- **The swap is re-asserted for the life of the page.** A framework that re-renders the swapped node
+  puts the control copy back while the visitor stays bucketed in the variant arm — an A/A test
+  reported as a real result, which is the same failure the impression rule above exists to prevent,
+  arriving later. A `MutationObserver` therefore stays connected after the first swap, coalesced to
+  one check per animation frame. The steady-state check is O(1) (is the node we wrote still attached
+  and still holding the variant copy?); only a **detached or reverted** node pays for `locate()`.
+  That is also why `locate()` matches on the **control** copy: once the variant is in place it finds
+  nothing, so re-asserting is idempotent and our own write cannot loop.
 - **Bucketing is sticky** — the same visitor always sees the same arm.
 - **The conversion listener is delegated from the document**, because a CTA that appears later would
   otherwise never carry one.
-- **Accepted, not fixed:** the original copy is briefly visible before the swap. Cloaking it would mean
-  hiding an element whose selector the snippet does not know until its config arrives.
+- **The swap waits for the page to settle, and both arms wait together.** Writing before a framework
+  hydrates makes the server HTML and the client tree disagree; React answers a mismatch by discarding
+  the server markup and regenerating the subtree — a console error on someone else's site plus a full
+  client re-render. `whenSettled` waits for `load` and then for an idle callback.
+
+  **Idle alone is not enough, and this was measured, not assumed.** Before the framework's bundle has
+  executed the main thread is already quiet, so `requestIdleCallback` fires *ahead* of hydration and
+  the mismatch happens anyway. Waiting for `load` first is what actually clears it. `SETTLE_MAX_MS`
+  caps the wait, because `load` also waits for images.
+
+  **Bucketing and the impression moved behind the same wait.** Bucketing at locate time and swapping
+  after it would count a visitor who left in between as `variant` while they only ever saw the
+  control; counting control early and variant late biases the sample the same way, one arm at a time.
+  A visit that ends during the wait is now excluded from **both** arms, which is the same symmetric
+  exclusion the not-found path gives.
+- **Accepted, not fixed:** the original copy is visible before the swap, and the settle wait above
+  makes that window longer. Cloaking it would mean hiding an element whose selector the snippet does
+  not know until its config arrives.
+
+### It says why it failed, without saying who it is
+
+The snippet is installed by someone else's developer on someone else's site, so every failure mode —
+CSP, an ad blocker, drifted copy, a bad goal selector — used to look identical from the outside:
+nothing happened, silently. Each of those now warns.
+
+**The default prefix is `[ab]` and names no product.** These messages land in the console of an
+agency's client's site, and the report they belong to may be white-labelled — see
+[invariants.md](invariants.md#white-label-hangs-off-one-boolean-on-four-independent-surfaces). Adding
+`data-debug` to the tag switches the prefix to `[hunch]` and turns on per-experiment tracing (arm
+assigned, swap applied, re-application, events sent). Verbose output is opt-in; the warnings are not.
+
+The `document.currentScript` guard warns rather than returning silently, because a null there means
+the tag was injected in a way that loses its attributes — which is what a bundler import or some tag
+managers do, and it is unfalsifiable from the outside.
+
+### The host site's CSP must allow two directives
+
+```
+script-src <APP_URL>; connect-src <APP_URL>;
+```
+
+`script-src` alone loads the snippet and then blocks both `/api/track/config` and
+`/api/track/event` — a test that runs and records nothing. This is the first thing to check when a
+live test shows no impressions, and it is why `components/embed-snippet.tsx` renders them as
+troubleshooting beside the tag — with `data-debug="1"` named there too — rather than leaving them to
+be discovered.
 
 ## Tracking routes (public)
 
@@ -112,7 +204,8 @@ best-effort and answer even on bad input so the host page never breaks.
 ### `GET /api/track/config?key=<embedKey>`
 
 Returns the analysis's live experiments as
-`[{ experimentId, selector, controlCopy, variantCopy, splitPercent, goalSelector }]`.
+`[{ experimentId, selector, controlCopy, variantCopy, splitPercent }]`. No goal is served: it is the
+same fixed attribute on every page, so the snippet already knows it.
 
 `running` alone is not enough: an experiment past its window is over whether or not the nightly cron
 has reached it, so the query also applies `experimentIsLive()` from `lib/experiments.ts`. Without it an
@@ -194,7 +287,5 @@ intended cost — do not add an index for it.
 - When `completed` / `stopped`: the recommendation pill (`EXPERIMENT_RECOMMENDATION_*`) plus Copy
   report / Download .md built by `buildReportMarkdown` in `lib/export.ts`. Export is paid-only
   (`canExport`); free plans get an upgrade link to `CONTACT_PATH` in its place.
-- **Warns when the experiment has no `goalSelector`**: it is recording visitors but can never record a
-  conversion, so a 0% rate there is not a real result.
 - Status -> pill colour from `EXPERIMENT_STATUS_BADGE_CLASS`: `running` amber, `completed` green,
   `stopped` gray.

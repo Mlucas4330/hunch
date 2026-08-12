@@ -15,6 +15,9 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   reporter: 'list',
+  // Playwright's 30s default assumes a built app. These run against `next dev`, where the first hit
+  // on a route still pays for its compile even with the warm-up in auth.setup.ts.
+  timeout: 60_000,
   use: {
     baseURL,
     trace: 'retain-on-failure'

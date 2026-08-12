@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
+﻿import Anthropic from '@anthropic-ai/sdk'
 import { generateObject } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import {
@@ -39,12 +39,10 @@ import { detectMarket } from '@/lib/market'
 import { fetchCrawlerAccess, type CrawlerAccess } from '@/lib/robots'
 import {
   type CompetitorStructure,
-  type GoalCandidate,
   type PageElement,
   type PagePerformance,
   type PageSeo,
   type PageStructure,
-  goalCandidates,
   preprocessHtml,
   resolveTarget,
   scrapePage
@@ -70,7 +68,6 @@ export type AnalysisResult = {
   hypotheses: AnalyzedHypothesis[]
   playbook: FlowFixOutput[]
   visibility: VisibilityFixOutput[]
-  goalCandidates: GoalCandidate[]
   structure: PageStructure
   seo: PageSeo
   performance: PagePerformance
@@ -114,7 +111,7 @@ export async function analyzeLandingPage(
       selector: `[data-hunch-fixture="${i}"]`,
       tag: 'p'
     }))
-    fixtureElements.push({ text: 'Start free trial', selector: '[data-hunch-cta]', tag: 'a' })
+    fixtureElements.push({ text: 'Start free trial', selector: '[data-ab-goal]', tag: 'a' })
     return resolveTargets({
       output: analysis,
       elements: fixtureElements,
@@ -410,7 +407,6 @@ function resolveTargets(input: {
   } = input
   return {
     competitors: output.competitors,
-    goalCandidates: goalCandidates(elements),
     researchBrief,
     playbook,
     visibility,
@@ -465,3 +461,4 @@ async function researchCompetitors(pageContent: string, market: Market): Promise
     return ''
   }
 }
+

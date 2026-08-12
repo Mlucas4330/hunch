@@ -4,12 +4,11 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { ExperimentPanel, type PanelExperiment } from '@/components/experiment-panel'
 import {
   CONTACT_PATH,
   DEFAULT_EXPERIMENT_DURATION,
-  GOAL_CANDIDATE_LIMIT,
+  GOAL_ATTRIBUTE,
   VARIANTS_PER_HYPOTHESIS
 } from '@/lib/constants'
 import { EXPERIMENT_DURATIONS } from '@/lib/enums'
@@ -31,18 +30,14 @@ type HypothesisInput = {
   variants: { id: string; copy: string }[]
 }
 
-export type GoalOption = { text: string; selector: string }
-
 export function TestRunner({
   url,
   hypothesis,
-  goals,
   canExport,
   initialExperiment
 }: {
   url: string
   hypothesis: HypothesisInput
-  goals: GoalOption[]
   canExport: boolean
   initialExperiment: TestExperiment | null
 }) {
@@ -76,16 +71,14 @@ export function TestRunner({
     )
   }
 
-  return <LaunchForm hypothesis={hypothesis} goals={goals} onLaunched={setExperiment} />
+  return <LaunchForm hypothesis={hypothesis} onLaunched={setExperiment} />
 }
 
 function LaunchForm({
   hypothesis,
-  goals,
   onLaunched
 }: {
   hypothesis: HypothesisInput
-  goals: GoalOption[]
   onLaunched: (experiment: TestExperiment) => void
 }) {
   const { dictionary } = useI18n()
@@ -93,9 +86,9 @@ function LaunchForm({
   const [variantId, setVariantId] = useState(hypothesis.variants[0]?.id ?? '')
   const [copy, setCopy] = useState(hypothesis.variants[0]?.copy ?? '')
   const [duration, setDuration] = useState<ExperimentDuration>(DEFAULT_EXPERIMENT_DURATION)
-  const [goalSelector, setGoalSelector] = useState(goals[0]?.selector ?? '')
   const [pending, setPending] = useState(false)
   const [gated, setGated] = useState(false)
+  const [goalMissing, setGoalMissing] = useState(false)
   const [manualTarget, setManualTarget] = useState(false)
   const [alreadyRunning, setAlreadyRunning] = useState(false)
   const [error, setError] = useState(false)
@@ -129,6 +122,7 @@ function LaunchForm({
   async function launch() {
     setPending(true)
     setGated(false)
+    setGoalMissing(false)
     setManualTarget(false)
     setAlreadyRunning(false)
     setError(false)
@@ -140,7 +134,6 @@ function LaunchForm({
           hypothesisId: hypothesis.id,
           variantId,
           variantCopy: copy.trim() || undefined,
-          goalSelector: goalSelector.trim() || undefined,
           durationDays: duration
         })
       })
@@ -156,6 +149,10 @@ function LaunchForm({
         const body = await res.json().catch(() => null)
         if (body?.error === 'manual_target') {
           setManualTarget(true)
+          return
+        }
+        if (body?.error === 'goal_missing') {
+          setGoalMissing(true)
           return
         }
         setError(true)
@@ -175,7 +172,6 @@ function LaunchForm({
         variantCopy: data.experiment.variantCopy,
         durationDays: data.experiment.durationDays,
         endsAt: data.experiment.endsAt,
-        goalSelector: data.experiment.goalSelector,
         result: data.experiment.result
       })
     } catch {
@@ -253,37 +249,13 @@ function LaunchForm({
           <CardTitle className="text-sm font-medium">{dictionary.testRunner.goalTitle}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {goals.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {goals.slice(0, GOAL_CANDIDATE_LIMIT).map((goal) => (
-                <button
-                  key={goal.selector}
-                  type="button"
-                  onClick={() => setGoalSelector(goal.selector)}
-                  disabled={pending}
-                  className={cn(
-                    'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                    goalSelector === goal.selector
-                      ? 'border-foreground bg-foreground text-background'
-                      : 'border-border text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {goal.text}
-                </button>
-              ))}
-            </div>
-          )}
-          <Input
-            value={goalSelector}
-            onChange={(e) => setGoalSelector(e.target.value)}
-            disabled={pending}
-            placeholder={dictionary.testRunner.goalPlaceholder}
-            data-testid="goal-selector"
-          />
           <p className="text-xs text-muted-foreground">{dictionary.testRunner.goalHelp}</p>
-          {!goalSelector.trim() && (
+          <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs">
+            {`<button ${GOAL_ATTRIBUTE}>...</button>`}
+          </pre>
+          {goalMissing && (
             <p className="text-xs text-amber" data-testid="goal-warning">
-              {dictionary.testRunner.goalWarning}
+              {dictionary.testRunner.goalMissing}
             </p>
           )}
         </CardContent>

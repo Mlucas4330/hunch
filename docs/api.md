@@ -15,7 +15,7 @@ performance detail, not the security boundary — see [security.md](security.md)
 | `GET /api/usage` | session | |
 | `POST /api/billing/webhook` | Stripe signature | grants the plan |
 | experiments + tracking | see [experiments.md](experiments.md) | |
-| `POST /api/report/screenshot`, `POST /api/waitlist` | embed key / open | see [report.md](report.md) |
+| `POST /api/report/screenshot`, `POST /api/report/view`, `POST /api/waitlist` | embed key / open | see [report.md](report.md) |
 | `GET /api/cron/*` | `CRON_SECRET` | see [experiments.md](experiments.md) |
 | `GET /api/health` | — | Railway's deploy probe, imports nothing — see [deployment.md](deployment.md#healthcheck) |
 
@@ -57,7 +57,7 @@ Both are additions to the analysis, never preconditions for it, and they ride th
 `persist_failed` catch as everything else in the transaction.
 
 `analyses.market` is written from `output.market`. **Nothing changes in `BodySchema`**: the market is
-measured from the page, not supplied by the client, exactly like `goalCandidates` and `researchBrief`.
+measured from the page, not supplied by the client, exactly like `structure` and `researchBrief`.
 
 Errors: `403` free tier limit reached · `422` invalid or unsupported URL (including one resolving to a
 private address) · `429` rate limited · `502` scrape failed · `500` Claude or DB failure.

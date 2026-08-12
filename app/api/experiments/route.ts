@@ -8,6 +8,7 @@ import { enforceRateLimit } from '@/lib/rate-limit'
 import { isUuid } from '@/lib/uuid'
 import { hasReachedFreeExperimentLimit } from '@/lib/usage'
 import { experimentWithResult } from '@/lib/experiments'
+import { pageHasGoalTarget } from '@/lib/scrape'
 import { DEFAULT_EXPERIMENT_DURATION } from '@/lib/constants'
 import { EXPERIMENT_DURATIONS, type ExperimentDuration } from '@/lib/enums'
 
@@ -16,7 +17,6 @@ const DAY_MS = 86_400_000
 const BodySchema = z.object({
   hypothesisId: z.string().uuid(),
   variantId: z.string().uuid(),
-  goalSelector: z.string().optional(),
   splitPercent: z.number().int().min(1).max(99).optional(),
   variantCopy: z.string().trim().min(1).max(1000).optional(),
   durationDays: z
@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     .select({
       analysisId: analyses.id,
       embedKey: analyses.embedKey,
+      url: analyses.url,
       currentCopy: hypotheses.currentCopy,
       selector: hypotheses.selector,
       applyMode: hypotheses.target,
@@ -77,6 +78,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'limit_reached' }, { status: 403 })
   }
 
+  // Last, because it opens a browser and every gate above is a query. A test whose goal is not on the
+  // page can only ever record impressions, and it would take its whole window to say so.
+  try {
+    if (!(await pageHasGoalTarget(target.url))) {
+      return NextResponse.json({ error: 'goal_missing' }, { status: 422 })
+    }
+  } catch (error) {
+    // The page could not be reached or read. Refusing here would block a launch over a transient
+    // network failure, so the launch proceeds and the snippet's own warning becomes the backstop.
+    console.error('[experiments] goal pre-flight failed', error)
+  }
+
   const experiment = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(experiments)
@@ -87,7 +100,6 @@ export async function POST(request: Request) {
         selector: target.selector,
         controlCopy: target.currentCopy,
         variantCopy: parsed.data.variantCopy ?? target.variantCopy,
-        goalSelector: parsed.data.goalSelector ?? null,
         splitPercent: parsed.data.splitPercent ?? 50,
         durationDays: parsed.data.durationDays,
         endsAt: new Date(Date.now() + parsed.data.durationDays * DAY_MS)

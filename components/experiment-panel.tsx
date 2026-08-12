@@ -27,7 +27,6 @@ export type PanelExperiment = {
   variantCopy: string
   durationDays: number
   endsAt: string | null
-  goalSelector: string | null
   result: ExperimentResult
 }
 
@@ -168,12 +167,6 @@ export function ExperimentPanel({
         <p className="text-xs text-muted-foreground">
           {summary(upliftPct, pValue, significant, dictionary, locale)}
         </p>
-        {!state.goalSelector && (
-          <p className="text-xs text-amber" data-testid="experiment-no-goal">
-            {dictionary.experimentPanel.noGoal}
-          </p>
-        )}
-
         {done && (
           <div className="space-y-3 border-t pt-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

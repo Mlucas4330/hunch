@@ -180,6 +180,9 @@ export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: numb
   // opens a browser.
   measure: { tokens: 10, windowMs: HOUR_MS },
   waitlist: { tokens: 5, windowMs: HOUR_MS },
+  // Loose: it gates nothing but noise in the operator's own follow-up signal, and one reader
+  // reloading a report is normal.
+  report_view: { tokens: 60, windowMs: HOUR_MS },
   track_event: { tokens: 120, windowMs: MINUTE_MS },
   track_config: { tokens: 300, windowMs: MINUTE_MS },
   signin: { tokens: 5, windowMs: 15 * MINUTE_MS }
@@ -246,8 +249,15 @@ export const MEASURE_REQUEST_TIMEOUT_MS =
 // onto a tiny element. NOT the same as VARIANT_WORD_BUDGET_RATIO below.
 export const TARGET_MATCH_MAX_WORD_RATIO = 1.3
 
-// Anything wordier is prose with a link in it, not a CTA.
+// Anything wordier is prose with a link in it, not a CTA. Feeds captureStructure's above-fold CTA
+// count for the readout -- it has nothing to do with conversion goals, despite the name.
 export const GOAL_CANDIDATE_MAX_WORDS = 8
+
+// What a conversion is: the one element the site owner marked. Unbranded on purpose -- it lands in a
+// white-labelled client's source permanently, where the agency cannot strip it. Duplicated as a
+// literal in public/embed.js, which cannot import from lib/.
+export const GOAL_ATTRIBUTE = 'data-ab-goal'
+export const GOAL_TARGET_SELECTOR = `[${GOAL_ATTRIBUTE}]`
 
 // A writing constraint, deliberately looser than TARGET_MATCH_MAX_WORD_RATIO above -- do not
 // unify them. The floor exists because a pure ratio is nonsense at the short end: a 2-word CTA at
@@ -349,6 +359,9 @@ export const OG_IMAGE_SIZE = { width: 1200, height: 630 }
 // Named explicitly because a page setting its own `openGraph` replaces the root layout's entirely,
 // taking the file-convention image with it. See docs/seo.md.
 export const DEFAULT_OG_IMAGE_PATH = '/opengraph-image'
+
+// One measure for every surface: the navbar, the app pages and both reports. See docs/components.md.
+export const CONTAINER_CLASS = 'mx-auto w-full max-w-5xl px-4'
 
 // Semantic token utilities from app/globals.css -- never raw Tailwind colors or hex values.
 export const SECTION_BADGE_CLASS: Record<Section, string> = {

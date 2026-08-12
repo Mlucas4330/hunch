@@ -11,7 +11,40 @@ function track(page: Page, origin: string, body: Record<string, string>) {
 function hostPage(headline: string, embedKey: string) {
   return `<!doctype html><html><body>
     <h1>${headline}</h1>
-    <button data-hunch-cta>Start free</button>
+    <button data-ab-goal>Start free</button>
+    <script src="/embed.js" data-key="${embedKey}"></script>
+  </body></html>`
+}
+
+// Stands in for a framework re-rendering the swapped node: once by rewriting its text, once by
+// replacing the element outright, which is the case a held reference cannot survive.
+function revertingHostPage(headline: string, embedKey: string) {
+  return `<!doctype html><html><body>
+    <h1>${headline}</h1>
+    <button data-ab-goal>Start free</button>
+    <script src="/embed.js" data-key="${embedKey}"></script>
+    <script>
+      setTimeout(function () {
+        document.querySelector('h1').textContent = ${JSON.stringify(headline)}
+        window.__revertedText = true
+      }, 800)
+      setTimeout(function () {
+        var fresh = document.createElement('h1')
+        fresh.textContent = ${JSON.stringify(headline)}
+        document.querySelector('h1').replaceWith(fresh)
+        window.__replacedNode = true
+      }, 1600)
+    </script>
+  </body></html>`
+}
+
+// The shape of a real hero headline: the copy under test spans a text node and a styled span, so
+// textContent would delete the span out from under whatever framework rendered it.
+function wrappedHostPage(headline: string, embedKey: string) {
+  const [head, ...rest] = headline.split(' ')
+  return `<!doctype html><html><body>
+    <h1 data-outer>${head} <span data-inner>${rest.join(' ')}</span></h1>
+    <button data-ab-goal>Start free</button>
     <script src="/embed.js" data-key="${embedKey}"></script>
   </body></html>`
 }
@@ -109,7 +142,9 @@ test.describe('core features', () => {
   test('shows the plan badge in the account menu', async ({ page }) => {
     await page.goto('/dashboard')
     await page.getByTestId('account-menu').locator('summary').click()
-    await expect(page.getByText('Pro', { exact: true })).toBeVisible()
+    await expect(
+      page.getByTestId('account-menu').getByText('Pro', { exact: true })
+    ).toBeVisible()
   })
 
   test('signs out from the account menu', async ({ browser }) => {
@@ -424,7 +459,6 @@ test.describe('core features', () => {
     expect(served).toBeTruthy()
     expect(served.controlCopy).toBe(experiment.controlCopy)
     expect(served.variantCopy).toBe(experiment.variantCopy)
-    expect(served.goalSelector).toBe(experiment.goalSelector)
 
     const unknown = await page.request.get(`${origin}/api/track/config?key=${crypto.randomUUID()}`)
     expect(unknown.ok()).toBeTruthy()
@@ -482,7 +516,70 @@ test.describe('core features', () => {
       page.waitForRequest(
         (r) => r.url().endsWith('/api/track/event') && r.postData()!.includes('conversion')
       ),
-      page.click('[data-hunch-cta]')
+      page.click('[data-ab-goal]')
+    ])
+
+    await page.goto(`${origin}/analyses/${experiment.analysisId}/tests/${experiment.hypothesisId}`)
+    await expect(page.getByTestId('experiment-panel')).toContainText('1 / 1')
+  })
+
+  test('re-applies the variant when the page reverts it', async ({ page }) => {
+    const { embedKey, experiment, origin } = await launchTest(page, 'embed-revert')
+
+    const host = `${origin}/__e2e/reverting`
+    await page.route(host, (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: revertingHostPage(experiment.controlCopy, embedKey)
+      })
+    )
+
+    await page.addInitScript(
+      ([id]) => window.localStorage.setItem(`hunch_exp_${id}`, 'variant'),
+      [experiment.id]
+    )
+
+    await page.goto(host)
+    await expect(page.locator('h1')).toHaveText(experiment.variantCopy)
+
+    await page.waitForFunction(() => (window as { __revertedText?: boolean }).__revertedText === true)
+    await expect(page.locator('h1')).toHaveText(experiment.variantCopy)
+
+    await page.waitForFunction(
+      () => (window as { __replacedNode?: boolean }).__replacedNode === true
+    )
+    await expect(page.locator('h1')).toHaveText(experiment.variantCopy)
+  })
+
+  test('swaps a wrapped headline without removing its children', async ({ page }) => {
+    const { embedKey, experiment, origin } = await launchTest(page, 'embed-wrapped')
+
+    const host = `${origin}/__e2e/wrapped`
+    await page.route(host, (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: wrappedHostPage(experiment.controlCopy, embedKey)
+      })
+    )
+
+    await page.addInitScript(
+      ([id]) => window.localStorage.setItem(`hunch_exp_${id}`, 'variant'),
+      [experiment.id]
+    )
+
+    await page.goto(host)
+
+    await expect(page.locator('h1')).toHaveText(experiment.variantCopy)
+    // Still in the document: removing it is what breaks a framework holding a reference to it. And
+    // still carrying words, so the styling it exists for is still visible.
+    await expect(page.locator('h1[data-outer] span[data-inner]')).toHaveCount(1)
+    await expect(page.locator('h1[data-outer] span[data-inner]')).not.toBeEmpty()
+
+    await Promise.all([
+      page.waitForRequest(
+        (r) => r.url().endsWith('/api/track/event') && r.postData()!.includes('conversion')
+      ),
+      page.click('[data-ab-goal]')
     ])
 
     await page.goto(`${origin}/analyses/${experiment.analysisId}/tests/${experiment.hypothesisId}`)
@@ -511,7 +608,7 @@ test.describe('core features', () => {
     )
 
     await page.goto(host)
-    await page.click('[data-hunch-cta]')
+    await page.click('[data-ab-goal]')
     await page.waitForTimeout(4000)
 
     expect(events).toEqual([])
@@ -536,10 +633,10 @@ test.describe('core features', () => {
     expect(typeof (await authorized.json()).finalized).toBe('number')
   })
 
-  test('launches with a conversion goal preselected and snapshots it on the experiment', async ({
-    page
-  }) => {
-    const url = `https://example.com/?t=${Date.now()}-goal`
+  test('refuses to launch when the goal attribute is not on the page', async ({ page }) => {
+    // The fixture in pageHasGoalTarget keys off the URL, so this tag is what makes the page look
+    // like one that never got the attribute.
+    const url = `https://example.com/?t=${Date.now()}-no-goal`
 
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
@@ -548,25 +645,19 @@ test.describe('core features', () => {
 
     await startFirstTest(page)
 
-    const goalInput = page.getByTestId('goal-selector')
-    await expect(goalInput).toHaveValue('[data-hunch-cta]')
-    await expect(page.getByTestId('goal-warning')).toHaveCount(0)
-
-    await goalInput.fill('')
-    await expect(page.getByTestId('goal-warning')).toBeVisible()
-
-    await goalInput.fill('[data-hunch-cta]')
     const [launchResponse] = await Promise.all([
       page.waitForResponse(
         (r) => r.url().endsWith('/api/experiments') && r.request().method() === 'POST'
       ),
       page.getByTestId('launch-experiment').click()
     ])
-    const { experiment } = await launchResponse.json()
-    expect(experiment.goalSelector).toBe('[data-hunch-cta]')
 
-    await expect(page.getByTestId('experiment-panel')).toBeVisible()
-    await expect(page.getByTestId('experiment-no-goal')).toHaveCount(0)
+    expect(launchResponse.status()).toBe(422)
+    expect((await launchResponse.json()).error).toBe('goal_missing')
+
+    await expect(page.getByTestId('goal-warning')).toBeVisible()
+    // Refused, not half-launched: no experiment row means no panel.
+    await expect(page.getByTestId('experiment-panel')).toHaveCount(0)
   })
 
   test('fills in the two alternate challengers on demand', async ({ page }) => {
@@ -679,3 +770,4 @@ test.describe('core features', () => {
     await expect(page.getByTestId('upgrade-prompt')).toHaveCount(0)
   })
 })
+
