@@ -19,8 +19,8 @@ export function OPTIONS() {
   return preflight()
 }
 
-function json(url: string | null) {
-  return NextResponse.json({ url }, { headers: CORS_HEADERS })
+function json(url: string | null, overflow = false) {
+  return NextResponse.json({ url, overflow }, { headers: CORS_HEADERS })
 }
 
 export async function POST(request: Request) {
@@ -47,20 +47,24 @@ export async function POST(request: Request) {
 
     const variant = hypothesis.variants[0]
     if (!variant) return json(null)
-    if (variant.screenshotUrl) return json(variant.screenshotUrl)
+    if (variant.screenshotUrl) return json(variant.screenshotUrl, variant.screenshotOverflow)
     if (hypothesis.target !== 'auto' || !hypothesis.selector) return json(null)
     if (process.env.E2E_FIXTURES === '1') return json(null)
 
-    const buffer = await screenshotVariant(
+    const { buffer, overflow } = await screenshotVariant(
       hypothesis.analysis.url,
       hypothesis.selector,
       variant.copy,
-      hypothesis.currentCopy
+      hypothesis.currentCopy,
+      variant.emphasis
     )
     const url = await saveScreenshot(variant.id, buffer)
 
-    await db.update(variants).set({ screenshotUrl: url }).where(eq(variants.id, variant.id))
-    return json(url)
+    await db
+      .update(variants)
+      .set({ screenshotUrl: url, screenshotOverflow: overflow })
+      .where(eq(variants.id, variant.id))
+    return json(url, overflow)
   } catch (error) {
     console.error('[report/screenshot] generation failed', error)
     return json(null)

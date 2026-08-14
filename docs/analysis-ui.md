@@ -7,8 +7,8 @@
 | `/` | Landing page | Credibility surface for a human-led sale: two tracks, contact form, **no prices** |
 | `/auth/signin` | Auth | Google OAuth via NextAuth; returns to `callbackUrl` |
 | `/dashboard` | Clients | Grid of past analyses, one card per client, above the new-analysis form |
-| `/analyses/[id]` | What to test | Five tabs: flow, copy, SEO, found-by-AI, tests |
-| `/analyses/[id]/tests/[hypothesisId]` | Run a test | Approve/swap/edit the challenger, set the goal, launch, monitor |
+| `/analyses/[id]` | What to test | The two deliverables, then five tabs: flow, copy, SEO, found-by-AI, live A/B test |
+| `/analyses/[id]/tests/[hypothesisId]` | Live A/B test | Approve/swap/edit the challenger, set the goal, launch, monitor |
 | `/analyses/[id]/report` | Print report | One stacked page, owner-authenticated — see [report.md](report.md) |
 | `/r/[embedKey]` | Public report | Two shapes by owner plan. No session — see [report.md](report.md) |
 | `/admin/leads` | Waitlist leads | Operator-only (`users.role`); the only place waitlist rows can be read |
@@ -27,8 +27,14 @@ after a cold report lands. All copy comes from `dictionary.landing`.
 - `#how` renders `landing.tracks`: "Send the report" (minutes, no access needed) and "Prove the lift"
   (marked *after the contract*), each a 3-step `<ol>` numbered from 01 within its own track. The second
   track is deliberately placed after the close — nobody installs a script tag for a prospect.
-- The value cards (`landing.proof`) cover one benefit each: measured-not-asserted, finished copy, and
-  yours-to-send. **Never let all three be about live testing again.**
+- The value cards (`landing.proof`) cover one benefit each: measured-not-asserted, the idea arriving
+  testable, and yours-to-send. **Never let all three be about live testing again.**
+- **`pt-BR` argues a different case than `en`**, per
+  [i18n.md](i18n.md#pt-br-is-a-rewrite-not-a-translation). The English page sells the report; the
+  Portuguese one sells the loop, because the Brazilian reader is already surrounded by tools that hand
+  out test ideas and by none that close them. The loop lands in exactly three places — the hero, the
+  second pain (*Sua entrega termina na ideia*), and the second value card — and it lands as a
+  **verdict**, never as a promised lift. The keys are identical either way; only the argument differs.
 - **No price**, per
   [invariants.md](invariants.md#there-is-no-self-serve-checkout-and-no-published-price).
 - `#contact` is a `WaitlistForm` with `source="contact"`, posting to the existing `/api/waitlist`. No
@@ -56,10 +62,14 @@ schema change — there is no `client_name` column and no `clients` table.
 - Footer: date, a CSS dot, and the analysis's market.
 - **Delete is an icon** (`Trash2`), and confirm/cancel are icons too (`Check` / `X`). The two-step
   inline confirm stays — `components/ui/` has no dialog primitive — and so does the rule from
-  `copy-report-link.tsx`: the accessible name is `aria-label` on the button, the icon is `aria-hidden`.
-  No new dictionary keys; `common.delete` / `common.deleting` / `common.cancel` are the labels.
+  `report-deliverables.tsx`: the accessible name is `aria-label` on the button, the icon is
+  `aria-hidden`. No new dictionary keys; `common.delete` / `common.deleting` / `common.cancel` are the
+  labels.
 - The whole card is a link via an `absolute inset-0` overlay, so the action cluster escapes it with
   `relative z-10`.
+- The footer also carries `ReportDeliverables variant="compact"` — the copy-link and PDF actions in
+  labelled form, so the two documents are discoverable before an analysis is opened. It escapes the
+  overlay the same way. See [report.md](report.md#report-deliverables--componentsreport-deliverablestsx).
 - **Empty state**: shown when the user has no clients yet. Single CTA — paste a client's landing page
   URL above.
 
@@ -100,19 +110,31 @@ written during the analysis) and the live test decides the actual winner.
   there because it is the only thing that explains the list beside it: detection reads the page, and
   when it reads it wrong the failure surfaces as inexplicably foreign competitors unless the reader can
   see which market was used.
-- `MeasuredReadout` (or `MeasurePage`) above the tabs — see [readout.md](readout.md).
+- **The deliverables block** (`components/report-deliverables.tsx`) sits between that line and the
+  readout: the two documents this analysis produces, each named and described rather than left as an
+  unlabelled button. It is out of the header row on purpose — a control small enough to sit beside
+  `Back to clients` is a control a first-time reader never presses. See
+  [report.md](report.md#report-deliverables--componentsreport-deliverablestsx).
+- `MeasuredReadout` above the tabs, with the score, the trend, the findings, the keyword table and the
+  comparison — plus `MeasurePage variant="again"` beneath it. An analysis with nothing measured shows
+  `MeasurePage` alone instead. Both are owner-only; the reports render `MeasuredReadout` by itself. See
+  [readout.md](readout.md).
 - `UpgradePrompt` at the end when `user.plan === 'free'` — see [components.md](components.md).
 
 ### Five tabs — `components/analysis-tabs.tsx`, over the `ANALYSIS_TAB` enum
 
-**Flow** (the playbook), **Copy** (the hypotheses), **SEO**, **Found by AI** and **Tests**. `flow` opens
+**Flow** (the playbook), **Copy** (the hypotheses), **SEO**, **Found by AI** and **Live A/B test**.
+The last one is named in full for the same reason the deliverables are: `Tests` sat among four tabs of
+things to read and gave no sign that it was the one mode where something actually happens on the real
+page. **The enum member stays `tests`** — it is a key behind `data-testid`s and the report's `tests: 0`
+rule, and only the label changed. `flow` opens
 first — fix the structure before testing the wording — and if it is empty the first non-empty tab opens
 instead.
 
 - The analysis screen and the public report render the same shell; only the print report stays stacked.
 - **Every panel stays mounted and inactive ones are `hidden`**, so switching tabs never remounts
   `TestList` (which would refetch `/api/experiments`) or an already-rendered preview.
-- **`tests` never appears on the public report.** That surface passes `tests: 0` and the empty-tab rule
+- **The live-test tab never appears on the public report.** That surface passes `tests: 0` and the empty-tab rule
   holds it out. It is also the last tab on purpose: deciding what to change comes before proving it.
 - **An empty tab is not rendered.** `FlowPlaybook` returns `null` for an empty list, so the shell
   computes emptiness itself. This is the normal case for analyses generated before the visibility audit
@@ -127,23 +149,55 @@ too — see [components.md](components.md) — over one `DisclosureCard` shape, 
 reader is stuck in. There used to be a separate always-open card component, and a reader who had
 finished with row 1 had no way to fold it away.
 
-- The body carries the recommended challenger copy (`variants[0]`) and the **"Why this works"** block.
-  The top row carries a coral ring and the "Test this first" flag.
-- **No "Set up test" button and no experiment status.** Launching moved to the Tests tab along with the
+- The body carries **`current_copy` struck through, then the recommended challenger copy**
+  (`variants[0]`), and the **"Why this works"** block. The top row carries a coral ring and the "Test
+  this first" flag.
+- **The control line is not decoration.** The list showed only the challenger for a long time, which
+  reads as a suggestion floating free of the page: a reader who cannot see the line being replaced
+  cannot judge whether replacing it is an improvement, and the section badge alone does not locate it
+  on a page with four headings. The report and the print report always showed both; this is the
+  screen catching up, and it reuses their `report.current` keys rather than minting a second wording
+  for the same idea.
+- That block holds **two different things**, and they are marked apart on purpose: `rationale` argues
+  the CRO mechanism, while the variant's `evidence` is the line that names a competitor and the
+  strategy it borrows. The evidence paragraph carries a teal `panel-label` prefix
+  (`hypothesisList.competitorEvidence`), the same idiom the landing hero mock uses. Unprefixed, the two
+  read as one undifferentiated paragraph and the competitor grounding — the most expensive part of the
+  pipeline to produce — lands as generic reasoning. Marking it is the whole fix: **nothing new is
+  generated about the competitor**, which would be forbidden on the auto-search path where no
+  competitor page was ever opened.
+- **No "Set up test" button and no experiment status.** Launching moved to the live-test tab along with the
   snippet, so this list knows nothing about experiments — which is also why it makes no request at all
   any more.
 
-**Sort/filter bar** (`components/hypothesis-filters.tsx`), rendered only once there are
-`HYPOTHESIS_FILTER_THRESHOLD` (4) hypotheses — below that it is noise. Sort by impact / effort / quick
-wins (`isQuickWin` in `lib/constants.ts`, the same definition the print report's summary cell uses) and
-filter by `HYPOTHESIS_TARGET`. Pure client state over rows already loaded — no new request, no URL
-params. There is deliberately **no "hide finished"** chip: that is test state, and test state lives one
-tab over.
+### Why a copy hypothesis shows impact but no effort
+
+`ScoreIndicator` renders **impact only** here. It still renders both on a flow fix, and that asymmetry
+is the point.
+
+The copy prompt requires every hypothesis to be a single-element text swap
+(`lib/ai/prompt.ts:106-110`) — structural ideas are forbidden and become flow fixes — and the snippet
+applies the swap with no deploy. So implementation cost is a constant on this tab, and the prompt never
+defined `effort_score` for it either (only the flow-fix prompt does, where the cost genuinely varies
+because a person applies it by hand). The number the model wrote there was measuring nothing.
+
+The one real cost difference on a copy hypothesis is **auto vs manual**, and code decides it after
+generation: `resolveTarget` (`lib/scrape.ts`) matches `current_copy` against the scraped elements and
+persists the verdict to `hypotheses.target`. The model could not have known it. That fact is already
+carried by the *Manual setup* badge, which is now its single carrier.
+
+`effort_score` is still generated and still stored for hypotheses — dropping it would mean making a
+`notNull` column nullable — it is simply never shown. Not a bug; see [ai-pipeline.md](ai-pipeline.md).
+
+**There is no sort/filter bar.** With effort and quick wins gone, sorting collapsed to impact alone,
+and the auto/manual filter was removed with it — the badge says the same thing without a control. The
+list is impact descending, fixed. There was deliberately never a "hide finished" chip either: that is
+test state, and test state lives one tab over.
 
 **"Test this first" is tied to the default order.** It renders only under impact sort with no filters
 applied; under any other order the first row is the first match, not a recommendation.
 
-### The Tests tab — `components/test-list.tsx`
+### The Live A/B test tab — `components/test-list.tsx`
 
 Everything about running a live test in one place. It used to be split between a snippet card above the
 tabs and a button inside every copy idea, which put setup in front of readers who were not testing and
@@ -154,11 +208,11 @@ hid it from the ones who were.
 - **Rows are not `DisclosureCard`s.** The ranked lists are things to read and weigh; this is a list of
   things to launch, so each row is one line.
 - The tab's count is the number of `auto` hypotheses, so an analysis where every idea is `manual` has
-  **no Tests tab and no snippet card** — there would be nothing for the snippet to swap.
+  **no live-test tab and no snippet card** — there would be nothing for the snippet to swap.
 - It owns the `GET /api/experiments?analysisId=` fetch that `HypothesisList` used to make. The request
   moved rather than multiplied. A `running` experiment sorts to the top.
 
-## Screen 2 — "Run the test" (`app/(app)/analyses/[id]/tests/[hypothesisId]/page.tsx`)
+## Screen 2 — "Live A/B test" (`app/(app)/analyses/[id]/tests/[hypothesisId]/page.tsx`)
 
 `components/test-runner.tsx`.
 

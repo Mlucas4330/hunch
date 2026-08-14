@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { db } from '@/db'
-import { analyses } from '@/db/schema'
+import { analyses, pageSnapshots } from '@/db/schema'
+import { snapshotValues } from '@/lib/snapshots'
 import { getCurrentUser } from '@/lib/current-user'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { isUuid } from '@/lib/uuid'
@@ -23,14 +24,12 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   const analysis = await db.query.analyses.findFirst({
     where: and(eq(analyses.id, id), eq(analyses.userId, user.id)),
-    columns: { id: true, url: true, structure: true }
+    columns: { id: true, url: true }
   })
 
   if (!analysis) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
-  if (analysis.structure) return NextResponse.json({ measured: true })
-
-  let measurement
+  let measurement: Awaited<ReturnType<typeof measurePage>>
   try {
     measurement = await measurePage(analysis.url)
   } catch (error) {
@@ -44,14 +43,22 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: 'measure_failed' }, { status: 500 })
   }
 
-  await db
-    .update(analyses)
-    .set({
-      structure: measurement.structure,
-      seo: measurement.seo,
-      performance: measurement.performance
-    })
-    .where(eq(analyses.id, analysis.id))
+  // The columns are the current measurement and the snapshot is the history, written together so a
+  // trend can never disagree with what the readout above it shows.
+  await db.transaction(async (tx) => {
+    await tx
+      .update(analyses)
+      .set({
+        structure: measurement.structure,
+        seo: measurement.seo,
+        performance: measurement.performance,
+        crawlerAccess: measurement.crawlerAccess,
+        keywords: measurement.keywords
+      })
+      .where(eq(analyses.id, analysis.id))
+
+    await tx.insert(pageSnapshots).values(snapshotValues(analysis.id, measurement))
+  })
 
   return NextResponse.json({ measured: true })
 }

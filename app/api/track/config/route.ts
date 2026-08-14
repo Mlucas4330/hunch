@@ -38,6 +38,7 @@ export async function GET(request: Request) {
       selector: experiments.selector,
       controlCopy: experiments.controlCopy,
       variantCopy: experiments.variantCopy,
+      variantEmphasis: experiments.variantEmphasis,
       splitPercent: experiments.splitPercent
     })
     .from(experiments)

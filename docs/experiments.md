@@ -36,7 +36,9 @@ its two `experiment_stats` rows, and flips the variant and hypothesis to `testin
 
 `durationDays` must be 7, 14 or 30 (default 14); `endsAt` is `now + durationDays`. `variantCopy`
 (optional) lets the user edit at launch and is snapshotted instead of the stored variant copy — the
-**control copy is never editable**.
+**control copy is never editable**. `variants.emphasis` is snapshotted alongside it and is deliberately
+**not** re-derived from an edit: an edit that removes those words leaves it matching nothing, which the
+swap already treats as absent.
 
 ### A conversion is one fixed attribute, not a selector
 
@@ -104,7 +106,7 @@ waits for the end. See
 
 ## The snippet — `public/embed.js`
 
-One tag per landing page, keyed on `analyses.embedKey`, installed once from the Tests tab. The same
+One tag per landing page, keyed on `analyses.embedKey`, installed once from the live-test tab. The same
 tag serves whichever test is running.
 
 ```html
@@ -138,6 +140,20 @@ Rules it must keep:
   of something no visitor ever saw. The snippet cannot import from `lib/`, which is the only reason
   the logic exists twice — the `[dom]` project in `e2e/dom/apply-variant-copy.spec.ts` pins the
   behaviour of the original.
+
+  **That includes the emphasis placement**, fed by `variant_emphasis` on the config payload: the
+  chosen words go into a styled fragment the page already has, and the swap falls back to the
+  proportional split rather than create one — see
+  [scraping.md](scraping.md#placing-the-emphasis). Creating a `<strong>` here would put an element in
+  a tree the host framework rendered, which is the same `removeChild` family of failures the
+  no-node-removal rule above exists to prevent, arriving from the other direction.
+
+  **That includes `fitToBox`**, which shrinks the type only when the new copy would be *clipped* by
+  the page's own CSS, never when it merely wraps — see
+  [scraping.md](scraping.md#fitting-the-copy-back-into-its-box). Here it carries one extra
+  responsibility the preview does not need: it remembers the element's original inline `font-size`
+  and restores it before every measurement, because `keepApplied` below re-swaps on each mutation
+  frame and a fit measured against its own previous output would shrink the element forever.
 - **The swap is re-asserted for the life of the page.** A framework that re-renders the swapped node
   puts the control copy back while the visitor stays bucketed in the variant arm — an A/A test
   reported as a real result, which is the same failure the impression rule above exists to prevent,
@@ -204,7 +220,7 @@ best-effort and answer even on bad input so the host page never breaks.
 ### `GET /api/track/config?key=<embedKey>`
 
 Returns the analysis's live experiments as
-`[{ experimentId, selector, controlCopy, variantCopy, splitPercent }]`. No goal is served: it is the
+`[{ experimentId, selector, controlCopy, variantCopy, variantEmphasis, splitPercent }]`. No goal is served: it is the
 same fixed attribute on every page, so the snippet already knows it.
 
 `running` alone is not enough: an experiment past its window is over whether or not the nightly cron

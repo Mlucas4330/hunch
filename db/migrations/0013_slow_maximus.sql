@@ -1,0 +1,1 @@
+ALTER TABLE "analyses" ADD COLUMN "crawler_access" jsonb;

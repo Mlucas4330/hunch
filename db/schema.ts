@@ -1,5 +1,6 @@
 import { relations } from 'drizzle-orm'
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -39,6 +40,8 @@ import type {
   PageSeo,
   PageStructure
 } from '@/lib/scrape'
+import type { CrawlerAccess } from '@/lib/robots'
+import type { PageKeywords } from '@/lib/keywords'
 
 export const subscriptionPlanEnum = pgEnum('subscription_plan', SUBSCRIPTION_PLAN)
 export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUS)
@@ -93,12 +96,35 @@ export const analyses = pgTable('analyses', {
   structure: jsonb('structure').$type<PageStructure>(),
   seo: jsonb('seo').$type<PageSeo>(),
   performance: jsonb('performance').$type<PagePerformance>(),
+  crawlerAccess: jsonb('crawler_access').$type<CrawlerAccess>(),
+  keywords: jsonb('keywords').$type<PageKeywords>(),
   competitorStructures: jsonb('competitor_structures').$type<CompetitorStructure[]>(),
   locale: localeEnum('locale').notNull().default(DEFAULT_LOCALE),
   market: marketEnum('market').notNull().default(DEFAULT_MARKET),
   embedKey: uuid('embed_key').notNull().defaultRandom().unique(),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
+
+// The history behind `analyses`' measured columns: those hold the current measurement, these hold
+// every one taken. See docs/readout.md.
+export const pageSnapshots = pgTable(
+  'page_snapshots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    analysisId: uuid('analysis_id')
+      .notNull()
+      .references(() => analyses.id, { onDelete: 'cascade' }),
+    structure: jsonb('structure').$type<PageStructure>(),
+    seo: jsonb('seo').$type<PageSeo>(),
+    performance: jsonb('performance').$type<PagePerformance>(),
+    crawlerAccess: jsonb('crawler_access').$type<CrawlerAccess>(),
+    keywords: jsonb('keywords').$type<PageKeywords>(),
+    // Frozen at capture so a later threshold change never rewrites history.
+    score: integer('score'),
+    capturedAt: timestamp('captured_at').notNull().defaultNow()
+  },
+  (table) => [index().on(table.analysisId, table.capturedAt)]
+)
 
 export const hypotheses = pgTable('hypotheses', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -124,9 +150,12 @@ export const variants = pgTable('variants', {
     .references(() => hypotheses.id, { onDelete: 'cascade' }),
   copy: text('copy').notNull(),
   evidence: text('evidence'),
+  // A substring of `copy` that belongs in the element's existing styled fragment. See ai-pipeline.md.
+  emphasis: text('emphasis'),
   position: integer('position').notNull().default(0),
   status: variantStatusEnum('status').notNull().default('proposed'),
   screenshotUrl: text('screenshot_url'),
+  screenshotOverflow: boolean('screenshot_overflow').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
@@ -162,6 +191,9 @@ export const experiments = pgTable('experiments', {
   selector: text('selector'),
   controlCopy: text('control_copy').notNull(),
   variantCopy: text('variant_copy').notNull(),
+  // Snapshot beside variant_copy, and pinned to it: an operator who edits the copy at launch can
+  // leave the emphasis matching nothing, which the swap treats as absent.
+  variantEmphasis: text('variant_emphasis'),
   splitPercent: integer('split_percent').notNull().default(50),
   durationDays: integer('duration_days').notNull().default(14),
   startedAt: timestamp('started_at').notNull().defaultNow(),
@@ -256,7 +288,15 @@ export const analysesRelations = relations(analyses, ({ one, many }) => ({
   }),
   hypotheses: many(hypotheses),
   flowFixes: many(flowFixes),
-  experiments: many(experiments)
+  experiments: many(experiments),
+  snapshots: many(pageSnapshots)
+}))
+
+export const pageSnapshotsRelations = relations(pageSnapshots, ({ one }) => ({
+  analysis: one(analyses, {
+    fields: [pageSnapshots.analysisId],
+    references: [analyses.id]
+  })
 }))
 
 export const flowFixesRelations = relations(flowFixes, ({ one }) => ({
@@ -307,6 +347,8 @@ export const experimentStatsRelations = relations(experimentStats, ({ one }) => 
 export type User = typeof users.$inferSelect
 export type Subscription = typeof subscriptions.$inferSelect
 export type Analysis = typeof analyses.$inferSelect
+
+export type PageSnapshot = typeof pageSnapshots.$inferSelect
 export type Hypothesis = typeof hypotheses.$inferSelect
 export type Variant = typeof variants.$inferSelect
 export type FlowFix = typeof flowFixes.$inferSelect

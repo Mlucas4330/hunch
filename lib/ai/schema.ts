@@ -10,7 +10,10 @@ import {
 
 export const VariantSchema = z.object({
   copy: z.string(),
-  evidence: z.string()
+  evidence: z.string(),
+  // A substring of this variant's own `copy`, or null. Never a substring of current_copy: it names
+  // what deserves emphasis in the new line, not what carried it in the old one. See docs/ai-pipeline.md.
+  emphasis: z.string().nullable()
 })
 
 export const HypothesisSchema = z.object({

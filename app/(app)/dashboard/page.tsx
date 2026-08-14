@@ -61,9 +61,11 @@ export default async function DashboardPage() {
         </Card>
       ) : (
         <AnalysisHistory
+          appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
           analyses={rows.map((analysis) => ({
             id: analysis.id,
             url: analysis.url,
+            embedKey: analysis.embedKey,
             client: displayHost(analysis.url),
             market: t.labels.market[analysis.market],
             date: formatDate(analysis.createdAt, locale)

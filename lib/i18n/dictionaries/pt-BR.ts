@@ -8,9 +8,9 @@ export const ptBR: Dictionary = {
     ogImageAlt: 'Hunch - diagnóstico de conversão rankeado para uma landing page',
     pages: {
       landing: {
-        title: 'Mostre ao prospect o que a página dele custa',
+        title: 'Da sugestão à prova de que funcionou',
         description:
-          'Cole qualquer landing page e receba um diagnóstico medido para colocar na frente de um cliente: rankeado, com concorrentes reais e a copy já escrita.'
+          'Cole qualquer landing page e receba um diagnóstico medido, com as correções priorizadas e a copy já escrita. Depois coloque cada uma no ar e veja qual funcionou.'
       },
       signin: {
         title: 'Entrar',
@@ -138,7 +138,9 @@ export const ptBR: Dictionary = {
 
   footer: {
     copyright: 'Copyright {year} Hunch. Todos os direitos reservados.',
-    contact: 'Fale com a gente'
+    contact: 'Fale com a gente',
+    linkedin: 'LinkedIn',
+    whatsapp: 'WhatsApp'
   },
 
   infoHint: {
@@ -157,31 +159,32 @@ export const ptBR: Dictionary = {
 
   landing: {
     eyebrow: 'Ferramenta de auditoria para quem vende CRO',
-    headlineTop: 'Mostre ao prospect o que a página dele custa.',
-    headlineBottom: 'Mande com o seu nome.',
-    lead: 'Cole qualquer landing page. Receba um diagnóstico medido para colocar na frente de um cliente em minutos, com as correções priorizadas e a copy já escrita.',
+    headlineTop: 'Sugestão de melhoria todo mundo tem.',
+    headlineBottom: 'Prova de que funcionou, quase ninguém.',
+    lead: 'Cole a landing page do seu cliente. Em minutos você tem o diagnóstico medido e as correções priorizadas com a copy já escrita. Depois coloca cada uma no ar e volta com o número que prova qual funcionou.',
     cta: 'Rodar um relatório',
     howItWorksLink: 'Como funciona',
 
     sample: [
       {
         problem:
-          'Seu H1 diz o que você faz, não por que você ganha da aba que o visitante já tem aberta.',
-        variant: 'Publique mudanças na sua página de preços sem esperar por um designer.',
-        evidence: 'A Linear abre com o resultado que o fundador quer, não com a lista de recursos.'
+          'Seu H1 diz o que a empresa faz, e não por que o visitante deveria fechar a outra aba.',
+        variant: 'Mexa na sua página de preços sem depender de designer.',
+        evidence:
+          'A Linear abre com o resultado que o fundador quer, não com a lista de funcionalidades.'
       },
       {
-        problem: '"Cadastre-se" pede compromisso antes de o visitante ver qualquer ganho.'
+        problem: '"Cadastre-se" cobra compromisso antes de o visitante ver alguma vantagem.'
       },
       {
-        problem: 'Nada acima da dobra mostra que outro fundador já confiou nisso.'
+        problem: 'Nada acima da dobra mostra que outra empresa já comprou isso.'
       }
     ],
 
     readout: {
       domain: 'landing page',
-      liveTest: 'Teste ao vivo',
-      winner: 'Variante de título vence',
+      liveTest: 'Teste no ar',
+      winner: 'Variante de título venceu',
       detail: 'Teste de 14 dias, {visitors} visitantes',
       lift: '+18%',
       significant: 'Significativo',
@@ -189,37 +192,37 @@ export const ptBR: Dictionary = {
     },
 
     reality: {
-      eyebrow: 'A realidade',
-      heading: 'O difícil de vender auditoria é fazê-la antes de alguém ter pago.'
+      eyebrow: 'Na prática',
+      heading: 'O trabalho que fecha o contrato é o que você faz antes de alguém pagar.'
     },
     pains: [
       {
         headline: 'Um diagnóstico bem feito leva meio dia.',
         reality:
-          'Ler a página, conferir o head, cronometrar o carregamento, olhar dois concorrentes. Depois repetir tudo para o próximo prospect, que talvez nunca responda.',
+          'Ler a página, conferir o head, cronometrar o carregamento, olhar dois concorrentes. Depois repetir tudo no próximo prospect, que talvez nem responda.',
         answer:
-          'Uma URL, alguns minutos, e o diagnóstico inteiro volta medido em vez de lembrado.'
+          'Uma URL e alguns minutos. O diagnóstico volta contado na página dele, e opinião com número do lado deixa de ser questão de gosto.'
       },
       {
-        headline: 'Opinião não sobrevive a uma reunião de compras.',
+        headline: 'Sua entrega termina na ideia.',
         reality:
-          '"Seu título é fraco" é questão de gosto para quem escreveu o título. Deixa de ser gosto quando tem um número do lado.',
+          'Você lista o que mudar, o cliente publica algumas, e três meses depois ninguém sabe dizer qual delas mexeu o ponteiro. Na renovação você volta com argumento, não com resultado.',
         answer:
-          'Campos de formulário, CTAs sem precisar rolar a página, tempo de carregamento, texto alternativo, dados estruturados. Contados na página dele, ao lado dos concorrentes que ele citou.'
+          'Cada ideia daqui pode entrar no ar como teste na página do cliente e fechar com veredito: venceu, perdeu, ou não deu tráfego para dizer.'
       },
       {
-        headline: 'Ferramenta com a logo dos outros não é o seu entregável.',
+        headline: 'Relatório com a marca dos outros não é entregável seu.',
         reality:
-          'Você não manda para o seu cliente um documento que faz propaganda de um fornecedor, e muito menos um que pede o e-mail dele.',
+          'Você não manda para o seu cliente um documento que faz propaganda de fornecedor, e muito menos um que pede o e-mail dele para liberar o resto.',
         answer:
-          'No plano pago o relatório não tem marca nossa, não tem muro e não esconde nada. É seu para enviar.'
+          'No plano pago o relatório sai sem marca nossa, sem muro e sem nada borrado. É seu para enviar.'
       }
     ],
 
     how: {
       eyebrow: 'Como funciona',
-      heading: 'Ganhe a reunião primeiro. Prove o ganho depois de assinar.',
-      intro: 'O relatório é o que coloca você na sala: um diagnóstico medido de uma página à qual você nunca teve acesso. O teste ao vivo é o que mantém você lá depois que o trabalho é seu.'
+      heading: 'Primeiro o relatório ganha a reunião. Depois o teste segura o contrato.',
+      intro: 'O relatório é o que coloca você na sala: um diagnóstico medido de uma página a que você nunca teve acesso. O teste no ar é o que mantém você lá depois que o trabalho é seu.'
     },
     tracks: [
       {
@@ -228,33 +231,33 @@ export const ptBR: Dictionary = {
         steps: [
           {
             label: 'Cole a URL dele',
-            body: 'Qualquer landing page pública. A gente carrega, mede e estuda de dois a três concorrentes reais do mercado dele.'
+            body: 'Qualquer landing page pública. A gente abre, mede e ainda estuda de dois a três concorrentes reais do mercado dele.'
           },
           {
             label: 'Leia o diagnóstico',
-            body: 'Um readout medido da página e, em seguida, correções priorizadas em fluxo, copy e descoberta, cada uma com o texto substituto já escrito.'
+            body: 'Primeiro o que foi medido na página. Depois as correções priorizadas em fluxo, copy e descoberta, cada uma com o texto substituto já escrito. Se você adicionar um briefing do negócio, ele volta com os dados reais do cliente.'
           },
           {
             label: 'Envie como seu',
-            body: 'Compartilhe o link ou entregue a versão impressa. No plano pago não há nada nele que diga o nosso nome.'
+            body: 'Mande o link ou entregue a versão impressa. No plano pago não tem nada ali que diga o nosso nome.'
           }
         ]
       },
       {
-        label: 'Prove o ganho',
+        label: 'Prove o que funcionou',
         note: 'Depois do contrato',
         steps: [
           {
             label: 'Instale uma vez',
-            body: 'Assim que você tem acesso ao site do cliente: uma linha de script, mais um attribute no botão que conta como conversão. Depois disso a copy muda daqui, sem novo deploy.'
+            body: 'Quando você já tem acesso ao site do cliente: uma linha de script, mais um atributo no botão que conta como conversão. Depois disso a copy muda daqui, sem novo deploy.'
           },
           {
             label: 'Escolha a janela',
-            body: 'Escolha 7, 14 ou 30 dias. A significância é lida uma única vez na linha de chegada, então ninguém declara vencedor cedo demais.'
+            body: 'Escolha 7, 14 ou 30 dias. A significância é lida uma vez só, quando a janela fecha, então ninguém canta vencedor antes da hora.'
           },
           {
             label: 'Mostre o veredito',
-            body: 'O teste fecha em ganho de conversão, significância estatística e uma recomendação direta. Essa é a sua conversa de renovação.'
+            body: 'O teste fecha em ganho de conversão, significância estatística e uma recomendação direta. É com isso que você senta na conversa de renovação.'
           }
         ]
       }
@@ -262,31 +265,31 @@ export const ptBR: Dictionary = {
 
     value: {
       eyebrow: 'O que você recebe',
-      heading: 'Um documento que se defende sozinho.'
+      heading: 'Um relatório que aguenta ser questionado.'
     },
     proof: [
       {
-        title: 'Medido, não afirmado',
-        body: 'O readout conta o que está na página: campos de formulário, CTAs sem precisar rolar a página, tempo de carregamento, imagens sem texto alternativo. Números que a gente tirou, nunca números que um modelo chutou.'
+        title: 'Medido, não chutado',
+        body: 'O diagnóstico conta o que está na página: campos de formulário, CTAs acima da dobra, tempo de carregamento, imagens sem alt. Número que a gente tirou da página, nunca número que um modelo inventou.'
       },
       {
-        title: 'Texto pronto, não prompts',
-        body: 'Cada correção priorizada traz a copy substituta e o raciocínio por trás dela. Adicione um briefing do negócio e ela volta já com os dados reais dele.'
+        title: 'A ideia já vem pronta para testar',
+        body: 'Cada correção priorizada traz a copy substituta e o raciocínio por trás dela. Essa mesma copy vira um teste no ar na página do cliente, sem novo deploy, e fecha em veredito.'
       },
       {
         title: 'Seu para enviar',
-        body: 'Um relatório pago não tem logo nossa, não tem muro de e-mail e não tem nada borrado. Cole o link num e-mail ou entregue a versão impressa.'
+        body: 'Relatório pago não tem logo nossa, não tem muro de e-mail e não tem nada borrado. Cole o link num e-mail ou entregue a versão impressa.'
       }
     ],
 
     contact: {
       eyebrow: 'Fale com a gente',
       heading: 'Conte quantas páginas você audita por mês.',
-      body: 'A gente mostra um relatório real de uma página que você escolher, e quanto custa enviá-lo com o seu nome. Sem apresentação de slides.',
+      body: 'A gente roda um relatório real numa página que você escolher e mostra quanto custa enviar com o seu nome. Sem papo de vendedor.',
       points: [
-        'Relatórios com o seu nome, não o nosso',
-        'Seu cliente nunca vê um muro de cadastro',
-        'Um readout medido por página, não um modelo pronto',
+        'Relatório com o seu nome, não com o nosso',
+        'Seu cliente nunca esbarra num muro de cadastro',
+        'Um diagnóstico medido por página, nada de modelo pronto',
         'A gente responde no mesmo dia'
       ],
       form: {
@@ -295,7 +298,7 @@ export const ptBR: Dictionary = {
         join: 'Pedir um relatório',
         joining: 'Enviando...',
         done: 'Recebido. A gente responde nesse e-mail hoje.',
-        error: 'Algo deu errado. Tente novamente.'
+        error: 'Algo deu errado. Tente de novo.'
       }
     },
 
@@ -374,19 +377,29 @@ export const ptBR: Dictionary = {
     eyebrow: 'O que testar',
     title: 'Suas ideias de teste',
     hintLabel: 'Como usar esta tela',
-    hint: 'Cada aba é um tipo de correção, ordenada pelo impacto provável. *Fluxo* e *SEO* são mudanças que alguém aplica à mão; *Copy* é o texto, e ali cada ideia já vem com a versão nova escrita. Quando você tiver acesso ao site e quiser provar uma mudança em vez de discutir, a aba *Testes* é onde se instala o snippet e roda um teste por vez.',
-    report: 'Versão para impressão',
+    hint: 'Cada aba é um tipo de correção, ordenada pelo impacto provável. *Fluxo* e *SEO* são mudanças que alguém aplica à mão; *Copy* é o texto, e ali cada ideia já vem com a versão nova escrita. Quando você tiver acesso ao site e quiser provar uma mudança em vez de discutir, a aba *Teste A/B ao vivo* é onde se instala o snippet e roda um teste por vez.',
     backToDashboard: 'Voltar para clientes',
-    benchmarkedAgainst: 'Comparado com:',
+    benchmarkedAgainst: 'Ideias embasadas nestes concorrentes:',
     marketNote: '(mercado: {market})',
-    copyReportLink: 'Copiar link do relatório',
     copyFailed: 'Não foi possível copiar',
+    deliverables: {
+      eyebrow: 'Entregáveis',
+      hintLabel: 'Qual dos dois enviar',
+      hint: 'Esta análise gera dois documentos para você entregar, e são os mesmos achados em dois formatos. O *relatório interativo* é um link: seu cliente abre no navegador, circula pelas abas e consegue ver cada troca de texto renderizada na página dele. O *relatório em PDF* é a mesma análise achatada em uma página só, para o cliente que quer algo para imprimir, encaminhar ou anexar. Em um plano pago, nenhum dos dois leva o nosso nome.',
+      interactiveTitle: 'Relatório interativo',
+      interactiveBody: 'Uma página que seu cliente abre no navegador. Cada troca de texto pode ser vista na página real dele.',
+      pdfTitle: 'Relatório em PDF',
+      pdfShort: 'PDF',
+      pdfBody: 'Os mesmos achados em uma página só, para imprimir ou anexar em um e-mail.',
+      open: 'Abrir',
+      copyLink: 'Copiar link'
+    },
     tabs: {
       flow: 'Fluxo',
       copy: 'Copy',
       seo: 'SEO',
       ai: 'Encontrado por IA',
-      tests: 'Testes'
+      tests: 'Teste A/B ao vivo'
     }
   },
 
@@ -436,23 +449,42 @@ export const ptBR: Dictionary = {
     hintLabel: 'De onde vêm esses números',
     hint: 'Tudo aqui foi *contado na própria página* na hora em que a carregamos - nada é estimativa, média de mercado ou benchmark. Os tempos vêm de um data center com conexão boa, então são *o melhor cenário*: no celular o visitante espera mais que isso, nunca menos.',
     groups: {
-      structure: 'O que a página exige de quem chega',
+      structure: 'A experiência de quem chega na página',
       metadata: 'O que a IA precisa está aqui?',
+      visibility: 'O que um crawler de IA tem permissão de ler',
       load: 'A página está otimizada?'
+    },
+    score: {
+      label: 'Saúde do que medimos',
+      scale: '100 significa que todas as verificações desta página passaram. 0 significa que nenhuma passou.',
+      method: 'Média das {count} verificações abaixo, cada uma contada na própria página: a que passa vale um ponto inteiro, a que fica no limite vale meio, a que falha não vale nada. A nota avalia só o que foi contado aqui, e não diz nada sobre quanto tráfego ou receita a página gera.'
     },
     findings: {
       form_fields: 'Campos no formulário de cadastro',
       no_social_signin: 'Login com Google ou GitHub',
-      above_fold_ctas: 'CTAs sem precisar rolar a página',
+      above_fold_ctas: 'CTAs acima da dobra',
       nav_links: 'Links do menu que tiram o visitante da página',
       no_faq: 'Dúvidas respondidas na página',
       no_testimonials: 'Depoimentos de clientes',
+      word_count: 'Palavras na página',
+      heading_count: 'Títulos e subtítulos na página',
       noindex: 'Bloqueada para buscadores',
       no_meta_description: 'Meta description',
       h1_count: 'Títulos H1',
       images_missing_alt: 'Imagens sem alt',
       no_structured_data: 'Dados estruturados',
       no_og_image: 'Imagem de compartilhamento',
+      no_canonical: 'URL canonical',
+      no_lang: 'Idioma declarado na página',
+      internal_links: 'Links para outras páginas do site',
+      term_in_title: 'Termo principal no title',
+      term_in_h1: 'Termo principal no H1',
+      term_in_meta_description: 'Termo principal na meta description',
+      ai_crawlers_blocked: 'Crawlers de IA bloqueados no robots.txt',
+      robots_blocks_all: 'Rastreamento permitido',
+      no_sitemap: 'Sitemap declarado no robots.txt',
+      ttfb: 'TTFB (tempo até o primeiro byte)',
+      fcp: 'FCP (primeiro conteúdo a aparecer)',
       lcp: 'LCP (maior elemento a aparecer)',
       page_weight: 'Peso da página',
       request_count: 'Requisições de rede'
@@ -461,10 +493,32 @@ export const ptBR: Dictionary = {
       yes: 'Sim',
       no: 'Não'
     },
+    delta: {
+      up: '+{value}',
+      down: '-{value}',
+      gained: 'passou a ter',
+      lost: 'deixou de ter'
+    },
+    trend: {
+      title: 'Evolução ao longo do tempo',
+      hint: 'Um ponto por medição desta página. Mostra o que mudou, não o que causou a mudança.'
+    },
     atLeast: 'no mínimo',
     units: {
       seconds: '{value}s',
       megabytes: '{value} MB'
+    },
+    keywords: {
+      title: 'Os termos que esta página mais repete',
+      term: 'Termo',
+      count: 'Vezes que aparece',
+      surfaces: {
+        inTitle: 'Title',
+        inH1: 'H1',
+        inMetaDescription: 'Meta description',
+        inHeadings: 'Títulos'
+      },
+      hint: 'Contado no próprio texto da página. São as palavras em torno das quais ela foi escrita, não o que as pessoas buscam.'
     },
     comparison: {
       title: 'A página lado a lado com os concorrentes indicados',
@@ -473,18 +527,29 @@ export const ptBR: Dictionary = {
       metrics: {
         form_fields: 'Campos no formulário',
         social_signin: 'Login social',
-        above_fold_ctas: 'CTAs sem precisar rolar a página',
-        nav_links: 'Links do menu'
+        above_fold_ctas: 'CTAs acima da dobra',
+        nav_links: 'Links do menu',
+        word_count: 'Palavras na página',
+        pricing: 'Preço na página',
+        testimonials: 'Depoimentos',
+        faq: 'FAQ',
+        sticky_cta: 'CTA fixo',
+        meta_description: 'Meta description',
+        structured_data: 'Dados estruturados',
+        lcp: 'LCP',
+        page_weight: 'Peso da página'
       }
     },
     measure: {
       explain:
-        'Esta análise foi gerada antes de começarmos a contar. Carregamos a página de novo e medimos: campos de formulário, CTAs sem precisar rolar a página, tempo de carregamento, imagens sem alt.',
+        'Esta análise foi gerada antes de começarmos a contar. Carregamos a página de novo e medimos: campos de formulário, CTAs acima da dobra, tempo de carregamento, imagens sem alt.',
       cta: 'Medir esta página',
       loading: 'Medindo a página...',
       hint: 'Leva cerca de {seconds} segundos. Abrimos a página do mesmo jeito que um visitante abre.',
       failed: 'Não conseguimos carregar a página desta vez. Nada foi alterado nesta análise.',
-      retry: 'Tentar de novo'
+      retry: 'Tentar de novo',
+      again: 'Medir de novo',
+      againHint: 'Abrimos a página outra vez e acrescentamos um ponto à evolução. As correções e os testes não mudam.'
     }
   },
 
@@ -492,24 +557,11 @@ export const ptBR: Dictionary = {
     manualSetup: 'Configuração manual',
     testThisFirst: 'Teste isto primeiro',
     recommendedChallenger: 'Desafiante recomendado',
+    competitorEvidence: 'Do concorrente',
     placeholderWarning:
       'Contém [placeholders] - você vai substituí-los pelos seus dados reais ao configurar o teste.',
     viewTest: 'Ver teste',
     setUpTest: 'Configurar teste',
-    sortLabel: 'Ordenar',
-    sort: {
-      impact: 'Impacto',
-      effort: 'Esforço',
-      quickWins: 'Ganhos rápidos'
-    },
-    filterLabel: 'Mostrar',
-    filter: {
-      all: 'Tudo',
-      auto: 'Automático',
-      manual: 'Manual'
-    },
-    noMatches: 'Nenhuma ideia corresponde a estes filtros.',
-    resetFilters: 'Limpar filtros',
     backlog: {
       one: 'mais {count} ideia',
       other: 'mais {count} ideias'
@@ -536,7 +588,7 @@ export const ptBR: Dictionary = {
   },
 
   runTest: {
-    eyebrow: 'Rodar um teste',
+    eyebrow: 'Teste A/B ao vivo',
     hintLabel: 'Como rodar um teste funciona',
     hint: 'Seu texto atual é o *controle*. Escolha um *desafiante*, edite para o seu produto (troque qualquer [espaço reservado] entre colchetes por dados reais) e escolha por quanto tempo rodar. Ao clicar em *Lançar*, o snippet mostra o desafiante para metade dos visitantes e registra as conversões. Quando a janela termina, lemos o resultado uma vez e recomendamos um vencedor.',
     backToIdeas: 'Voltar às ideias',
@@ -595,10 +647,10 @@ export const ptBR: Dictionary = {
     landingPageAnalyzed: 'Landing page analisada',
     heading: '{count} testes para elevar sua conversão, rankeados por impacto.',
     testsFound: 'Testes encontrados',
-    quickWins: 'Ganhos rápidos',
+    readyToTest: 'Prontas para testar no ar',
     topImpact: 'Maior impacto',
     generated: 'Gerado em',
-    benchmarkedAgainst: 'Comparado com',
+    benchmarkedAgainst: 'Ideias embasadas nestes concorrentes',
     testThisFirst: 'Teste isto primeiro',
     problem: 'Problema',
     recommendation: 'Recomendação',
@@ -619,6 +671,8 @@ export const ptBR: Dictionary = {
     previewUnavailable:
       'Não conseguimos renderizar sua página agora. O texto recomendado acima continua valendo.',
     previewRetry: 'Tentar de novo',
+    previewOverflow:
+      'Este texto não cabe no espaço que sua página dá para esse elemento, então a prévia mostra ele cortado. Encurte o texto, ou dê mais espaço ao elemento antes de publicar.',
     footerQuestion: 'Quer medir isso ao vivo na sua página?',
     generatedBy: 'Gerado pelo Hunch'
   },

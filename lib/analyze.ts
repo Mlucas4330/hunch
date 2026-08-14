@@ -26,6 +26,8 @@ import {
   MARKET_SEARCH_LOCATION
 } from '@/lib/constants'
 import {
+  FIXTURE_CRAWLER_ACCESS,
+  FIXTURE_KEYWORDS,
   FIXTURE_PERFORMANCE,
   FIXTURE_SEO,
   FIXTURE_STRUCTURE,
@@ -37,6 +39,7 @@ import {
 import { displayHost } from '@/lib/host'
 import { detectMarket } from '@/lib/market'
 import { fetchCrawlerAccess, type CrawlerAccess } from '@/lib/robots'
+import { extractKeywords, type PageKeywords } from '@/lib/keywords'
 import {
   type CompetitorStructure,
   type PageElement,
@@ -47,7 +50,7 @@ import {
   resolveTarget,
   scrapePage
 } from '@/lib/scrape'
-import { variantWordBudget, wordCount } from '@/lib/text'
+import { variantCharBudget, variantWordBudget, wordCount } from '@/lib/text'
 import type { HypothesisTarget, Locale, Market } from '@/lib/enums'
 
 const MODEL = 'claude-sonnet-4-6'
@@ -71,6 +74,8 @@ export type AnalysisResult = {
   structure: PageStructure
   seo: PageSeo
   performance: PagePerformance
+  crawlerAccess: CrawlerAccess
+  keywords: PageKeywords
   competitorStructures: CompetitorStructure[]
   market: Market
   researchBrief: string
@@ -86,15 +91,37 @@ export type PageMeasurement = {
   structure: PageStructure
   seo: PageSeo
   performance: PagePerformance
+  crawlerAccess: CrawlerAccess
+  keywords: PageKeywords
+}
+
+// The page's own words, counted the same way from both entry points.
+function keywordsFor(html: string, seo: PageSeo): PageKeywords {
+  return extractKeywords({
+    text: preprocessHtml(html),
+    title: seo.title,
+    metaDescription: seo.metaDescription,
+    headings: seo.headings ?? []
+  })
 }
 
 export async function measurePage(url: string): Promise<PageMeasurement> {
   if (process.env.E2E_FIXTURES === '1') {
-    return { structure: FIXTURE_STRUCTURE, seo: FIXTURE_SEO, performance: FIXTURE_PERFORMANCE }
+    return {
+      structure: FIXTURE_STRUCTURE,
+      seo: FIXTURE_SEO,
+      performance: FIXTURE_PERFORMANCE,
+      crawlerAccess: FIXTURE_CRAWLER_ACCESS,
+      keywords: FIXTURE_KEYWORDS
+    }
   }
 
-  const { structure, seo, performance } = await scrapePage(url)
-  return { structure, seo, performance }
+  const [{ html, structure, seo, performance }, crawlerAccess] = await Promise.all([
+    scrapePage(url),
+    fetchCrawlerAccess(url)
+  ])
+
+  return { structure, seo, performance, crawlerAccess, keywords: keywordsFor(html, seo) }
 }
 
 export async function analyzeLandingPage(
@@ -109,9 +136,17 @@ export async function analyzeLandingPage(
     const fixtureElements: PageElement[] = analysis.hypotheses.map((h, i) => ({
       text: h.current_copy,
       selector: `[data-hunch-fixture="${i}"]`,
-      tag: 'p'
+      tag: 'p',
+      capacity: variantCharBudget(h.current_copy),
+      emphasized: false
     }))
-    fixtureElements.push({ text: 'Start free trial', selector: '[data-ab-goal]', tag: 'a' })
+    fixtureElements.push({
+      text: 'Start free trial',
+      selector: '[data-ab-goal]',
+      tag: 'a',
+      capacity: variantCharBudget('Start free trial'),
+      emphasized: false
+    })
     return resolveTargets({
       output: analysis,
       elements: fixtureElements,
@@ -121,6 +156,8 @@ export async function analyzeLandingPage(
       structure: FIXTURE_STRUCTURE,
       seo: FIXTURE_SEO,
       performance: FIXTURE_PERFORMANCE,
+      crawlerAccess: FIXTURE_CRAWLER_ACCESS,
+      keywords: FIXTURE_KEYWORDS,
       competitorStructures: [],
       market: fixtureMarket
     })
@@ -130,6 +167,7 @@ export async function analyzeLandingPage(
   const { html, elements, structure, seo, performance } = await scrapePage(url)
   const content = preprocessHtml(html)
   const market = detectMarket({ url, lang: seo.lang })
+  const keywords = keywordsFor(html, seo)
   const scrapedAt = Date.now()
 
   const [competitorResearch, crawlerAccess] = await Promise.all([
@@ -149,10 +187,13 @@ export async function analyzeLandingPage(
 
   const elementList = elements
     .slice(0, MAX_PROMPT_ELEMENTS)
-    .map((e) => `<${e.tag}> "${e.text}" (max ${variantWordBudget(wordCount(e.text))} words)`)
+    .map(
+      (e) =>
+        `<${e.tag}> "${e.text}" (max ${variantWordBudget(wordCount(e.text))} words, max ${e.capacity} characters${e.emphasized ? ', styled fragment' : ''})`
+    )
     .join('\n')
   const elementsSection = elementList
-    ? `\n\nPage elements (each line is one real on-page element; current_copy must quote exactly one of these verbatim, and every variant you write for it must fit inside that element's word ceiling):\n\n${elementList}`
+    ? `\n\nPage elements (each line is one real on-page element; current_copy must quote exactly one of these verbatim, and every variant you write for it must fit inside that element's word ceiling AND its character ceiling. The character ceiling is the measured width of the box that element occupies on the page: copy past it is cut off by the site's own CSS, not merely long):\n\n${elementList}`
     : ''
 
   const [{ object }, playbook, visibility] = await Promise.all([
@@ -173,6 +214,7 @@ export async function analyzeLandingPage(
       seo,
       structure,
       crawlerAccess,
+      keywords,
       founderBrief: options.brief ?? null,
       locale,
       market
@@ -206,6 +248,8 @@ export async function analyzeLandingPage(
     structure,
     seo,
     performance,
+    crawlerAccess,
+    keywords,
     competitorStructures: competitorResearch.structures,
     market
   })
@@ -250,6 +294,7 @@ export type VisibilityInput = {
   seo: PageSeo
   structure: PageStructure
   crawlerAccess: CrawlerAccess
+  keywords: PageKeywords
   founderBrief: string | null
   locale: Locale
   market: Market
@@ -269,7 +314,14 @@ export async function generateVisibility(input: VisibilityInput): Promise<Visibi
     )}`,
     `robots.txt (JSON). A status of "unknown" means the file could not be read: it does NOT mean the
 file is missing and does NOT mean anything is blocked, so say nothing about robots.txt in that
-case:\n${JSON.stringify(input.crawlerAccess, null, 2)}`
+case:\n${JSON.stringify(input.crawlerAccess, null, 2)}`,
+    `Terms the page itself repeats, counted on the page, with where each one already appears. These
+are the page's own words, NOT search volume and NOT a ranking opportunity: never state how often
+anyone searches for one, and never promise a position:\n${JSON.stringify(
+      input.keywords.terms,
+      null,
+      2
+    )}`
   ]
 
   if (input.founderBrief) {
@@ -297,6 +349,9 @@ export type AlternateVariantsInput = {
   currentCopy: string
   rationale: string
   recommendedCopy: string
+  // Whether the target element has a styled fragment at all. The element list is long gone by now,
+  // so it is inferred from the recommendation having chosen an emphasis.
+  emphasized: boolean
   researchBrief: string | null
   founderBrief: string | null
   locale: Locale
@@ -316,7 +371,10 @@ export async function generateAlternateVariants(
     `Problem with it:\n${input.problem}`,
     `Why the challenger should win:\n${input.rationale}`,
     `The recommended challenger (write different angles, do not paraphrase this):\n${input.recommendedCopy}`,
-    `Word ceiling: the current copy is ${wordCount(input.currentCopy)} words. Every alternate must be ${variantWordBudget(wordCount(input.currentCopy))} words or fewer.`,
+    `Word ceiling: the current copy is ${wordCount(input.currentCopy)} words. Every alternate must be ${variantWordBudget(wordCount(input.currentCopy))} words or fewer, and ${variantCharBudget(input.currentCopy)} characters or fewer. Copy past the character ceiling is cut off by the site's own CSS.`,
+    input.emphasized
+      ? 'This element has a styled fragment, so set emphasis on every alternate.'
+      : 'This element has no styled fragment, so set emphasis to null on every alternate.',
     `Competitive research brief:\n${input.researchBrief || 'No competitor research available.'}`
   ]
 
@@ -360,11 +418,11 @@ async function researchProvidedCompetitors(urls: string[]): Promise<CompetitorRe
   const scraped = await Promise.all(
     urls.map(async (url) => {
       try {
-        const { html, structure } = await scrapePage(url)
+        const { html, structure, seo, performance } = await scrapePage(url)
         const name = displayHost(url)
         return {
           part: `Competitor: ${name} (${url})\n${preprocessHtml(html).slice(0, 2500)}`,
-          competitor: { name, url, structure }
+          competitor: { name, url, structure, seo, performance }
         }
       } catch {
         return null
@@ -390,6 +448,8 @@ function resolveTargets(input: {
   structure: PageStructure
   seo: PageSeo
   performance: PagePerformance
+  crawlerAccess: CrawlerAccess
+  keywords: PageKeywords
   competitorStructures: CompetitorStructure[]
   market: Market
 }): AnalysisResult {
@@ -402,6 +462,8 @@ function resolveTargets(input: {
     structure,
     seo,
     performance,
+    crawlerAccess,
+    keywords,
     competitorStructures,
     market
   } = input
@@ -413,6 +475,8 @@ function resolveTargets(input: {
     structure,
     seo,
     performance,
+    crawlerAccess,
+    keywords,
     competitorStructures,
     market,
     hypotheses: output.hypotheses.map((h) => {

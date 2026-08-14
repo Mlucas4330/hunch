@@ -9,7 +9,7 @@ import { FlowPlaybook } from '@/components/flow-playbook'
 import { AnalysisTabs } from '@/components/analysis-tabs'
 import { TestList } from '@/components/test-list'
 import { InfoHint } from '@/components/info-hint'
-import { CopyReportLink } from '@/components/copy-report-link'
+import { ReportDeliverables } from '@/components/report-deliverables'
 import { UpgradePrompt } from '@/components/upgrade-prompt'
 import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,7 @@ import { getDictionary } from '@/lib/i18n'
 import { t as fill } from '@/lib/i18n/format'
 import { MeasuredReadout } from '@/components/measured-readout'
 import { MeasurePage } from '@/components/measure-page'
-import { readoutFor, splitFixes, splitVisibility } from '@/lib/analyses'
+import { readoutFor, readoutHistory, splitFixes, splitVisibility } from '@/lib/analyses'
 import { hasReadout, readout } from '@/lib/readout'
 import { PLAYBOOK_EXPANDED_COUNT } from '@/lib/constants'
 import { pageMetadata } from '@/lib/seo'
@@ -53,6 +53,7 @@ export default async function AnalysisDetailPage({
   const visibility = splitVisibility(analysis.flowFixes)
   const testable = analysis.hypotheses.filter((hypothesis) => hypothesis.target === 'auto')
   const measured = hasReadout(readout(readoutFor(analysis)))
+  const history = measured ? await readoutHistory(analysis.id) : { previous: null, scores: [] }
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -68,11 +69,6 @@ export default async function AnalysisDetailPage({
           <p className="truncate font-mono text-sm text-muted-foreground">{analysis.url}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
-          <CopyReportLink
-            reportUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
-            embedKey={analysis.embedKey}
-            analysisId={analysis.id}
-          />
           <Button asChild variant="ghost" size="sm">
             <Link href="/dashboard">{t.analysis.backToDashboard}</Link>
           </Button>
@@ -102,8 +98,21 @@ export default async function AnalysisDetailPage({
         </p>
       )}
 
+      <ReportDeliverables
+        reportUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
+        embedKey={analysis.embedKey}
+        analysisId={analysis.id}
+      />
+
       {measured ? (
-        <MeasuredReadout input={readoutFor(analysis)} />
+        <div className="space-y-4">
+          <MeasuredReadout
+            input={readoutFor(analysis)}
+            previous={history.previous}
+            scores={history.scores}
+          />
+          <MeasurePage analysisId={analysis.id} variant="again" />
+        </div>
       ) : (
         <MeasurePage analysisId={analysis.id} />
       )}

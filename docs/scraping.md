@@ -103,6 +103,10 @@ Two limits are inherent to measuring here, and both are stated in the UI copy ra
   figure is a sum over what the browser was *allowed to tell us*, which is why it renders as
   "at least".
 
+`captureSeo` also returns `headings`, the visible text of every `h1`-`h6` in document order, bounded by
+`SEO_HEADINGS_MAX` and `SEO_HEADING_MAX_CHARS`. Order is load-bearing: `lib/keywords.ts` treats the
+first entry as the H1. The caps are what keep a nav-generated wall of `h3`s out of the jsonb column.
+
 ## `robots.txt` — `fetchCrawlerAccess` in `lib/robots.ts`
 
 Returns `{ status, blockedAgents, blocksAll, sitemaps }`. Four things are load-bearing:
@@ -118,6 +122,10 @@ Returns `{ status, blockedAgents, blocksAll, sitemaps }`. Four things are load-b
   be read still gets its analysis.
 - **It uses `fetch`, not a browser**, so it takes no `withBrowserSlot` slot, and it runs inside the
   same `Promise.all` as competitor research — adding nothing to the critical path.
+
+It is persisted to `analyses.crawler_access` and read twice from there: by the visibility prompt, and
+by the readout's `visibility` group. Feeding a prompt was its only job once, which meant the one thing
+we actually measured about AI discoverability existed nowhere a reader could see it.
 
 ## Browser lifecycle and the concurrency cap
 
@@ -205,8 +213,77 @@ every element wrapper survives by construction. Three rules make the result read
   original text left to compare, and a stale selector would report a successful swap of the wrong
   element instead of the `mismatch` the caller degrades on.
 
-Accepted trade-off: the split follows the *original* fragment sizes, so a span may wrap a different
-word than the designer chose. Strictly better than the span disappearing.
+Without an `emphasis` the split follows the *original* fragment sizes, so a span wraps whichever words
+fall there. Strictly better than the span disappearing, and it is the fallback for everything below.
+
+### Placing the emphasis
+
+When the variant carries an `emphasis` ([ai-pipeline.md](ai-pipeline.md#the-model-chooses-the-emphasis-for-the-line-it-wrote-never-the-line-it-replaced)),
+those words go into the styled fragment and the words either side are shared out proportionally among
+the nodes either side. The styled fragment is the first text node whose parent is not the target
+element itself — that is what "inside a `<strong>`" means structurally.
+
+**Nothing here ever creates an element.** Bolding a word the page has no wrapper for would mean
+inserting a `<strong>` into a tree the host framework rendered, which is the `removeChild` family of
+failures the whole text-node design exists to avoid. So the emphasis only ever *redistributes among
+nodes that already exist*, and that is why it silently falls back rather than trying harder.
+
+It falls back to the proportional split whenever the emphasis cannot be honoured exactly:
+
+- the element has no styled fragment at all;
+- the emphasis is not a whole-word substring of the copy — including the case where an operator edited
+  the copy at launch and edited those words away;
+- it is the entire line, which is not an emphasis;
+- the words either side have no node to go to (the styled fragment is first and the emphasis is not,
+  or it is last and the emphasis is not). Dropping words is never acceptable, so the whole placement is
+  abandoned instead.
+
+One consequence worth expecting: when the emphasis lands at the end of the new line, the text node
+*after* the styled fragment is written empty. The `<strong>` has not moved in the DOM, but the bold is
+now visually last.
+
+### Fitting the copy back into its box
+
+The swap ends in `fitToBox`, and the outcome it returns says what the page did with the new words:
+`ok`, `fitted` or `overflow` — all three mean the swap happened, which is why callers ask
+`isApplied(outcome)` rather than comparing to `ok`.
+
+**Wrapping to another line is not a break.** A hero that grows from two lines to three reflows, and
+the reader is looking at the real thing; shrinking the type there would misreport the page and throw
+away the designer's typography for nothing. A break is text the CSS *cuts off*, and that is what is
+detected, in three forms: `scrollWidth` past `clientWidth` (a `nowrap` or ellipsis rule), `scrollHeight`
+past `clientHeight` (a fixed height), or the element's bottom past the bottom of an ancestor whose
+`overflow-y` is `hidden` or `clip`.
+
+Only then is the element's own computed `font-size` stepped down by `FIT_STEP_RATIO` until it fits.
+`FIT_MIN_SCALE` is where that stops: past it the preview is no longer a picture of the page, so the
+original size is restored and the outcome is `overflow` — reported to the reader rather than hidden,
+because copy that does not fit is a fact about the recommendation, not a rendering failure. See
+[report.md](report.md#post-apireportscreenshot).
+
+`public/embed.js` mirrors all of it, under the same must-stay-in-step rule as the swap itself. It
+additionally remembers the designer's own inline `font-size` on the element: `keepApplied` re-swaps on
+every mutation frame, and measuring against a size this function set last frame would shrink the
+element a little further forever.
+
+### How much copy an element can hold
+
+`captureElements` returns `capacity` on every `PageElement`: the characters that fit in the box, which
+is what the generation prompts spend as a ceiling ([ai-pipeline.md](ai-pipeline.md)). Fitting at
+capture time is a net, not a plan — the copy should have fitted before anyone opened a browser.
+
+The average character width is **measured**, off the text already rendered in that element (a `Range`
+over its contents, summing the client rects), never assumed from the font size: a condensed display
+face and a wide serif differ by more than any constant survives. Lines are `clientWidth / charWidth`;
+how many of them are allowed is the one judgement call:
+
+- Inside an ancestor that clips, the real free height down to that ancestor's bottom edge.
+- Otherwise the element's current height plus `VARIANT_GROWTH_LINES`. Unclipped copy can grow without
+  breaking anything, but a headline allowed to double still lands as a wall of text where the
+  designer drew one line.
+
+The floor is always the text already there, so an element can never be given a budget smaller than the
+copy it currently holds.
 
 Its only automated coverage is `e2e/dom/apply-variant-copy.spec.ts` — see
 [development.md](development.md).

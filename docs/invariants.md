@@ -45,6 +45,30 @@ model may **assert**, those govern what a measurement may **state**.
 
 *Governs:* [ai-pipeline.md](ai-pipeline.md)
 
+### A delta is arithmetic between two measurements, never a result attributed to a change
+
+`page_snapshots` makes it possible to say "LCP is 2.1s lower than last week". That sentence is
+subtraction over two numbers this code measured, so it is allowed.
+
+**"Your fix cut LCP by 2.1s" and "the rewrite lifted conversion" are not.** Nobody controlled for
+anything between the two measurements — the page may have changed ten times, or not at all while the
+CDN did. The readout may state that a number moved and when; only a live experiment may say what
+moved it, and that is the whole reason `experiments` exists.
+
+*Governs:* [readout.md](readout.md), [experiments.md](experiments.md)
+
+### Keywords measure the page's own words, never the index
+
+`lib/keywords.ts` counts terms in the copy that was scraped and reports where each already appears —
+title, H1, meta description, headings. That is a fact about one page, countable by code.
+
+**Search volume, keyword difficulty and ranking potential are none of those things.** They come from a
+clickstream and a SERP index we do not have, so any such number would be invented at the moment it was
+printed. This is the same rule as the one below applied to a different noun, and it is why the keyword
+table has a "times said" column and never a "searches per month" one.
+
+*Governs:* [readout.md](readout.md), [ai-pipeline.md](ai-pipeline.md)
+
 ### The audit measured the page, not the index
 
 A visibility finding never promises a ranking or a citation, never estimates traffic, and never says

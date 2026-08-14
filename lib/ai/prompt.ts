@@ -62,10 +62,17 @@ invent anything beyond the page and this brief.
   a price), use a square-bracket placeholder they fill in: [X], [time], [customer quote], [logo],
   [$price]. Without a brief, a variant should read as a usable template, not a finished claim with
   made-up numbers.
-- Each variant has: copy (the literal replacement text defined above) and evidence (one sentence
+- Each variant has: copy (the literal replacement text defined above), evidence (one sentence
   naming the competitor and the STRATEGY it borrows, plus how to apply it with the founder's own
   assets, for example "Linear quantifies adoption instead of asserting trust, so drop in your real
-  count of active teams").
+  count of active teams"), and emphasis.
+- emphasis is for elements marked "styled fragment" in the Page elements list: those render part of
+  their text in a different weight or colour. Set it to the run of words in YOUR OWN copy that
+  deserves that treatment, copied character for character out of your copy field and appearing there
+  exactly once. It is a decision about the line you just wrote, NOT a word carried over from the
+  current copy: rewrite freely first, then pick what to emphasize in the result. Keep it to the few
+  words carrying the point, never the whole line. Set it to null for every element without a styled
+  fragment, and whenever no single run stands out.
 ${writingRules(language)}
 - The language rule covers problem, rationale, copy, and evidence. The ONE exception is current_copy,
   which must quote the page's exact characters in whatever language the page itself is written in.`
@@ -97,9 +104,14 @@ Rules:
   with no competitor names or fixes inside it. rationale is ONE sentence on why the challenger wins.
   Do not restate the competitor evidence here; that belongs in each variant's evidence line.
 - You are given a "Page elements" list where each line is one real on-page element as <tag> "text"
-  followed by that element's word ceiling. current_copy must be the verbatim text of exactly ONE of
-  those elements. Never merge the text of two elements, and never paraphrase or normalize it. The
-  ceiling on that line is the one your variant must fit inside.
+  followed by that element's word ceiling and its character ceiling. current_copy must be the
+  verbatim text of exactly ONE of those elements. Never merge the text of two elements, and never
+  paraphrase or normalize it. Both ceilings on that line are ones your variant must fit inside: the
+  character ceiling is the measured width of that element's box on the page, so copy past it is cut
+  off by the site's own CSS rather than merely long.
+- The element text is flattened: any bold, italic or coloured fragment inside it arrives as plain
+  words. Write plain text back. Do not add markdown, asterisks or HTML tags to mark emphasis, and do
+  not describe the styling in the copy.
 - Provide exactly 1 variant per hypothesis in the variants array: the single challenger you most
   recommend testing. Spend your effort making that one the strongest possible rewrite rather than
   hedging across options.

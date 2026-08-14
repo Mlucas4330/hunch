@@ -18,6 +18,7 @@ deprecated and `railway.json` must never name it again.
 | `Redis` | Railway plugin | rate limit counters only |
 | `cron-finalize` | `railway.cron-finalize.json` (*Config as code*, set by hand) | calls `/api/cron/finalize-experiments` |
 | `cron-prune` | `railway.cron-prune.json` (*Config as code*, set by hand) | calls `/api/cron/prune-screenshots`; own hour so the two never hit `app` together |
+| `cron-remeasure` | `railway.cron-remeasure.json` (*Config as code*, set by hand) | calls `/api/cron/remeasure`; **weekly**, and the only cron that opens browsers — its own hour, and Monday rather than daily, because each run costs `browser` slots against real customer pages |
 
 Every service but the plugins is the **same repo** pointed at a different config file. The schedules
 live in `deploy.cronSchedule` in those files rather than in the dashboard, so a changed cron time
@@ -40,9 +41,9 @@ Railway creates exactly one service per import, so:
    `http://${{browser.RAILWAY_PRIVATE_DOMAIN}}:9222` — as a reference, and with both the `http://`
    and the `:9222` spelled out. See [scraping.md](scraping.md#browser-lifecycle-and-the-concurrency-cap)
    for what each half of that value is load-bearing for.
-5. Add `cron-finalize` and `cron-prune`, both from the same repo, pointed at
-   `railway.cron-finalize.json` and `railway.cron-prune.json`. Give **each** of them these two, as
-   references rather than copies:
+5. Add `cron-finalize`, `cron-prune` and `cron-remeasure`, all from the same repo, pointed at
+   `railway.cron-finalize.json`, `railway.cron-prune.json` and `railway.cron-remeasure.json`. Give
+   **each** of them these two, as references rather than copies:
 
    ```
    CRON_SECRET = ${{ app.CRON_SECRET }}

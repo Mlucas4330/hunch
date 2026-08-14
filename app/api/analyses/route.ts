@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server'
 import { eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db'
-import { analyses, flowFixes, hypotheses, users, variants } from '@/db/schema'
+import { analyses, flowFixes, hypotheses, pageSnapshots, users, variants } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { hasReachedFreeLimit, periodExpired } from '@/lib/usage'
 import { listAnalysesForUser } from '@/lib/analyses'
 import { analyzeLandingPage } from '@/lib/analyze'
 import { getLocale } from '@/lib/i18n'
+import { snapshotValues } from '@/lib/snapshots'
 import { ScrapeError } from '@/lib/scrape'
 import { UnsafeUrlError } from '@/lib/url-guard'
 
@@ -65,6 +66,8 @@ export async function POST(request: Request) {
           structure: output.structure,
           seo: output.seo,
           performance: output.performance,
+          crawlerAccess: output.crawlerAccess,
+          keywords: output.keywords,
           competitorStructures: output.competitorStructures.length
             ? output.competitorStructures
             : null,
@@ -72,6 +75,8 @@ export async function POST(request: Request) {
           market: output.market
         })
         .returning()
+
+      await tx.insert(pageSnapshots).values(snapshotValues(created.id, output))
 
       const rows = await tx
         .insert(hypotheses)
@@ -98,6 +103,7 @@ export async function POST(request: Request) {
               hypothesisId: row.id,
               copy: variant.copy,
               evidence: variant.evidence,
+              emphasis: variant.emphasis,
               position
             }))
           )

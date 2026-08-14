@@ -15,7 +15,6 @@ import { formatDate, t as fill } from '@/lib/i18n/format'
 import { hasPlaceholders } from '@/lib/utils'
 import { MeasuredReadout } from '@/components/measured-readout'
 import { readoutFor, splitFixes } from '@/lib/analyses'
-import { isQuickWin } from '@/lib/constants'
 import { canWhiteLabel } from '@/lib/usage'
 import { pageMetadata } from '@/lib/seo'
 
@@ -54,7 +53,7 @@ export default async function AnalysisReportPage({
 
   const ranked = [...analysis.hypotheses].sort((a, b) => b.impactScore - a.impactScore)
   const fixes = splitFixes(analysis.flowFixes)
-  const quickWins = ranked.filter(isQuickWin).length
+  const readyToTest = ranked.filter((hypothesis) => hypothesis.target === 'auto').length
   const topImpact = ranked[0]?.impactScore ?? 0
   const locale = await getLocale()
   const t = dictionaryFor(locale)
@@ -95,7 +94,7 @@ export default async function AnalysisReportPage({
 
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
         <SummaryCell label={t.report.testsFound} value={String(ranked.length)} />
-        <SummaryCell label={t.report.quickWins} value={String(quickWins)} />
+        <SummaryCell label={t.report.readyToTest} value={String(readyToTest)} />
         <SummaryCell label={t.report.topImpact} value={`${topImpact}/10`} />
         <SummaryCell label={t.report.generated} value={generated} />
       </div>
@@ -145,7 +144,6 @@ export default async function AnalysisReportPage({
                 </div>
                 <div className="flex gap-3">
                   <ScoreIndicator score={hypothesis.impactScore} kind="impact" />
-                  <ScoreIndicator score={hypothesis.effortScore} kind="effort" />
                 </div>
               </div>
 

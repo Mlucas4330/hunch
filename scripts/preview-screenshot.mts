@@ -10,10 +10,14 @@ const VARIANT_COPY = 'This headline was rewritten by Hunch'
 
 async function shoot(label: string, copy: string | null, file: string) {
   console.log(`Capturing ${label} ...`)
-  const buffer = await screenshotVariant(url, copy === null ? null : selector, copy ?? '')
+  const { buffer, overflow } = await screenshotVariant(
+    url,
+    copy === null ? null : selector,
+    copy ?? ''
+  )
   const path = resolve(outDir, file)
   await writeFile(path, buffer)
-  console.log(`  -> ${path} (${buffer.length} bytes)`)
+  console.log(`  -> ${path} (${buffer.length} bytes)${overflow ? ' OVERFLOW: still clipped' : ''}`)
 }
 
 async function main() {

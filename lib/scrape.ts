@@ -2,8 +2,12 @@ import { lookup } from 'node:dns/promises'
 import puppeteer, { type Browser, type Page } from 'puppeteer'
 import {
   BROWSER_CONNECT_RETRY_DELAY_MS,
+  FIT_MIN_SCALE,
+  FIT_STEP_RATIO,
+  FIT_TOLERANCE_PX,
   GOAL_CANDIDATE_MAX_WORDS,
   GOAL_TARGET_SELECTOR,
+  NORMAL_LINE_HEIGHT_RATIO,
   OAUTH_PROVIDER_PATTERNS,
   STRUCTURE_PATTERNS,
   SCRAPE_ALLOWED_RESOURCE_TYPES,
@@ -20,7 +24,10 @@ import {
   SCRAPE_SETTLE_TEXT_TOLERANCE,
   SCRAPE_SETTLE_TIMEOUT_MS,
   SCRAPE_VIEWPORT,
-  TARGET_MATCH_MAX_WORD_RATIO
+  SEO_HEADING_MAX_CHARS,
+  SEO_HEADINGS_MAX,
+  TARGET_MATCH_MAX_WORD_RATIO,
+  VARIANT_GROWTH_LINES
 } from '@/lib/constants'
 import { assertPublicUrl, isPublicUrl } from '@/lib/url-guard'
 import { wordCount } from '@/lib/text'
@@ -29,6 +36,11 @@ export interface PageElement {
   text: string
   selector: string
   tag: string
+  // Characters the element's own box can hold, measured off the page. See docs/scraping.md.
+  capacity: number
+  // The element renders part of its text inside a child (a <strong>, a gradient <span>), so the
+  // variant may choose which of its own words land there.
+  emphasized: boolean
 }
 
 export interface PageStructure {
@@ -49,10 +61,14 @@ export interface PageStructure {
   wordCount: number
 }
 
+// `seo` and `performance` are optional because rows stored before they were kept do not have them,
+// and a comparison row is dropped rather than guessed. See docs/readout.md.
 export interface CompetitorStructure {
   name: string
   url: string
   structure: PageStructure
+  seo?: PageSeo
+  performance?: PagePerformance
 }
 
 export interface PageSeo {
@@ -69,6 +85,7 @@ export interface PageSeo {
   hasOgDescription: boolean
   hasOgImage: boolean
   jsonLdTypes: string[]
+  headings: string[]
 }
 
 export interface PagePerformance {
@@ -257,13 +274,19 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
       })
       await settlePage(page)
       const html = await page.content()
-      const elements = await page.evaluate(captureElements)
+      const elements = await page.evaluate(captureElements, {
+        growthLines: VARIANT_GROWTH_LINES,
+        normalLineHeightRatio: NORMAL_LINE_HEIGHT_RATIO
+      })
       const structure = await page.evaluate(captureStructure, {
         oauthProviders: OAUTH_PROVIDER_PATTERNS,
         patterns: STRUCTURE_PATTERNS,
         ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
       })
-      const seo = await page.evaluate(captureSeo)
+      const seo = await page.evaluate(captureSeo, {
+        headingsMax: SEO_HEADINGS_MAX,
+        headingMaxChars: SEO_HEADING_MAX_CHARS
+      })
       const performance = await page.evaluate(capturePerformance, {
         lcpFlushMs: SCRAPE_LCP_FLUSH_MS
       })
@@ -276,12 +299,20 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
   })
 }
 
+export type VariantShot = {
+  buffer: Buffer
+  // The copy still did not fit its box at the smallest size the fit is willing to use, so the image
+  // shows the reader clipped text. Surfaced rather than swallowed -- see docs/report.md.
+  overflow: boolean
+}
+
 export async function screenshotVariant(
   url: string,
   selector: string | null,
   variantCopy: string,
-  controlCopy?: string | null
-): Promise<Buffer> {
+  controlCopy?: string | null,
+  emphasis?: string | null
+): Promise<VariantShot> {
   const target = await assertPublicUrl(url)
 
   return withBrowserSlot(SCREENSHOT_QUEUE_MAX_WAIT_MS, async () => {
@@ -297,22 +328,29 @@ export async function screenshotVariant(
       })
       await settlePage(page)
 
+      let overflow = false
+
       if (selector) {
         const outcome = await page.evaluate(applyVariantCopy, {
           selector,
           variantCopy,
-          controlCopy: controlCopy ?? null
+          controlCopy: controlCopy ?? null,
+          emphasis: emphasis ?? null,
+          fitStepRatio: FIT_STEP_RATIO,
+          fitMinScale: FIT_MIN_SCALE,
+          fitTolerancePx: FIT_TOLERANCE_PX
         })
 
-        if (outcome !== 'ok') {
+        if (!isApplied(outcome)) {
           throw new ScrapeError(`Variant target not applicable on ${url} (${outcome})`)
         }
+        overflow = outcome === 'overflow'
       }
 
       await awaitPaint(page)
 
       const shot = await page.screenshot({ type: 'png' })
-      return Buffer.from(shot)
+      return { buffer: Buffer.from(shot), overflow }
     } catch (error) {
       if (error instanceof ScrapeError) throw error
       throw new ScrapeError(`Failed to screenshot ${url}`, { cause: error })
@@ -356,12 +394,22 @@ export async function pageHasGoalTarget(url: string): Promise<boolean> {
   })
 }
 
-type ApplyOutcome = 'ok' | 'not_found' | 'mismatch'
+// `ok`, `fitted` and `overflow` all mean the swap happened; they differ in what the box did with it.
+// See docs/scraping.md.
+type ApplyOutcome = 'ok' | 'fitted' | 'overflow' | 'not_found' | 'mismatch'
+
+export function isApplied(outcome: ApplyOutcome): boolean {
+  return outcome === 'ok' || outcome === 'fitted' || outcome === 'overflow'
+}
 
 export function applyVariantCopy(options: {
   selector: string
   variantCopy: string
   controlCopy: string | null
+  emphasis: string | null
+  fitStepRatio: number
+  fitMinScale: number
+  fitTolerancePx: number
 }): ApplyOutcome {
   const el = document.querySelector(options.selector)
   if (!el) return 'not_found'
@@ -385,11 +433,77 @@ export function applyVariantCopy(options: {
 
   const words = options.variantCopy.split(/\s+/).filter(Boolean)
 
+  // Words per node, by fragment size. One word is reserved for each fragment still to come, so a
+  // share that rounds to zero does not empty a styled span; the last node takes the remainder, so
+  // rounding never drops a word.
+  function proportional(weights: number[], wordTotal: number): number[] {
+    const total = weights.reduce((sum, weight) => sum + weight, 0) || weights.length
+    const counts: number[] = []
+    let taken = 0
+
+    weights.forEach((weight, index) => {
+      const remaining = wordTotal - taken
+      const reserve = Math.min(weights.length - index - 1, remaining)
+      const ceiling = remaining - reserve
+      const share = Math.round((wordTotal * weight) / total)
+      const take =
+        index === weights.length - 1
+          ? remaining
+          : Math.min(ceiling, Math.max(ceiling > 0 ? 1 : 0, share))
+
+      counts.push(take)
+      taken += take
+    })
+
+    return counts
+  }
+
+  // Where the emphasis sits in the variant's own words. Null unless it is a whole-word substring of
+  // the copy, which is what lets the words either side be handed to the nodes either side.
+  function emphasisSpan(copy: string, emphasis: string): { start: number; length: number } | null {
+    const at = copy.indexOf(emphasis)
+    if (at === -1) return null
+
+    const before = at === 0 ? ' ' : copy.charAt(at - 1)
+    const end = at + emphasis.length
+    const after = end >= copy.length ? ' ' : copy.charAt(end)
+    if (/\S/.test(before) || /\S/.test(after)) return null
+
+    const start = copy.slice(0, at).split(/\s+/).filter(Boolean).length
+    const length = emphasis.split(/\s+/).filter(Boolean).length
+    if (length === 0 || length === words.length) return null
+
+    return { start, length }
+  }
+
+  // The emphasis is honoured only when every word has somewhere to go: it is placed in a styled
+  // fragment that already exists, and nothing here ever creates one. Anything else falls back to the
+  // proportional split. See docs/scraping.md.
+  function counts(): number[] {
+    const weights = nodes.map((node) => (node.nodeValue || '').trim().length)
+    if (!options.emphasis) return proportional(weights, words.length)
+
+    const styled = nodes.findIndex((node) => node.parentElement !== el)
+    if (styled === -1) return proportional(weights, words.length)
+
+    const span = emphasisSpan(options.variantCopy, options.emphasis)
+    if (!span) return proportional(weights, words.length)
+
+    const after = words.length - span.start - span.length
+    if (span.start > 0 && styled === 0) return proportional(weights, words.length)
+    if (after > 0 && styled === nodes.length - 1) return proportional(weights, words.length)
+
+    return [
+      ...proportional(weights.slice(0, styled), span.start),
+      span.length,
+      ...proportional(weights.slice(styled + 1), after)
+    ]
+  }
+
   if (nodes.length === 0) {
     el.appendChild(document.createTextNode(options.variantCopy))
   } else {
-    const weights = nodes.map((node) => (node.nodeValue || '').trim().length)
-    const total = weights.reduce((sum, weight) => sum + weight, 0) || nodes.length
+    const plan = counts()
     let taken = 0
     let wrote = false
 
@@ -398,24 +512,57 @@ export function applyVariantCopy(options: {
       const lead = value.match(/^\s*/)?.[0] || (wrote ? ' ' : '')
       const trail = value.match(/\s*$/)?.[0] ?? ''
 
-      const remaining = words.length - taken
-      const reserve = Math.min(nodes.length - index - 1, remaining)
-      const ceiling = remaining - reserve
-      const share = Math.round((words.length * weights[index]) / total)
-      const take =
-        index === nodes.length - 1
-          ? remaining
-          : Math.min(ceiling, Math.max(ceiling > 0 ? 1 : 0, share))
-
-      const chunk = words.slice(taken, taken + take).join(' ')
-      taken += take
+      const chunk = words.slice(taken, taken + plan[index]).join(' ')
+      taken += plan[index]
       wrote = wrote || chunk.length > 0
       node.nodeValue = chunk ? lead + chunk + trail : ''
     })
   }
 
+  // Longer copy that simply wraps to another line is not a break -- the page reflows and the reader
+  // sees the real thing. A break is the text being cut off: clipped sideways by a nowrap or ellipsis
+  // rule, taller than a fixed height, or pushed past the bottom of an ancestor that hides its
+  // overflow. Only that is worth distorting the designer's type for, and only down to `fitMinScale`.
+  function clipsBelow(target: Element): boolean {
+    const bottom = target.getBoundingClientRect().bottom
+    let node = target.parentElement
+    while (node && node !== document.body) {
+      const style = getComputedStyle(node)
+      if (style.overflowY === 'hidden' || style.overflowY === 'clip') {
+        if (bottom > node.getBoundingClientRect().bottom + options.fitTolerancePx) return true
+      }
+      node = node.parentElement
+    }
+    return false
+  }
+
+  function clipped(target: Element): boolean {
+    if (target.scrollWidth > target.clientWidth + options.fitTolerancePx) return true
+    if (target.scrollHeight > target.clientHeight + options.fitTolerancePx) return true
+    return clipsBelow(target)
+  }
+
+  function fitToBox(target: HTMLElement): 'ok' | 'fitted' | 'overflow' {
+    if (!clipped(target)) return 'ok'
+
+    const base = parseFloat(getComputedStyle(target).fontSize)
+    if (!base) return 'overflow'
+
+    const previous = target.style.fontSize
+    let scale = options.fitStepRatio
+    while (scale >= options.fitMinScale) {
+      target.style.fontSize = `${base * scale}px`
+      if (!clipped(target)) return 'fitted'
+      scale *= options.fitStepRatio
+    }
+
+    target.style.fontSize = previous
+    return 'overflow'
+  }
+
+  const outcome = fitToBox(el as HTMLElement)
   el.scrollIntoView({ block: 'center', inline: 'nearest' })
-  return 'ok'
+  return outcome
 }
 
 async function awaitPaint(page: Page): Promise<void> {
@@ -443,7 +590,10 @@ async function awaitPaint(page: Page): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, SCRAPE_PAINT_SETTLE_MS))
 }
 
-function captureElements(): PageElement[] {
+function captureElements(options: {
+  growthLines: number
+  normalLineHeightRatio: number
+}): PageElement[] {
   const SKIP = new Set(['script', 'style', 'noscript', 'svg', 'head', 'meta', 'link', 'title'])
   const INLINE = new Set([
     'span', 'a', 'strong', 'em', 'b', 'i', 'u', 's', 'mark', 'small', 'sub', 'sup', 'code',
@@ -484,6 +634,57 @@ function captureElements(): PageElement[] {
     return style.visibility !== 'hidden' && style.display !== 'none'
   }
 
+  function clippingBottom(el: Element): number | null {
+    for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+      const style = getComputedStyle(node)
+      if (style.overflowY === 'hidden' || style.overflowY === 'clip') {
+        return node.getBoundingClientRect().bottom
+      }
+    }
+    return null
+  }
+
+  // How many characters fit in the box the designer drew. The average character width is measured
+  // off the text already rendered there rather than assumed from the font size, because a condensed
+  // display face and a wide serif differ by more than any constant would survive.
+  function capacityOf(el: Element, text: string): number {
+    const rect = el.getBoundingClientRect()
+    const style = getComputedStyle(el)
+    const fontSize = parseFloat(style.fontSize) || 0
+    const lineHeight =
+      parseFloat(style.lineHeight) || fontSize * options.normalLineHeightRatio || 0
+
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    const inkWidth = Array.from(range.getClientRects()).reduce((sum, r) => sum + r.width, 0)
+    range.detach()
+
+    const charWidth = text.length > 0 ? inkWidth / text.length : 0
+    if (charWidth <= 0 || lineHeight <= 0 || rect.width <= 0) return text.length
+
+    const clipBottom = clippingBottom(el)
+    const available =
+      clipBottom === null
+        ? rect.height + lineHeight * options.growthLines
+        : Math.max(rect.height, clipBottom - rect.top)
+
+    const perLine = Math.floor(rect.width / charWidth)
+    const lines = Math.max(1, Math.floor(available / lineHeight))
+    return Math.max(text.length, perLine * lines)
+  }
+
+  // A text node whose parent is not the element itself sits inside a styling wrapper. That, and only
+  // that, is what an emphasis can be placed into -- nothing here ever creates one.
+  function emphasizedFragments(el: Element): number {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    let count = 0
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!(node.nodeValue || '').trim()) continue
+      if (node.parentElement !== el) count += 1
+    }
+    return count
+  }
+
   const seen = new Set<string>()
   const out: PageElement[] = []
   for (const el of Array.from(document.querySelectorAll('*'))) {
@@ -499,7 +700,13 @@ function captureElements(): PageElement[] {
     if (!/[a-z0-9]/i.test(text)) continue
     if (!isVisible(el)) continue
     seen.add(text)
-    out.push({ text, selector: cssPath(el), tag })
+    out.push({
+      text,
+      selector: cssPath(el),
+      tag,
+      capacity: capacityOf(el, text),
+      emphasized: emphasizedFragments(el) > 0
+    })
   }
   return out
 }
@@ -607,7 +814,7 @@ function captureStructure(options: {
   }
 }
 
-function captureSeo(): PageSeo {
+function captureSeo(options: { headingsMax: number; headingMaxChars: number }): PageSeo {
   function attr(selector: string, name: string): string | null {
     const value = document.querySelector(selector)?.getAttribute(name)
     const trimmed = (value || '').trim()
@@ -664,7 +871,12 @@ function captureSeo(): PageSeo {
     hasOgTitle: attr('meta[property="og:title"]', 'content') !== null,
     hasOgDescription: attr('meta[property="og:description"]', 'content') !== null,
     hasOgImage: attr('meta[property="og:image"]', 'content') !== null,
-    jsonLdTypes: Array.from(jsonLdTypes)
+    jsonLdTypes: Array.from(jsonLdTypes),
+    headings: Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'))
+      .map((heading) => (heading.textContent || '').replace(/\s+/g, ' ').trim())
+      .filter((text) => text.length > 0)
+      .slice(0, options.headingsMax)
+      .map((text) => text.slice(0, options.headingMaxChars))
   }
 }
 

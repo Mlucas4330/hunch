@@ -14,14 +14,17 @@ import Image from 'next/image'
 export function VariantPreview({
   embedKey,
   hypothesisId,
-  initialUrl
+  initialUrl,
+  initialOverflow = false
 }: {
   embedKey: string
   hypothesisId: string
   initialUrl: string | null
+  initialOverflow?: boolean
 }) {
   const { dictionary } = useI18n()
   const [url, setUrl] = useState<string | null>(initialUrl)
+  const [overflow, setOverflow] = useState(initialOverflow)
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>(
     initialUrl ? 'ready' : 'idle'
   )
@@ -39,12 +42,13 @@ export function VariantPreview({
         body: JSON.stringify({ embedKey, hypothesisId }),
         signal: controller.signal
       })
-      const data: { url: string | null } = await res.json()
+      const data: { url: string | null; overflow?: boolean } = await res.json()
       if (!data.url) {
         setState('error')
         return
       }
       setUrl(data.url)
+      setOverflow(data.overflow ?? false)
       setState('ready')
     } catch {
       setState('error')
@@ -73,6 +77,10 @@ export function VariantPreview({
             }}
           />
         </div>
+      ) : null}
+
+      {state === 'ready' && url && overflow ? (
+        <p className="text-xs text-amber">{dictionary.report.previewOverflow}</p>
       ) : null}
 
       {state === 'idle' || state === 'loading' ? (

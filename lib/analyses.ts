@@ -1,8 +1,9 @@
 import { desc, eq, sql } from 'drizzle-orm'
 import { db } from '@/db'
-import { analyses, type Analysis, type FlowFix, type User } from '@/db/schema'
-import { FREE_ANALYSES_LIMIT } from '@/lib/constants'
+import { analyses, pageSnapshots, type Analysis, type FlowFix, type User } from '@/db/schema'
+import { FREE_ANALYSES_LIMIT, SNAPSHOT_HISTORY_MAX } from '@/lib/constants'
 import { AI_FIX_CATEGORY, type FixKind } from '@/lib/enums'
+import { EMPTY_HISTORY, snapshotInput, type ReadoutHistory } from '@/lib/snapshots'
 import type { ReadoutInput } from '@/lib/readout'
 
 const MAX_PAGE_SIZE = 50
@@ -24,13 +25,39 @@ export function splitVisibility(fixes: FlowFix[]): { seo: FlowFix[]; ai: FlowFix
 }
 
 export function readoutFor(
-  analysis: Pick<Analysis, 'structure' | 'seo' | 'performance' | 'competitorStructures'>
+  analysis: Pick<
+    Analysis,
+    'structure' | 'seo' | 'performance' | 'crawlerAccess' | 'keywords' | 'competitorStructures'
+  >
 ): ReadoutInput {
   return {
     structure: analysis.structure,
     seo: analysis.seo,
     performance: analysis.performance,
+    crawler: analysis.crawlerAccess,
+    keywords: analysis.keywords,
     competitors: analysis.competitorStructures
+  }
+}
+
+export async function readoutHistory(analysisId: string): Promise<ReadoutHistory> {
+  const rows = await db
+    .select()
+    .from(pageSnapshots)
+    .where(eq(pageSnapshots.analysisId, analysisId))
+    .orderBy(desc(pageSnapshots.capturedAt))
+    .limit(SNAPSHOT_HISTORY_MAX)
+
+  // One snapshot is the current measurement, not a history: there is nothing to compare it against
+  // and a one point line is a decoration.
+  if (rows.length < 2) return EMPTY_HISTORY
+
+  return {
+    previous: snapshotInput(rows[1]),
+    scores: rows
+      .filter((row) => row.score !== null)
+      .map((row) => ({ score: row.score as number, capturedAt: row.capturedAt }))
+      .reverse()
   }
 }
 

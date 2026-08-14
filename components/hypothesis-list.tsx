@@ -1,78 +1,32 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { useMemo } from 'react'
 import { HypothesisCard } from '@/components/hypothesis-card'
 import { WhyBlock } from '@/components/why-block'
-import {
-  HypothesisFilters,
-  type HypothesisSort,
-  type TargetFilter
-} from '@/components/hypothesis-filters'
-import {
-  HYPOTHESIS_EXPANDED_COUNT,
-  HYPOTHESIS_FILTER_THRESHOLD,
-  isQuickWin
-} from '@/lib/constants'
+import { HYPOTHESIS_EXPANDED_COUNT } from '@/lib/constants'
 import { useI18n } from '@/components/i18n-provider'
 import type { Hypothesis, Variant } from '@/db/schema'
 import { hasPlaceholders } from '@/lib/utils'
 
 export type HypothesisWithVariants = Hypothesis & { variants: Variant[] }
 
-const SORTERS: Record<
-  HypothesisSort,
-  (a: HypothesisWithVariants, b: HypothesisWithVariants) => number
-> = {
-  impact: (a, b) => b.impactScore - a.impactScore,
-  effort: (a, b) => a.effortScore - b.effortScore || b.impactScore - a.impactScore,
-  quickWins: (a, b) =>
-    Number(isQuickWin(b)) - Number(isQuickWin(a)) || b.impactScore - a.impactScore
-}
-
 export function HypothesisList({ hypotheses }: { hypotheses: HypothesisWithVariants[] }) {
-  const { dictionary } = useI18n()
-  const [sort, setSort] = useState<HypothesisSort>('impact')
-  const [target, setTarget] = useState<TargetFilter>('all')
-
-  const visible = useMemo(() => {
-    const kept = hypotheses.filter(
-      (hypothesis) => target === 'all' || hypothesis.target === target
-    )
-    return kept.sort(SORTERS[sort])
-  }, [hypotheses, sort, target])
-
-  const isDefaultOrder = sort === 'impact' && target === 'all'
-  const resetFilters = () => {
-    setSort('impact')
-    setTarget('all')
-  }
+  const ranked = useMemo(
+    () => [...hypotheses].sort((a, b) => b.impactScore - a.impactScore),
+    [hypotheses]
+  )
 
   return (
     <div className="space-y-3">
-      {hypotheses.length >= HYPOTHESIS_FILTER_THRESHOLD && (
-        <HypothesisFilters sort={sort} onSort={setSort} target={target} onTarget={setTarget} />
-      )}
-
-      {visible.length === 0 ? (
-        <Card className="p-6 text-center">
-          <p className="text-sm text-muted-foreground">{dictionary.hypothesisList.noMatches}</p>
-          <Button variant="ghost" size="sm" className="mt-2" onClick={resetFilters}>
-            {dictionary.hypothesisList.resetFilters}
-          </Button>
-        </Card>
-      ) : (
-        visible.map((hypothesis, index) => (
-          <HypothesisRow
-            key={hypothesis.id}
-            hypothesis={hypothesis}
-            rank={index + 1}
-            isTop={index === 0 && isDefaultOrder}
-            defaultOpen={index < HYPOTHESIS_EXPANDED_COUNT}
-          />
-        ))
-      )}
+      {ranked.map((hypothesis, index) => (
+        <HypothesisRow
+          key={hypothesis.id}
+          hypothesis={hypothesis}
+          rank={index + 1}
+          isTop={index === 0}
+          defaultOpen={index < HYPOTHESIS_EXPANDED_COUNT}
+        />
+      ))}
     </div>
   )
 }
@@ -108,11 +62,19 @@ function HypothesisBody({ hypothesis }: { hypothesis: HypothesisWithVariants }) 
   return (
     <>
       {recommended && (
-        <div className="space-y-1 rounded-md bg-muted p-3">
-          <p className="panel-label text-[0.6rem] text-muted-foreground">
-            {dictionary.hypothesisList.recommendedChallenger}
-          </p>
-          <p className="text-sm">{recommended.copy}</p>
+        <div className="space-y-3 rounded-md bg-muted p-3">
+          <div className="space-y-1">
+            <p className="panel-label text-[0.6rem] text-muted-foreground">
+              {dictionary.report.current}
+            </p>
+            <p className="text-sm text-muted-foreground line-through">{hypothesis.currentCopy}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="panel-label text-[0.6rem] text-muted-foreground">
+              {dictionary.hypothesisList.recommendedChallenger}
+            </p>
+            <p className="text-sm">{recommended.copy}</p>
+          </div>
           {hasPlaceholders(recommended.copy) && (
             <p className="text-xs text-amber">{dictionary.hypothesisList.placeholderWarning}</p>
           )}
@@ -121,7 +83,14 @@ function HypothesisBody({ hypothesis }: { hypothesis: HypothesisWithVariants }) 
 
       <WhyBlock label={dictionary.report.whyThisWorks}>
         <p>{hypothesis.rationale}</p>
-        {recommended?.evidence && <p>{recommended.evidence}</p>}
+        {recommended?.evidence && (
+          <p>
+            <span className="panel-label text-[0.6rem] text-teal">
+              {dictionary.hypothesisList.competitorEvidence}
+            </span>{' '}
+            {recommended.evidence}
+          </p>
+        )}
       </WhyBlock>
     </>
   )

@@ -1,9 +1,18 @@
+import { Linkedin, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import { Wordmark } from '@/components/wordmark'
-import { CONTACT_PATH, CONTAINER_CLASS } from '@/lib/constants'
+import {
+  CONTACT_PATH,
+  CONTAINER_CLASS,
+  LINKEDIN_URL,
+  WHATSAPP_URL
+} from '@/lib/constants'
 import { getDictionary } from '@/lib/i18n'
 import { t as fill } from '@/lib/i18n/format'
 import { cn } from '@/lib/utils'
+
+const linkClass =
+  'inline-flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline'
 
 export async function SiteFooter() {
   const t = await getDictionary()
@@ -22,12 +31,31 @@ export async function SiteFooter() {
             {fill(t.footer.copyright, { year: new Date().getFullYear() })}
           </p>
         </div>
-        <Link
-          href={CONTACT_PATH}
-          className="text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
-        >
-          {t.footer.contact}
-        </Link>
+        <nav className="flex flex-wrap items-center justify-center gap-4">
+          <a
+            href={LINKEDIN_URL}
+            target="_blank"
+            rel="noreferrer noopener"
+            aria-label={t.footer.linkedin}
+            title={t.footer.linkedin}
+            className={linkClass}
+          >
+            <Linkedin className="size-4" aria-hidden />
+          </a>
+          <a
+            href={WHATSAPP_URL}
+            target="_blank"
+            rel="noreferrer noopener"
+            aria-label={t.footer.whatsapp}
+            title={t.footer.whatsapp}
+            className={linkClass}
+          >
+            <MessageCircle className="size-4" aria-hidden />
+          </a>
+          <Link href={CONTACT_PATH} className={linkClass}>
+            {t.footer.contact}
+          </Link>
+        </nav>
       </div>
     </footer>
   )

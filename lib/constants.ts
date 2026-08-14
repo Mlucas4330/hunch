@@ -28,6 +28,14 @@ export const CONTACT_PATH = '/#contact'
 
 export const CALLBACK_URL_PARAM = 'callbackUrl'
 
+// The founder's own channels, in the site footer. Never on a report surface -- see
+// docs/components.md.
+export const LINKEDIN_URL = 'https://www.linkedin.com/in/lucas-medeiros-dev'
+
+// wa.me takes the number in E.164 without the plus.
+export const WHATSAPP_NUMBER = '5551989431913'
+export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`
+
 export const DEFAULT_LOCALE: Locale = 'en'
 
 export const LOCALE_COOKIE = 'locale'
@@ -266,6 +274,27 @@ export const VARIANT_WORD_BUDGET_RATIO = 1.5
 
 export const VARIANT_WORD_BUDGET_FLOOR = 3
 
+// How far past its current last line an unclipped element is assumed to be able to grow. One line:
+// enough that a headline is not frozen at its exact current length, small enough that the copy the
+// model writes still lands in the shape the designer drew. An element inside a clipping ancestor
+// ignores this and gets the real free height instead.
+export const VARIANT_GROWTH_LINES = 1
+
+// Fallback ratio of line height to font size, for the elements whose computed lineHeight is the
+// keyword `normal` rather than a length.
+export const NORMAL_LINE_HEIGHT_RATIO = 1.2
+
+// Fitting the swapped copy back into a box that clips it. Steps are multiplicative on the element's
+// own computed font size, so the shrink is relative to whatever the designer set.
+export const FIT_STEP_RATIO = 0.94
+
+// Past this the preview stops being a picture of the page. An element still clipping at the floor is
+// reported as an overflow rather than shrunk into illegibility.
+export const FIT_MIN_SCALE = 0.7
+
+// Subpixel layout noise. A box is not "clipping" because it is a third of a pixel short.
+export const FIT_TOLERANCE_PX = 1
+
 export const GOAL_CANDIDATE_LIMIT = 12
 
 // The recommendation plus its two alternates, which are written on demand. See docs/ai-pipeline.md.
@@ -308,8 +337,18 @@ export const READOUT_THRESHOLDS = {
   aboveFoldCtasWarn: 5,
   navLinksWarn: 8,
   navLinksAlert: 14,
-  // Google's own "good" and "poor" LCP boundaries. Generous when measured from a datacenter,
+  // Read by rankBelow: at or under the number is already the bad side. A landing page under 300
+  // words has nothing for a reader to weigh and nothing for a crawler to quote.
+  wordCountWarn: 300,
+  wordCountAlert: 120,
+  headingCountWarn: 3,
+  internalLinksWarn: 3,
+  // Google's own "good" and "poor" boundaries for each. Generous when measured from a datacenter,
   // which is the intended direction.
+  ttfbWarnMs: 800,
+  ttfbAlertMs: 1_800,
+  fcpWarnMs: 1_800,
+  fcpAlertMs: 3_000,
   lcpWarnMs: 2_500,
   lcpAlertMs: 4_000,
   pageWeightWarnBytes: 2 * BYTES_PER_MEGABYTE,
@@ -318,8 +357,58 @@ export const READOUT_THRESHOLDS = {
   requestCountAlert: 150
 } as const
 
+// The sparkline's own coordinate space, scaled by the viewBox. Padding leaves room for the end dot
+// and its surface ring so neither is clipped at the edge.
+export const TREND_CHART = { width: 240, height: 48, padding: 6, dotRadius: 4 } as const
+
+export const TREND_SCORE_MAX = 100
+
+// How far back the trend reads. A landing page re-measured weekly gives this about three months,
+// which is longer than any conversation about it.
+export const SNAPSHOT_HISTORY_MAX = 12
+
+// Analyses re-measured per cron run. Each one opens a real browser against a customer's page, so
+// this is a cost ceiling, not a page size.
+export const REMEASURE_BATCH_MAX = 20
+
+// A page measured more recently than this is left alone, so a manual re-measure is never
+// immediately followed by the cron taking another one.
+export const REMEASURE_MIN_AGE_MS = 6 * 24 * 60 * 60 * 1000
+
 // Named so the schema's fallback is not a bare literal. See docs/ai-pipeline.md.
 export const SECTION_FALLBACK: Section = 'other'
+
+// Enough to cover a landing page's outline without carrying a nav-generated wall of h3s into a
+// jsonb column. Truncated per heading for the same reason.
+export const SEO_HEADINGS_MAX = 40
+
+export const SEO_HEADING_MAX_CHARS = 200
+
+// How many terms the keyword table shows. Past ten it stops being a reading and starts being a dump.
+export const KEYWORD_TERMS_MAX = 10
+
+// A term appearing once is noise, not a theme the page is built around.
+export const KEYWORD_MIN_COUNT = 2
+
+// Bigrams as well as single words, because "landing page" is one term and two words.
+export const KEYWORD_MAX_WORDS = 2
+
+// Both languages in one list, like STRUCTURE_PATTERNS: the page's language is not known until the
+// scrape, and a Portuguese stopword is never an English keyword. Accents kept -- pt-BR needs them.
+export const KEYWORD_STOPWORDS = [
+  'a', 'about', 'after', 'all', 'also', 'an', 'and', 'any', 'are', 'as', 'at', 'be', 'been', 'but',
+  'by', 'can', 'do', 'does', 'for', 'from', 'get', 'has', 'have', 'how', 'if', 'in', 'into', 'is',
+  'it', 'its', 'just', 'like', 'make', 'may', 'more', 'most', 'no', 'not', 'now', 'of', 'on', 'one',
+  'only', 'or', 'other', 'our', 'out', 'over', 'own', 'see', 'so', 'some', 'than', 'that', 'the',
+  'their', 'them', 'then', 'there', 'these', 'they', 'this', 'to', 'up', 'us', 'use', 'was', 'we',
+  'what', 'when', 'which', 'who', 'why', 'will', 'with', 'you', 'your',
+  'ao', 'aos', 'as', 'até', 'com', 'como', 'da', 'das', 'de', 'dele', 'dela', 'deles', 'do', 'dos',
+  'e', 'ele', 'ela', 'eles', 'em', 'entre', 'era', 'essa', 'esse', 'esta', 'este', 'eu', 'foi',
+  'isso', 'já', 'la', 'lhe', 'mais', 'mas', 'me', 'mesmo', 'meu', 'muito', 'na', 'nas', 'nao',
+  'não', 'nem', 'no', 'nos', 'nós', 'num', 'numa', 'o', 'os', 'ou', 'para', 'pela', 'pelo', 'por',
+  'porque', 'qual', 'quando', 'que', 'quem', 'se', 'sem', 'ser', 'seu', 'seus', 'só', 'sua', 'suas',
+  'também', 'te', 'tem', 'ter', 'teu', 'todo', 'todos', 'tu', 'um', 'uma', 'voce', 'você', 'vocês'
+]
 
 // Detection patterns, not domain values -- matched case-insensitively.
 export const OAUTH_PROVIDER_PATTERNS: Record<string, string[]> = {
@@ -422,6 +511,28 @@ export const READOUT_SEVERITY_CLASS: Record<ReadoutSeverity, string> = {
   alert: 'bg-coral/15 text-coral'
 }
 
+// The same three states as a solid fill, for the score bars.
+export const READOUT_SEVERITY_FILL_CLASS: Record<ReadoutSeverity, string> = {
+  ok: 'bg-green',
+  warn: 'bg-amber',
+  alert: 'bg-coral'
+}
+
+// What each severity is worth to the score. A warn is half a finding, not a failure: the whole point
+// of three states is that the middle one is not the bottom one.
+export const READOUT_SEVERITY_POINTS: Record<ReadoutSeverity, number> = {
+  ok: 1,
+  warn: 0.5,
+  alert: 0
+}
+
+// Read downward, like rankBelow: at or under the number is already that side. Looser than the
+// finding thresholds on purpose -- a page can afford a few warns and still be in good shape.
+export const READOUT_SCORE_THRESHOLDS = {
+  warnAtOrBelow: 80,
+  alertAtOrBelow: 50
+} as const
+
 // `contact` is green: it means someone asked to talk, in a list dominated by wall hits.
 export const LEAD_SOURCE_BADGE_CLASS: Record<LeadSource, string> = {
   report: 'bg-neutral/15 text-neutral',
@@ -483,13 +594,7 @@ export function effortScoreFillClass(score: number): string {
   return 'bg-red'
 }
 
-// One definition, read by both the print report's summary cell and the "Quick wins" sort.
-export function isQuickWin(scores: { impactScore: number; effortScore: number }): boolean {
-  return scores.impactScore >= 7 && scores.effortScore <= 3
-}
-
 // A default, never a state the reader is stuck in -- every row can still be closed.
 export const HYPOTHESIS_EXPANDED_COUNT = 3
-export const HYPOTHESIS_FILTER_THRESHOLD = 4
 // Fewer: playbook cards are the tallest thing on the page once the steps list is showing.
 export const PLAYBOOK_EXPANDED_COUNT = 2

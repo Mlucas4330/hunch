@@ -65,11 +65,17 @@ Four states:
 | ----- | ------------ |
 | `idle` | button + a hint naming `PREVIEW_ESTIMATE_SECONDS` |
 | `loading` | button disabled, label swapped, skeleton — **the label is what carries a 10s+ wait**, a pulse alone is not enough |
-| `ready` | the image |
+| `ready` | the image, plus `report.previewOverflow` in amber when the copy did not fit |
 | `error` | a note plus a retry that returns to `idle` — after an explicit click, rendering nothing reads as a broken button |
 
+**The overflow note is not an error state.** The render worked; what it shows is the recommendation
+being too long for the box the page gives that element, which the reader has to know before shipping it
+and which no retry fixes. It reads as a caption on a real image rather than a failure of one — see
+[scraping.md](scraping.md#fitting-the-copy-back-into-its-box).
+
 A cached `screenshot_url` arrives as `initialUrl` and renders straight to `ready` with no button and no
-request. `manual` hypotheses never mount it at all and show a dashed "apply by hand" note instead.
+request; `variants.screenshot_overflow` rides along as `initialOverflow` so a cached preview carries the
+same caption a fresh one does. `manual` hypotheses never mount it at all and show a dashed "apply by hand" note instead.
 
 The fetch is bounded by `PREVIEW_REQUEST_TIMEOUT_MS` — derived from the server's real budget, never
 written down — because the worst case is minutes and an endless skeleton is worse than an error with a
@@ -88,8 +94,8 @@ to `/api/waitlist`.
 ## Print report — `app/(app)/analyses/[id]/report/page.tsx`
 
 One stacked page, nothing collapsed, no tabs — on paper there is nothing to click, so the SEO / AI split
-becomes one combined `visibility` section and `FlowPlaybook` is passed no `expandFrom`. Reached by the
-printer icon in `components/copy-report-link.tsx`.
+becomes one combined `visibility` section and `FlowPlaybook` is passed no `expandFrom`. Reached from the
+**PDF report** card in `components/report-deliverables.tsx`.
 
 **It is white-labelled by the same boolean**, and this is the surface the landing page actually sells:
 *"hand over the printed version"*. It is also the simplest of the four to gate, because the reader **is**
@@ -126,9 +132,13 @@ leaks whether an unknown key exists.
 
 Body `{ embedKey, hypothesisId }`. Renders the landing page with the recommended variant swapped in and
 writes the PNG to `SCREENSHOT_DIR` via `saveScreenshot` (`lib/screenshots.ts`), caching the resulting
-`/screenshots/<file>` path on `variants.screenshot_url`. Returns `{ url }`, with **`url: null` whenever
-a preview is not possible** (manual target, stale selector, unwritable volume) so the report degrades to
-copy-only instead of breaking.
+`/screenshots/<file>` path on `variants.screenshot_url`. Returns `{ url, overflow }`, with **`url: null`
+whenever a preview is not possible** (manual target, stale selector, unwritable volume) so the report
+degrades to copy-only instead of breaking.
+
+`overflow` is the swap's own verdict on whether the copy still got cut off, persisted alongside the path
+on `variants.screenshot_overflow` so a cached hit answers the same thing the fresh render did. It is
+**not** a reason to withhold the image: the picture of the copy not fitting is the useful part.
 
 The filename carries a random suffix because the file is world-readable once served: a path derivable
 from the variant id would make every screenshot guessable, and that id is returned by the authenticated
@@ -178,18 +188,42 @@ landing page's contact section (`source: 'contact'`, no `embedKey`) — that for
 this route: it is already public, already CORS-open, already rate limited per IP, and already read by
 the operator.
 
-## Report links — `components/copy-report-link.tsx`
+## Report deliverables — `components/report-deliverables.tsx`
 
-**One control, not three.** The header used to carry "open shareable report", "copy report link" and
-"print report" side by side — the first two went to the same place, and a row of equal-weight buttons was
-the reason none of them read as the primary action.
+**Two named documents, not two unlabelled controls.** The analysis produces the public report and the
+print report, and neither used to be *named* anywhere in the product: the header carried a bare
+`Copy report link` button and a printer icon whose only name was an `aria-label`. A reader who had never
+seen `/r/` had no reason to press a button that silently writes a URL to the clipboard, so the surface
+the paid plan is bought for went unused by exactly the people who had just bought it.
 
-What is left: a **copy report link** button, and a `lucide-react` printer **icon** linking to
-`/analyses/[id]/report`. Opening the link is gone (copying it is what you came to do); printing is the
-rarer action, so it is an icon.
+What renders now, on `/analyses/[id]` above `MeasuredReadout`, under the eyebrow `Deliverables` plus an
+`InfoHint` saying which one to send: two cards, each with a name, one line on who it is for, and its own
+actions.
 
-- The icon is `aria-hidden` and the accessible name is on the link — an icon-only control with no name
-  is invisible to a screen reader, and the label doubles as the tooltip for everyone else.
+| Card | Body | Actions |
+| ---- | ---- | ------- |
+| **Interactive report** | a web page the client opens; each copy change previewable on their real page | `Open` (`/r/<embedKey>`, new tab) + `Copy link` |
+| **PDF report** | the same findings on one page, to print or attach | `Open` (`/analyses/[id]/report`) |
+
+**This reverses "one control, not three", deliberately.** That rule was right about a flat row of
+equal-weight buttons where nothing read as primary, and it is wrong here: each action now sits inside a
+named, described container, so the hierarchy is carried by the cards rather than by button weight, and
+`Open` on the interactive card is the whole point — you cannot decide to send a document you have never
+seen. Do not collapse this back into a button row.
+
+The print report deliberately gets **no** open-in-new-tab and no second action: `report.printHint`
+("Press Ctrl or Cmd + P to save as PDF") already lives on that page, so there is nothing to say twice.
+
+- **`variant="compact"`** renders the same two destinations as small labelled ghost buttons in each
+  `/dashboard` client card, so the deliverables are discoverable before an analysis is even opened. It
+  carries `relative z-10` to escape the card's `absolute inset-0` overlay link, the same escape the
+  delete cluster uses — see [analysis-ui.md](analysis-ui.md).
+- **The compact labels are short on purpose, and stay labelled.** A dashboard card is a third of a row,
+  and the full names in `pt-BR` — *Copiar link do relatório*, *Relatório em PDF* — overflow it. The fix
+  is `copyLink` plus a dedicated `pdfShort`, **not** icon-only buttons: unlabelled controls are the
+  problem this component was written to solve, so shrinking the words is allowed and dropping them is
+  not. `pdfTitle` stays as the link's `aria-label`, and the row is `flex-wrap` so the long transient
+  `copyFailed` string wraps instead of overflowing.
 - The copy button keeps its explicit failure state and `document.execCommand` fallback, because
   `navigator.clipboard` is undefined outside a secure context: on plain http the promise rejected
   unhandled and the button was simply dead.

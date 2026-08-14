@@ -6,6 +6,8 @@ import type {
 } from '@/lib/ai/schema'
 import type { Locale } from '@/lib/enums'
 import type { PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
+import type { CrawlerAccess } from '@/lib/robots'
+import type { PageKeywords } from '@/lib/keywords'
 
 export const FIXTURE_STRUCTURE: PageStructure = {
   hasOauth: false,
@@ -38,7 +40,8 @@ export const FIXTURE_SEO: PageSeo = {
   hasOgTitle: true,
   hasOgDescription: true,
   hasOgImage: false,
-  jsonLdTypes: []
+  jsonLdTypes: [],
+  headings: ['The workspace for modern teams', 'Pricing', 'Frequently asked questions']
 }
 
 export const FIXTURE_PERFORMANCE: PagePerformance = {
@@ -50,6 +53,59 @@ export const FIXTURE_PERFORMANCE: PagePerformance = {
   transferredBytes: 3_400_000,
   requestCount: 84,
   domNodeCount: 1450
+}
+
+export const FIXTURE_CRAWLER_ACCESS: CrawlerAccess = {
+  status: 'found',
+  blockedAgents: ['GPTBot'],
+  blocksAll: false,
+  sitemaps: []
+}
+
+export const FIXTURE_KEYWORDS: PageKeywords = {
+  totalWords: 720,
+  terms: [
+    {
+      term: 'workspace',
+      count: 14,
+      inTitle: true,
+      inH1: true,
+      inMetaDescription: false,
+      inHeadings: true
+    },
+    {
+      term: 'teams',
+      count: 11,
+      inTitle: true,
+      inH1: true,
+      inMetaDescription: false,
+      inHeadings: true
+    },
+    {
+      term: 'modern teams',
+      count: 6,
+      inTitle: true,
+      inH1: true,
+      inMetaDescription: false,
+      inHeadings: true
+    },
+    {
+      term: 'pricing',
+      count: 5,
+      inTitle: false,
+      inH1: false,
+      inMetaDescription: false,
+      inHeadings: true
+    },
+    {
+      term: 'onboarding',
+      count: 3,
+      inTitle: false,
+      inH1: false,
+      inMetaDescription: false,
+      inHeadings: false
+    }
+  ]
 }
 
 const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
@@ -72,7 +128,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
     {
       category: 'objections',
       title: 'Add a Q&A block before the footer',
-      problem: 'The page never answers what happens after the trial, so visitors leave to find out.',
+      problem:
+        'The page never answers what happens after the trial, so visitors leave to find out.',
       steps: [
         'Collect the five questions your support inbox receives most often',
         'Answer each in two sentences inside a collapsible list above the footer',
@@ -93,8 +150,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       ],
       impact_score: 7,
       effort_score: 3,
-      evidence:
-        'Four of the six fields are asked before the visitor has any reason to answer them.'
+      evidence: 'Four of the six fields are asked before the visitor has any reason to answer them.'
     },
     {
       category: 'cta_placement',
@@ -157,8 +213,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
     {
       category: 'cta_placement',
       title: 'Repita a ação principal depois dos planos',
-      problem:
-        'A única chamada para ação fica acima da dobra, longe de onde a decisão acontece.',
+      problem: 'A única chamada para ação fica acima da dobra, longe de onde a decisão acontece.',
       steps: [
         'Adicione o mesmo botão principal logo abaixo da tabela de planos',
         'Mantenha o rótulo idêntico ao do botão do topo para que os dois leiam como um só caminho'
@@ -210,8 +265,7 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
       ],
       impact_score: 5,
       effort_score: 2,
-      evidence:
-        'What those images show is currently readable only by a person looking at the page.'
+      evidence: 'What those images show is currently readable only by a person looking at the page.'
     }
   ],
   'pt-BR': [
@@ -263,11 +317,13 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
 const ALTERNATE_VARIANTS: Record<Locale, VariantOutput[]> = {
   en: [
     {
+      emphasis: null,
       copy: 'The workspace that gets [your core job] done in [timeframe]',
       evidence:
         'Vercel headlines a concrete time-to-value - fill in the job and timeframe you can prove.'
     },
     {
+      emphasis: null,
       copy: 'Stop [specific pain]. Start shipping.',
       evidence:
         'Retool frames the headline against the cost of the status quo - name the pain your buyers feel.'
@@ -275,11 +331,13 @@ const ALTERNATE_VARIANTS: Record<Locale, VariantOutput[]> = {
   ],
   'pt-BR': [
     {
+      emphasis: null,
       copy: 'O espaço de trabalho que resolve [seu trabalho principal] em [prazo]',
       evidence:
         'A Vercel destaca um tempo até o valor concreto, preencha com o trabalho e o prazo que você consegue provar.'
     },
     {
+      emphasis: null,
       copy: 'Pare de [dor específica]. Comece a entregar.',
       evidence:
         'A Retool posiciona o título contra o custo de continuar como está, nomeie a dor que seus compradores sentem.'
@@ -304,6 +362,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'The all-in-one platform for modern teams',
         variants: [
           {
+            emphasis: null,
             copy: 'Ship faster: releases in [days], not [weeks]',
             evidence:
               'Linear leads with a quantified speed outcome - plug in your real before/after numbers.'
@@ -320,6 +379,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Get started',
         variants: [
           {
+            emphasis: null,
             copy: 'Start free, no card required',
             evidence:
               'Linear and Vercel remove payment risk at the primary CTA - use only if your trial truly needs no card.'
@@ -332,10 +392,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
       },
       {
         section: 'social_proof',
-        problem: 'Social proof is a vague logo strip with no credibility or relevance to the buyer.',
+        problem:
+          'Social proof is a vague logo strip with no credibility or relevance to the buyer.',
         current_copy: 'Trusted by teams everywhere',
         variants: [
           {
+            emphasis: null,
             copy: 'Trusted by [number] teams shipping every day',
             evidence:
               'Linear quantifies adoption instead of asserting trust - drop in your real active-team count.'
@@ -352,6 +414,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Enterprise - $99/user/mo',
         variants: [
           {
+            emphasis: null,
             copy: 'Free to start, [Pro] at [$price]',
             evidence:
               'Vercel anchors on a free entry tier before paid - map this to your real tiers.'
@@ -368,6 +431,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Real-time sync, API access, role-based permissions',
         variants: [
           {
+            emphasis: null,
             copy: 'See data instantly, automate with the API, control access',
             evidence:
               'Linear frames each feature as a job-to-be-done - keep your real capabilities, lead with the outcome.'
@@ -384,6 +448,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Built for teams that move fast',
         variants: [
           {
+            emphasis: null,
             copy: 'Set up in [setup time]. No migration, no training.',
             evidence: 'Vercel pre-empts setup-effort objections - use your real onboarding time.'
           }
@@ -400,10 +465,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
     hypotheses: [
       {
         section: 'headline',
-        problem: 'O título descreve a categoria do produto em vez do resultado que o visitante quer.',
+        problem:
+          'O título descreve a categoria do produto em vez do resultado que o visitante quer.',
         current_copy: 'The all-in-one platform for modern teams',
         variants: [
           {
+            emphasis: null,
             copy: 'Entregue em [dias], não em [semanas]',
             evidence:
               'A Linear abre com um ganho de velocidade quantificado, use seus números reais de antes e depois.'
@@ -420,6 +487,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Get started',
         variants: [
           {
+            emphasis: null,
             copy: 'Comece grátis, sem cartão',
             evidence:
               'Linear e Vercel tiram o risco de pagamento da chamada principal, use apenas se seu teste realmente dispensar cartão.'
@@ -436,6 +504,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Trusted by teams everywhere',
         variants: [
           {
+            emphasis: null,
             copy: 'A escolha de [número] times que entregam',
             evidence:
               'A Linear quantifica a adoção em vez de afirmar confiança, coloque seu número real de times ativos.'
@@ -452,6 +521,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Enterprise - $99/user/mo',
         variants: [
           {
+            emphasis: null,
             copy: 'Grátis para começar, [Pro] por [$preço]',
             evidence:
               'A Vercel ancora num plano de entrada gratuito antes do pago, mapeie isso para seus planos reais.'
@@ -469,6 +539,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Real-time sync, API access, role-based permissions',
         variants: [
           {
+            emphasis: null,
             copy: 'Veja dados na hora, automatize pela API, controle acessos',
             evidence:
               'A Linear apresenta cada recurso como uma tarefa a resolver, mantenha suas capacidades reais e comece pelo resultado.'
@@ -485,6 +556,7 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         current_copy: 'Built for teams that move fast',
         variants: [
           {
+            emphasis: null,
             copy: 'Configure em [tempo de setup]. Sem migração, sem treinamento.',
             evidence:
               'A Vercel antecipa a objeção de esforço de configuração, use seu tempo real de onboarding.'

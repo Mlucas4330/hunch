@@ -160,7 +160,77 @@
   // out across them by weight, leaving each styled fragment with something in it.
   var SKIP_TEXT = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1 }
 
-  function swapText(el, text) {
+  function proportional(weights, wordTotal) {
+    var total = 0
+    for (var w = 0; w < weights.length; w++) total += weights[w]
+    if (!total) total = weights.length
+
+    var counts = []
+    var taken = 0
+
+    for (var i = 0; i < weights.length; i++) {
+      var remaining = wordTotal - taken
+      var reserve = Math.min(weights.length - i - 1, remaining)
+      var ceiling = remaining - reserve
+      var share = Math.round((wordTotal * weights[i]) / total)
+      var take =
+        i === weights.length - 1
+          ? remaining
+          : Math.min(ceiling, Math.max(ceiling > 0 ? 1 : 0, share))
+
+      counts.push(take)
+      taken += take
+    }
+
+    return counts
+  }
+
+  function emphasisSpan(copy, emphasis, wordCount) {
+    var at = copy.indexOf(emphasis)
+    if (at === -1) return null
+
+    var before = at === 0 ? ' ' : copy.charAt(at - 1)
+    var end = at + emphasis.length
+    var after = end >= copy.length ? ' ' : copy.charAt(end)
+    if (/\S/.test(before) || /\S/.test(after)) return null
+
+    var start = copy.slice(0, at).split(/\s+/).filter(Boolean).length
+    var length = emphasis.split(/\s+/).filter(Boolean).length
+    if (!length || length === wordCount) return null
+
+    return { start: start, length: length }
+  }
+
+  // The emphasis lands in a styled fragment the page already has, and only when every word either
+  // side of it has a node to go to. Nothing here creates an element: inserting a <strong> the host
+  // framework did not render puts us back in the removeChild failure the whole file avoids.
+  function planFor(el, nodes, words, copy, emphasis) {
+    var weights = []
+    for (var w = 0; w < nodes.length; w++) weights.push((nodes[w].nodeValue || '').trim().length)
+    if (!emphasis) return proportional(weights, words.length)
+
+    var styled = -1
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].parentNode !== el) {
+        styled = i
+        break
+      }
+    }
+    if (styled === -1) return proportional(weights, words.length)
+
+    var span = emphasisSpan(copy, emphasis, words.length)
+    if (!span) return proportional(weights, words.length)
+
+    var after = words.length - span.start - span.length
+    if (span.start > 0 && styled === 0) return proportional(weights, words.length)
+    if (after > 0 && styled === nodes.length - 1) return proportional(weights, words.length)
+
+    return proportional(weights.slice(0, styled), span.start)
+      .concat([span.length])
+      .concat(proportional(weights.slice(styled + 1), after))
+  }
+
+  function swapText(el, text, emphasis) {
     var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null)
     var nodes = []
     for (var node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -175,17 +245,11 @@
 
     if (!nodes.length) {
       el.appendChild(document.createTextNode(text))
+      fitToBox(el)
       return
     }
 
-    var weights = []
-    var total = 0
-    for (var w = 0; w < nodes.length; w++) {
-      weights.push((nodes[w].nodeValue || '').trim().length)
-      total += weights[w]
-    }
-    if (!total) total = nodes.length
-
+    var plan = planFor(el, nodes, words, text, emphasis)
     var taken = 0
     var wrote = false
 
@@ -196,19 +260,56 @@
       var trailMatch = value.match(/\s*$/)
       var trail = trailMatch ? trailMatch[0] : ''
 
-      var remaining = words.length - taken
-      var reserve = Math.min(nodes.length - i - 1, remaining)
-      var ceiling = remaining - reserve
-      var share = Math.round((words.length * weights[i]) / total)
-      var take =
-        i === nodes.length - 1
-          ? remaining
-          : Math.min(ceiling, Math.max(ceiling > 0 ? 1 : 0, share))
-
-      var chunk = words.slice(taken, taken + take).join(' ')
-      taken += take
+      var chunk = words.slice(taken, taken + plan[i]).join(' ')
+      taken += plan[i]
       wrote = wrote || chunk.length > 0
       nodes[i].nodeValue = chunk ? lead + chunk + trail : ''
+    }
+
+    fitToBox(el)
+  }
+
+  // Duplicated from `applyVariantCopy` in lib/scrape.ts for the same reason as swapText above. A
+  // visitor must see what the preview showed, so the shrink has to happen on both sides or the
+  // agency's client is looking at a picture of a page that never existed.
+  var FIT_STEP_RATIO = 0.94
+  var FIT_MIN_SCALE = 0.7
+  var FIT_TOLERANCE_PX = 1
+
+  function clipped(el) {
+    if (el.scrollWidth > el.clientWidth + FIT_TOLERANCE_PX) return true
+    if (el.scrollHeight > el.clientHeight + FIT_TOLERANCE_PX) return true
+    var bottom = el.getBoundingClientRect().bottom
+    for (var node = el.parentNode; node && node !== document.body; node = node.parentNode) {
+      if (node.nodeType !== 1) break
+      var overflowY = getComputedStyle(node).overflowY
+      if (overflowY !== 'hidden' && overflowY !== 'clip') continue
+      if (bottom > node.getBoundingClientRect().bottom + FIT_TOLERANCE_PX) return true
+    }
+    return false
+  }
+
+  // Wrapping to another line is the page doing its job; only text the CSS cuts off is worth
+  // shrinking type for. Fail-safe like everything else here: a throw must never reach the host page.
+  function fitToBox(el) {
+    try {
+      // keepApplied re-swaps on every mutation frame. Measuring against a size this function itself
+      // set last frame would shrink the element a little further forever, so the designer's own
+      // inline size is remembered once and restored before every measurement.
+      if (typeof el.__hunchFontSize !== 'string') el.__hunchFontSize = el.style.fontSize
+      el.style.fontSize = el.__hunchFontSize
+
+      if (!clipped(el)) return
+      var base = parseFloat(getComputedStyle(el).fontSize)
+      if (!base) return
+
+      for (var scale = FIT_STEP_RATIO; scale >= FIT_MIN_SCALE; scale *= FIT_STEP_RATIO) {
+        el.style.fontSize = base * scale + 'px'
+        if (!clipped(el)) return
+      }
+      el.style.fontSize = el.__hunchFontSize
+    } catch (e) {
+      log('could not fit the variant copy to its box')
     }
   }
 
@@ -274,7 +375,7 @@
       var found = locate(exp)
       if (!found) return
 
-      swapText(found, exp.variantCopy)
+      swapText(found, exp.variantCopy, exp.variantEmphasis)
       current = found
       log('re-applied the variant for ' + exp.experimentId + ' after the page reverted it')
     }
@@ -347,7 +448,7 @@
 
     var arm = armFor(exp)
     if (arm === 'variant') {
-      swapText(el, exp.variantCopy)
+      swapText(el, exp.variantCopy, exp.variantEmphasis)
       keepApplied(exp, el)
     }
     log('experiment ' + exp.experimentId + ' -> ' + arm)

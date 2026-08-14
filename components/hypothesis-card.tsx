@@ -49,18 +49,8 @@ export function HypothesisCard({
           )}
         </span>
       }
-      scores={
-        <>
-          <ScoreIndicator score={hypothesis.impactScore} kind="impact" variant="compact" />
-          <ScoreIndicator score={hypothesis.effortScore} kind="effort" variant="compact" />
-        </>
-      }
-      openScores={
-        <>
-          <ScoreIndicator score={hypothesis.impactScore} kind="impact" />
-          <ScoreIndicator score={hypothesis.effortScore} kind="effort" />
-        </>
-      }
+      scores={<ScoreIndicator score={hypothesis.impactScore} kind="impact" variant="compact" />}
+      openScores={<ScoreIndicator score={hypothesis.impactScore} kind="impact" />}
     >
       {children}
     </DisclosureCard>

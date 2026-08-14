@@ -9,7 +9,7 @@ performance detail, not the security boundary — see [security.md](security.md)
 | `POST /api/analyses` | session | the core pipeline |
 | `GET /api/analyses` | session | history, free capped at 3 |
 | `GET /api/analyses/[id]` | session + ownership | |
-| `POST /api/analyses/[id]/measure` | session + ownership | backfills the readout |
+| `POST /api/analyses/[id]/measure` | session + ownership | measures the page again, appending a snapshot |
 | `PATCH /api/hypotheses/[id]` | session + ownership | `status` only |
 | `GET\|POST /api/hypotheses/[id]/variants` | session + ownership | the two alternates |
 | `GET /api/usage` | session | |
@@ -77,13 +77,16 @@ One analysis with all hypotheses. `404` if not found **or not owned**.
 
 ### `POST /api/analyses/[id]/measure`
 
-Fills `structure` / `seo` / `performance` on an analysis generated **before those columns existed**,
-so its report stops rendering no readout at all. Runs `measurePage` (`lib/analyze.ts`) — a scrape and
-nothing else. No model call, no new rows, no re-ranking; `locale` and `market` stay pinned to what the
-hypotheses were written for. Response: `{ measured: true }`.
+Fills `structure` / `seo` / `performance` / `crawler_access` on an analysis generated **before those
+columns existed**, so its report stops rendering no readout at all. Runs `measurePage`
+(`lib/analyze.ts`) — a scrape plus the robots.txt fetch, and nothing else. No model call, no new rows,
+no re-ranking; `locale` and `market` stay pinned to what the hypotheses were written for. Response:
+`{ measured: true }`.
 
-**Idempotent**: an analysis that already carries `structure` is returned untouched, so a double click
-or a reload never buys a second browser.
+**It is a re-measure, not a backfill, and is deliberately not idempotent.** It rewrites the columns and
+appends a `page_snapshots` row in one transaction, which is what a trend is made of. The `measure` rate
+limit (10/hour) is what holds the browser cost — an idempotency guard would have blocked the second
+measurement, which is the only one worth having.
 
 Errors mirror `POST /api/analyses` because the failures are the same: `422 invalid_url` (a stored URL
 that now resolves privately), `502 scrape_failed`, `500 measure_failed`, plus `404` for an unknown or

@@ -9,7 +9,15 @@ import { Button } from '@/components/ui/button'
 import { MEASURE_ESTIMATE_SECONDS, MEASURE_REQUEST_TIMEOUT_MS } from '@/lib/constants'
 import { t } from '@/lib/i18n/format'
 
-export function MeasurePage({ analysisId }: { analysisId: string }) {
+// `backfill` is the whole section, for an analysis that has no readout at all. `again` is the bare
+// button under one that does, so a re-measure can add a point to the trend.
+export function MeasurePage({
+  analysisId,
+  variant = 'backfill'
+}: {
+  analysisId: string
+  variant?: 'backfill' | 'again'
+}) {
   const router = useRouter()
   const { dictionary } = useI18n()
   const copy = dictionary.readout
@@ -36,6 +44,25 @@ export function MeasurePage({ analysisId }: { analysisId: string }) {
     } finally {
       clearTimeout(timer)
     }
+  }
+
+  if (variant === 'again') {
+    return (
+      <div className="flex flex-wrap items-center gap-3 print:hidden" data-testid="measure-again">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={measure}
+          disabled={state === 'loading'}
+          aria-busy={state === 'loading'}
+        >
+          {state === 'loading' ? copy.measure.loading : copy.measure.again}
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          {state === 'error' ? copy.measure.failed : copy.measure.againHint}
+        </p>
+      </div>
+    )
   }
 
   return (

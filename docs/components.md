@@ -40,9 +40,11 @@ just went to. It watches `usePathname()` and closes itself.
 
 ### Site footer — `components/site-footer.tsx`
 
-Wordmark, copyright line and a link to `CONTACT_PATH`, on the same container as everything else.
-Mounted in `app/(app)/layout.tsx`, so it reaches every app page including the print report, where
-`print:hidden` keeps it off paper.
+Wordmark, copyright line and three links on the right: LinkedIn (`LINKEDIN_URL`), WhatsApp
+(`WHATSAPP_URL`) and `CONTACT_PATH`. The first two are the founder's own channels, rendered as a
+lucide icon alone with the label carried by `aria-label` and `title`, and both open in a new tab with
+`rel="noreferrer noopener"`. Same container as everything else. Mounted in `app/(app)/layout.tsx`, so it reaches every
+app page including the print report, where `print:hidden` keeps it off paper.
 
 **It is deliberately not mounted in `app/(report)/layout.tsx`.** Our name in a global footer would be a
 fifth white-label surface on a document an agency hands to their client — see
@@ -154,7 +156,7 @@ to a 16px icon, so a fixed width runs off-screen wherever that icon sits near an
 ## Install snippet card — `components/embed-snippet.tsx`
 
 Copy-to-clipboard card showing the one script tag. `APP_URL` comes from `NEXT_PUBLIC_APP_URL`, falling
-back to `window.location.origin`. One tag per landing page, installed once from the Tests tab — see
+back to `window.location.origin`. One tag per landing page, installed once from the live-test tab — see
 [experiments.md](experiments.md).
 
 **Installing is two steps and the card says so**: paste the tag, then mark the element whose click

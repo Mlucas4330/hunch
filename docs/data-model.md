@@ -36,11 +36,22 @@ analyses
 - structure       (jsonb, nullable: PageStructure, the readout of what the page DOES)
 - seo             (jsonb, nullable: PageSeo, how the page describes itself to machines)
 - performance     (jsonb, nullable: PagePerformance, what the page cost to load)
+- crawler_access  (jsonb, nullable: CrawlerAccess, what the site's robots.txt allows an AI crawler)
+- keywords        (jsonb, nullable: PageKeywords, the terms the page repeats and where they appear)
 - competitor_structures (jsonb, nullable: CompetitorStructure[], only in paid Competitor mode)
 - embed_key       (uuid, unique: public opaque key the snippet uses; never expose analyses.id)
 - locale          (enum: LOCALE, default: en)
 - market          (enum: MARKET, default: us)
 - created_at      (timestamp)
+
+page_snapshots                  <- the history behind the analyses columns above
+- id             (uuid, PK)
+- analysis_id    (FK -> analyses.id, cascade)
+- structure / seo / performance / crawler_access / keywords (jsonb: the same five measured facts)
+- score          (int, nullable: readoutScore overall, FROZEN at capture so a threshold change
+                  never rewrites what a reader was already shown)
+- captured_at    (timestamp)
+- index(analysis_id, captured_at)
 
 hypotheses
 - id             (uuid, PK)
@@ -75,9 +86,12 @@ variants
 - hypothesis_id  (FK -> hypotheses.id)
 - copy           (text)
 - evidence       (text, nullable: competitor pattern this variant borrows/beats)
+- emphasis       (text, nullable: substring of THIS row's copy belonging in the element's existing
+                  styled fragment; never a substring of current_copy -- see ai-pipeline.md)
 - position       (int: 0 = the recommended challenger; 1 and 2 are the on-demand alternates)
 - status         (enum: VARIANT_STATUS, default: proposed)
 - screenshot_url (text, nullable: same-origin path -- /screenshots/<file>)
+- screenshot_overflow (bool: the copy was still clipped at the smallest size the fit will use)
 - created_at     (timestamp)
 
 waitlist                        <- leads, from the report's paywall or the landing's contact form
@@ -104,6 +118,9 @@ experiments
 - selector      (text, nullable: snapshot from hypothesis at launch)
 - control_copy  (text: snapshot of original copy)
 - variant_copy  (text: snapshot of challenger copy)
+- variant_emphasis (text, nullable: snapshot of variants.emphasis, pinned to variant_copy above --
+                 an operator editing the copy at launch can leave it matching nothing, which the
+                 swap treats as absent)
 - split_percent (int, default 50: % of visitors bucketed into the variant arm)
 - duration_days (int, default 14: one of EXPERIMENT_DURATIONS 7/14/30)
 - started_at    (timestamp)
@@ -143,6 +160,7 @@ users       1 -> N  analyses
 analyses    1 -> N  hypotheses
 analyses    1 -> N  flow_fixes
 analyses    1 -> N  experiments
+analyses    1 -> N  page_snapshots
 hypotheses  1 -> N  variants
 experiments 1 -> N  experiment_stats
 users       1 -> 1  subscriptions
@@ -150,15 +168,20 @@ users       1 -> 1  subscriptions
 
 ## Columns that need their reason stated
 
-### The four readout columns on `analyses` are nullable by contract
+### The readout columns on `analyses` are nullable by contract
 
-`structure`, `seo`, `performance` and `competitor_structures` were captured for generation and thrown
-away from the moment the scrape existed. They are persisted so the report can state **measured** facts
-with no model in the loop — see [readout.md](readout.md).
+`structure`, `seo`, `performance`, `crawler_access`, `keywords` and `competitor_structures` were captured for
+generation and thrown away from the moment the scrape existed. They are persisted so the report can
+state **measured** facts with no model in the loop — see [readout.md](readout.md).
 
 An analysis created before these columns holds null and renders no readout section, exactly as an
-empty playbook renders no playbook. **There is no backfill and nothing is regenerated.**
-`POST /api/analyses/[id]/measure` is the opt-in version, one analysis at a time.
+empty playbook renders no playbook. **Nothing is regenerated**, and no sweep touches a free plan.
+`POST /api/analyses/[id]/measure` re-measures one analysis at a time on the owner's click, and
+`GET /api/cron/remeasure` sweeps paid plans in bounded batches — see [readout.md](readout.md).
+
+The columns are the current measurement and `page_snapshots` is the history. They are written
+together, in one transaction, every time — a trend that disagrees with the readout above it is worse
+than no trend.
 
 `competitor_structures` is null outside paid Competitor mode, per
 [invariants.md](invariants.md#a-comparison-exists-only-where-the-competitor-page-was-actually-opened).

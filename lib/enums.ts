@@ -125,12 +125,25 @@ export const READOUT_FINDING = [
   'nav_links',
   'no_faq',
   'no_testimonials',
+  'word_count',
+  'heading_count',
   'noindex',
   'no_meta_description',
   'h1_count',
   'images_missing_alt',
   'no_structured_data',
   'no_og_image',
+  'no_canonical',
+  'no_lang',
+  'internal_links',
+  'term_in_title',
+  'term_in_h1',
+  'term_in_meta_description',
+  'ai_crawlers_blocked',
+  'robots_blocks_all',
+  'no_sitemap',
+  'ttfb',
+  'fcp',
   'lcp',
   'page_weight',
   'request_count'
@@ -141,7 +154,9 @@ export type ReadoutFinding = (typeof READOUT_FINDING)[number]
 export const READOUT_SEVERITY = ['ok', 'warn', 'alert'] as const
 export type ReadoutSeverity = (typeof READOUT_SEVERITY)[number]
 
-export const READOUT_GROUP = ['structure', 'metadata', 'load'] as const
+// Also the render order. `visibility` is skipped whole when robots.txt could not be read, because
+// "we could not check" is not "they block AI crawlers". See docs/invariants.md.
+export const READOUT_GROUP = ['structure', 'metadata', 'visibility', 'load'] as const
 export type ReadoutGroup = (typeof READOUT_GROUP)[number]
 
 export const READOUT_UNIT = ['count', 'seconds', 'megabytes', 'presence'] as const
@@ -153,6 +168,15 @@ export const READOUT_COMPARISON = [
   'form_fields',
   'social_signin',
   'above_fold_ctas',
-  'nav_links'
+  'nav_links',
+  'word_count',
+  'pricing',
+  'testimonials',
+  'faq',
+  'sticky_cta',
+  'meta_description',
+  'structured_data',
+  'lcp',
+  'page_weight'
 ] as const
 export type ReadoutComparison = (typeof READOUT_COMPARISON)[number]

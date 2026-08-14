@@ -49,6 +49,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       currentCopy: hypothesis.currentCopy,
       rationale: hypothesis.rationale,
       recommendedCopy: recommended.copy,
+      emphasized: recommended.emphasis !== null,
       researchBrief: hypothesis.analysis.researchBrief,
       founderBrief: hypothesis.analysis.brief,
       locale: hypothesis.analysis.locale,
@@ -63,6 +64,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       hypothesisId: hypothesis.id,
       copy: variant.copy,
       evidence: variant.evidence,
+      emphasis: variant.emphasis,
       position: hypothesis.variants.length + i
     }))
   )

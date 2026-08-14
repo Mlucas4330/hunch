@@ -75,6 +75,15 @@ const AnalysisOutputSchema = z.object({
 })
 
 const AlternateVariantsSchema = z.object({ variants: z.array(VariantSchema).length(2) })
+```
+
+**A hypothesis `effort_score` is generated, stored, and never shown.** It stays in the schema only
+because the column is `notNull`; the UI dropped it because every copy hypothesis is a single-element
+swap the snippet applies, so there is no cost to vary and the copy prompt never defined the field. A
+flow fix keeps its `effort_score` on screen, where the prompt does define it and the cost is real. See
+[analysis-ui.md](analysis-ui.md#why-a-copy-hypothesis-shows-impact-but-no-effort).
+
+```typescript
 
 const FlowFixSchema = z.object({
     category: z.enum(FLOW_CATEGORY),
@@ -140,7 +149,38 @@ compose, so those can never drift between the things one analysis produces.
 
 `variantWordBudget(words)` in `lib/text.ts` is
 `max(words + VARIANT_WORD_BUDGET_FLOOR, ceil(words * VARIANT_WORD_BUDGET_RATIO))`, and every line of
-the "Page elements" list carries its own ceiling: `<tag> "text" (max N words)`.
+the "Page elements" list carries its own ceiling: `<tag> "text" (max N words, max M characters)`.
+
+### The model chooses the emphasis for the line it wrote, never the line it replaced
+
+`captureElements` flattens `textContent`, so `<h1>Ship <strong>faster</strong> today</h1>` reaches the
+prompt as `Ship faster today`, and `copy` comes back as plain text — the swap writes into text nodes and
+never sets `innerHTML`, for the fail-safe reason in
+[scraping.md](scraping.md#applying-a-variant-to-the-live-dom--applyvariantcopy), so no markup a model
+emitted could survive anyway. The prompts forbid markdown and tags outright rather than leave it to
+chance.
+
+Which words land in the `<strong>` used to be decided by the proportional split alone, which sooner or
+later bolds *the*. So a variant carries `emphasis`: a substring **of its own `copy`**, and the split
+places exactly those words in the styled fragment.
+
+**The direction matters and is the whole design.** Asking the model to keep the *original* emphasized
+word would constrain the rewrite — and rewriting is the product. Instead it writes freely and then
+picks what deserves emphasis in the result, which is a copywriting decision rather than a preservation
+constraint. Elements carrying a styled fragment are marked `styled fragment` in the "Page elements"
+list so the field is only spent where it can be honoured; everywhere else it is `null`.
+
+`generateAlternateVariants` never sees that list, so the route infers it from the recommendation having
+chosen an emphasis at all. `emphasis` is stored on `variants`, snapshotted onto
+`experiments.variant_emphasis` at launch, and served to the snippet — an operator who edits the copy in
+the test runner can leave it matching nothing, which the swap treats exactly like absent.
+
+**The character ceiling is measured, the word ceiling is derived.** `M` is `PageElement.capacity`,
+counted off the live page by `captureElements` — see
+[scraping.md](scraping.md#how-much-copy-an-element-can-hold) — because words are a poor proxy for
+what a box holds: six long words overflow a button that fits nine short ones, and the failure the
+reader sees is CSS, not prose. `generateAlternateVariants` never sees the element list, so it falls
+back to `variantCharBudget(currentCopy)`, the same ratio applied to characters.
 
 The prompt used to only say "match the element's length", with one qualitative rule that constrained
 labels and CTAs and said nothing about a headline — which is how a six word hero title came back as a
@@ -179,8 +219,14 @@ Load-bearing prompt rules:
 ## 6. Visibility audit — `generateVisibility`
 
 A third `generateObject` in the same `Promise.all`, also resolving to `[]` on any failure. Fed
-`PageSeo`, two `PageStructure` fields, and the `fetchCrawlerAccess` result from
-[scraping.md](scraping.md).
+`PageSeo`, two `PageStructure` fields, the `fetchCrawlerAccess` result from
+[scraping.md](scraping.md), and the measured `PageKeywords` terms.
+
+The keyword block exists so a fix can name **where** to put a term the page already uses. Its prompt
+line states the prohibition inline — these are the page's own words, never search volume and never a
+ranking opportunity — because the model is being handed a list that looks exactly like the output of a
+keyword tool. See
+[invariants.md](invariants.md#keywords-measure-the-pages-own-words-never-the-index).
 
 `visibilityPrompt` carries the playbook's evidence discipline plus the rule the whole feature's
 credibility rests on — see

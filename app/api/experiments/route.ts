@@ -45,7 +45,8 @@ export async function POST(request: Request) {
       currentCopy: hypotheses.currentCopy,
       selector: hypotheses.selector,
       applyMode: hypotheses.target,
-      variantCopy: variants.copy
+      variantCopy: variants.copy,
+      variantEmphasis: variants.emphasis
     })
     .from(hypotheses)
     .innerJoin(analyses, eq(hypotheses.analysisId, analyses.id))
@@ -100,6 +101,7 @@ export async function POST(request: Request) {
         selector: target.selector,
         controlCopy: target.currentCopy,
         variantCopy: parsed.data.variantCopy ?? target.variantCopy,
+        variantEmphasis: target.variantEmphasis,
         splitPercent: parsed.data.splitPercent ?? 50,
         durationDays: parsed.data.durationDays,
         endsAt: new Date(Date.now() + parsed.data.durationDays * DAY_MS)

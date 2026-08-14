@@ -54,7 +54,7 @@ async function openCopyTab(page: Page) {
 }
 
 async function startFirstTest(page: Page) {
-  await page.getByRole('tab', { name: 'Tests' }).click()
+  await page.getByRole('tab', { name: 'Live A/B test' }).click()
   await page.getByRole('link', { name: 'Set up test' }).first().click()
   await page.waitForURL(/\/analyses\/[0-9a-f-]+\/tests\/[0-9a-f-]+$/)
 }
@@ -212,8 +212,15 @@ test.describe('core features', () => {
 
     await expect(page.getByTestId('benchmarked-against')).toContainText('Linear')
 
-    await expect(page.getByRole('button', { name: 'Copy report link' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Print report' })).toHaveAttribute(
+    const deliverables = page.getByTestId('deliverables')
+    await expect(deliverables.getByText('Interactive report')).toBeVisible()
+    await expect(deliverables.getByText('PDF report')).toBeVisible()
+    await expect(deliverables.getByRole('button', { name: 'Copy link' })).toBeVisible()
+    await expect(deliverables.getByRole('link', { name: 'Open' }).first()).toHaveAttribute(
+      'href',
+      /\/r\/[0-9a-f-]+$/
+    )
+    await expect(deliverables.getByRole('link', { name: 'Open' }).last()).toHaveAttribute(
       'href',
       /\/analyses\/[0-9a-f-]+\/report$/
     )
@@ -222,7 +229,7 @@ test.describe('core features', () => {
     await expect(page.getByText('Ship faster: releases in').first()).toBeVisible()
     await expect(page.getByRole('link', { name: 'Set up test' })).toHaveCount(0)
 
-    await page.getByRole('tab', { name: 'Tests' }).click()
+    await page.getByRole('tab', { name: 'Live A/B test' }).click()
     const tests = page.getByTestId('test-list')
     await expect(tests.getByText('Install the tracking snippet')).toBeVisible()
     await expect(tests.getByTestId('test-row').first()).toBeVisible()
@@ -232,9 +239,7 @@ test.describe('core features', () => {
     await expect(page.getByTestId('analysis-history').getByText(url)).toBeVisible()
   })
 
-  test('ranks the top ideas open, collapses the backlog, and re-sorts on demand', async ({
-    page
-  }) => {
+  test('ranks the top ideas open and collapses the backlog', async ({ page }) => {
     const url = `https://example.com/?t=${Date.now()}-ranking`
 
     await page.goto('/dashboard')
@@ -259,9 +264,8 @@ test.describe('core features', () => {
       'A specific, quantified outcome in the headline raises perceived value'
     )
 
-    await page.getByRole('button', { name: 'Effort', exact: true }).click()
-    await expect(rows.first()).toContainText('The primary CTA is generic')
-    await expect(page.getByText('Test this first')).toHaveCount(0)
+    await expect(page.getByTestId('hypothesis-filters')).toHaveCount(0)
+    await expect(page.getByText('Effort', { exact: true })).toHaveCount(0)
   })
 
   test('shows the flow playbook with implementation steps, and on the public report', async ({
@@ -315,7 +319,7 @@ test.describe('core features', () => {
     await anon.getByRole('tab', { name: 'Found by AI' }).click()
     await expect(anon.getByTestId('ai-playbook').getByTestId('ai-fix')).toHaveCount(1)
 
-    await expect(anon.getByRole('tab', { name: 'Tests' })).toHaveCount(0)
+    await expect(anon.getByRole('tab', { name: 'Live A/B test' })).toHaveCount(0)
     await expect(anon.getByTestId('test-list')).toHaveCount(0)
 
     await anon.getByRole('tab', { name: 'Copy' }).click()

@@ -205,6 +205,7 @@ export default async function PublicReportPage({
                         embedKey={analysis.embedKey}
                         hypothesisId={hypothesis.id}
                         initialUrl={recommended?.screenshotUrl ?? null}
+                        initialOverflow={recommended?.screenshotOverflow ?? false}
                       />
                     ) : (
                       <div className="rounded-md border border-dashed bg-muted/40 p-3">

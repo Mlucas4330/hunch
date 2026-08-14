@@ -134,7 +134,9 @@ export const en = {
 
   footer: {
     copyright: 'Copyright {year} Hunch. All rights reserved.',
-    contact: 'Talk to us'
+    contact: 'Talk to us',
+    linkedin: 'LinkedIn',
+    whatsapp: 'WhatsApp'
   },
 
   infoHint: {
@@ -358,19 +360,29 @@ export const en = {
     eyebrow: 'What to test',
     title: 'Your test ideas',
     hintLabel: 'How to use this screen',
-    hint: 'Each tab is one kind of fix, ranked by likely impact. *Flow* and *SEO* are changes you ship by hand; *Copy* is the wording, and every idea there comes with the replacement already written. When you have access to the site and want to prove a change rather than argue it, the *Tests* tab is where you install the snippet and run one live test at a time.',
-    report: 'Print report',
+    hint: 'Each tab is one kind of fix, ranked by likely impact. *Flow* and *SEO* are changes you ship by hand; *Copy* is the wording, and every idea there comes with the replacement already written. When you have access to the site and want to prove a change rather than argue it, the *Live A/B test* tab is where you install the snippet and run one test at a time.',
     backToDashboard: 'Back to clients',
     benchmarkedAgainst: 'Benchmarked against:',
     marketNote: '(market: {market})',
-    copyReportLink: 'Copy report link',
     copyFailed: 'Could not copy',
+    deliverables: {
+      eyebrow: 'Deliverables',
+      hintLabel: 'Which one to send',
+      hint: 'This analysis gives you two documents to hand over, and they are the same findings in two shapes. The *interactive report* is a link: your client opens it in a browser, moves between the tabs and can see each copy change rendered on their own page. The *PDF report* is the same analysis flattened onto one page, for the client who wants something to print, forward or attach. On a paid plan neither one carries our name.',
+      interactiveTitle: 'Interactive report',
+      interactiveBody: 'A web page your client opens. Each copy change can be previewed on their real page.',
+      pdfTitle: 'PDF report',
+      pdfShort: 'PDF',
+      pdfBody: 'The same findings on one page, to print or attach to an email.',
+      open: 'Open',
+      copyLink: 'Copy link'
+    },
     tabs: {
       flow: 'Flow',
       copy: 'Copy',
       seo: 'SEO',
       ai: 'Found by AI',
-      tests: 'Tests'
+      tests: 'Live A/B test'
     }
   },
 
@@ -420,9 +432,15 @@ export const en = {
     hintLabel: 'Where these numbers come from',
     hint: 'Everything here was *counted on your page* when we loaded it - nothing is estimated, averaged, or taken from a benchmark. Load times are measured from a data center on a clean connection, so treat them as *the best case*: a visitor on mobile sees slower than this, never faster.',
     groups: {
-      structure: 'What the page asks of a visitor',
+      structure: 'What a visitor runs into on the page',
       metadata: 'What the page tells a machine',
+      visibility: 'What an AI crawler is allowed to read',
       load: 'What the page costs to open'
+    },
+    score: {
+      label: 'Health of what we counted',
+      scale: '100 means every check on this page passed. 0 means none of them did.',
+      method: 'Averaged over the {count} checks below, each one counted on this page itself: a check that passes is worth a full point, a borderline one half, a failing one none. It rates only what was counted here, and says nothing about how much traffic or revenue the page makes.'
     },
     findings: {
       form_fields: 'Signup form fields',
@@ -431,12 +449,25 @@ export const en = {
       nav_links: 'Navigation links out of the page',
       no_faq: 'Questions answered on the page',
       no_testimonials: 'Customer proof on the page',
+      word_count: 'Words on the page',
+      heading_count: 'Headings on the page',
       noindex: 'Blocked from search engines',
       no_meta_description: 'Meta description',
       h1_count: 'H1 headings',
       images_missing_alt: 'Images with no alt text',
       no_structured_data: 'Structured data',
       no_og_image: 'Social share image',
+      no_canonical: 'Canonical URL',
+      no_lang: 'Declared page language',
+      internal_links: 'Links to other pages on the site',
+      term_in_title: 'Main term in the title tag',
+      term_in_h1: 'Main term in the H1',
+      term_in_meta_description: 'Main term in the meta description',
+      ai_crawlers_blocked: 'AI crawlers your robots.txt blocks',
+      robots_blocks_all: 'Crawling allowed at all',
+      no_sitemap: 'Sitemap declared in robots.txt',
+      ttfb: 'Time to first byte',
+      fcp: 'First content painted',
       lcp: 'Largest content painted',
       page_weight: 'Downloaded to open the page',
       request_count: 'Network requests'
@@ -445,10 +476,32 @@ export const en = {
       yes: 'Yes',
       no: 'No'
     },
+    delta: {
+      up: '+{value}',
+      down: '-{value}',
+      gained: 'added',
+      lost: 'removed'
+    },
+    trend: {
+      title: 'Health over time',
+      hint: 'One point per measurement of this page. It shows what moved, not what moved it.'
+    },
     atLeast: 'at least',
     units: {
       seconds: '{value}s',
       megabytes: '{value} MB'
+    },
+    keywords: {
+      title: 'The terms this page repeats most',
+      term: 'Term',
+      count: 'Times said',
+      surfaces: {
+        inTitle: 'Title',
+        inH1: 'H1',
+        inMetaDescription: 'Meta description',
+        inHeadings: 'Headings'
+      },
+      hint: 'Counted in the page copy itself. These are the words this page is built around, not what anyone searches for.'
     },
     comparison: {
       title: 'Your page next to the competitors you gave us',
@@ -458,7 +511,16 @@ export const en = {
         form_fields: 'Signup form fields',
         social_signin: 'Social sign in',
         above_fold_ctas: 'CTAs above the fold',
-        nav_links: 'Navigation links'
+        nav_links: 'Navigation links',
+        word_count: 'Words on the page',
+        pricing: 'Pricing on page',
+        testimonials: 'Testimonials',
+        faq: 'FAQ',
+        sticky_cta: 'Sticky CTA',
+        meta_description: 'Meta description',
+        structured_data: 'Structured data',
+        lcp: 'Largest content painted',
+        page_weight: 'Downloaded to open'
       }
     },
     measure: {
@@ -468,7 +530,9 @@ export const en = {
       loading: 'Measuring the page...',
       hint: 'Takes about {seconds} seconds. We open the page the same way a visitor does.',
       failed: 'We could not load the page this time. Nothing was changed in this analysis.',
-      retry: 'Try again'
+      retry: 'Try again',
+      again: 'Measure again',
+      againHint: 'Open the page again and add a point to the trend. The fixes and tests are untouched.'
     }
   },
 
@@ -476,23 +540,10 @@ export const en = {
     manualSetup: 'Manual setup',
     testThisFirst: 'Test this first',
     recommendedChallenger: 'Recommended challenger',
+    competitorEvidence: 'From a competitor',
     placeholderWarning: "Has [placeholders] - you'll replace them with your real details when you set up the test.",
     viewTest: 'View test',
     setUpTest: 'Set up test',
-    sortLabel: 'Sort',
-    sort: {
-      impact: 'Impact',
-      effort: 'Effort',
-      quickWins: 'Quick wins'
-    },
-    filterLabel: 'Show',
-    filter: {
-      all: 'All',
-      auto: 'Automatic',
-      manual: 'Manual'
-    },
-    noMatches: 'No ideas match these filters.',
-    resetFilters: 'Clear filters',
     backlog: {
       one: '{count} more idea',
       other: '{count} more ideas'
@@ -519,7 +570,7 @@ export const en = {
   },
 
   runTest: {
-    eyebrow: 'Run a test',
+    eyebrow: 'Live A/B test',
     hintLabel: 'How running a test works',
     hint: 'Your current copy is the *control*. Pick a *challenger*, edit it to fit your product (replace any [bracketed] placeholders with real details), and choose how long to run. On *Launch*, the snippet shows the challenger to half your visitors and tracks conversions. When the window ends we read the result once and recommend a winner.',
     backToIdeas: 'Back to ideas',
@@ -573,7 +624,7 @@ export const en = {
     landingPageAnalyzed: 'Landing page analyzed',
     heading: '{count} tests to lift your conversion, ranked by impact.',
     testsFound: 'Tests found',
-    quickWins: 'Quick wins',
+    readyToTest: 'Ready to test live',
     topImpact: 'Top impact',
     generated: 'Generated',
     benchmarkedAgainst: 'Benchmarked against',
@@ -594,6 +645,8 @@ export const en = {
     previewUnavailable:
       'We could not render your page just now. The recommended copy above still stands.',
     previewRetry: 'Try again',
+    previewOverflow:
+      'This copy does not fit the space your page gives that element, so the preview shows it cut off. Shorten it, or give the element more room before you ship it.',
     footerQuestion: 'Want these measured live on your page?',
     generatedBy: 'Generated by Hunch'
   },

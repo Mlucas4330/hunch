@@ -6,18 +6,26 @@ import { useState } from 'react'
 import { Check, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { ReportDeliverables } from '@/components/report-deliverables'
 import { useI18n } from '@/components/i18n-provider'
 import { t } from '@/lib/i18n/format'
 
 type HistoryItem = {
   id: string
   url: string
+  embedKey: string
   client: string
   market: string
   date: string
 }
 
-export function AnalysisHistory({ analyses }: { analyses: HistoryItem[] }) {
+export function AnalysisHistory({
+  analyses,
+  appUrl
+}: {
+  analyses: HistoryItem[]
+  appUrl: string
+}) {
   const { dictionary } = useI18n()
   const router = useRouter()
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
@@ -96,10 +104,18 @@ export function AnalysisHistory({ analyses }: { analyses: HistoryItem[] }) {
 
               <p className="break-all font-mono text-xs text-muted-foreground">{analysis.url}</p>
 
-              <div className="panel-label mt-auto flex items-center gap-2 text-[0.65rem] text-muted-foreground">
-                <span>{analysis.date}</span>
-                <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-border" />
-                <span className="truncate">{analysis.market}</span>
+              <div className="mt-auto space-y-2">
+                <div className="panel-label flex items-center gap-2 text-[0.65rem] text-muted-foreground">
+                  <span>{analysis.date}</span>
+                  <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-border" />
+                  <span className="truncate">{analysis.market}</span>
+                </div>
+                <ReportDeliverables
+                  variant="compact"
+                  reportUrl={appUrl}
+                  embedKey={analysis.embedKey}
+                  analysisId={analysis.id}
+                />
               </div>
             </CardContent>
           </Card>

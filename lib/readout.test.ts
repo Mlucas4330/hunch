@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { comparisonRows, hasReadout, measuredFindings, readout } from './readout'
 import { READOUT_THRESHOLDS } from './constants'
 import type { CompetitorStructure, PagePerformance, PageSeo, PageStructure } from './scrape'
+import type { CrawlerAccess } from './robots'
+import type { PageKeywords } from './keywords'
 
 const STRUCTURE: PageStructure = {
   hasOauth: false,
@@ -35,7 +37,8 @@ const SEO: PageSeo = {
   hasOgTitle: true,
   hasOgDescription: true,
   hasOgImage: true,
-  jsonLdTypes: ['Organization']
+  jsonLdTypes: ['Organization'],
+  headings: ['Acme']
 }
 
 const PERFORMANCE: PagePerformance = {
@@ -49,15 +52,33 @@ const PERFORMANCE: PagePerformance = {
   domNodeCount: 800
 }
 
+const CRAWLER: CrawlerAccess = {
+  status: 'found',
+  blockedAgents: [],
+  blocksAll: false,
+  sitemaps: ['https://acme.com/sitemap.xml']
+}
+
+const KEYWORDS: PageKeywords = {
+  totalWords: 640,
+  terms: [
+    { term: 'acme', count: 9, inTitle: true, inH1: true, inMetaDescription: true, inHeadings: true }
+  ]
+}
+
 function findingsFor(overrides: {
   structure?: Partial<PageStructure>
   seo?: Partial<PageSeo>
   performance?: Partial<PagePerformance>
+  crawler?: Partial<CrawlerAccess>
+  keywords?: PageKeywords | null
 }) {
   return measuredFindings({
     structure: { ...STRUCTURE, ...overrides.structure },
     seo: { ...SEO, ...overrides.seo },
     performance: { ...PERFORMANCE, ...overrides.performance },
+    crawler: { ...CRAWLER, ...overrides.crawler },
+    keywords: overrides.keywords === undefined ? KEYWORDS : overrides.keywords,
     competitors: null
   })
 }
@@ -127,11 +148,46 @@ test('no call to action above the fold is an alert, not a low count', () => {
 })
 
 test('a load metric the browser did not report is skipped, not reported as fast', () => {
-  const findings = findingsFor({ performance: { lcpMs: null, transferredBytes: null } })
+  const findings = findingsFor({
+    performance: { ttfbMs: null, fcpMs: null, lcpMs: null, transferredBytes: null }
+  })
 
+  assert.equal(find(findings, 'ttfb'), undefined)
+  assert.equal(find(findings, 'fcp'), undefined)
   assert.equal(find(findings, 'lcp'), undefined)
   assert.equal(find(findings, 'page_weight'), undefined)
   assert.ok(find(findings, 'request_count'), 'a metric that WAS reported still appears')
+})
+
+test('for the metrics where too little is the problem, the threshold is the bad side', () => {
+  const at = findingsFor({ structure: { wordCount: READOUT_THRESHOLDS.wordCountWarn } })
+  const above = findingsFor({ structure: { wordCount: READOUT_THRESHOLDS.wordCountWarn + 1 } })
+  const alert = findingsFor({ structure: { wordCount: READOUT_THRESHOLDS.wordCountAlert } })
+
+  assert.equal(find(at, 'word_count')?.severity, 'warn')
+  assert.equal(find(above, 'word_count')?.severity, 'ok')
+  assert.equal(find(alert, 'word_count')?.severity, 'alert')
+
+  const thin = findingsFor({
+    structure: { headingCount: READOUT_THRESHOLDS.headingCountWarn },
+    seo: { internalLinkCount: READOUT_THRESHOLDS.internalLinksWarn }
+  })
+
+  assert.equal(find(thin, 'heading_count')?.severity, 'warn')
+  assert.equal(find(thin, 'internal_links')?.severity, 'warn')
+  assert.equal(find(thin, 'heading_count')?.value, READOUT_THRESHOLDS.headingCountWarn)
+})
+
+test('a metadata field the page never declared reads as absent, not as empty', () => {
+  const missing = findingsFor({ seo: { canonical: null, lang: null } })
+  const present = findingsFor({})
+
+  for (const id of ['no_canonical', 'no_lang'] as const) {
+    assert.equal(find(missing, id)?.value, 0)
+    assert.equal(find(missing, id)?.severity, 'warn')
+    assert.equal(find(present, id)?.value, 1)
+    assert.equal(find(present, id)?.severity, 'ok')
+  }
 })
 
 test('noindex is emitted only when the page is actually noindexed', () => {
@@ -143,8 +199,77 @@ test('noindex is emitted only when the page is actually noindexed', () => {
   assert.equal(flagged?.value, 1)
 })
 
+test('a robots.txt we could not read is not reported as a block, or as an open door', () => {
+  const unknown = findingsFor({ crawler: { status: 'unknown' } })
+
+  for (const id of ['ai_crawlers_blocked', 'robots_blocks_all', 'no_sitemap'] as const) {
+    assert.equal(find(unknown, id), undefined, `${id} must not stand in for a failed fetch`)
+  }
+
+  assert.ok(find(unknown, 'no_meta_description'), 'the rest of the readout is untouched')
+})
+
+test('no robots.txt at all is a measured answer, not an unknown one', () => {
+  const absent = findingsFor({
+    crawler: { status: 'absent', blockedAgents: [], blocksAll: false, sitemaps: [] }
+  })
+
+  assert.equal(find(absent, 'ai_crawlers_blocked')?.value, 0)
+  assert.equal(find(absent, 'ai_crawlers_blocked')?.severity, 'ok')
+  assert.equal(find(absent, 'robots_blocks_all')?.severity, 'ok')
+  assert.equal(find(absent, 'no_sitemap')?.severity, 'warn', 'no file means no sitemap declared')
+})
+
+test('a blocked AI crawler is an alert and carries the count that was read', () => {
+  const blocked = findingsFor({ crawler: { blockedAgents: ['GPTBot', 'ClaudeBot'] } })
+
+  assert.equal(find(blocked, 'ai_crawlers_blocked')?.value, 2)
+  assert.equal(find(blocked, 'ai_crawlers_blocked')?.severity, 'alert')
+  assert.equal(find(blocked, 'ai_crawlers_blocked')?.group, 'visibility')
+
+  const all = findingsFor({ crawler: { blocksAll: true } })
+
+  assert.equal(find(all, 'robots_blocks_all')?.severity, 'alert')
+  assert.equal(find(all, 'robots_blocks_all')?.value, 0, 'the presence reads positively: not allowed')
+})
+
+test('a page with nothing to read is not accused of hiding a term it never had', () => {
+  const none = findingsFor({ keywords: { totalWords: 0, terms: [] } })
+
+  for (const id of ['term_in_title', 'term_in_h1', 'term_in_meta_description'] as const) {
+    assert.equal(find(none, id), undefined)
+  }
+
+  const missing = findingsFor({
+    keywords: {
+      totalWords: 400,
+      terms: [
+        {
+          term: 'acme',
+          count: 9,
+          inTitle: false,
+          inH1: true,
+          inMetaDescription: false,
+          inHeadings: true
+        }
+      ]
+    }
+  })
+
+  assert.equal(find(missing, 'term_in_title')?.severity, 'warn')
+  assert.equal(find(missing, 'term_in_h1')?.severity, 'ok')
+  assert.equal(find(missing, 'term_in_meta_description')?.value, 0)
+})
+
 test('a null readout produces nothing at all', () => {
-  const empty = readout({ structure: null, seo: null, performance: null, competitors: null })
+  const empty = readout({
+    structure: null,
+    seo: null,
+    performance: null,
+    crawler: null,
+    keywords: null,
+    competitors: null
+  })
 
   assert.deepEqual(empty.findings, [])
   assert.deepEqual(empty.comparison, [])
@@ -153,11 +278,22 @@ test('a null readout produces nothing at all', () => {
 
 test('the comparison table needs competitors that were actually measured', () => {
   const competitors: CompetitorStructure[] = [
-    { name: 'rival.com', url: 'https://rival.com', structure: { ...STRUCTURE, formFieldCount: 1 } }
+    {
+      name: 'rival.com',
+      url: 'https://rival.com',
+      structure: { ...STRUCTURE, formFieldCount: 1, hasFaq: true }
+    }
   ]
 
   assert.deepEqual(
-    comparisonRows({ structure: STRUCTURE, seo: SEO, performance: PERFORMANCE, competitors: [] }),
+    comparisonRows({
+      structure: STRUCTURE,
+      seo: SEO,
+      performance: PERFORMANCE,
+      crawler: CRAWLER,
+      keywords: KEYWORDS,
+      competitors: []
+    }),
     [],
     'no measured competitor means no table, never a table of one'
   )
@@ -166,10 +302,43 @@ test('the comparison table needs competitors that were actually measured', () =>
     structure: STRUCTURE,
     seo: SEO,
     performance: PERFORMANCE,
+    crawler: CRAWLER,
+    keywords: KEYWORDS,
     competitors
   })
   const formRow = rows.find((row) => row.metric === 'form_fields')
 
   assert.equal(formRow?.self, STRUCTURE.formFieldCount)
   assert.deepEqual(formRow?.competitors, [{ name: 'rival.com', value: 1 }])
+
+  assert.equal(
+    rows.find((row) => row.metric === 'lcp'),
+    undefined,
+    'a competitor scraped before performance was kept takes the whole row, never half of it'
+  )
+
+  const measured = comparisonRows({
+    structure: STRUCTURE,
+    seo: SEO,
+    performance: PERFORMANCE,
+    crawler: CRAWLER,
+    keywords: KEYWORDS,
+    competitors: [
+      { ...competitors[0], seo: SEO, performance: { ...PERFORMANCE, lcpMs: 2600 } }
+    ]
+  })
+  const lcpRow = measured.find((row) => row.metric === 'lcp')
+
+  assert.equal(lcpRow?.self, PERFORMANCE.lcpMs, 'values stay in the unit they were measured in')
+  assert.equal(lcpRow?.unit, 'seconds', 'and the row carries the unit the render edge converts with')
+  assert.deepEqual(lcpRow?.competitors, [{ name: 'rival.com', value: 2600 }])
+
+  const faqRow = rows.find((row) => row.metric === 'faq')
+
+  assert.equal(faqRow?.self, false, 'a boolean the page lacks reads as false, never as missing')
+  assert.deepEqual(
+    faqRow?.competitors,
+    [{ name: 'rival.com', value: true }],
+    'what the competitor has and the page does not is the row worth showing'
+  )
 })
