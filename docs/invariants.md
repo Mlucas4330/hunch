@@ -148,22 +148,32 @@ forbids the characters Portuguese requires.
 
 ## Product surfaces
 
-### White-label hangs off one boolean, on four independent surfaces
+### White-label hangs off one resolver, on four independent surfaces
 
-White-label is the capability the paid plan is bought for. Our name reaches a report from four places,
-and stripping three still ships an agency a document that advertises us:
+White-label is the capability the paid plan is bought for, and it has **two halves**: our name comes
+off, and the agency's goes on in its place. Both halves reach a report from the same four places, and
+doing three of them still ships a document that either advertises us or arrives anonymous:
 
-1. **The public report page** — `Wordmark`, `report.generatedBy`, `report.footerQuestion`, `WaitlistWall`
-2. **The metadata** — `openGraph.siteName` and the root layout's `%s | Hunch` title template
-3. **The OG card** — `OgWordmark`, the first thing the reader sees when the link arrives by email
+1. **The public report page** — `ReportBrandMark`, `report.generatedBy`, `report.footerQuestion`, `WaitlistWall`
+2. **The metadata** — `openGraph.siteName` and the root layout's `%s | Hunch` title template, which
+   becomes `%s | <agency>` rather than merely losing its suffix
+3. **The OG card** — `OgWordmark` / `OgBrandName`, the first thing the reader sees when the link
+   arrives by email
 4. **The print report** — owner-authenticated, so nothing about it looks like a public surface, yet
    the landing page sells "hand over the printed version" and a browser prints the tab title into the
    page header
 
-All four answer to `canWhiteLabel(plan)` (`lib/usage.ts`). Two are easy to miss, for opposite reasons:
-the unfurl is not part of the page, and the print report is not a link at all.
+All four answer to **one resolver**, `reportBrand()` / `brandFor()` (`lib/report.ts`) over
+`canWhiteLabel(plan)` (`lib/usage.ts`), which returns the whole decision as a `ReportBrand`:
+`{ whiteLabel, name, logoUrl, accent }`. It is a struct rather than four fields threaded separately
+**because that is what makes half a decision impossible to implement** — a consumer either has the
+brand or does not. Two of the four are easy to miss, for opposite reasons: the unfurl is not part of
+the page, and the print report is not a link at all.
 
-*Governs:* [report.md](report.md), [seo.md](seo.md)
+The subtractive half is the one that must never regress: a paid report that fails to render the
+agency's logo is a blank space, while a paid report that keeps `Wordmark` is a broken promise.
+
+*Governs:* [report.md](report.md), [seo.md](seo.md), [security.md](security.md)
 
 ### There is no self-serve checkout, and no published price
 
@@ -202,6 +212,29 @@ is never made from a peeked-at interim result.
 *Governs:* [experiments.md](experiments.md)
 
 ## Security
+
+### A user row may exist before its first sign-in, and only a provider-verified email may claim one
+
+There is no self-serve checkout, so the account has to be ready before the buyer ever opens the app.
+Two paths write a row nobody has signed in to: the operator granting a plan in `/admin/accounts`, and
+the Stripe webhook creating the payer when a payment link is paid by someone with no account. Both
+insert `{ email, name: email }` and set `plan` — that is the whole provisioning record, and it is why
+the sign-in upsert writes `name`, `avatarUrl`, `role` and `lastSignInAt` and **never** `plan`. First
+sign-in fills in the person; the entitlement was already there. `last_sign_in_at` staying null is what
+tells the operator the grant is still waiting.
+
+The other half is the price of keying rows on email with no `accounts` table: **whoever presents that
+email next owns everything in the row.** So an OAuth sign-in is refused unless the provider's own
+verified-email claim is exactly true — `email_verified` for Google, `xms_edov` for Entra ID, per
+`VERIFIED_EMAIL_CLAIM` — and a provider with no claim listed is refused outright. An absent claim is
+never read as a verified one, and a provider added to `authConfig` without naming its claim locks
+itself out rather than letting itself in.
+
+The two halves are one rule because they are the same row seen from both ends: pre-provisioning is
+only safe while the claim side holds, and weakening the claim hands over a paid account rather than an
+empty one.
+
+*Governs:* [security.md](security.md), [data-model.md](data-model.md), [api.md](api.md)
 
 ### `ADMIN_EMAIL` grants the role, `users.role` authorizes the request
 

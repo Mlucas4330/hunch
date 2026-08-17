@@ -5,6 +5,11 @@ export type SubscriptionPlan = (typeof SUBSCRIPTION_PLAN)[number]
 export const USER_ROLE = ['user', 'admin'] as const
 export type UserRole = (typeof USER_ROLE)[number]
 
+// The ids Auth.js gives the OAuth providers. Each one needs a verified-email claim before its
+// email may key a user row -- see VERIFIED_EMAIL_CLAIM and docs/security.md.
+export const OAUTH_PROVIDER = ['google', 'microsoft-entra-id'] as const
+export type OAuthProvider = (typeof OAUTH_PROVIDER)[number]
+
 export const LOCALE = ['en', 'pt-BR'] as const
 export type Locale = (typeof LOCALE)[number]
 
@@ -29,7 +34,9 @@ export type Section = (typeof SECTIONS)[number]
 export const FIX_KIND = ['flow', 'visibility'] as const
 export type FixKind = (typeof FIX_KIND)[number]
 
-export const ANALYSIS_TAB = ['flow', 'copy', 'seo', 'ai', 'tests'] as const
+// Only the four "what to change" tabs. Running a live test is its own screen, because it is the one
+// step that needs access to the client's site -- see docs/product.md.
+export const ANALYSIS_TAB = ['flow', 'copy', 'seo', 'ai'] as const
 export type AnalysisTab = (typeof ANALYSIS_TAB)[number]
 
 // Derived from FIX_KIND so a kind added there cannot be forgotten here.
@@ -102,6 +109,7 @@ export const RATE_LIMIT_KIND = [
   'variants',
   'experiment',
   'screenshot',
+  'brand',
   // Its own kind rather than `analysis`: the backfill spends no allowance. See docs/api.md.
   'measure',
   'waitlist',

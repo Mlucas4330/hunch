@@ -29,6 +29,14 @@ export const ptBR: Dictionary = {
         title: 'Diagnóstico de conversão',
         description: 'A versão para impressão desta análise de landing page.'
       },
+      analysisTests: {
+        title: 'Testes A/B ao vivo',
+        description: 'Instale o snippet e rode as ideias desta análise na página real.'
+      },
+      settings: {
+        title: 'Sua marca',
+        description: 'O logo e o nome que vão em todo relatório que você entrega.'
+      },
       test: {
         title: 'Rodar um teste',
         description: 'Aprove o desafiante, defina a meta de conversão e lance o teste ao vivo.'
@@ -36,6 +44,10 @@ export const ptBR: Dictionary = {
       leads: {
         title: 'Leads da lista de espera',
         description: 'Leads capturados pelos relatórios públicos.'
+      },
+      accounts: {
+        title: 'Contas',
+        description: 'Quem tem conta, em que plano está e quando entrou pela última vez.'
       },
       reports: {
         title: 'Aberturas de relatório',
@@ -120,6 +132,10 @@ export const ptBR: Dictionary = {
       free: 'Gratuito',
       pro: 'Pro'
     },
+    userRole: {
+      user: 'Usuário',
+      admin: 'Admin'
+    },
     leadSource: {
       report: 'Muro do relatório',
       contact: 'Pediu contato'
@@ -129,6 +145,8 @@ export const ptBR: Dictionary = {
   nav: {
     homeAria: 'Início do Hunch',
     dashboard: 'Clientes',
+    settings: 'Sua marca',
+    admin: 'Admin',
     signIn: 'Entrar',
     signOut: 'Sair',
     account: 'Conta',
@@ -309,8 +327,9 @@ export const ptBR: Dictionary = {
 
   signIn: {
     title: 'Entrar',
-    description: 'Continue com sua conta Google',
+    description: 'Continue com sua conta de trabalho',
     google: 'Continuar com o Google',
+    microsoft: 'Continuar com a Microsoft',
     adminEmail: 'E-mail do admin',
     password: 'Senha',
     invalidCredentials: 'Credenciais inválidas',
@@ -395,12 +414,38 @@ export const ptBR: Dictionary = {
       copyLink: 'Copiar link'
     },
     tabs: {
-      flow: 'Fluxo',
-      copy: 'Copy',
-      seo: 'SEO',
-      ai: 'Encontrado por IA',
-      tests: 'Teste A/B ao vivo'
+      flow: 'Estrutura da página',
+      copy: 'Textos',
+      seo: 'Visibilidade em busca',
+      ai: 'Visibilidade em IA'
     }
+  },
+
+  settings: {
+    eyebrow: 'White label',
+    title: 'Sua marca',
+    hintLabel: 'Onde a sua marca aparece',
+    hint: 'No plano pago os relatórios não levam nenhuma marca nossa. O que você define aqui ocupa esse espaço, nos quatro lugares por onde o nosso nome chegava ao leitor: o *link do relatório* que o seu cliente abre, o *PDF* que você entrega, o card de prévia quando o link é colado no WhatsApp ou no email, e o título da aba que a impressora coloca no cabeçalho da página.',
+    nameLabel: 'Nome da agência',
+    namePlaceholder: 'Sua agência',
+    nameHint: 'Usado quando não há logo, e no card de prévia quando o link é compartilhado.',
+    logoLabel: 'Logo',
+    logoHint: 'PNG ou JPEG, até {kb} KB. Aparece no topo de todo relatório.',
+    logoReplace: 'Trocar o logo',
+    logoChoose: 'Escolher um arquivo',
+    logoRemove: 'Remover o logo',
+    accentLabel: 'Cor de destaque',
+    accentHint: 'Opcional. Um valor hex como #2C6BED.',
+    save: 'Salvar',
+    saving: 'Salvando...',
+    saved: 'Salvo',
+    error: 'Não deu para salvar. Confira o arquivo e tente de novo.',
+    errorLogoTooLarge: 'Esse arquivo passa de {kb} KB. Exporte menor e tente de novo.',
+    errorUnsupportedLogo: 'Esse arquivo não é PNG nem JPEG.',
+    errorInvalidAccent: 'A cor de destaque precisa ser um valor hex como #2C6BED.',
+    lockedTitle: 'A marca própria está no plano pago',
+    lockedBody: 'Relatórios do plano free levam o nosso nome. No plano pago eles levam o seu, e nada nosso chega ao seu cliente.',
+    lockedCta: 'Fale com a gente'
   },
 
   flow: {
@@ -582,9 +627,22 @@ export const ptBR: Dictionary = {
   testList: {
     eyebrow: 'Prove',
     title: 'Rodar um teste ao vivo',
-    hintLabel: 'O que fica nesta aba',
-    hint: 'Tudo sobre rodar um teste está aqui, porque é o passo que vem *depois* de você ter acesso ao site. Instale o snippet uma vez e rode um teste por vez: ele mostra o desafiante para metade dos visitantes, e quem decide o vencedor é o resultado, não a opinião de ninguém. Só entram aqui as ideias cujo texto cai em um elemento único - o resto sai à mão pelas outras abas.',
-    empty: 'Nenhuma ideia desta análise cai em um elemento único, então não há nada para o snippet trocar. Aplique pelas outras abas, à mão.'
+    hintLabel: 'O que fica nesta tela',
+    hint: 'Tudo sobre rodar um teste está aqui, porque é o passo que vem *depois* de você ter acesso ao site. Instale o snippet uma vez e rode um teste por vez: ele mostra o desafiante para metade dos visitantes, e quem decide o vencedor é o resultado, não a opinião de ninguém. Só entram aqui as ideias cujo texto cai em um elemento único - o resto sai à mão, pela análise.',
+    empty: 'Nenhuma ideia desta análise cai em um elemento único, então não há nada para o snippet trocar. Aplique à mão, pela análise.',
+    backToAnalysis: 'Voltar para a análise'
+  },
+
+  nextStage: {
+    eyebrow: 'Depois que o trabalho é seu',
+    title: 'Prove o ganho na página dele',
+    body: 'Tudo acima precisa só da URL, e é por isso que você pode mandar para um prospect. Esta é a outra metade: colocar uma mudança no ar na página real e deixar o resultado dizer se funcionou.',
+    requirement: 'Precisa de acesso ao site: um snippet instalado e o botão que conta como conversão marcado.',
+    cta: 'Abrir o teste ao vivo',
+    ready: {
+      one: '{count} ideia daqui pode virar um teste ao vivo',
+      other: '{count} ideias daqui podem virar um teste ao vivo'
+    }
   },
 
   runTest: {
@@ -645,11 +703,12 @@ export const ptBR: Dictionary = {
     teardown: 'Análise de conversão',
     plan: 'Plano de teste A/B',
     landingPageAnalyzed: 'Landing page analisada',
-    heading: '{count} testes para elevar sua conversão, rankeados por impacto.',
-    testsFound: 'Testes encontrados',
-    readyToTest: 'Prontas para testar no ar',
-    topImpact: 'Maior impacto',
-    generated: 'Gerado em',
+    preparedBy: 'Preparado por {name}',
+    dated: 'Revisado em {date}',
+    summaryBody:
+      'Passamos por esta página linha a linha e encontramos {changes} mudanças que valem a pena. {ready} delas são mudanças de texto, e o texto novo já está escrito aqui embaixo. As outras {structural} mudam como a página está montada.',
+    changesFound: 'Mudanças recomendadas',
+    copyWritten: 'Texto já escrito',
     benchmarkedAgainst: 'Ideias embasadas nestes concorrentes',
     testThisFirst: 'Teste isto primeiro',
     problem: 'Problema',
@@ -709,6 +768,25 @@ export const ptBR: Dictionary = {
     phone: 'Telefone',
     fromReport: 'Do relatório',
     joined: 'Entrou em'
+  },
+
+  accounts: {
+    eyebrow: 'Admin',
+    title: 'Contas',
+    grantTitle: 'Conceder um plano',
+    grantHint:
+      'Conceda o plano quando fechar a venda. A conta não precisa existir ainda: o plano fica esperando no e-mail e já está lá no primeiro login.',
+    emailPlaceholder: 'comprador@empresa.com',
+    grantSubmit: 'Conceder pro',
+    email: 'E-mail',
+    plan: 'Plano',
+    lastSignIn: 'Último login',
+    neverSignedIn: 'Nunca entrou',
+    stripeCustomer: 'Customer do Stripe',
+    joined: 'Criada em',
+    action: 'Ação',
+    grant: 'Conceder pro',
+    revoke: 'Revogar'
   },
 
   reports: {

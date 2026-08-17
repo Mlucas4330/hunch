@@ -7,7 +7,7 @@ import { getCurrentUser } from '@/lib/current-user'
 import { HypothesisList } from '@/components/hypothesis-list'
 import { FlowPlaybook } from '@/components/flow-playbook'
 import { AnalysisTabs } from '@/components/analysis-tabs'
-import { TestList } from '@/components/test-list'
+import { NextStage } from '@/components/next-stage'
 import { InfoHint } from '@/components/info-hint'
 import { ReportDeliverables } from '@/components/report-deliverables'
 import { UpgradePrompt } from '@/components/upgrade-prompt'
@@ -122,8 +122,7 @@ export default async function AnalysisDetailPage({
           flow: fixes.flow.length,
           copy: analysis.hypotheses.length,
           seo: visibility.seo.length,
-          ai: visibility.ai.length,
-          tests: testable.length
+          ai: visibility.ai.length
         }}
         panels={{
           flow: <FlowPlaybook fixes={fixes.flow} expandFrom={PLAYBOOK_EXPANDED_COUNT} />,
@@ -137,17 +136,11 @@ export default async function AnalysisDetailPage({
           ),
           ai: (
             <FlowPlaybook fixes={visibility.ai} section="ai" expandFrom={PLAYBOOK_EXPANDED_COUNT} />
-          ),
-          tests: (
-            <TestList
-              analysisId={analysis.id}
-              embedKey={analysis.embedKey}
-              appUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
-              hypotheses={testable}
-            />
           )
         }}
       />
+
+      <NextStage t={t} analysisId={analysis.id} testable={testable.length} />
 
       {user.plan === 'free' && <UpgradePrompt />}
     </div>

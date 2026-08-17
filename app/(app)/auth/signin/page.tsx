@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Wordmark } from '@/components/wordmark'
 import { getDictionary } from '@/lib/i18n'
-import { credentialsLoginAllowed, safeCallbackUrl } from '@/lib/auth-policy'
+import { credentialsLoginAllowed, microsoftLoginAllowed, safeCallbackUrl } from '@/lib/auth-policy'
 import { CALLBACK_URL_PARAM } from '@/lib/constants'
 import { pageMetadata } from '@/lib/seo'
 
@@ -25,6 +25,7 @@ export default async function SignInPage({
   const error = params.error
   const callbackUrl = safeCallbackUrl(params[CALLBACK_URL_PARAM])
   const showCredentialsForm = credentialsLoginAllowed()
+  const showMicrosoftButton = microsoftLoginAllowed()
 
   return (
     <div className="flex justify-center py-12">
@@ -45,6 +46,19 @@ export default async function SignInPage({
               {t.signIn.google}
             </Button>
           </form>
+
+          {showMicrosoftButton && (
+            <form
+              action={async () => {
+                'use server'
+                await signIn('microsoft-entra-id', { redirectTo: callbackUrl })
+              }}
+            >
+              <Button type="submit" variant="outline" className="w-full">
+                {t.signIn.microsoft}
+              </Button>
+            </form>
+          )}
 
           {showCredentialsForm && (
             <>

@@ -7,6 +7,7 @@ import type {
   LeadSource,
   Locale,
   Market,
+  OAuthProvider,
   RateLimitKind,
   ReadoutSeverity,
   Section,
@@ -19,14 +20,38 @@ import type {
 export const FALLBACK_APP_ORIGIN = 'http://localhost:3000'
 
 // Shared by middleware.ts and app/robots.ts so the two can never drift.
-export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/admin']
+export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/admin', '/settings']
 
 export const POST_SIGNIN_REDIRECT = '/dashboard'
+
+// Where the operator grants a plan after closing a sale. See docs/product.md.
+export const ADMIN_ACCOUNTS_PATH = '/admin/accounts'
+export const ADMIN_LEADS_PATH = '/admin/leads'
+export const ADMIN_REPORTS_PATH = '/admin/reports'
+
+// The operator's own menu, offered only to a user whose stored role is admin. Each key names the
+// dictionary section whose `title` labels the link, so the menu and the page can never disagree.
+export const ADMIN_NAV_LINKS = [
+  { href: ADMIN_ACCOUNTS_PATH, key: 'accounts' },
+  { href: ADMIN_LEADS_PATH, key: 'leads' },
+  { href: ADMIN_REPORTS_PATH, key: 'reports' }
+] as const
 
 // Where every paid-plan prompt sends the reader. See docs/invariants.md.
 export const CONTACT_PATH = '/#contact'
 
 export const CALLBACK_URL_PARAM = 'callbackUrl'
+
+// The claim that says the provider itself verified the address. Without it the email is a string
+// the caller chose, and the user row is keyed by email. See docs/security.md.
+export const VERIFIED_EMAIL_CLAIM: Record<OAuthProvider, string> = {
+  google: 'email_verified',
+  'microsoft-entra-id': 'xms_edov'
+}
+
+// Work and school accounts. The tenant segment is swapped for the id_token's own tid on callback,
+// so this stays multi-tenant. Overridden by AUTH_MICROSOFT_ENTRA_ID_ISSUER.
+export const ENTRA_ISSUER = 'https://login.microsoftonline.com/organizations/v2.0'
 
 // The founder's own channels, in the site footer. Never on a report surface -- see
 // docs/components.md.
@@ -188,6 +213,9 @@ export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: numb
   // opens a browser.
   measure: { tokens: 10, windowMs: HOUR_MS },
   waitlist: { tokens: 5, windowMs: HOUR_MS },
+  // Each accepted call can write a file to the volume, so it is bounded like screenshot rather than
+  // like an ordinary form save.
+  brand: { tokens: 10, windowMs: HOUR_MS },
   // Loose: it gates nothing but noise in the operator's own follow-up signal, and one reader
   // reloading a report is normal.
   report_view: { tokens: 60, windowMs: HOUR_MS },
@@ -206,6 +234,34 @@ export const SCREENSHOT_FILENAME_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9
 // It cannot be made an LRU instead: serving a file does not touch its mtime, and atime on a network
 // volume is not dependable. See docs/deployment.md.
 export const SCREENSHOT_RETENTION_DAYS = 30
+
+// Brand logos live under their own BRAND_DIR, never SCREENSHOT_DIR: the prune cron deletes everything
+// older than SCREENSHOT_RETENTION_DAYS, so a logo stored there would vanish on its own weeks later and
+// silently take the agency's report back to anonymous. See docs/deployment.md.
+export const BRAND_PUBLIC_PATH = '/brand'
+
+// Exactly what saveBrandLogo() writes, mirroring SCREENSHOT_FILENAME_PATTERN. See docs/security.md.
+export const BRAND_FILENAME_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.(?:png|jpg)$/
+
+export const BRAND_LOGO_MAX_BYTES = 512 * 1024
+
+// Sniffed from the file's own bytes, never from the declared Content-Type. SVG is deliberately absent:
+// it is served same-origin and can carry script. See docs/security.md.
+export const BRAND_LOGO_SIGNATURES = [
+  { ext: 'png', bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
+  { ext: 'jpg', bytes: [0xff, 0xd8, 0xff] }
+] as const
+
+export const BRAND_NAME_MAX_LENGTH = 40
+
+// next/image needs intrinsic dimensions; the rendered size comes from CSS, so these are an upper
+// bound on the box rather than the drawn size.
+export const BRAND_LOGO_DISPLAY_HEIGHT = 32
+export const BRAND_LOGO_DISPLAY_MAX_WIDTH = 200
+
+// The accent is agency-supplied and reaches an inline style, so it is matched against this before it
+// is ever stored. Anything else is rejected and the report falls back to its own tokens.
+export const BRAND_ACCENT_PATTERN = /^#[0-9a-fA-F]{6}$/
 
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 
@@ -316,6 +372,11 @@ export const SCRAPE_LCP_FLUSH_MS = 50
 
 // Also the correct backfill: the wall was the only thing writing leads before the contact form.
 export const DEFAULT_LEAD_SOURCE: LeadSource = 'report'
+
+export const DEFAULT_PLAN: SubscriptionPlan = 'free'
+
+// The plan a closed sale grants, by hand or through the webhook. See docs/product.md.
+export const PAID_PLAN: SubscriptionPlan = 'pro'
 
 export const DEFAULT_USER_ROLE: UserRole = 'user'
 

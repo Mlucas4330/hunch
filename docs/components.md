@@ -20,6 +20,11 @@ sets no width of its own; it inherits the app container.
 - Logo, nav links, and an account menu (`components/account-menu.tsx`).
 - **Account menu**: a native `<details>` dropdown with the avatar/name as the summary; the panel shows
   name, email, the plan badge, and a `Sign out` button (a server action calling `signOut`).
+- **The operator's links live in that panel**, between the plan badge and sign out, behind
+  `isAdmin(user)` on the **stored** role — the same gate the pages use, so the menu can never offer a
+  page that would `notFound()`. They come from `ADMIN_NAV_LINKS`, whose `key` names the dictionary
+  section that titles the page, so a renamed screen renames its link. It is a menu entry, not a
+  boundary: `/admin` is still gated in its own layout and in every page under it.
 - Plan badge maps `SUBSCRIPTION_PLAN` to a coloured pill: free = gray, pro = purple.
 - Consumes `getCurrentUser()` rather than calling `auth()` itself — see [security.md](security.md).
 - `print:hidden`, so it never reaches paper.
@@ -156,7 +161,7 @@ to a 16px icon, so a fixed width runs off-screen wherever that icon sits near an
 ## Install snippet card — `components/embed-snippet.tsx`
 
 Copy-to-clipboard card showing the one script tag. `APP_URL` comes from `NEXT_PUBLIC_APP_URL`, falling
-back to `window.location.origin`. One tag per landing page, installed once from the live-test tab — see
+back to `window.location.origin`. One tag per landing page, installed once from the live-test screen — see
 [experiments.md](experiments.md).
 
 **Installing is two steps and the card says so**: paste the tag, then mark the element whose click

@@ -1,9 +1,17 @@
+import Link from 'next/link'
 import { signOut } from '@/auth'
 import { PlanBadge } from '@/components/plan-badge'
-import type { SubscriptionPlan } from '@/lib/enums'
+import { isAdmin } from '@/lib/auth-policy'
+import { ADMIN_NAV_LINKS } from '@/lib/constants'
+import type { SubscriptionPlan, UserRole } from '@/lib/enums'
 import { getDictionary } from '@/lib/i18n'
 
-type AccountUser = { name?: string | null; email?: string | null; plan: SubscriptionPlan }
+type AccountUser = {
+  name?: string | null
+  email?: string | null
+  plan: SubscriptionPlan
+  role: UserRole
+}
 
 async function signOutAction() {
   'use server'
@@ -43,6 +51,21 @@ export async function AccountPanel({ user }: { user: AccountUser }) {
           <PlanBadge plan={user.plan} />
         </div>
       </div>
+      {isAdmin(user) && (
+        <div className="mt-3 space-y-1 border-t pt-3">
+          <p className="panel-label px-2 text-[0.6rem] text-muted-foreground">{t.nav.admin}</p>
+          {ADMIN_NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="block rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted"
+            >
+              {t[link.key].title}
+            </Link>
+          ))}
+        </div>
+      )}
+
       <form action={signOutAction} className="mt-3 border-t pt-3">
         <button
           type="submit"

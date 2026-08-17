@@ -46,5 +46,17 @@ gets indexed. **Do not add hreflang without first giving the locales real URLs.*
 
 `openGraph.siteName`, the root `%s | Hunch` title template and `OgWordmark` are two of the four gated
 surfaces — see
-[invariants.md](invariants.md#white-label-hangs-off-one-boolean-on-four-independent-surfaces).
-`pageMetadata({ unbranded })` handles both, the title via `{ absolute }`.
+[invariants.md](invariants.md#white-label-hangs-off-one-resolver-on-four-independent-surfaces).
+`pageMetadata({ unbranded, brandName })` handles both.
+
+`unbranded` strips us; `brandName` puts the agency there instead, so a paid title reads
+`<title> | <agency>` rather than merely losing its suffix, and `siteName` carries the agency. With no
+name configured it falls back to `{ absolute: title }`, which is what the flag did on its own.
+
+### The OG card carries the agency's name, never its logo
+
+`OgBrandName` renders text. Satori cannot read a file off the volume, so putting the logo here would
+mean reading the binary from disk inside an image route and inlining it as a data URI — for a card
+whose requirement is already met by the name: nothing of ours appears, and the agency signs it.
+
+**This is a decision, not an omission.** Do not "fix" it by embedding the file.

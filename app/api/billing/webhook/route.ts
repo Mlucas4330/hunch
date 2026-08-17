@@ -37,7 +37,22 @@ async function payerEmail(customerId: string): Promise<string | null> {
   }
 }
 
-async function userIdForSubscription(subscription: Stripe.Subscription): Promise<string | null> {
+// The buyer paid before ever signing in, which is the normal order for a sale closed on a call.
+// The row is theirs on first sign-in: that upsert writes name and avatar and never touches plan.
+async function payerUserId(email: string): Promise<string> {
+  const [row] = await db
+    .insert(users)
+    .values({ email, name: email })
+    .onConflictDoUpdate({ target: users.email, set: { email } })
+    .returning({ id: users.id })
+
+  return row.id
+}
+
+async function userIdForSubscription(
+  subscription: Stripe.Subscription,
+  createMissing = false
+): Promise<string | null> {
   const customerId = customerIdOf(subscription)
 
   if (customerId) {
@@ -60,11 +75,13 @@ async function userIdForSubscription(subscription: Stripe.Subscription): Promise
   if (customerId) {
     const email = await payerEmail(customerId)
     if (email) {
+      const normalized = email.toLowerCase()
       const payer = await db.query.users.findFirst({
-        where: sql`lower(${users.email}) = ${email.toLowerCase()}`,
+        where: sql`lower(${users.email}) = ${normalized}`,
         columns: { id: true }
       })
       if (payer) return payer.id
+      if (createMissing) return payerUserId(normalized)
     }
   }
 
@@ -72,7 +89,7 @@ async function userIdForSubscription(subscription: Stripe.Subscription): Promise
 }
 
 async function syncSubscription(subscription: Stripe.Subscription, plan: SubscriptionPlan) {
-  const userId = await userIdForSubscription(subscription)
+  const userId = await userIdForSubscription(subscription, true)
   if (!userId) {
     console.error('[billing/webhook] no user for subscription', subscription.id)
     return

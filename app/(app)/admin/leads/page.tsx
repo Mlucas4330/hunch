@@ -8,11 +8,11 @@ import { Card, CardContent } from '@/components/ui/card'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { formatDate } from '@/lib/i18n/format'
 import { pageMetadata } from '@/lib/seo'
-import { LEAD_SOURCE_BADGE_CLASS } from '@/lib/constants'
+import { ADMIN_LEADS_PATH, LEAD_SOURCE_BADGE_CLASS } from '@/lib/constants'
 
 export async function generateMetadata() {
   const { metadata } = await getDictionary()
-  return pageMetadata({ ...metadata.pages.leads, path: '/admin/leads', index: false })
+  return pageMetadata({ ...metadata.pages.leads, path: ADMIN_LEADS_PATH, index: false })
 }
 
 export default async function LeadsPage() {

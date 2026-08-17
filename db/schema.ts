@@ -66,9 +66,13 @@ export const users = pgTable('users', {
   avatarUrl: text('avatar_url'),
   plan: subscriptionPlanEnum('plan').notNull().default('free'),
   role: userRoleEnum('role').notNull().default(DEFAULT_USER_ROLE),
+  brandName: text('brand_name'),
+  brandLogoUrl: text('brand_logo_url'),
+  brandAccent: text('brand_accent'),
   stripeCustomerId: text('stripe_customer_id'),
   analysesCount: integer('analyses_count').notNull().default(0),
   usagePeriodStart: timestamp('usage_period_start').notNull().defaultNow(),
+  lastSignInAt: timestamp('last_sign_in_at'),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 

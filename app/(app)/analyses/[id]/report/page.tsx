@@ -4,29 +4,32 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { analyses } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
-import { Wordmark } from '@/components/wordmark'
+import { ReportBrandMark } from '@/components/report-brand-mark'
+import { ReportCover } from '@/components/report-cover'
 import { SectionBadge } from '@/components/section-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
 import { FlowPlaybook } from '@/components/flow-playbook'
 import { WhyBlock } from '@/components/why-block'
 import { Button } from '@/components/ui/button'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
-import { formatDate, t as fill } from '@/lib/i18n/format'
+import { formatDate } from '@/lib/i18n/format'
 import { hasPlaceholders } from '@/lib/utils'
 import { MeasuredReadout } from '@/components/measured-readout'
 import { readoutFor, splitFixes } from '@/lib/analyses'
-import { canWhiteLabel } from '@/lib/usage'
+import { brandFor } from '@/lib/report'
 import { pageMetadata } from '@/lib/seo'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const { metadata } = await getDictionary()
   const user = await getCurrentUser()
+  const brand = user ? brandFor(user) : null
   return pageMetadata({
     ...metadata.pages.analysisReport,
     path: `/analyses/${id}/report`,
     index: false,
-    unbranded: user ? canWhiteLabel(user.plan) : false
+    unbranded: brand?.whiteLabel ?? false,
+    brandName: brand?.name ?? null
   })
 }
 
@@ -49,12 +52,16 @@ export default async function AnalysisReportPage({
 
   if (!analysis) notFound()
 
-  const whiteLabel = canWhiteLabel(user.plan)
+  const brand = brandFor(user)
 
   const ranked = [...analysis.hypotheses].sort((a, b) => b.impactScore - a.impactScore)
   const fixes = splitFixes(analysis.flowFixes)
   const readyToTest = ranked.filter((hypothesis) => hypothesis.target === 'auto').length
-  const topImpact = ranked[0]?.impactScore ?? 0
+  const counts = {
+    changes: ranked.length + analysis.flowFixes.length,
+    ready: readyToTest,
+    structural: analysis.flowFixes.length
+  }
   const locale = await getLocale()
   const t = dictionaryFor(locale)
   const generated = formatDate(new Date(), locale)
@@ -69,34 +76,18 @@ export default async function AnalysisReportPage({
       </div>
 
       <header className="flex items-end justify-between gap-4 border-b pb-4">
-        {whiteLabel ? (
-          <span />
-        ) : (
-          <span data-testid="report-brand">
-            <Wordmark />
-          </span>
-        )}
+        <ReportBrandMark brand={brand} />
         <div className="text-right">
           <p className="panel-label text-[0.65rem] text-muted-foreground">{t.report.teardown}</p>
           <p className="font-display text-sm font-medium">{t.report.plan}</p>
         </div>
       </header>
 
-      <div className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">
-          {t.report.landingPageAnalyzed}
-        </p>
-        <h1 className="text-balance font-display text-3xl font-bold tracking-tight">
-          {fill(t.report.heading, { count: ranked.length })}
-        </h1>
-        <p className="break-all font-mono text-sm text-purple">{analysis.url}</p>
-      </div>
+      <ReportCover t={t} brand={brand} url={analysis.url} generated={generated} counts={counts} />
 
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
-        <SummaryCell label={t.report.testsFound} value={String(ranked.length)} />
-        <SummaryCell label={t.report.readyToTest} value={String(readyToTest)} />
-        <SummaryCell label={t.report.topImpact} value={`${topImpact}/10`} />
-        <SummaryCell label={t.report.generated} value={generated} />
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
+        <SummaryCell label={t.report.changesFound} value={String(counts.changes)} />
+        <SummaryCell label={t.report.copyWritten} value={String(counts.ready)} />
       </div>
 
       {analysis.competitors && analysis.competitors.length > 0 && (
@@ -190,7 +181,7 @@ export default async function AnalysisReportPage({
         })}
       </div>
 
-      {!whiteLabel && (
+      {!brand.whiteLabel && (
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
           <p className="font-mono text-sm">{t.report.footerQuestion}</p>
           <p className="text-sm text-muted-foreground">{t.report.generatedBy}</p>

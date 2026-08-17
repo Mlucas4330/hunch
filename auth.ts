@@ -6,7 +6,7 @@ import { users } from '@/db/schema'
 import { authConfig } from '@/auth.config'
 import { clientIp, enforceRateLimit } from '@/lib/rate-limit'
 import { secretsMatch } from '@/lib/secure-compare'
-import { credentialsLoginAllowed, isAdminEmail } from '@/lib/auth-policy'
+import { credentialsLoginAllowed, isAdminEmail, providerVerifiedEmail } from '@/lib/auth-policy'
 import { ADMIN_ROLE, DEFAULT_USER_ROLE } from '@/lib/constants'
 import type { SubscriptionPlan } from '@/lib/enums'
 
@@ -49,10 +49,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!user.email) return false
 
       const isOAuth = account?.type === 'oauth' || account?.type === 'oidc'
-      if (isOAuth && profile?.email_verified !== true) return false
+      if (isOAuth && !providerVerifiedEmail(account?.provider, profile)) return false
 
       const name = user.name ?? user.email
       const avatarUrl = user.image ?? null
+      const lastSignInAt = new Date()
 
       // Promotes, never demotes: the role outlives a changed ADMIN_EMAIL and a hand-granted admin
       // survives their next sign-in. See docs/invariants.md.
@@ -61,17 +62,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (isOAuth) {
         await db
           .insert(users)
-          .values({ email: user.email, name, avatarUrl, role: grantedRole ?? DEFAULT_USER_ROLE })
+          .values({
+            email: user.email,
+            name,
+            avatarUrl,
+            role: grantedRole ?? DEFAULT_USER_ROLE,
+            lastSignInAt
+          })
           .onConflictDoUpdate({
             target: users.email,
             set: {
               name,
+              lastSignInAt,
               ...(avatarUrl ? { avatarUrl } : {}),
               ...(grantedRole ? { role: grantedRole } : {})
             }
           })
       } else {
-        await db.insert(users).values({ email: user.email, name, avatarUrl }).onConflictDoNothing()
+        await db
+          .insert(users)
+          .values({ email: user.email, name, avatarUrl, lastSignInAt })
+          .onConflictDoUpdate({ target: users.email, set: { lastSignInAt } })
       }
 
       return true

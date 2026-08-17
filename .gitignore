@@ -42,5 +42,9 @@ pnpm-debug.log*
 # Output of scripts/preview-screenshot.mts
 screenshot-preview/
 
+# Local SCREENSHOT_DIR and BRAND_DIR
+.screenshots/
+.brand/
+
 
 .vscode/

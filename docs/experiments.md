@@ -1,7 +1,7 @@
 # Live A/B tests
 
 The whole loop: launch a test, serve it to the customer's page, count, decide. Everything about
-running a test lives on its own tab of the analysis screen, because testing is the step that comes
+running a test lives on its own screen, `/analyses/[id]/tests`, because testing is the step that comes
 **after** the work is won and access to the site exists — see [analysis-ui.md](analysis-ui.md).
 
 It never appears on the public report: a prospect reading someone else's teardown installs no snippet.
@@ -106,7 +106,7 @@ waits for the end. See
 
 ## The snippet — `public/embed.js`
 
-One tag per landing page, keyed on `analyses.embedKey`, installed once from the live-test tab. The same
+One tag per landing page, keyed on `analyses.embedKey`, installed once from the live-test screen. The same
 tag serves whichever test is running.
 
 ```html

@@ -12,8 +12,12 @@ users
 - role               (enum: USER_ROLE, default: user)   <- gates /admin; granted at sign-in from
                      ADMIN_EMAIL and never revoked by one, see invariants.md
 - stripe_customer_id (text, nullable: written only by the webhook, see api.md#post-apibillingwebhook)
+                     <- a row may be created by /admin/accounts or by the webhook, before its owner
+                     has ever signed in; name is then the email until they do, see invariants.md
 - analyses_count     (int, default: 0)   <- free tier usage gate
 - usage_period_start (timestamp, default now: start of the current monthly allowance window)
+- last_sign_in_at    (timestamp, nullable: null means the row was provisioned and nobody has claimed
+                     it yet, see invariants.md)
 - created_at         (timestamp)
 
 subscriptions
@@ -192,6 +196,22 @@ Both for the same reason: an alternate written weeks later must be held to the l
 its hypothesis was written for. See
 [invariants.md](invariants.md#generated-content-is-pinned-to-the-locale-it-was-written-in) and
 [invariants.md](invariants.md#the-market-is-measured-from-the-page-never-taken-from-the-ui-locale).
+
+### The three `users.brand_*` columns are account-wide, not per analysis
+
+`brand_name`, `brand_logo_url` and `brand_accent` are what an agency signs its reports with. They live
+on `users` rather than on `analyses` because the brand belongs to the agency, not to the client being
+analyzed: configuring it once is the point, and pinning it per analysis would mean a rebrand never
+reaching a document already sent.
+
+All three are **nullable, and null is the shipped default** — an account that never opens `/settings`
+behaves exactly as it did before the columns existed. They are read only through `brandFor()` /
+`reportBrand()` (`lib/report.ts`), which returns them as null on a free plan whatever the row holds, so
+downgrading an account cannot leave its brand on our lead magnet. See
+[invariants.md](invariants.md#white-label-hangs-off-one-resolver-on-four-independent-surfaces).
+
+`brand_logo_url` is a path under `BRAND_PUBLIC_PATH`, never an external URL, and the file it names is
+on a **different volume** from the screenshots — see [security.md](security.md).
 
 ### `hypotheses.target`
 

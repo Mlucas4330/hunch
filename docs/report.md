@@ -1,8 +1,27 @@
 # The report surfaces
 
 Two documents come out of an analysis: the **public report** a prospect opens from a link, and the
-**print report** the owner saves as a PDF. Both are white-labelled by one boolean — see
-[invariants.md](invariants.md#white-label-hangs-off-one-boolean-on-four-independent-surfaces).
+**print report** the owner saves as a PDF. Both are white-labelled by one resolver — see
+[invariants.md](invariants.md#white-label-hangs-off-one-resolver-on-four-independent-surfaces).
+
+**These two documents are the product.** They are produced from a URL alone, which is what lets an
+agency run one *before* it has won the work and before anyone has touched the client's site. Live
+testing is the step after that, and it needs access — see [product.md](product.md).
+
+## The brand — `lib/report.ts`
+
+`reportBrand(analysis)` and `brandFor(user)` return the same `ReportBrand`:
+`{ whiteLabel, name, logoUrl, accent }`. On a free plan every field but `whiteLabel` is null, so a
+consumer cannot accidentally render an agency's brand on our lead magnet.
+
+`components/report-brand-mark.tsx` is the single renderer, and its fallback is a cascade: **logo**, else
+**name in text**, else — paid but nothing configured yet — an empty `<span />` that keeps the header's
+`justify-between` shape. Free renders `Wordmark` inside `data-testid="report-brand"`, unchanged, so the
+e2e assertion that a paid report carries no mark of ours still means what it always meant. The agency's
+own mark carries `data-testid="agency-brand"`, so its **presence** is assertable too.
+
+The brand is set at the **account** level on `/settings`, not per analysis: the agency signs its own
+documents, and configuring it once is the whole point.
 
 ## Public report — `app/(report)/r/[embedKey]/page.tsx`
 
@@ -35,10 +54,12 @@ the wall".
 
 ### Layout
 
-- Header, title, the two summary cells and `MeasuredReadout` stay **above** the tabs — the readout
-  ungated, for the reason in [readout.md](readout.md).
-- Competitor pills, then the same shell as the analysis screen (`AnalysisTabs`) — but **four tabs**, not
-  five: this surface passes `tests: 0` and the empty-tab rule holds Tests out.
+- Header, `ReportCover`, the two summary cells and `MeasuredReadout` stay **above** the tabs — the
+  readout ungated, for the reason in [readout.md](readout.md).
+- Competitor pills, then the same shell as the analysis screen (`AnalysisTabs`) — the same **four tabs**,
+  with nothing held out. This surface used to pass `tests: 0` to keep a fifth tab away from a prospect;
+  running a test is now its own screen, so there is no longer a tab to exclude. See
+  [analysis-ui.md](analysis-ui.md).
 - **Every tab is gated on its own**: its top items in full, then that tab's own `WaitlistWall`, then the
   rest blurred. `REPORT_FIX_PREVIEW_LIMIT` (2) for the three fix tabs, `REPORT_PREVIEW_LIMIT` (3) for
   the copy tab. A tab whose whole list fits inside its limit renders no wall at all.
@@ -51,6 +72,30 @@ the wall".
   top are real ones.
 - The **"Why this works"** block is open on each shown idea, not folded into a `<details>` summary: it is
   the argument for the change the prospect is being asked to believe.
+
+### The cover — `components/report-cover.tsx`
+
+Shared by both surfaces. It opens with the accent rule, `report.preparedBy` (or the generic eyebrow
+when no name is set), the **host** as the `<h1>`, the full URL beneath it, a plain-language summary,
+and the date.
+
+**The reader is the client's business owner, not a developer.** That is why the heading is the host
+rather than `{count} tests to lift your conversion`, why the URL lost its purple monospace treatment,
+and why the tab labels in `analysis.tabs` read *Page structure / Wording / Search visibility / AI
+visibility* instead of *Flow / Copy / SEO / Found by AI*. Only the **labels** moved: the
+`PlaybookSection` values in `lib/enums.ts` are persisted in Postgres and are not renamed.
+
+`report.summaryBody` is **assembled in code** from counted facts — total recommendations, how many are
+copy the product already wrote, how many are structural — interpolated into a dictionary string, the
+same mechanism as `dictionary.readout.findings[id]` in [readout.md](readout.md). It is deliberately
+**not** a generation call: a model writing this paragraph would be writing prose around numbers, which
+is the failure [invariants.md](invariants.md#a-generated-evidence-never-carries-a-number) exists to
+prevent.
+
+The two summary cells are `report.changesFound` and `report.copyWritten`, both counts of what is in
+the document. `topImpact` came out: `7/10` is our internal score and means nothing to this reader.
+**Neither cell may ever become a predicted outcome** — see
+[invariants.md](invariants.md#the-readout-says-what-was-counted-never-what-it-will-produce).
 
 ### Variant preview — `components/variant-preview.tsx`
 
@@ -105,13 +150,14 @@ no second `reportIsWhiteLabelled`-style helper.
 
 Three things go on a paid plan, and the third is the one that gets forgotten:
 
-1. The `Wordmark` (`{whiteLabel ? <span /> : ...}` — the empty span keeps the right-hand block right
-   under `justify-between`, same shape as the public report).
+1. The `Wordmark`, replaced by `ReportBrandMark` — which puts the agency's logo or name there instead
+   of leaving the space empty.
 2. The footer, **both lines together**: `report.footerQuestion` is *our* offer to the reader, not the
    owner's, so leaving it behind pitches us inside their document.
-3. `generateMetadata` passes `unbranded`, because a browser prints the `<title>` into the page header —
-   a PDF whose header reads `| Hunch` is not white-labelled. `getCurrentUser()` is `cache()`d, so
-   reading the plan there and in the component costs one query.
+3. `generateMetadata` passes `unbranded` **and `brandName`**, because a browser prints the `<title>`
+   into the page header — a PDF whose header reads `| Hunch` is not white-labelled, and one that reads
+   `| <agency>` is the deliverable. `getCurrentUser()` is `cache()`d, so reading the user there and in
+   the component costs one query.
 
 The page sits in the `(app)` group, so the navbar and the site footer render around it on screen. Both
 are `print:hidden` and neither is part of the document, which is the whole reason the white-label list
@@ -122,6 +168,19 @@ our product, and what leaves the building is the print.
 seeing our mark inside their own account is not what this fixes. What *cannot* be fixed in code: with
 the browser's own headers turned on, Chrome prints the page URL in the margin, and that URL is our
 domain. That is the printer's setting, not ours.
+
+## Setting the brand — `/settings`
+
+`app/(app)/settings/page.tsx` plus `components/brand-settings-form.tsx`: agency name, logo upload,
+accent. Gated on `canWhiteLabel(plan)` in the same shape as export — a free plan sees what it buys and
+a link to `CONTACT_PATH`, never a checkout, per
+[invariants.md](invariants.md#there-is-no-self-serve-checkout-and-no-published-price).
+
+The route is in `PROTECTED_PREFIXES`, and the page still re-checks `getCurrentUser()` itself: the
+middleware proves a session, not a user row.
+
+The form posts multipart to `POST /api/brand` — name, accent and logo in one round trip, because they
+are one decision to the person making it. See [api.md](api.md).
 
 ## Public routes behind these surfaces
 

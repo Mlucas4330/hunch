@@ -5,14 +5,16 @@
 | Route | Page | Description |
 | ----- | ---- | ----------- |
 | `/` | Landing page | Credibility surface for a human-led sale: two tracks, contact form, **no prices** |
-| `/auth/signin` | Auth | Google OAuth via NextAuth; returns to `callbackUrl` |
+| `/auth/signin` | Auth | Google OAuth via NextAuth, plus Microsoft Entra ID where it is configured; returns to `callbackUrl` |
 | `/dashboard` | Clients | Grid of past analyses, one card per client, above the new-analysis form |
-| `/analyses/[id]` | What to test | The two deliverables, then five tabs: flow, copy, SEO, found-by-AI, live A/B test |
+| `/analyses/[id]` | What to test | The two deliverables, then four tabs: flow, copy, SEO, found-by-AI |
+| `/analyses/[id]/tests` | Live A/B tests | The snippet plus one row per testable idea — **stage 2, its own screen** |
 | `/analyses/[id]/tests/[hypothesisId]` | Live A/B test | Approve/swap/edit the challenger, set the goal, launch, monitor |
 | `/analyses/[id]/report` | Print report | One stacked page, owner-authenticated — see [report.md](report.md) |
 | `/r/[embedKey]` | Public report | Two shapes by owner plan. No session — see [report.md](report.md) |
 | `/admin/leads` | Waitlist leads | Operator-only (`users.role`); the only place waitlist rows can be read |
 | `/admin/reports` | Report opens | Operator-only; open count and last open per analysis — see [report.md](report.md) |
+| `/admin/accounts` | Accounts | Operator-only; grant or revoke a plan by email, and see which granted rows have never signed in |
 
 The app routes live under the `(app)` route group (`app/(app)/analyses/...`); the public report has its
 own group, `app/(report)/r/[embedKey]/`.
@@ -101,9 +103,11 @@ competitors -> writing test ideas -> saving results.
 
 ## Screen 1 — "What to test" (`app/(app)/analyses/[id]/page.tsx`)
 
-The analysis experience is split into two screens, single-challenger, one test at a time. There is no
-manual "pick a winner" circuit: the AI recommends the challenger (`variants[0]`, the only variant
-written during the analysis) and the live test decides the actual winner.
+The analysis experience is three screens, and the split follows the two stages in
+[product.md](product.md): **this one needs nothing but the URL**, screens 2 and 3 need access to the
+client's site. Single-challenger, one test at a time. There is no manual "pick a winner" circuit: the AI
+recommends the challenger (`variants[0]`, the only variant written during the analysis) and the live
+test decides the actual winner.
 
 - **Benchmarked-against line**: the competitors (`analyses.competitors`) as links near the top, followed
   by the market the analysis was run in (`analysis.marketNote` + `labels.market.*`). The market is named
@@ -121,25 +125,49 @@ written during the analysis) and the live test decides the actual winner.
   [readout.md](readout.md).
 - `UpgradePrompt` at the end when `user.plan === 'free'` — see [components.md](components.md).
 
-### Five tabs — `components/analysis-tabs.tsx`, over the `ANALYSIS_TAB` enum
+### Four tabs — `components/analysis-tabs.tsx`, over the `ANALYSIS_TAB` enum
 
-**Flow** (the playbook), **Copy** (the hypotheses), **SEO**, **Found by AI** and **Live A/B test**.
-The last one is named in full for the same reason the deliverables are: `Tests` sat among four tabs of
-things to read and gave no sign that it was the one mode where something actually happens on the real
-page. **The enum member stays `tests`** — it is a key behind `data-testid`s and the report's `tests: 0`
-rule, and only the label changed. `flow` opens
-first — fix the structure before testing the wording — and if it is empty the first non-empty tab opens
-instead.
+**Page structure** (the playbook), **Wording** (the hypotheses), **Search visibility** and **AI
+visibility**. `flow` opens first — fix the structure before testing the wording — and if it is empty the
+first non-empty tab opens instead.
+
+**Every tab here is about what to change, and every one of them needs nothing but the URL.** There used
+to be a fifth, `tests`, and it was the mistake this shell exists without now: the one step that requires
+access to the client's site sat as a peer of four that require nothing, which is the two stages in
+[product.md](product.md) presented as one. Running a test is its own screen.
+
+Two workarounds went with it, and their absence is the point:
+
+- `counts.tests = testable.length`, feeding a shared shell a number that meant something on only one of
+  the two surfaces rendering it.
+- the public report's `tests: 0` / `tests: null` pair, which existed solely to hold out of a report a tab
+  that is now nowhere shared. **A prospect reading a teardown was never going to install a snippet**, and
+  that is now true by construction rather than by a zero passed in.
+
+The labels are written for the client's business owner, not for a developer — see
+[report.md](report.md#the-cover--componentsreport-covertsx). **Only the labels changed**; the enum values
+are persisted in Postgres.
 
 - The analysis screen and the public report render the same shell; only the print report stays stacked.
-- **Every panel stays mounted and inactive ones are `hidden`**, so switching tabs never remounts
-  `TestList` (which would refetch `/api/experiments`) or an already-rendered preview.
-- **The live-test tab never appears on the public report.** That surface passes `tests: 0` and the empty-tab rule
-  holds it out. It is also the last tab on purpose: deciding what to change comes before proving it.
+- **Every panel stays mounted and inactive ones are `hidden`**, so switching tabs never remounts an
+  already-rendered preview.
 - **An empty tab is not rendered.** `FlowPlaybook` returns `null` for an empty list, so the shell
   computes emptiness itself. This is the normal case for analyses generated before the visibility audit
   existed: their rows are all `flow`, so SEO and AI are genuinely empty.
 - `seo` and `ai` are the same rows cut by category — see [data-model.md](data-model.md).
+
+### The stage-2 entry — `components/next-stage.tsx`
+
+Below the tabs, above `UpgradePrompt`. Named, with what the stage requires spelled out, the count of
+testable ideas, and the link to `/analyses/[id]/tests`.
+
+**It sits after the content deliberately**, mirroring `landing.tracks`, where the second track is placed
+after the close because nobody installs a script tag for a prospect. Putting it at the top beside
+`ReportDeliverables` would conflate the two: those are documents, this is a stage.
+
+**It renders even when nothing is testable**, showing `testList.empty` and no link. The old tab simply
+vanished in that case, which left a reader no way to find out why — the answer (no idea here maps to a
+single element) is information, not an absence.
 
 ### The ranked hypothesis list — `components/hypothesis-list.tsx`
 
@@ -166,9 +194,9 @@ finished with row 1 had no way to fold it away.
   pipeline to produce — lands as generic reasoning. Marking it is the whole fix: **nothing new is
   generated about the competitor**, which would be forbidden on the auto-search path where no
   competitor page was ever opened.
-- **No "Set up test" button and no experiment status.** Launching moved to the live-test tab along with the
-  snippet, so this list knows nothing about experiments — which is also why it makes no request at all
-  any more.
+- **No "Set up test" button and no experiment status.** Launching moved to the live-test screen along
+  with the snippet, so this list knows nothing about experiments — which is also why it makes no request
+  at all any more.
 
 ### Why a copy hypothesis shows impact but no effort
 
@@ -197,22 +225,27 @@ test state, and test state lives one tab over.
 **"Test this first" is tied to the default order.** It renders only under impact sort with no filters
 applied; under any other order the first row is the first match, not a recommendation.
 
-### The Live A/B test tab — `components/test-list.tsx`
+## Screen 2 — "Live A/B tests" (`app/(app)/analyses/[id]/tests/page.tsx`)
 
-Everything about running a live test in one place. It used to be split between a snippet card above the
-tabs and a button inside every copy idea, which put setup in front of readers who were not testing and
-hid it from the ones who were.
+`components/test-list.tsx`. **Stage 2 — everything that needs access to the client's site, and nothing
+that does not.**
+
+The route is the parent of `tests/[hypothesisId]`, which existed on its own for a long time while its
+parent was rendered as a tab inside Screen 1. Filling that hole is the whole move; `TestList` itself
+arrived unchanged, since it already carried its own heading and `InfoHint`.
 
 - Holds the `EmbedSnippet` card plus one row per **`auto`** hypothesis: section badge,
-  `EXPERIMENT_STATUS` pill, impact chip, and the Set up / View test link to Screen 2.
+  `EXPERIMENT_STATUS` pill, impact chip, and the Set up / View test link to Screen 3.
 - **Rows are not `DisclosureCard`s.** The ranked lists are things to read and weigh; this is a list of
   things to launch, so each row is one line.
-- The tab's count is the number of `auto` hypotheses, so an analysis where every idea is `manual` has
-  **no live-test tab and no snippet card** — there would be nothing for the snippet to swap.
+- An analysis where every idea is `manual` still **renders the screen**, with `testList.empty` in place
+  of the rows — there is nothing for the snippet to swap and the reader is told so.
 - It owns the `GET /api/experiments?analysisId=` fetch that `HypothesisList` used to make. The request
   moved rather than multiplied. A `running` experiment sorts to the top.
+- The page query selects `hypotheses` only. It renders no readout, no playbook and no report action:
+  this screen is not a second copy of the analysis.
 
-## Screen 2 — "Live A/B test" (`app/(app)/analyses/[id]/tests/[hypothesisId]/page.tsx`)
+## Screen 3 — "Live A/B test" (`app/(app)/analyses/[id]/tests/[hypothesisId]/page.tsx`)
 
 `components/test-runner.tsx`.
 

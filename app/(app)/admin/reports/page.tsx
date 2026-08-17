@@ -9,10 +9,11 @@ import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { formatDate, formatNumber } from '@/lib/i18n/format'
 import { displayHost } from '@/lib/host'
 import { pageMetadata } from '@/lib/seo'
+import { ADMIN_REPORTS_PATH } from '@/lib/constants'
 
 export async function generateMetadata() {
   const { metadata } = await getDictionary()
-  return pageMetadata({ ...metadata.pages.reports, path: '/admin/reports', index: false })
+  return pageMetadata({ ...metadata.pages.reports, path: ADMIN_REPORTS_PATH, index: false })
 }
 
 export default async function ReportsPage() {

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { notFound } from 'next/navigation'
-import { Wordmark } from '@/components/wordmark'
+import { ReportBrandMark } from '@/components/report-brand-mark'
+import { ReportCover } from '@/components/report-cover'
 import { SectionBadge } from '@/components/section-badge'
 import { HypothesisCard } from '@/components/hypothesis-card'
 import { VariantPreview } from '@/components/variant-preview'
@@ -21,15 +22,16 @@ import type { FlowFix } from '@/db/schema'
 import type { PlaybookSection } from '@/lib/enums'
 import { LanguageToggle } from '@/components/language-toggle'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
-import { t as fill } from '@/lib/i18n/format'
+import { formatDate, t as fill } from '@/lib/i18n/format'
 import { displayHost } from '@/lib/host'
-import { loadReport, reportIsWhiteLabelled } from '@/lib/report'
+import { loadReport, reportBrand } from '@/lib/report'
 import { pageMetadata } from '@/lib/seo'
 
 export async function generateMetadata({ params }: { params: Promise<{ embedKey: string }> }) {
   const { embedKey } = await params
   const { metadata } = await getDictionary()
   const analysis = await loadReport(embedKey)
+  const brand = reportBrand(analysis)
 
   const vars = {
     host: analysis ? displayHost(analysis.url) : metadata.title,
@@ -42,7 +44,8 @@ export async function generateMetadata({ params }: { params: Promise<{ embedKey:
     path: `/r/${embedKey}`,
     index: false,
     ownImage: true,
-    unbranded: reportIsWhiteLabelled(analysis)
+    unbranded: brand.whiteLabel,
+    brandName: brand.name
   })
 }
 
@@ -59,7 +62,8 @@ export default async function PublicReportPage({
   const analysis = await loadReport(embedKey)
   if (!analysis) notFound()
 
-  const whiteLabel = reportIsWhiteLabelled(analysis)
+  const brand = reportBrand(analysis)
+  const whiteLabel = brand.whiteLabel
 
   const ranked = [...analysis.hypotheses].sort((a, b) => b.impactScore - a.impactScore)
   const previewOrder = [
@@ -72,10 +76,14 @@ export default async function PublicReportPage({
   }
 
   const { shown: visible, hidden } = gate(previewOrder, REPORT_PREVIEW_LIMIT)
-  const topImpact = ranked[0]?.impactScore ?? 0
   const fixes = splitFixes(analysis.flowFixes)
   const visibility = splitVisibility(analysis.flowFixes)
   const reportKey = analysis.embedKey
+  const counts = {
+    changes: ranked.length + analysis.flowFixes.length,
+    ready: ranked.filter((hypothesis) => hypothesis.target === 'auto').length,
+    structural: analysis.flowFixes.length
+  }
 
   function fixPanel(list: FlowFix[], section: PlaybookSection) {
     const { shown, hidden: rest } = gate(list, REPORT_FIX_PREVIEW_LIMIT)
@@ -98,13 +106,7 @@ export default async function PublicReportPage({
     <div className="space-y-8">
       <ReportViewPing embedKey={embedKey} />
       <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-4">
-        {whiteLabel ? (
-          <span />
-        ) : (
-          <span data-testid="report-brand">
-            <Wordmark />
-          </span>
-        )}
+        <ReportBrandMark brand={brand} />
         <div className="flex items-end gap-4">
           <LanguageToggle locale={locale} />
           <div className="text-right">
@@ -114,19 +116,17 @@ export default async function PublicReportPage({
         </div>
       </header>
 
-      <div className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">
-          {t.report.landingPageAnalyzed}
-        </p>
-        <h1 className="text-balance font-display text-3xl font-bold tracking-tight">
-          {fill(t.report.heading, { count: ranked.length })}
-        </h1>
-        <p className="break-all font-mono text-sm text-purple">{analysis.url}</p>
-      </div>
+      <ReportCover
+        t={t}
+        brand={brand}
+        url={analysis.url}
+        generated={formatDate(analysis.createdAt, locale)}
+        counts={counts}
+      />
 
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
-        <SummaryCell label={t.report.testsFound} value={String(ranked.length)} />
-        <SummaryCell label={t.report.topImpact} value={`${topImpact}/10`} />
+        <SummaryCell label={t.report.changesFound} value={String(counts.changes)} />
+        <SummaryCell label={t.report.copyWritten} value={String(counts.ready)} />
       </div>
 
       {analysis.competitors && analysis.competitors.length > 0 && (
@@ -153,14 +153,12 @@ export default async function PublicReportPage({
           flow: fixes.flow.length,
           copy: ranked.length,
           seo: visibility.seo.length,
-          ai: visibility.ai.length,
-          tests: 0
+          ai: visibility.ai.length
         }}
         panels={{
           flow: fixPanel(fixes.flow, 'flow'),
           seo: fixPanel(visibility.seo, 'seo'),
           ai: fixPanel(visibility.ai, 'ai'),
-          tests: null,
           copy: (
             <div className="space-y-4">
               {visible.map((hypothesis, index) => {

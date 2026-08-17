@@ -17,6 +17,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    '/((?!api/health|api/billing/webhook|api/auth|api/track|api/cron|api/waitlist|api/report|screenshots|embed.js|_next/static|_next/image|favicon.ico).*)'
+    '/((?!api/health|api/billing/webhook|api/auth|api/track|api/cron|api/waitlist|api/report|screenshots|brand|embed.js|_next/static|_next/image|favicon.ico).*)'
   ]
 }

@@ -24,7 +24,48 @@ into a filtered view survives sign-in. The sign-in page revalidates it before us
 
 ## Auth — `auth.ts`
 
-Google OAuth is the real sign-in path.
+Google OAuth is the real sign-in path. Microsoft Entra ID is an optional second one, for buyers whose
+company runs on Microsoft 365.
+
+### Microsoft Entra ID is opt-in, per deploy
+
+`microsoftLoginAllowed()` (`lib/auth-policy.ts`) is true only when both `AUTH_MICROSOFT_ENTRA_ID_ID`
+and `AUTH_MICROSOFT_ENTRA_ID_SECRET` are set, and it gates **both** the provider in `auth.config.ts`
+and the button on the sign-in page — a deploy without the pair behaves exactly as before.
+
+The issuer defaults to `ENTRA_ISSUER`, the `organizations` endpoint, so personal Microsoft accounts
+are not an entry point; `AUTH_MICROSOFT_ENTRA_ID_ISSUER` overrides it. This stays multi-tenant, which
+is the point: Auth.js re-runs discovery against the tenant in the `id_token`'s own `tid` claim, so
+every customer signs in from their own tenant against one app registration.
+
+Two things the code cannot enforce, and the app registration must:
+
+- **`xms_edov` must be issued as an optional claim.** It is the rule below; without it every Microsoft
+  sign-in is refused.
+- **`email` must be issued too**, or `user.email` arrives empty and the sign-in is refused anyway.
+
+### The verified-email claim fails closed
+
+The `signIn` callback refuses an OAuth profile unless `providerVerifiedEmail()` says the provider
+itself vouched for the address. User rows are keyed on email and there is no `accounts` table, so that
+claim is the only thing between a provider's assertion and an existing row. An **absent** claim counts
+as unverified: "the provider did not say it is verified" and "the provider said it is not" carry the
+same risk here. See
+[invariants.md](invariants.md#a-user-row-may-exist-before-its-first-sign-in-and-only-a-provider-verified-email-may-claim-one).
+
+The claim differs per provider and lives in `VERIFIED_EMAIL_CLAIM` (`lib/constants.ts`), typed
+`Record<OAuthProvider, string>` so a provider added to the enum has to name one:
+
+| Provider | Claim | Why that one |
+| -------- | ----- | ------------ |
+| `google` | `email_verified` | `GoogleProfile` types it as a required `boolean`, so this costs a real sign-in nothing |
+| `microsoft-entra-id` | `xms_edov` | Entra ID does not emit `email_verified`, and its `email` claim is whatever the tenant admin typed — including a **victim's** address in a tenant the attacker owns. `xms_edov` is the claim that says the tenant proved it owns the domain, and it is the only thing standing between that tenant and an existing row |
+
+A provider id that is not in the map returns `false`, so adding one to `authConfig` without deciding
+its claim locks it out rather than letting it in. Never weaken this to "the claim is not `false`".
+
+Sessions are JWTs with `SESSION_MAX_AGE_SECONDS` — they cannot be revoked server-side, so lifetime is
+the only bound on a stolen token.
 
 ### The credentials escape hatch
 
@@ -38,20 +79,6 @@ Credentials are compared through `secretsMatch()` (`lib/secure-compare.ts`), whi
 uses `timingSafeEqual` — never `!==`. The cron route's `CRON_SECRET` check uses the same helper. Sign-in
 attempts are rate limited per IP.
 
-### `email_verified` fails closed
-
-The `signIn` callback refuses an OAuth profile whose `email_verified` is not **exactly** `true`. User
-rows are keyed on email and there is no `accounts` table, so that claim is the only thing between a
-provider's assertion and an existing row. An **absent** claim counts as unverified: "the provider did
-not say it is verified" and "the provider said it is not" carry the same risk here.
-
-`GoogleProfile` types the field as a required `boolean`, so this costs a real sign-in nothing. A
-provider added later that omits it must be handled deliberately, **not** by weakening this back to
-`=== false`.
-
-Sessions are JWTs with `SESSION_MAX_AGE_SECONDS` — they cannot be revoked server-side, so lifetime is
-the only bound on a stolen token.
-
 ### The user row is upserted in one statement
 
 Never read-then-written: two concurrent first sign-ins would otherwise both find no row and race into
@@ -62,8 +89,13 @@ owns them — so a user who changes their photo at Google sees it on the next si
 counters and the Stripe ids are ours and are never touched there. A provider that omits the photo leaves
 the stored one alone rather than blanking it.
 
-The credentials branch uses `onConflictDoNothing` instead, so the local hatch can never overwrite a real
-user's name with `Admin`.
+The credentials branch updates `lastSignInAt` and nothing else, so the local hatch can never overwrite a
+real user's name with `Admin`.
+
+The row may already exist without anyone ever having signed in to it — the operator granted a plan, or
+the Stripe webhook created it for a payer. That is deliberate, and it is why the upsert above never
+touches `plan`: see
+[invariants.md](invariants.md#a-user-row-may-exist-before-its-first-sign-in-and-only-a-provider-verified-email-may-claim-one).
 
 ### `callbackUrl` is an allowlist, not a sanitizer
 
@@ -86,8 +118,13 @@ lookup by id.
 
 `redirect('/auth/signin')` on the user's own pages, `notFound()` under `/admin`. `/admin` is gated in
 `app/(app)/admin/layout.tsx` via `isAdmin()`, so a page added under that segment is operator-only by
-default — and `/admin/leads` and `/admin/reports` repeat the check, because the waitlist rows and owner
-emails they show are third-party PII.
+default — and `/admin/leads`, `/admin/reports` and `/admin/accounts` repeat the check, because the
+waitlist rows, owner emails and account rows they show are third-party PII.
+
+`grantPlan` (`lib/actions/admin.ts`) is the one privileged **mutation** an operator has, and it
+authorizes itself the same way. A server action is its own endpoint, reachable by anyone who can post
+its action id — the layout that rendered the form is not in that path and proves nothing about the
+caller.
 
 `isAdmin()` reads `users.role`, which sign-in granted from `ADMIN_EMAIL` — see
 [invariants.md](invariants.md#admin_email-grants-the-role-usersrole-authorizes-the-request) for why the
@@ -138,6 +175,26 @@ It lives in `lib/screenshots.ts` rather than in the route because `deleteScreens
 need the identical check. **Never re-implement it at a call site**: a security check with four copies is
 a check that will drift, and this route's `404` (a miss and a malformed name answer identically, so
 nothing reveals what the directory holds) depends on the resolver being the only way in.
+
+## Serving brand logos — `app/brand/[file]/route.ts`
+
+The same shape as the screenshot route above, against `BRAND_DIR` and `BRAND_FILENAME_PATTERN`, with
+`brandLogoPath()` in `lib/brand-assets.ts` as the one resolver. It is a **separate directory from
+`SCREENSHOT_DIR`**, and that is an availability requirement rather than a security one: the prune cron
+deletes everything older than `SCREENSHOT_RETENTION_DAYS`, so a logo stored there would delete itself
+weeks later and quietly return a paid agency's report to anonymous.
+
+### The upload accepts PNG and JPEG only, sniffed from the bytes
+
+`POST /api/brand` reads the leading bytes and matches them against `BRAND_LOGO_SIGNATURES`. The
+declared `Content-Type` is chosen by the caller and decides nothing.
+
+**SVG is deliberately absent and must not be added.** These files are served from our own origin, and
+an SVG can carry `<script>`; accepting one would be stored XSS on the domain that holds the session
+cookie. Anything that does not match a signature is rejected rather than stored and sorted out later.
+
+The extension in the stored filename comes from the sniff, not from the upload, so
+`brandLogoContentType()` can derive the response header from a name the caller never controlled.
 
 ## Rate limiting — `lib/rate-limit.ts`
 

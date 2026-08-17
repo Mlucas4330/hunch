@@ -30,12 +30,18 @@ Railway creates exactly one service per import, so:
 
 1. Add the `Postgres` and `Redis` plugins.
 2. Set the variables from `.env.example` on `app`, plus `AUTH_TRUST_HOST=true` and
-   `SCREENSHOT_DIR=/data/screenshots`. **Two are per-environment origins and must not be copied**:
+   `SCREENSHOT_DIR=/data/screenshots` and `BRAND_DIR=/data/brand`. **Two are per-environment origins and must not be copied**:
    leave `AUTH_URL` **empty** and set `NEXT_PUBLIC_APP_URL` to the service's public domain. Add
    `PUPPETEER_SKIP_DOWNLOAD=true` as well — production connects to the `browser` service over CDP and
    never launches Chrome itself, so the ~180MB Chromium puppeteer's postinstall would otherwise pull
    into every build is dead weight.
-3. Mount a volume on `app` at `/data/screenshots`.
+3. Mount a volume on `app` at `/data`, so `/data/screenshots` and `/data/brand` are both persisted.
+
+   **They must stay separate directories.** `prune-screenshots` deletes everything under
+   `SCREENSHOT_DIR` past its retention, so a logo written there would delete itself weeks later and
+   return a paid agency's report to anonymous with nothing in any log naming the cause. An agency logo
+   is never pruned: it is one small file per account, replaced in place, and it is load-bearing on the
+   deliverable.
 4. Add a second service from the same repo, set *Config as code* to `railway.browser.json`, give it
    **no variables and no domain**, then set `BROWSER_URL` on `app` to
    `http://${{browser.RAILWAY_PRIVATE_DOMAIN}}:9222` — as a reference, and with both the `http://`

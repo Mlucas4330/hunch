@@ -152,15 +152,40 @@ call site:
 
 - **`canExport(plan)`** — export is a paid-plan capability.
 - **`canWhiteLabel(plan)`** — decides whether a report renders as the owner's deliverable or as our
-  lead magnet. Two surfaces answer to it; see
-  [invariants.md](invariants.md#white-label-hangs-off-one-boolean-on-four-independent-surfaces).
+  lead magnet. Four surfaces answer to it; see
+  [invariants.md](invariants.md#white-label-hangs-off-one-resolver-on-four-independent-surfaces).
 
 `loadReport` (`lib/report.ts`) carries the owner's plan to the unauthenticated public report, and it
-selects **`user: { columns: { plan: true } }`** rather than `user: true`. That is a boundary, not an
-optimization: everything a server component reads reaches the RSC payload, so the whole `users` row
-would publish the owner's email and `stripe_customer_id` inside the report they sent to their own
-client. `reportIsWhiteLabelled()` beside it is the one derivation, so the page, its metadata and its
-OG card cannot disagree — `loadReport` is `cache()`d, so all three cost one query.
+selects **an explicit column list** — `plan`, `brandName`, `brandLogoUrl`, `brandAccent` — rather than
+`user: true`. That is a boundary, not an optimization: everything a server component reads reaches the
+RSC payload, so the whole `users` row would publish the owner's email and `stripe_customer_id` inside
+the report they sent to their own client. **A column added to `users` is not added here by default,
+and that is the intent** — widening this list is a decision about what a stranger holding an embed key
+may see.
+
+`reportBrand()` beside it is the one derivation, so the page, its metadata and its OG card cannot
+disagree — `loadReport` is `cache()`d, so all three cost one query. `brandFor(user)` is the same
+derivation for the two owner-authenticated surfaces, which already hold the full row.
+
+## Brand
+
+### `POST /api/brand`
+
+Authenticated via `getCurrentUser()`, `403 plan_required` unless `canWhiteLabel(plan)`. Takes
+**multipart** form data — `name`, `accent`, `logo` (file), `removeLogo` — because the three are one
+decision to the person making them, and writes them to the `users` row.
+
+- `name` is capped at `BRAND_NAME_MAX_LENGTH`; empty saves as `null`.
+- `accent` must match `BRAND_ACCENT_PATTERN` (`#rrggbb`) or the request is rejected — it reaches an
+  inline `style`, so it is validated before storage, not at render.
+- `logo` is capped at `BRAND_LOGO_MAX_BYTES` and its type is **sniffed from the file's own bytes**
+  against `BRAND_LOGO_SIGNATURES`, never taken from the declared `Content-Type`. PNG and JPEG only;
+  SVG is deliberately unsupported — see [security.md](security.md).
+
+The previous file is unlinked **after** the row stops pointing at it, so a failed write never leaves
+the column dangling — the same ordering rule the prune job follows in [experiments.md](experiments.md).
+
+Rate limited as `brand`, because each accepted call can write to the volume.
 
 ## Billing
 
@@ -204,17 +229,26 @@ carries no `userId`, so the first two ways of identifying the buyer are empty on
 2. `metadata.userId`, accepted only when it parses as a uuid **and** resolves to a real row. Reachable
    from the Stripe dashboard, and a non-uuid value there would otherwise crash the route on a `uuid`
    column
-3. the Stripe customer's email against `users.email`, case-insensitively
+3. the Stripe customer's email against `users.email`, case-insensitively, and **the row is created
+   there if it does not exist** — lowercased, with the email as the name
 
 Step 3 is the one that promotes a payment-link sale, and it is why `syncSubscription` writes
 `users.stripe_customer_id` on every sync: `customer.subscription.updated` and `.deleted` carry no
 email, so without the backfill a renewal or a cancellation could not find the account the purchase
 already promoted.
 
-**A buyer who pays from an email that is not their login email is not resolved**, and nothing about
-that is visible in the app — the route logs `no user for subscription` and returns `200`. Confirm the
-promotion after a sale rather than assuming it; the fix is to set the payment's email to the account's,
-or to write `users.stripe_customer_id` by hand.
+Creating the row is what makes paying *before* signing in — the normal order for a sale closed on a
+call — resolve instead of vanishing. The buyer's first sign-in claims that row and finds the plan
+already granted; see
+[invariants.md](invariants.md#a-user-row-may-exist-before-its-first-sign-in-and-only-a-provider-verified-email-may-claim-one).
+Creation is limited to the two granting events: `customer.subscription.deleted` still resolves without
+it, because revoking a plan from an account that does not exist is a no-op.
+
+**A buyer who pays from an email that is not the one they sign in with still ends up in the wrong
+place** — they get a paid row on the paying address and a free one on the login address. That is now
+visible rather than silent: `/admin/accounts` shows a paid row that has never signed in. The fix is to
+grant the plan on the login email there. The route still logs `no user for subscription` and returns
+`200` for the residual case of a customer with no email at all.
 
 `lib/stripe.ts` pins `apiVersion` — the webhook reads `item.current_period_end`, whose shape has moved
 between versions, so following the account default turns an SDK upgrade into silent breakage.

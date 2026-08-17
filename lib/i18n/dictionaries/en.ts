@@ -25,6 +25,14 @@ export const en = {
         title: 'Conversion teardown',
         description: 'The printable teardown for this landing page analysis.'
       },
+      analysisTests: {
+        title: 'Live A/B tests',
+        description: 'Install the snippet and run the ideas from this analysis on the real page.'
+      },
+      settings: {
+        title: 'Your brand',
+        description: 'The logo and name that go on every report you hand over.'
+      },
       test: {
         title: 'Run a test',
         description: 'Approve the challenger, set the conversion goal, and launch the live test.'
@@ -32,6 +40,10 @@ export const en = {
       leads: {
         title: 'Waitlist leads',
         description: 'Leads captured by the public reports.'
+      },
+      accounts: {
+        title: 'Accounts',
+        description: 'Who has an account, what plan they are on, and when they last signed in.'
       },
       reports: {
         title: 'Report opens',
@@ -116,6 +128,10 @@ export const en = {
       free: 'Free',
       pro: 'Pro'
     },
+    userRole: {
+      user: 'User',
+      admin: 'Admin'
+    },
     leadSource: {
       report: 'Report wall',
       contact: 'Asked to talk'
@@ -125,6 +141,8 @@ export const en = {
   nav: {
     homeAria: 'Hunch home',
     dashboard: 'Clients',
+    settings: 'Your brand',
+    admin: 'Admin',
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
@@ -297,8 +315,9 @@ export const en = {
 
   signIn: {
     title: 'Sign in',
-    description: 'Continue with your Google account',
+    description: 'Continue with your work account',
     google: 'Continue with Google',
+    microsoft: 'Continue with Microsoft',
     adminEmail: 'Admin email',
     password: 'Password',
     invalidCredentials: 'Invalid credentials',
@@ -378,12 +397,38 @@ export const en = {
       copyLink: 'Copy link'
     },
     tabs: {
-      flow: 'Flow',
-      copy: 'Copy',
-      seo: 'SEO',
-      ai: 'Found by AI',
-      tests: 'Live A/B test'
+      flow: 'Page structure',
+      copy: 'Wording',
+      seo: 'Search visibility',
+      ai: 'AI visibility'
     }
+  },
+
+  settings: {
+    eyebrow: 'White label',
+    title: 'Your brand',
+    hintLabel: 'Where your brand shows up',
+    hint: 'On a paid plan the reports carry no mark of ours. What you set here fills that space instead, on all four places our name used to reach a reader: the *report link* your client opens, the *PDF* you hand over, the preview card when the link is pasted into WhatsApp or email, and the browser tab title a printer puts in the page header.',
+    nameLabel: 'Agency name',
+    namePlaceholder: 'Your agency',
+    nameHint: 'Used when no logo is set, and on the preview card when a link is shared.',
+    logoLabel: 'Logo',
+    logoHint: 'PNG or JPEG, up to {kb} KB. Shown at the top of every report.',
+    logoReplace: 'Replace logo',
+    logoChoose: 'Choose a file',
+    logoRemove: 'Remove logo',
+    accentLabel: 'Accent color',
+    accentHint: 'Optional. A hex value like #2C6BED.',
+    save: 'Save',
+    saving: 'Saving...',
+    saved: 'Saved',
+    error: 'That did not save. Check the file and try again.',
+    errorLogoTooLarge: 'That file is over {kb} KB. Export it smaller and try again.',
+    errorUnsupportedLogo: 'That file is not a PNG or a JPEG.',
+    errorInvalidAccent: 'The accent has to be a hex value like #2C6BED.',
+    lockedTitle: 'Branding is on the paid plan',
+    lockedBody: 'Free reports carry our name. On a paid plan they carry yours instead, and nothing of ours reaches your client.',
+    lockedCta: 'Talk to us'
   },
 
   flow: {
@@ -564,9 +609,22 @@ export const en = {
   testList: {
     eyebrow: 'Prove it',
     title: 'Run a live test',
-    hintLabel: 'What belongs on this tab',
-    hint: 'Everything about running a test lives here, because it is the step you reach for *after* you have access to the site. Install the snippet once, then run one test at a time: the snippet shows the challenger to half the visitors and the result, not an opinion, decides the winner. Only ideas whose copy maps to a single element can run this way - the rest are shipped by hand from the other tabs.',
-    empty: 'None of the ideas in this analysis map to a single element, so there is nothing the snippet can swap. Ship them by hand from the other tabs.'
+    hintLabel: 'What belongs on this screen',
+    hint: 'Everything about running a test lives here, because it is the step you reach for *after* you have access to the site. Install the snippet once, then run one test at a time: the snippet shows the challenger to half the visitors and the result, not an opinion, decides the winner. Only ideas whose copy maps to a single element can run this way - the rest are shipped by hand from the analysis.',
+    empty: 'None of the ideas in this analysis map to a single element, so there is nothing the snippet can swap. Ship them by hand from the analysis.',
+    backToAnalysis: 'Back to the analysis'
+  },
+
+  nextStage: {
+    eyebrow: 'After you win the work',
+    title: 'Prove the lift on their page',
+    body: 'Everything above needs nothing but the URL, which is why you can send it to a prospect. This is the other half: put a change live on the real page and let the result decide whether it worked.',
+    requirement: 'Needs access to the site: one snippet installed, and the button you count as a conversion marked.',
+    cta: 'Open the live test',
+    ready: {
+      one: '{count} idea here can run as a live test',
+      other: '{count} ideas here can run as a live test'
+    }
   },
 
   runTest: {
@@ -622,11 +680,12 @@ export const en = {
     teardown: 'Conversion teardown',
     plan: 'A/B test plan',
     landingPageAnalyzed: 'Landing page analyzed',
-    heading: '{count} tests to lift your conversion, ranked by impact.',
-    testsFound: 'Tests found',
-    readyToTest: 'Ready to test live',
-    topImpact: 'Top impact',
-    generated: 'Generated',
+    preparedBy: 'Prepared by {name}',
+    dated: 'Reviewed on {date}',
+    summaryBody:
+      'We went through this page line by line and found {changes} changes worth making. {ready} of them are wording changes, and the new wording is already written below. The other {structural} change how the page is put together.',
+    changesFound: 'Changes recommended',
+    copyWritten: 'Copy already written',
     benchmarkedAgainst: 'Benchmarked against',
     testThisFirst: 'Test this first',
     problem: 'Problem',
@@ -683,6 +742,25 @@ export const en = {
     phone: 'Phone',
     fromReport: 'From report',
     joined: 'Joined'
+  },
+
+  accounts: {
+    eyebrow: 'Admin',
+    title: 'Accounts',
+    grantTitle: 'Grant a plan',
+    grantHint:
+      'Grant the plan when the deal closes. The account does not have to exist yet: the plan waits on the email and is already there at their first sign-in.',
+    emailPlaceholder: 'buyer@company.com',
+    grantSubmit: 'Grant pro',
+    email: 'Email',
+    plan: 'Plan',
+    lastSignIn: 'Last sign-in',
+    neverSignedIn: 'Never signed in',
+    stripeCustomer: 'Stripe customer',
+    joined: 'Created',
+    action: 'Action',
+    grant: 'Grant pro',
+    revoke: 'Revoke'
   },
 
   reports: {
