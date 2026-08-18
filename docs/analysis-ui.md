@@ -186,24 +186,28 @@ finished with row 1 had no way to fold it away.
   render on load and the button is gone. For an agency handing over finished copy, three options for a
   headline are worth having on their own.
 
-### Why a copy hypothesis shows impact but no effort
+### Nothing shows an effort score, anywhere
 
-`ScoreIndicator` renders **impact only** here. It still renders both on a flow fix, and that asymmetry
-is the point.
+`ScoreIndicator` renders **impact only**, on every surface and for both families. There is no `kind`
+prop and no effort scale: the widget has one job.
 
-The copy prompt requires every hypothesis to be a single-element text swap
-(`lib/ai/prompt.ts:106-110`) — structural ideas are forbidden and become flow fixes — so the change is
-always "replace this line". Implementation cost is a constant on this tab, and the prompt never
-defined `effort_score` for it either (only the flow-fix prompt does, where the cost genuinely varies
-because a person applies it by hand). The number the model wrote there was measuring nothing.
+The reason is that the number was never measuring what it claimed to. Effort is the cost of *applying*
+a change, and this product does not apply anything — it hands over a document. A reader's real cost
+depends on their stack, their CMS and who on their team does the work, none of which the model can see.
+A single integer written by a model that has read one page is a guess wearing a gauge.
 
-The one real cost difference on a copy hypothesis is **auto vs manual**, and code decides it after
-generation: `resolveTarget` (`lib/scrape.ts`) matches `current_copy` against the scraped elements and
-persists the verdict to `hypotheses.target`. The model could not have known it. That fact is already
-carried by the *Manual setup* badge, which is now its single carrier.
+That was already true for copy hypotheses, where every idea is a single-element text swap
+(`lib/ai/prompt.ts` forbids structural ideas and turns them into flow fixes), so the cost is a constant.
+It is true for a flow fix too, from the other direction: "add a Q&A block" costs an afternoon or a
+sprint depending on the site, and the model cannot tell which.
 
-`effort_score` is still generated and still stored for hypotheses — dropping it would mean making a
-`notNull` column nullable — it is simply never shown. Not a bug; see [ai-pipeline.md](ai-pipeline.md).
+The one real cost difference the product **can** state is **auto vs manual** on a copy hypothesis, and
+code decides it after generation: `resolveTarget` (`lib/scrape.ts`) matches `current_copy` against the
+scraped elements and persists the verdict to `hypotheses.target`. The model could not have known it.
+That fact is carried by the *Manual setup* badge, which is its single carrier.
+
+`effort_score` is gone end to end — all three prompts, both Zod schemas and both `effort_score` columns.
+See [ai-pipeline.md](ai-pipeline.md).
 
 **There is no sort/filter bar.** With effort and quick wins gone, sorting collapsed to impact alone,
 and the auto/manual filter was removed with it — the badge says the same thing without a control. The

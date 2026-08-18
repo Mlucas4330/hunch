@@ -12,11 +12,7 @@ import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import { cn } from '@/lib/utils'
 
 const SAMPLE_SECTIONS: Section[] = ['headline', 'cta', 'social_proof']
-const SAMPLE_SCORES = [
-  { impact: 9, effort: 2 },
-  { impact: 7, effort: 1 },
-  { impact: 6, effort: 3 }
-]
+const SAMPLE_IMPACTS = [9, 7, 6]
 
 const PAIN_CHANNELS = ['border-coral', 'border-purple', 'border-teal']
 
@@ -193,10 +189,7 @@ function HeroReadout({ dictionary }: { dictionary: Dictionary }) {
           <div key={SAMPLE_SECTIONS[i]} className="rounded-md border p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <SectionBadge section={SAMPLE_SECTIONS[i]} />
-              <div className="flex items-center gap-3">
-                <ScoreIndicator score={SAMPLE_SCORES[i].impact} kind="impact" />
-                <ScoreIndicator score={SAMPLE_SCORES[i].effort} kind="effort" />
-              </div>
+              <ScoreIndicator score={SAMPLE_IMPACTS[i]} />
             </div>
             <p className="mt-2 text-sm">{hunch.problem}</p>
             {'variant' in hunch && hunch.variant && (

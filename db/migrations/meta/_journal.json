@@ -141,6 +141,13 @@
       "when": 1787026720184,
       "tag": "0019_sleepy_doorman",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1787029079856,
+      "tag": "0020_fuzzy_vivisector",
+      "breakpoints": true
     }
   ]
 }

@@ -174,7 +174,16 @@ test.describe('core features', () => {
     const card = page.getByTestId('hypothesis-card').first()
     await expect(card.getByTestId('alternate-variants')).toHaveCount(0)
 
-    await card.getByTestId('load-alternates').click()
+    // Synchronized on the response rather than the default expect timeout: this is the only test
+    // that hits the route, so it always pays `next dev`'s cold compile for it.
+    const [written] = await Promise.all([
+      page.waitForResponse(
+        (r) => /\/api\/hypotheses\/[0-9a-f-]+\/variants$/.test(r.url()) && r.request().method() === 'POST'
+      ),
+      card.getByTestId('load-alternates').click()
+    ])
+    expect(written.ok()).toBeTruthy()
+
     await expect(card.getByTestId('alternate-variants')).toBeVisible()
     await expect(card.getByTestId('load-alternates')).toHaveCount(0)
 
@@ -212,7 +221,6 @@ test.describe('core features', () => {
     )
 
     await expect(page.getByTestId('hypothesis-filters')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Effort', exact: true })).toHaveCount(0)
   })
 
   test('shows the flow playbook with implementation steps, and on the public report', async ({

@@ -87,7 +87,6 @@ export async function POST(request: Request) {
             problem: h.problem,
             currentCopy: h.current_copy,
             impactScore: h.impact_score,
-            effortScore: h.effort_score,
             rationale: h.rationale,
             selector: h.selector,
             target: h.target
@@ -130,7 +129,6 @@ export async function POST(request: Request) {
                 problem: fix.problem,
                 steps: fix.steps,
                 impactScore: fix.impact_score,
-                effortScore: fix.effort_score,
                 evidence: fix.evidence,
                 position
               }))

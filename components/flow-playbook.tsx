@@ -52,18 +52,8 @@ export function FlowPlaybook({
             testId={`${section}-fix`}
             defaultOpen={expandFrom === undefined || index < expandFrom}
             badge={<FlowCategoryBadge category={fix.category} />}
-            scores={
-              <>
-                <ScoreIndicator score={fix.impactScore} kind="impact" variant="compact" />
-                <ScoreIndicator score={fix.effortScore} kind="effort" variant="compact" />
-              </>
-            }
-            openScores={
-              <>
-                <ScoreIndicator score={fix.impactScore} kind="impact" />
-                <ScoreIndicator score={fix.effortScore} kind="effort" />
-              </>
-            }
+            scores={<ScoreIndicator score={fix.impactScore} variant="compact" />}
+            openScores={<ScoreIndicator score={fix.impactScore} />}
           >
             <FlowFixBody fix={fix} section={section} />
           </DisclosureCard>

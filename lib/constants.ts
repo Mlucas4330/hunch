@@ -590,22 +590,10 @@ export function impactScoreBadgeClass(score: number): string {
   return 'bg-neutral/15 text-neutral'
 }
 
-export function effortScoreBadgeClass(score: number): string {
-  if (score <= 3) return 'bg-green/15 text-green'
-  if (score <= 6) return 'bg-amber/15 text-amber'
-  return 'bg-red/15 text-red'
-}
-
 export function impactScoreFillClass(score: number): string {
   if (score >= 8) return 'bg-coral'
   if (score >= 5) return 'bg-amber'
   return 'bg-neutral'
-}
-
-export function effortScoreFillClass(score: number): string {
-  if (score <= 3) return 'bg-green'
-  if (score <= 6) return 'bg-amber'
-  return 'bg-red'
 }
 
 // A default, never a state the reader is stuck in -- every row can still be closed.

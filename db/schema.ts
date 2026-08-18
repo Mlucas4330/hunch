@@ -129,7 +129,6 @@ export const hypotheses = pgTable('hypotheses', {
   problem: text('problem').notNull(),
   currentCopy: text('current_copy').notNull(),
   impactScore: integer('impact_score').notNull(),
-  effortScore: integer('effort_score').notNull(),
   rationale: text('rationale').notNull(),
   selector: text('selector'),
   target: hypothesisTargetEnum('target').notNull().default('manual'),
@@ -162,7 +161,6 @@ export const flowFixes = pgTable('flow_fixes', {
   problem: text('problem').notNull(),
   steps: jsonb('steps').$type<string[]>().notNull(),
   impactScore: integer('impact_score').notNull(),
-  effortScore: integer('effort_score').notNull(),
   evidence: text('evidence'),
   position: integer('position').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow()

@@ -121,7 +121,6 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Match an existing account by verified email so returning users are never duplicated'
       ],
       impact_score: 9,
-      effort_score: 4,
       evidence:
         'Every account created today costs the visitor a password they must invent and then remember.'
     },
@@ -136,7 +135,6 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Link the pricing question straight to the pricing section'
       ],
       impact_score: 7,
-      effort_score: 2,
       evidence: 'Reference pages resolve pricing and cancellation questions on the page itself.'
     },
     {
@@ -149,7 +147,6 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Drop the fields you never query'
       ],
       impact_score: 7,
-      effort_score: 3,
       evidence: 'Four of the six fields are asked before the visitor has any reason to answer them.'
     },
     {
@@ -161,7 +158,6 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Keep the label identical to the hero button so it reads as one path'
       ],
       impact_score: 5,
-      effort_score: 1,
       evidence: 'Reference pages repeat one action rather than offering several competing ones.'
     }
   ],
@@ -177,7 +173,6 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Reconheça a conta existente pelo email verificado para nunca duplicar quem volta'
       ],
       impact_score: 9,
-      effort_score: 4,
       evidence:
         'Toda conta criada hoje custa ao visitante uma senha que ele precisa inventar e depois lembrar.'
     },
@@ -192,7 +187,6 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Ligue a pergunta sobre preço direto à seção de planos'
       ],
       impact_score: 7,
-      effort_score: 2,
       evidence:
         'As páginas de referência resolvem dúvidas de preço e cancelamento na própria página.'
     },
@@ -206,7 +200,6 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Descarte os campos que você nunca consulta'
       ],
       impact_score: 7,
-      effort_score: 3,
       evidence:
         'Quatro dos seis campos são pedidos antes de o visitante ter qualquer motivo para respondê-los.'
     },
@@ -219,7 +212,6 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Mantenha o rótulo idêntico ao do botão do topo para que os dois leiam como um só caminho'
       ],
       impact_score: 5,
-      effort_score: 1,
       evidence:
         'As páginas de referência repetem uma ação em vez de oferecer várias concorrentes entre si.'
     }
@@ -237,7 +229,6 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
         'Keep it to one sentence that reads as a whole thought on its own'
       ],
       impact_score: 8,
-      effort_score: 1,
       evidence:
         'With no description declared, the snippet a reader sees is assembled from whatever text the crawler picked.'
     },
@@ -251,7 +242,6 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
         'Validate the markup renders without errors before shipping'
       ],
       impact_score: 6,
-      effort_score: 3,
       evidence:
         'A model reading this page has to infer what the company is from prose, because no markup states it.'
     },
@@ -264,7 +254,6 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
         'Leave alt empty only for images that are purely decorative'
       ],
       impact_score: 5,
-      effort_score: 2,
       evidence: 'What those images show is currently readable only by a person looking at the page.'
     }
   ],
@@ -279,7 +268,6 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
         'Mantenha em uma frase que se sustente sozinha como ideia completa'
       ],
       impact_score: 8,
-      effort_score: 1,
       evidence:
         'Sem descrição declarada, o trecho que o leitor vê é montado a partir de qualquer texto que o rastreador escolheu.'
     },
@@ -293,7 +281,6 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
         'Valide se a marcação carrega sem erros antes de publicar'
       ],
       impact_score: 6,
-      effort_score: 3,
       evidence:
         'Um modelo que lê esta página precisa deduzir o que é a empresa a partir do texto corrido, porque nenhuma marcação diz isso.'
     },
@@ -307,7 +294,6 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
         'Deixe o alt vazio apenas nas imagens puramente decorativas'
       ],
       impact_score: 5,
-      effort_score: 2,
       evidence:
         'O que essas imagens mostram hoje só é legível por uma pessoa olhando para a página.'
     }
@@ -369,7 +355,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 9,
-        effort_score: 2,
         rationale:
           'A specific, quantified outcome in the headline raises perceived value within the first 5 seconds, matching how the strongest competitors open.'
       },
@@ -386,7 +371,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 8,
-        effort_score: 1,
         rationale:
           'Removing risk and signalling zero cost lowers friction at the decision point, a lever every benchmarked competitor pulls.'
       },
@@ -404,7 +388,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 7,
-        effort_score: 3,
         rationale:
           'Concrete numbers and recognizable names convert abstract trust into verifiable evidence, as the strongest competitor pages do.'
       },
@@ -421,7 +404,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 6,
-        effort_score: 4,
         rationale:
           'Anchoring on a low-friction entry point reduces sticker shock, mirroring how competitors structure their pricing page.'
       },
@@ -438,7 +420,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 5,
-        effort_score: 3,
         rationale:
           'Reframing capabilities as outcomes connects each feature to a buyer goal, as competitor feature sections do.'
       },
@@ -454,7 +435,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 4,
-        effort_score: 2,
         rationale:
           'Using the subheadline to pre-empt the top objection keeps momentum toward the CTA, as competitor pages do.'
       }
@@ -477,7 +457,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 9,
-        effort_score: 2,
         rationale:
           'Um resultado específico e quantificado no título eleva o valor percebido nos primeiros 5 segundos, como abrem os concorrentes mais fortes.'
       },
@@ -494,7 +473,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 8,
-        effort_score: 1,
         rationale:
           'Remover o risco e sinalizar custo zero reduz o atrito no momento da decisão, alavanca que todo concorrente avaliado usa.'
       },
@@ -511,7 +489,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 7,
-        effort_score: 3,
         rationale:
           'Números concretos e nomes reconhecíveis convertem confiança abstrata em evidência verificável, como fazem as páginas concorrentes mais fortes.'
       },
@@ -528,7 +505,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 6,
-        effort_score: 4,
         rationale:
           'Ancorar num ponto de entrada de baixo atrito reduz o choque de preço, espelhando como os concorrentes estruturam a página de planos.'
       },
@@ -546,7 +522,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 5,
-        effort_score: 3,
         rationale:
           'Reformular capacidades como resultados conecta cada recurso a um objetivo do comprador, como fazem as seções de recursos dos concorrentes.'
       },
@@ -563,7 +538,6 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           }
         ],
         impact_score: 4,
-        effort_score: 2,
         rationale:
           'Usar o subtítulo para antecipar a principal objeção mantém o avanço até a chamada para ação, como fazem as páginas concorrentes.'
       }

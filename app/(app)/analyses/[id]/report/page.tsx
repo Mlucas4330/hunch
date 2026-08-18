@@ -134,7 +134,7 @@ export default async function AnalysisReportPage({
                   )}
                 </div>
                 <div className="flex gap-3">
-                  <ScoreIndicator score={hypothesis.impactScore} kind="impact" />
+                  <ScoreIndicator score={hypothesis.impactScore} />
                 </div>
               </div>
 

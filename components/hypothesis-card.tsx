@@ -49,8 +49,8 @@ export function HypothesisCard({
           )}
         </span>
       }
-      scores={<ScoreIndicator score={hypothesis.impactScore} kind="impact" variant="compact" />}
-      openScores={<ScoreIndicator score={hypothesis.impactScore} kind="impact" />}
+      scores={<ScoreIndicator score={hypothesis.impactScore} variant="compact" />}
+      openScores={<ScoreIndicator score={hypothesis.impactScore} />}
     >
       {children}
     </DisclosureCard>

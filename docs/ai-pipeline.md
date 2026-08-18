@@ -65,7 +65,6 @@ const HypothesisSchema = z.object({
     current_copy: z.string(),
     variants: z.array(VariantSchema).length(1),
     impact_score: z.number().int().min(1).max(10),
-    effort_score: z.number().int().min(1).max(10),
     rationale: z.string()
 })
 
@@ -77,11 +76,15 @@ const AnalysisOutputSchema = z.object({
 const AlternateVariantsSchema = z.object({ variants: z.array(VariantSchema).length(2) })
 ```
 
-**A hypothesis `effort_score` is generated, stored, and never shown.** It stays in the schema only
-because the column is `notNull`; the UI dropped it because every copy hypothesis is a single-element
-swap, so there is no cost to vary and the copy prompt never defined the field. A
-flow fix keeps its `effort_score` on screen, where the prompt does define it and the cost is real. See
-[analysis-ui.md](analysis-ui.md#why-a-copy-hypothesis-shows-impact-but-no-effort).
+**No prompt asks for an effort score.** It was removed from both schemas, from all three prompts and
+from the two columns, because a model that has read one page cannot know what applying a change costs
+on someone else's stack — see
+[analysis-ui.md](analysis-ui.md#nothing-shows-an-effort-score-anywhere). Ranking is `impact_score`
+alone.
+
+**Worth watching, and not measurable from here:** asking for implementation cost may have been helping
+the model calibrate `impact_score` by forcing the tradeoff. If the ranking starts looking flat, this
+is the change to suspect.
 
 ```typescript
 
@@ -91,7 +94,6 @@ const FlowFixSchema = z.object({
     problem: z.string(),
     steps: z.array(z.string()).min(2).max(PLAYBOOK_STEPS_MAX),
     impact_score: z.number().int().min(1).max(10),
-    effort_score: z.number().int().min(1).max(10),
     evidence: z.string()
 })
 

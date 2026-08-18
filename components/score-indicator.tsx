@@ -1,11 +1,6 @@
 'use client'
 
-import {
-  effortScoreBadgeClass,
-  effortScoreFillClass,
-  impactScoreBadgeClass,
-  impactScoreFillClass
-} from '@/lib/constants'
+import { impactScoreBadgeClass, impactScoreFillClass } from '@/lib/constants'
 import { useI18n } from '@/components/i18n-provider'
 import { t } from '@/lib/i18n/format'
 import { cn } from '@/lib/utils'
@@ -14,34 +9,31 @@ const SEGMENTS = Array.from({ length: 10 }, (_, i) => i)
 
 export function ScoreIndicator({
   score,
-  kind,
   variant = 'meter'
 }: {
   score: number
-  kind: 'impact' | 'effort'
   variant?: 'meter' | 'compact'
 }) {
   const { dictionary } = useI18n()
-  const label = dictionary.score[kind]
+  const label = dictionary.score.impact
   const aria = t(dictionary.score.aria, { label, score })
 
   if (variant === 'compact') {
-    const tint = kind === 'impact' ? impactScoreBadgeClass(score) : effortScoreBadgeClass(score)
     return (
       <span
         className={cn(
           'rounded-sm px-1.5 py-0.5 font-mono text-[0.7rem] font-semibold tabular-nums',
-          tint
+          impactScoreBadgeClass(score)
         )}
         aria-label={aria}
       >
-        {dictionary.score.short[kind]}
+        {dictionary.score.short.impact}
         {score}
       </span>
     )
   }
 
-  const fill = kind === 'impact' ? impactScoreFillClass(score) : effortScoreFillClass(score)
+  const fill = impactScoreFillClass(score)
 
   return (
     <div className="flex items-center gap-2" aria-label={aria}>

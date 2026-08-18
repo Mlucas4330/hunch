@@ -133,14 +133,16 @@ only has to separate the categories it sits beside.
 
 ## Score indicator
 
-A bar or numbered badge for `impact_score` and `effort_score` (1-10).
+A bar or numbered badge for `impact_score` (1-10). Higher = warmer: coral at 8-10, amber at 5-7, gray
+at 1-4.
 
-- Impact: higher = warmer (coral at 8-10, amber at 5-7, gray at 1-4).
-- Effort: lower = better (green at 1-3, amber at 4-6, red at 7-10).
-- `variant="compact"` swaps the ten-segment gauge for one tinted chip (`I9`, `E3`), over
-  `impactScoreBadgeClass` / `effortScoreBadgeClass`. It is what collapsed rows use: a screen holding ten
-  or more rows cannot afford ten gauges. **The `aria-label` is identical in both variants**, so nothing
-  is lost to a screen reader.
+- **Impact is the only scale it renders.** There used to be a `kind` prop carrying an effort scale
+  beside it; effort is gone from the whole product — see
+  [analysis-ui.md](analysis-ui.md#nothing-shows-an-effort-score-anywhere).
+- `variant="compact"` swaps the ten-segment gauge for one tinted chip (`I9`), over
+  `impactScoreBadgeClass`. It is what collapsed rows use: a screen holding ten or more rows cannot
+  afford ten gauges. **The `aria-label` is identical in both variants**, so nothing is lost to a
+  screen reader.
 
 ## Info hint — `components/info-hint.tsx`
 

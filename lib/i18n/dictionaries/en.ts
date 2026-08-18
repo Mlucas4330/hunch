@@ -129,11 +129,9 @@ export const en = {
 
   score: {
     impact: 'Impact',
-    effort: 'Effort',
     aria: '{label} {score} of 10',
     short: {
-      impact: 'I',
-      effort: 'E'
+      impact: 'I'
     }
   },
 

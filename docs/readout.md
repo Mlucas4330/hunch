@@ -92,7 +92,7 @@ Three decisions worth keeping:
 tinted by the same three colours as the values beneath it.
 
 `components/readout-score.tsx` renders it above the groups on all three surfaces. It deliberately does
-**not** reuse `components/score-indicator.tsx`: that is the 1-10 impact/effort scale on the hypotheses,
+**not** reuse `components/score-indicator.tsx`: that is the 1-10 impact scale on the hypotheses,
 and two different scales wearing the same widget on one screen is where the reader stops trusting
 either.
 

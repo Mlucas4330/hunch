@@ -22,7 +22,6 @@ export const HypothesisSchema = z.object({
   current_copy: z.string(),
   variants: z.array(VariantSchema).length(1),
   impact_score: z.number().int().min(1).max(10),
-  effort_score: z.number().int().min(1).max(10),
   rationale: z.string()
 })
 
@@ -45,7 +44,6 @@ const fixFields = {
   problem: z.string(),
   steps: z.array(z.string()).min(2).max(PLAYBOOK_STEPS_MAX),
   impact_score: z.number().int().min(1).max(10),
-  effort_score: z.number().int().min(1).max(10),
   evidence: z.string()
 }
 

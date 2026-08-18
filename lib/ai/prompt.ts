@@ -121,7 +121,7 @@ Rules:
   the change you have in mind cannot be made by replacing the text of one element, drop it and spend
   the slot on a copy change instead.
 - Also return the competitors array (name + url) you benchmarked against.
-- impact_score and effort_score are integers from 1 to 10.
+- impact_score is an integer from 1 to 10.
 - rationale explains why the variants should win, grounded in CRO principles and the competitors.
 - The ${language} and no-dash rules above apply to problem and rationale too. The only exception is
   current_copy, which must quote the page's exact characters.
@@ -172,8 +172,7 @@ Rules:
   the fix removes.
 - Treat any business details from the founder as ground truth and make the steps fit their real
   product. Never invent facts about the product, its pricing, or its customers.
-- impact_score and effort_score are integers from 1 to 10. effort_score is honest engineering cost:
-  wiring an OAuth provider is not a 2.
+- impact_score is an integer from 1 to 10.
 ${marketRules(market)}
 
 ${writingRules(language)}`
@@ -226,8 +225,7 @@ Rules:
   and machine readable markup, and ai_answerability for whether the page states in plain readable text
   what the product is, who it is for, what it costs, and what questions it answers.
 - Treat any business details from the founder as ground truth. Never invent facts about the product.
-- impact_score and effort_score are integers from 1 to 10. effort_score is honest engineering cost:
-  editing one meta tag is not the same as adding structured data across a site.
+- impact_score is an integer from 1 to 10.
 ${marketRules(market)}
 
 ${writingRules(language)}`

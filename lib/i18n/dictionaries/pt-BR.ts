@@ -133,11 +133,9 @@ export const ptBR: Dictionary = {
 
   score: {
     impact: 'Impacto',
-    effort: 'Esforço',
     aria: '{label} {score} de 10',
     short: {
-      impact: 'I',
-      effort: 'E'
+      impact: 'I'
     }
   },
 
