@@ -1,9 +1,5 @@
 import type {
-  ExperimentDuration,
-  ExperimentRecommendation,
-  ExperimentStatus,
   FlowCategory,
-  HypothesisStatus,
   LeadSource,
   Locale,
   Market,
@@ -12,8 +8,7 @@ import type {
   ReadoutSeverity,
   Section,
   SubscriptionPlan,
-  UserRole,
-  VariantStatus
+  UserRole
 } from '@/lib/enums'
 
 // Only reached when NEXT_PUBLIC_APP_URL is unset: local dev and the e2e run.
@@ -202,12 +197,10 @@ export const BROWSER_CONNECT_RETRY_DELAY_MS = 1_000
 const MINUTE_MS = 60 * 1000
 const HOUR_MS = 60 * MINUTE_MS
 
-// Sized by what each route costs us, not by what a plan allows. The tracking routes carry a landing
-// page's real traffic and must stay generous enough that a busy customer is never throttled.
+// Sized by what each route costs us, not by what a plan allows.
 export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: number }> = {
   analysis: { tokens: 5, windowMs: HOUR_MS },
   variants: { tokens: 20, windowMs: HOUR_MS },
-  experiment: { tokens: 30, windowMs: HOUR_MS },
   screenshot: { tokens: 10, windowMs: HOUR_MS },
   // Looser than `analysis` because it buys no generation, tighter than `variants` because it
   // opens a browser.
@@ -219,8 +212,6 @@ export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: numb
   // Loose: it gates nothing but noise in the operator's own follow-up signal, and one reader
   // reloading a report is normal.
   report_view: { tokens: 60, windowMs: HOUR_MS },
-  track_event: { tokens: 120, windowMs: MINUTE_MS },
-  track_config: { tokens: 300, windowMs: MINUTE_MS },
   signin: { tokens: 5, windowMs: 15 * MINUTE_MS }
 }
 
@@ -266,10 +257,6 @@ export const BRAND_ACCENT_PATTERN = /^#[0-9a-fA-F]{6}$/
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 
 export const FREE_ANALYSES_LIMIT = 3
-
-export const FREE_EXPERIMENTS_LIMIT = 1
-
-export const DEFAULT_EXPERIMENT_DURATION: ExperimentDuration = 14
 
 // How many hypotheses the public report shows in full before the wall.
 export const REPORT_PREVIEW_LIMIT = 3
@@ -317,12 +304,6 @@ export const TARGET_MATCH_MAX_WORD_RATIO = 1.3
 // count for the readout -- it has nothing to do with conversion goals, despite the name.
 export const GOAL_CANDIDATE_MAX_WORDS = 8
 
-// What a conversion is: the one element the site owner marked. Unbranded on purpose -- it lands in a
-// white-labelled client's source permanently, where the agency cannot strip it. Duplicated as a
-// literal in public/embed.js, which cannot import from lib/.
-export const GOAL_ATTRIBUTE = 'data-ab-goal'
-export const GOAL_TARGET_SELECTOR = `[${GOAL_ATTRIBUTE}]`
-
 // A writing constraint, deliberately looser than TARGET_MATCH_MAX_WORD_RATIO above -- do not
 // unify them. The floor exists because a pure ratio is nonsense at the short end: a 2-word CTA at
 // 1.5x is 3 words, which forbids "Start free, no card required".
@@ -350,8 +331,6 @@ export const FIT_MIN_SCALE = 0.7
 
 // Subpixel layout noise. A box is not "clipping" because it is a third of a pixel short.
 export const FIT_TOLERANCE_PX = 1
-
-export const GOAL_CANDIDATE_LIMIT = 12
 
 // The recommendation plus its two alternates, which are written on demand. See docs/ai-pipeline.md.
 export const VARIANTS_PER_HYPOTHESIS = 3
@@ -603,32 +582,6 @@ export const LEAD_SOURCE_BADGE_CLASS: Record<LeadSource, string> = {
 export const PLAN_BADGE_CLASS: Record<SubscriptionPlan, string> = {
   free: 'bg-neutral/15 text-neutral',
   pro: 'bg-purple/15 text-purple'
-}
-
-export const HYPOTHESIS_STATUS_BADGE_CLASS: Record<HypothesisStatus, string> = {
-  pending: 'bg-neutral/15 text-neutral',
-  testing: 'bg-amber/15 text-amber',
-  completed: 'bg-green/15 text-green',
-  skipped: 'bg-neutral/10 text-muted-foreground'
-}
-
-export const VARIANT_STATUS_BADGE_CLASS: Record<VariantStatus, string> = {
-  proposed: 'bg-neutral/15 text-neutral',
-  testing: 'bg-amber/15 text-amber',
-  winner: 'bg-green/15 text-green',
-  rejected: 'bg-red/15 text-red'
-}
-
-export const EXPERIMENT_STATUS_BADGE_CLASS: Record<ExperimentStatus, string> = {
-  running: 'bg-amber/15 text-amber',
-  stopped: 'bg-neutral/15 text-neutral',
-  completed: 'bg-green/15 text-green'
-}
-
-export const EXPERIMENT_RECOMMENDATION_BADGE_CLASS: Record<ExperimentRecommendation, string> = {
-  ship_variant: 'bg-green/15 text-green',
-  keep_control: 'bg-neutral/15 text-neutral',
-  inconclusive: 'bg-amber/15 text-amber'
 }
 
 export function impactScoreBadgeClass(score: number): string {

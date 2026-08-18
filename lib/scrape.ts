@@ -6,7 +6,6 @@ import {
   FIT_STEP_RATIO,
   FIT_TOLERANCE_PX,
   GOAL_CANDIDATE_MAX_WORDS,
-  GOAL_TARGET_SELECTOR,
   NORMAL_LINE_HEIGHT_RATIO,
   OAUTH_PROVIDER_PATTERNS,
   STRUCTURE_PATTERNS,
@@ -354,40 +353,6 @@ export async function screenshotVariant(
     } catch (error) {
       if (error instanceof ScrapeError) throw error
       throw new ScrapeError(`Failed to screenshot ${url}`, { cause: error })
-    } finally {
-      await releaseBrowser(browser, page)
-    }
-  })
-}
-
-// Whether the page carries the conversion goal attribute. A browser, not a fetch: on a
-// client-rendered page the attribute is not in the served HTML, and answering "missing" for a page
-// that has it would block a launch that should have gone ahead.
-export async function pageHasGoalTarget(url: string): Promise<boolean> {
-  // Mirrors measurePage in lib/analyze.ts. Keyed on the URL rather than a flat true so the refusal
-  // path stays reachable from e2e, which puts its tag in the URL.
-  if (process.env.E2E_FIXTURES === '1') return !url.includes('no-goal')
-
-  const target = await assertPublicUrl(url)
-
-  return withBrowserSlot(SCREENSHOT_QUEUE_MAX_WAIT_MS, async () => {
-    const browser = await launchBrowser()
-    let page: Page | null = null
-
-    try {
-      page = await openGuardedPage(browser)
-      await page.setViewport(SCRAPE_VIEWPORT)
-      await page.goto(target.href, {
-        waitUntil: 'networkidle2',
-        timeout: SCRAPE_NAVIGATION_TIMEOUT_MS
-      })
-      await settlePage(page)
-      return await page.evaluate(
-        (selector) => !!document.querySelector(selector),
-        GOAL_TARGET_SELECTOR
-      )
-    } catch (error) {
-      throw new ScrapeError(`Failed to check the conversion goal on ${url}`, { cause: error })
     } finally {
       await releaseBrowser(browser, page)
     }

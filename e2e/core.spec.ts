@@ -1,84 +1,7 @@
 ﻿import { test, expect, type Page } from '@playwright/test'
-import { E2E_CRON_SECRET } from '../playwright.config'
-
-function track(page: Page, origin: string, body: Record<string, string>) {
-  return page.request.post(`${origin}/api/track/event`, {
-    headers: { 'Content-Type': 'text/plain' },
-    data: JSON.stringify(body)
-  })
-}
-
-function hostPage(headline: string, embedKey: string) {
-  return `<!doctype html><html><body>
-    <h1>${headline}</h1>
-    <button data-ab-goal>Start free</button>
-    <script src="/embed.js" data-key="${embedKey}"></script>
-  </body></html>`
-}
-
-// Stands in for a framework re-rendering the swapped node: once by rewriting its text, once by
-// replacing the element outright, which is the case a held reference cannot survive.
-function revertingHostPage(headline: string, embedKey: string) {
-  return `<!doctype html><html><body>
-    <h1>${headline}</h1>
-    <button data-ab-goal>Start free</button>
-    <script src="/embed.js" data-key="${embedKey}"></script>
-    <script>
-      setTimeout(function () {
-        document.querySelector('h1').textContent = ${JSON.stringify(headline)}
-        window.__revertedText = true
-      }, 800)
-      setTimeout(function () {
-        var fresh = document.createElement('h1')
-        fresh.textContent = ${JSON.stringify(headline)}
-        document.querySelector('h1').replaceWith(fresh)
-        window.__replacedNode = true
-      }, 1600)
-    </script>
-  </body></html>`
-}
-
-// The shape of a real hero headline: the copy under test spans a text node and a styled span, so
-// textContent would delete the span out from under whatever framework rendered it.
-function wrappedHostPage(headline: string, embedKey: string) {
-  const [head, ...rest] = headline.split(' ')
-  return `<!doctype html><html><body>
-    <h1 data-outer>${head} <span data-inner>${rest.join(' ')}</span></h1>
-    <button data-ab-goal>Start free</button>
-    <script src="/embed.js" data-key="${embedKey}"></script>
-  </body></html>`
-}
 
 async function openCopyTab(page: Page) {
   await page.getByRole('tab', { name: 'Wording' }).click()
-}
-
-async function startFirstTest(page: Page) {
-  const id = new URL(page.url()).pathname.split('/').pop()
-  await page.goto('/dashboard')
-  await page.getByTestId('analysis-history').locator(`a[href="/analyses/${id}/tests"]`).click()
-  await page.waitForURL(/\/analyses\/[0-9a-f-]+\/tests$/)
-  await page.getByRole('link', { name: 'Set up test' }).first().click()
-  await page.waitForURL(/\/analyses\/[0-9a-f-]+\/tests\/[0-9a-f-]+$/)
-}
-
-async function launchTest(page: Page, tag: string) {
-  await page.goto('/dashboard')
-  await page.fill('input[name="url"]', `https://example.com/?t=${Date.now()}-${tag}`)
-  await page.getByRole('button', { name: 'Analyze' }).click()
-  await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
-
-  await startFirstTest(page)
-
-  const [launchResponse] = await Promise.all([
-    page.waitForResponse(
-      (r) => r.url().endsWith('/api/experiments') && r.request().method() === 'POST'
-    ),
-    page.getByTestId('launch-experiment').click()
-  ])
-
-  const { embedKey, experiment } = await launchResponse.json()
-  return { embedKey, experiment, origin: new URL(page.url()).origin }
 }
 
 test.describe('core features', () => {
@@ -230,52 +153,37 @@ test.describe('core features', () => {
 
     await openCopyTab(page)
     await expect(page.getByText('Ship faster: releases in').first()).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Set up test' })).toHaveCount(0)
-    await expect(page.getByTestId('deliverables').getByRole('link', { name: 'Tests' })).toHaveCount(
-      0
-    )
 
     await page.goto('/dashboard')
     const history = page.getByTestId('analysis-history')
     await expect(history.getByText(url)).toBeVisible()
-    await history.getByRole('link', { name: 'Tests' }).first().click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+\/tests$/)
-    const tests = page.getByTestId('test-list')
-    await expect(tests.getByText('Install the tracking snippet')).toBeVisible()
-    await expect(tests.getByTestId('test-row').first()).toBeVisible()
-    await expect(tests.getByRole('link', { name: 'Set up test' }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Back to clients' })).toBeVisible()
+    // Two documents on the client card, and nothing else. Stage 2 is gone.
+    await expect(history.getByRole('link', { name: 'Tests' })).toHaveCount(0)
+    await expect(page.getByTestId('deliverables-compact').first()).toBeVisible()
   })
 
-  test('shows an example test only until a real one exists', async ({ page }) => {
-    const url = `https://example.com/?t=${Date.now()}-example`
+  test('writes the two alternate options on demand, from the analysis', async ({ page }) => {
+    const url = `https://example.com/?t=${Date.now()}-alt`
 
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
     await page.getByRole('button', { name: 'Analyze' }).click()
     await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
+    await openCopyTab(page)
 
-    await expect(page.getByTestId('example-test')).toHaveCount(0)
+    const card = page.getByTestId('hypothesis-card').first()
+    await expect(card.getByTestId('alternate-variants')).toHaveCount(0)
 
-    await startFirstTest(page)
+    await card.getByTestId('load-alternates').click()
+    await expect(card.getByTestId('alternate-variants')).toBeVisible()
+    await expect(card.getByTestId('load-alternates')).toHaveCount(0)
 
-    const example = page.getByTestId('example-test')
-    await expect(example).toBeVisible()
-    await expect(example).toContainText('Example')
-    // Derived by experimentResult() from the sample counts. Fails if they drop below the
-    // significance gates.
-    await expect(example).toContainText('Significant: 25.0% lift (p=0.031)')
-    await expect(example).toContainText('Ship the variant')
-
-    await Promise.all([
-      page.waitForResponse(
-        (r) => r.url().endsWith('/api/experiments') && r.request().method() === 'POST'
-      ),
-      page.getByTestId('launch-experiment').click()
-    ])
-
-    await expect(page.getByTestId('experiment-panel')).toBeVisible()
-    await expect(page.getByTestId('example-test')).toHaveCount(0)
+    // Persisted, not just held in local state.
+    await page.reload()
+    await openCopyTab(page)
+    await expect(
+      page.getByTestId('hypothesis-card').first().getByTestId('alternate-variants')
+    ).toBeVisible()
   })
 
   test('ranks the top ideas open and collapses the backlog', async ({ page }) => {
@@ -293,7 +201,7 @@ test.describe('core features', () => {
 
     const top = rows.first()
     await expect(top).toContainText('The headline describes the product category')
-    await expect(top).toContainText('Test this first')
+    await expect(top).toContainText('Start here')
 
     await top.locator('summary').click()
     await expect(page.locator('[data-testid="hypothesis-card"] details[open]')).toHaveCount(2)
@@ -325,10 +233,8 @@ test.describe('core features', () => {
     await expect(
       playbook.getByText('Add a "Continue with Google" button above the email field on the signup form')
     ).toBeVisible()
-    await expect(playbook.getByRole('link', { name: 'Set up test' })).toHaveCount(0)
-
-    await playbook.getByRole('button', { name: 'Why these have no test button' }).click()
-    await expect(playbook.getByRole('tooltip')).toContainText('nothing for the snippet to swap')
+    await playbook.getByRole('button', { name: 'Why these are shipped by hand' }).click()
+    await expect(playbook.getByRole('tooltip')).toContainText('shipped by hand')
 
     await page.getByRole('tab', { name: 'Search visibility' }).click()
     const seo = page.getByTestId('seo-playbook')
@@ -358,10 +264,8 @@ test.describe('core features', () => {
     await anon.getByRole('tab', { name: 'AI visibility' }).click()
     await expect(anon.getByTestId('ai-playbook').getByTestId('ai-fix')).toHaveCount(1)
 
-    // Four tabs, all about what to change. Running a test is its own screen and reaches no report.
+    // Four tabs, all about what to change.
     await expect(anon.getByRole('tab')).toHaveCount(4)
-    await expect(anon.getByTestId('test-list')).toHaveCount(0)
-    await expect(anon.getByTestId('example-test')).toHaveCount(0)
 
     await anon.getByRole('tab', { name: 'Wording' }).click()
     const preview = anon.getByTestId('variant-preview').first()
@@ -383,348 +287,7 @@ test.describe('core features', () => {
     await page.goto('/dashboard')
     await page.getByRole('link', { name: `Open analysis for ${url}` }).click()
     await expect(page).toHaveURL(analysisUrl)
-    await expect(page.getByRole('heading', { name: 'Your test ideas' })).toBeVisible()
-  })
-
-  test('sets up a test on a hypothesis, launches it, and records tracked events', async ({
-    page
-  }) => {
-    const url = `https://example.com/?t=${Date.now()}-exp`
-
-    await page.goto('/dashboard')
-    await page.fill('input[name="url"]', url)
-    await page.getByRole('button', { name: 'Analyze' }).click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
-
-    await startFirstTest(page)
-
-    const [launchResponse] = await Promise.all([
-      page.waitForResponse(
-        (r) => r.url().endsWith('/api/experiments') && r.request().method() === 'POST'
-      ),
-      page.getByTestId('launch-experiment').click()
-    ])
-    expect(launchResponse.ok()).toBeTruthy()
-    const { embedKey, experiment } = await launchResponse.json()
-
-    await expect(page.getByTestId('experiment-panel')).toBeVisible()
-
-    const origin = new URL(page.url()).origin
-    const visitorId = crypto.randomUUID()
-    for (const type of ['impression', 'conversion']) {
-      const res = await track(page, origin, {
-        key: embedKey,
-        experimentId: experiment.id,
-        arm: 'variant',
-        type,
-        visitorId
-      })
-      expect(res.status()).toBe(204)
-    }
-
-    await page.reload()
-    await expect(page.getByTestId('experiment-panel')).toContainText('1 / 1')
-
-    for (const type of ['impression', 'conversion']) {
-      const replay = await track(page, origin, {
-        key: embedKey,
-        experimentId: experiment.id,
-        arm: 'variant',
-        type,
-        visitorId
-      })
-      expect(replay.status()).toBe(204)
-    }
-
-    const anonymous = await track(page, origin, {
-      key: embedKey,
-      experimentId: experiment.id,
-      arm: 'variant',
-      type: 'conversion'
-    })
-    expect(anonymous.status()).toBe(204)
-
-    await page.reload()
-    await expect(page.getByTestId('experiment-panel')).toContainText('1 / 1')
-  })
-
-  test('launches with the chosen 7 or 30 day window and dates the end from it', async ({ page }) => {
-    for (const days of [7, 30]) {
-      const url = `https://example.com/?t=${Date.now()}-dur${days}`
-
-      await page.goto('/dashboard')
-      await page.fill('input[name="url"]', url)
-      await page.getByRole('button', { name: 'Analyze' }).click()
-      await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
-
-      await startFirstTest(page)
-
-      await page.getByTestId(`duration-${days}`).click()
-      const [launchResponse] = await Promise.all([
-        page.waitForResponse(
-          (r) => r.url().endsWith('/api/experiments') && r.request().method() === 'POST'
-        ),
-        page.getByTestId('launch-experiment').click()
-      ])
-
-      const { experiment } = await launchResponse.json()
-      expect(experiment.durationDays).toBe(days)
-
-      const window = new Date(experiment.endsAt).getTime() - new Date(experiment.startedAt).getTime()
-      expect(Math.round(window / 86_400_000)).toBe(days)
-    }
-  })
-
-  test('serves the running experiment to the snippet and nothing to an unknown key', async ({
-    page
-  }) => {
-    const url = `https://example.com/?t=${Date.now()}-config`
-
-    await page.goto('/dashboard')
-    await page.fill('input[name="url"]', url)
-    await page.getByRole('button', { name: 'Analyze' }).click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
-
-    await startFirstTest(page)
-
-    const [launchResponse] = await Promise.all([
-      page.waitForResponse(
-        (r) => r.url().endsWith('/api/experiments') && r.request().method() === 'POST'
-      ),
-      page.getByTestId('launch-experiment').click()
-    ])
-    const { embedKey, experiment } = await launchResponse.json()
-
-    const origin = new URL(page.url()).origin
-    const config = await page.request.get(`${origin}/api/track/config?key=${embedKey}`)
-    expect(config.ok()).toBeTruthy()
-    const { experiments } = await config.json()
-
-    const served = experiments.find((e: { experimentId: string }) => e.experimentId === experiment.id)
-    expect(served).toBeTruthy()
-    expect(served.controlCopy).toBe(experiment.controlCopy)
-    expect(served.variantCopy).toBe(experiment.variantCopy)
-
-    const unknown = await page.request.get(`${origin}/api/track/config?key=${crypto.randomUUID()}`)
-    expect(unknown.ok()).toBeTruthy()
-    expect((await unknown.json()).experiments).toEqual([])
-  })
-
-  test('leaves the launch form reachable after a test is stopped', async ({ page }) => {
-    const url = `https://example.com/?t=${Date.now()}-relaunch`
-
-    await page.goto('/dashboard')
-    await page.fill('input[name="url"]', url)
-    await page.getByRole('button', { name: 'Analyze' }).click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
-
-    await startFirstTest(page)
-    await page.getByTestId('launch-experiment').click()
-    await expect(page.getByTestId('experiment-panel')).toBeVisible()
-
-    await expect(page.getByTestId('relaunch-experiment')).toHaveCount(0)
-    await page.getByRole('button', { name: 'Stop' }).click()
-    await page.getByTestId('relaunch-experiment').click()
-
-    const [second] = await Promise.all([
-      page.waitForResponse(
-        (r) => r.url().endsWith('/api/experiments') && r.request().method() === 'POST'
-      ),
-      page.getByTestId('launch-experiment').click()
-    ])
-    expect(second.status()).toBe(201)
-    await expect(page.getByTestId('experiment-panel')).toBeVisible()
-  })
-
-  test('swaps the copy and counts a conversion when the snippet runs on a real page', async ({
-    page
-  }) => {
-    const { embedKey, experiment, origin } = await launchTest(page, 'embed')
-
-    const host = `${origin}/__e2e/host`
-    await page.route(host, (route) =>
-      route.fulfill({
-        contentType: 'text/html',
-        body: hostPage(experiment.controlCopy, embedKey)
-      })
-    )
-
-    await page.addInitScript(
-      ([id]) => window.localStorage.setItem(`hunch_exp_${id}`, 'variant'),
-      [experiment.id]
-    )
-
-    await page.goto(host)
-    await expect(page.locator('h1')).toHaveText(experiment.variantCopy)
-
-    await Promise.all([
-      page.waitForRequest(
-        (r) => r.url().endsWith('/api/track/event') && r.postData()!.includes('conversion')
-      ),
-      page.click('[data-ab-goal]')
-    ])
-
-    await page.goto(`${origin}/analyses/${experiment.analysisId}/tests/${experiment.hypothesisId}`)
-    await expect(page.getByTestId('experiment-panel')).toContainText('1 / 1')
-  })
-
-  test('re-applies the variant when the page reverts it', async ({ page }) => {
-    const { embedKey, experiment, origin } = await launchTest(page, 'embed-revert')
-
-    const host = `${origin}/__e2e/reverting`
-    await page.route(host, (route) =>
-      route.fulfill({
-        contentType: 'text/html',
-        body: revertingHostPage(experiment.controlCopy, embedKey)
-      })
-    )
-
-    await page.addInitScript(
-      ([id]) => window.localStorage.setItem(`hunch_exp_${id}`, 'variant'),
-      [experiment.id]
-    )
-
-    await page.goto(host)
-    await expect(page.locator('h1')).toHaveText(experiment.variantCopy)
-
-    await page.waitForFunction(() => (window as { __revertedText?: boolean }).__revertedText === true)
-    await expect(page.locator('h1')).toHaveText(experiment.variantCopy)
-
-    await page.waitForFunction(
-      () => (window as { __replacedNode?: boolean }).__replacedNode === true
-    )
-    await expect(page.locator('h1')).toHaveText(experiment.variantCopy)
-  })
-
-  test('swaps a wrapped headline without removing its children', async ({ page }) => {
-    const { embedKey, experiment, origin } = await launchTest(page, 'embed-wrapped')
-
-    const host = `${origin}/__e2e/wrapped`
-    await page.route(host, (route) =>
-      route.fulfill({
-        contentType: 'text/html',
-        body: wrappedHostPage(experiment.controlCopy, embedKey)
-      })
-    )
-
-    await page.addInitScript(
-      ([id]) => window.localStorage.setItem(`hunch_exp_${id}`, 'variant'),
-      [experiment.id]
-    )
-
-    await page.goto(host)
-
-    await expect(page.locator('h1')).toHaveText(experiment.variantCopy)
-    // Still in the document: removing it is what breaks a framework holding a reference to it. And
-    // still carrying words, so the styling it exists for is still visible.
-    await expect(page.locator('h1[data-outer] span[data-inner]')).toHaveCount(1)
-    await expect(page.locator('h1[data-outer] span[data-inner]')).not.toBeEmpty()
-
-    await Promise.all([
-      page.waitForRequest(
-        (r) => r.url().endsWith('/api/track/event') && r.postData()!.includes('conversion')
-      ),
-      page.click('[data-ab-goal]')
-    ])
-
-    await page.goto(`${origin}/analyses/${experiment.analysisId}/tests/${experiment.hypothesisId}`)
-    await expect(page.getByTestId('experiment-panel')).toContainText('1 / 1')
-  })
-
-  test('records nothing when the control copy is not on the page', async ({ page }) => {
-    const { embedKey, experiment, origin } = await launchTest(page, 'embed-drift')
-
-    const host = `${origin}/__e2e/drifted`
-    await page.route(host, (route) =>
-      route.fulfill({
-        contentType: 'text/html',
-        body: hostPage('A completely different headline than the one under test', embedKey)
-      })
-    )
-
-    const events: string[] = []
-    page.on('request', (r) => {
-      if (r.url().endsWith('/api/track/event')) events.push(r.url())
-    })
-
-    await page.addInitScript(
-      ([id]) => window.localStorage.setItem(`hunch_exp_${id}`, 'variant'),
-      [experiment.id]
-    )
-
-    await page.goto(host)
-    await page.click('[data-ab-goal]')
-    await page.waitForTimeout(4000)
-
-    expect(events).toEqual([])
-
-    await page.goto(`${origin}/analyses/${experiment.analysisId}/tests/${experiment.hypothesisId}`)
-    await expect(page.getByTestId('experiment-panel')).toContainText('0 / 0')
-  })
-
-  test('guards the finalize cron behind its secret', async ({ request }) => {
-    const anonymous = await request.get('/api/cron/finalize-experiments')
-    expect(anonymous.status()).toBe(401)
-
-    const wrong = await request.get('/api/cron/finalize-experiments', {
-      headers: { Authorization: 'Bearer not-the-secret' }
-    })
-    expect(wrong.status()).toBe(401)
-
-    const authorized = await request.get('/api/cron/finalize-experiments', {
-      headers: { Authorization: `Bearer ${E2E_CRON_SECRET}` }
-    })
-    expect(authorized.ok()).toBeTruthy()
-    expect(typeof (await authorized.json()).finalized).toBe('number')
-  })
-
-  test('refuses to launch when the goal attribute is not on the page', async ({ page }) => {
-    // The fixture in pageHasGoalTarget keys off the URL, so this tag is what makes the page look
-    // like one that never got the attribute.
-    const url = `https://example.com/?t=${Date.now()}-no-goal`
-
-    await page.goto('/dashboard')
-    await page.fill('input[name="url"]', url)
-    await page.getByRole('button', { name: 'Analyze' }).click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
-
-    await startFirstTest(page)
-
-    const [launchResponse] = await Promise.all([
-      page.waitForResponse(
-        (r) => r.url().endsWith('/api/experiments') && r.request().method() === 'POST'
-      ),
-      page.getByTestId('launch-experiment').click()
-    ])
-
-    expect(launchResponse.status()).toBe(422)
-    expect((await launchResponse.json()).error).toBe('goal_missing')
-
-    await expect(page.getByTestId('goal-warning')).toBeVisible()
-    // Refused, not half-launched: no experiment row means no panel.
-    await expect(page.getByTestId('experiment-panel')).toHaveCount(0)
-  })
-
-  test('fills in the two alternate challengers on demand', async ({ page }) => {
-    const url = `https://example.com/?t=${Date.now()}-alt`
-
-    await page.goto('/dashboard')
-    await page.fill('input[name="url"]', url)
-    await page.getByRole('button', { name: 'Analyze' }).click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
-
-    await startFirstTest(page)
-
-    await expect(page.getByRole('button', { name: /Variant A \(recommended\)/ })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Variant B' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Variant C' })).toBeVisible()
-    await expect(page.getByTestId('alternates-loading')).toHaveCount(0)
-
-    await page.getByRole('button', { name: 'Variant B' }).click()
-    await expect(page.getByTestId('challenger-copy')).not.toHaveValue('')
-
-    await page.reload()
-    await expect(page.getByRole('button', { name: /^Variant [A-C]/ })).toHaveCount(3)
+    await expect(page.getByRole('heading', { name: 'What to change on this page' })).toBeVisible()
   })
 
   test('serves a paid report as an unbranded deliverable', async ({ page, browser }) => {

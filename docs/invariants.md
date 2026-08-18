@@ -52,10 +52,14 @@ subtraction over two numbers this code measured, so it is allowed.
 
 **"Your fix cut LCP by 2.1s" and "the rewrite lifted conversion" are not.** Nobody controlled for
 anything between the two measurements — the page may have changed ten times, or not at all while the
-CDN did. The readout may state that a number moved and when; only a live experiment may say what
-moved it, and that is the whole reason `experiments` exists.
+CDN did. The readout may state that a number moved and when, and **nothing here may say what moved
+it**: attributing a change to a cause needs a controlled experiment, and this product runs none.
 
-*Governs:* [readout.md](readout.md), [experiments.md](experiments.md)
+The product used to carry a live A/B testing stage, and that stage was the one place a causal
+sentence would have been earned. It is gone — see [product.md](product.md) — so the rule is no longer
+"only an experiment may say it" but simply "nothing says it".
+
+*Governs:* [readout.md](readout.md), [report.md](report.md)
 
 ### Keywords measure the page's own words, never the index
 
@@ -189,50 +193,6 @@ the webhook names the plan when the subscription carries no `metadata.plan`.
 The e2e case `publishes no price publicly` is what keeps a price from drifting back onto `/`.
 
 *Governs:* [api.md](api.md), [components.md](components.md), [product.md](product.md)
-
-### Stage 2 is reached from the client, never from the analysis
-
-The analysis needs nothing but a URL, which is why it can be sent to a prospect before anything is
-won. Running a test needs the snippet installed on the customer's site, so it is the step that comes
-after the close. Mixing the two put the second half of the job inside the document handed to someone
-who has not bought yet.
-
-So the **only** entry to `/analyses/[id]/tests` is the `Tests` action on the client card
-(`ReportDeliverables variant="compact"`, `/dashboard`). The analysis screen links to no test screen,
-and no test screen links back to the analysis: the list returns to the clients, and a single test
-returns to the list.
-
-The action rides in the compact deliverables cluster and **only** there — the `full` variant sits on
-the analysis screen, which is exactly the surface this rule keeps clear. That is why one component
-renders three actions in one shape and two in the other, and why a third card must never appear
-beside the two documents.
-
-The action renders whatever the analysis contains, including when nothing in it is testable: the
-destination explains the absence with `testList.empty`, and "no idea here maps to a single element"
-is information a reader has to be able to reach.
-
-*Governs:* [analysis-ui.md](analysis-ui.md), [report.md](report.md), [experiments.md](experiments.md)
-
-## Integrity of results
-
-### An event without a `visitorId` is dropped, never counted
-
-The snippet mints a sticky per-browser uuid and a unique index on
-`(experiment_id, visitor_id, arm, type)` gates the counter, so a conversion or impression counts once
-per visitor and an arm cannot be inflated by anyone holding the (necessarily public) embed key.
-
-The field is **required**. It was optional once, and that optionality was a live hole: an event
-without an id skipped the ledger entirely, so the embed key alone was enough to decide the winner.
-
-*Governs:* [experiments.md](experiments.md)
-
-### The recommendation waits for the end; the numbers do not
-
-Counters and significance are recomputed on every read and the panel polls them while a test runs.
-The **recommendation** renders only once the experiment is `completed` or `stopped`, so the decision
-is never made from a peeked-at interim result.
-
-*Governs:* [experiments.md](experiments.md)
 
 ## Security
 

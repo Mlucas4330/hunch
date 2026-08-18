@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ExternalLink, FileText, FlaskConical, Link2 } from 'lucide-react'
+import { ExternalLink, FileText, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { InfoHint } from '@/components/info-hint'
@@ -33,7 +33,6 @@ export function ReportDeliverables({
 
   const href = `${origin}/r/${embedKey}`
   const printHref = `/analyses/${analysisId}/report`
-  const testsHref = `/analyses/${analysisId}/tests`
 
   async function onCopy() {
     setState((await writeToClipboard(href)) ? 'copied' : 'failed')
@@ -61,12 +60,6 @@ export function ReportDeliverables({
           <Link href={printHref} aria-label={copy.pdfTitle}>
             <FileText aria-hidden className="h-3.5 w-3.5" />
             {copy.pdfShort}
-          </Link>
-        </Button>
-        <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-xs">
-          <Link href={testsHref}>
-            <FlaskConical aria-hidden className="h-3.5 w-3.5" />
-            {dictionary.history.tests}
           </Link>
         </Button>
       </div>

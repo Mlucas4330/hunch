@@ -27,7 +27,6 @@ Read the file that covers what you are about to touch. Paths are relative to the
 | `docs/ai-pipeline.md` | touching a prompt, a Zod schema, or generation |
 | `docs/scraping.md` | touching `lib/scrape.ts`, the readouts, or browser concurrency |
 | `docs/readout.md` | touching anything that shows a number to a reader |
-| `docs/experiments.md` | touching live tests, the snippet, tracking, stats or cron |
 | `docs/report.md` | touching the public report, the print report or white-label |
 | `docs/analysis-ui.md` | touching the dashboard, the analysis screens or the fix lists |
 | `docs/components.md` | touching a shared component |

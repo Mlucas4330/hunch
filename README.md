@@ -1,9 +1,9 @@
 # Hunch
 
-Founders know they should test but never know where to start. Paste a SaaS landing page URL and get a
-measured teardown: ranked A/B test hypotheses, a flow playbook, a discoverability audit, and numbers
-counted off the page itself. Then close the loop — one embeddable snippet applies a chosen variant
-client-side and measures its conversion rate against the control.
+Paste a landing page URL and get a measured teardown: ranked wording fixes with the replacement copy
+already written, a flow playbook, a discoverability audit, and numbers counted off the page itself.
+On a paid plan the whole document goes out under the agency's own brand, with no mark of ours and no
+signup wall.
 
 The reader is an agency, a consultant or a freelancer selling CRO to other people. See
 [docs/product.md](docs/product.md).
@@ -50,7 +50,6 @@ If a sentence would have to appear in two docs, it belongs there and both link t
 | [ai-pipeline.md](docs/ai-pipeline.md) | touching a prompt, a Zod schema, or generation |
 | [scraping.md](docs/scraping.md) | touching `lib/scrape.ts`, the readouts, or browser concurrency |
 | [readout.md](docs/readout.md) | touching anything that shows a number to a reader |
-| [experiments.md](docs/experiments.md) | touching live tests, the snippet, tracking, stats or cron |
 | [report.md](docs/report.md) | touching the public report, the print report or white-label |
 | [analysis-ui.md](docs/analysis-ui.md) | touching the dashboard, the analysis screens or the fix lists |
 | [components.md](docs/components.md) | touching a shared component |

@@ -33,16 +33,7 @@ const nextConfig: NextConfig = {
 
   distDir: process.env.E2E_FIXTURES === '1' ? '.next-e2e' : '.next',
   async headers() {
-    return [
-      { source: '/:path*', headers: SECURITY_HEADERS },
-      {
-        source: '/embed.js',
-        headers: [
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'Access-Control-Allow-Origin', value: '*' }
-        ]
-      }
-    ]
+    return [{ source: '/:path*', headers: SECURITY_HEADERS }]
   }
 }
 

@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { HypothesisCard } from '@/components/hypothesis-card'
 import { WhyBlock } from '@/components/why-block'
 import { HYPOTHESIS_EXPANDED_COUNT } from '@/lib/constants'
@@ -57,7 +58,28 @@ function HypothesisRow({
 
 function HypothesisBody({ hypothesis }: { hypothesis: HypothesisWithVariants }) {
   const { dictionary } = useI18n()
-  const recommended = hypothesis.variants[0]
+  const copy = dictionary.hypothesisList
+  const [variants, setVariants] = useState(hypothesis.variants)
+  const [pending, setPending] = useState(false)
+  const [asked, setAsked] = useState(false)
+
+  const recommended = variants[0]
+  const alternates = variants.slice(1)
+
+  // Fail-quiet by design: the recommendation is already usable, so a failed generation leaves the
+  // card exactly as it was rather than showing the reader an error they cannot act on.
+  async function loadAlternates() {
+    setAsked(true)
+    setPending(true)
+    try {
+      const res = await fetch(`/api/hypotheses/${hypothesis.id}/variants`, { method: 'POST' })
+      const data = res.ok ? await res.json() : null
+      if (data?.variants?.length) setVariants(data.variants)
+    } catch {
+    } finally {
+      setPending(false)
+    }
+  }
 
   return (
     <>
@@ -71,12 +93,35 @@ function HypothesisBody({ hypothesis }: { hypothesis: HypothesisWithVariants }) 
           </div>
           <div className="space-y-1">
             <p className="panel-label text-[0.6rem] text-muted-foreground">
-              {dictionary.hypothesisList.recommendedChallenger}
+              {copy.recommendedChallenger}
             </p>
             <p className="text-sm">{recommended.copy}</p>
           </div>
           {hasPlaceholders(recommended.copy) && (
-            <p className="text-xs text-amber">{dictionary.hypothesisList.placeholderWarning}</p>
+            <p className="text-xs text-amber">{copy.placeholderWarning}</p>
+          )}
+
+          {alternates.length > 0 ? (
+            <div className="space-y-2 border-t pt-3" data-testid="alternate-variants">
+              <p className="panel-label text-[0.6rem] text-muted-foreground">{copy.otherOptions}</p>
+              {alternates.map((variant) => (
+                <p key={variant.id} className="text-sm">
+                  {variant.copy}
+                </p>
+              ))}
+            </div>
+          ) : (
+            !asked && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={loadAlternates}
+                disabled={pending}
+                data-testid="load-alternates"
+              >
+                {pending ? copy.writingOptions : copy.otherOptions}
+              </Button>
+            )
           )}
         </div>
       )}
@@ -85,9 +130,7 @@ function HypothesisBody({ hypothesis }: { hypothesis: HypothesisWithVariants }) 
         <p>{hypothesis.rationale}</p>
         {recommended?.evidence && (
           <p>
-            <span className="panel-label text-[0.6rem] text-teal">
-              {dictionary.hypothesisList.competitorEvidence}
-            </span>{' '}
+            <span className="panel-label text-[0.6rem] text-teal">{copy.competitorEvidence}</span>{' '}
             {recommended.evidence}
           </p>
         )}

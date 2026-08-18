@@ -261,10 +261,6 @@ original size is restored and the outcome is `overflow` — reported to the read
 because copy that does not fit is a fact about the recommendation, not a rendering failure. See
 [report.md](report.md#post-apireportscreenshot).
 
-`public/embed.js` mirrors all of it, under the same must-stay-in-step rule as the swap itself. It
-additionally remembers the designer's own inline `font-size` on the element: `keepApplied` re-swaps on
-every mutation frame, and measuring against a size this function set last frame would shrink the
-element a little further forever.
 
 ### How much copy an element can hold
 

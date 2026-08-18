@@ -16,7 +16,6 @@ deprecated and `railway.json` must never name it again.
 | `browser` | `railway.browser.json` (*Config as code*, set by hand) | **no variables, no public domain** |
 | `Postgres` | Railway plugin | |
 | `Redis` | Railway plugin | rate limit counters only |
-| `cron-finalize` | `railway.cron-finalize.json` (*Config as code*, set by hand) | calls `/api/cron/finalize-experiments` |
 | `cron-prune` | `railway.cron-prune.json` (*Config as code*, set by hand) | calls `/api/cron/prune-screenshots`; own hour so the two never hit `app` together |
 | `cron-remeasure` | `railway.cron-remeasure.json` (*Config as code*, set by hand) | calls `/api/cron/remeasure`; **weekly**, and the only cron that opens browsers — its own hour, and Monday rather than daily, because each run costs `browser` slots against real customer pages |
 
@@ -47,8 +46,8 @@ Railway creates exactly one service per import, so:
    `http://${{browser.RAILWAY_PRIVATE_DOMAIN}}:9222` — as a reference, and with both the `http://`
    and the `:9222` spelled out. See [scraping.md](scraping.md#browser-lifecycle-and-the-concurrency-cap)
    for what each half of that value is load-bearing for.
-5. Add `cron-finalize`, `cron-prune` and `cron-remeasure`, all from the same repo, pointed at
-   `railway.cron-finalize.json`, `railway.cron-prune.json` and `railway.cron-remeasure.json`. Give
+5. Add `cron-prune` and `cron-remeasure`, both from the same repo, pointed at
+   `railway.cron-prune.json` and `railway.cron-remeasure.json`. Give
    **each** of them these two, as references rather than copies:
 
    ```
@@ -188,8 +187,8 @@ an app that never came up.
   scope, and `next build` imports every route module to collect page data — which reaches `db/index.ts`,
   so a build with no `DATABASE_URL` fails outright. Railpack builds see the service's variables, so
   setting them on `app` is enough. **This is the single biggest reason the app is not built from a
-  hand-written Dockerfile**: there, each one needs an explicit `ARG`, and forgetting one ships an embed
-  snippet pointing at `localhost`.
+  hand-written Dockerfile**: there, each one needs an explicit `ARG`, and forgetting one ships report
+  links pointing at `localhost`.
 - **An empty variable is not an unset one.** Railway keeps a variable you cleared rather than deleting
   it, so `process.env.X` is `''` and every `??` fallback in the codebase is skipped. `next build` runs
   each route's module scope, so an empty `STRIPE_SECRET_KEY` reaching `new Stripe()` fails the whole
@@ -227,7 +226,6 @@ an app that never came up.
 - **Rate limiting fails open** — see
   [invariants.md](invariants.md#rate-limiting-fails-open-deliberately). Confirm with a real 429 rather
   than by reading the config.
-- **Without the `cron-finalize` service, no test ever ends** — see [experiments.md](experiments.md).
 
 ## Migrations
 

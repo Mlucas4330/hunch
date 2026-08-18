@@ -277,12 +277,6 @@ The print report deliberately gets **no** open-in-new-tab and no second action: 
   `/dashboard` client card, so the deliverables are discoverable before an analysis is even opened. It
   carries `relative z-10` to escape the card's `absolute inset-0` overlay link, the same escape the
   delete cluster uses — see [analysis-ui.md](analysis-ui.md).
-- **The compact variant carries a third action, `Tests`, which is not a document.** It is the only entry
-  to `/analyses/[id]/tests` — see
-  [invariants.md](invariants.md#stage-2-is-reached-from-the-client-never-from-the-analysis).
-  It rides here because the client card is where a reader decides what to do with a client at all, and it
-  must never leak into `variant="full"`: that one renders on the analysis screen, the surface the rule
-  keeps free of stage 2. Three actions in the card cluster, two named documents in the full variant.
 - **The compact labels are short on purpose, and stay labelled.** A dashboard card is a third of a row,
   and the full names in `pt-BR` — *Copiar link do relatório*, *Relatório em PDF* — overflow it. The fix
   is `copyLink` plus a dedicated `pdfShort`, **not** icon-only buttons: unlabelled controls are the

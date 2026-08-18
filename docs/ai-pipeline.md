@@ -79,7 +79,7 @@ const AlternateVariantsSchema = z.object({ variants: z.array(VariantSchema).leng
 
 **A hypothesis `effort_score` is generated, stored, and never shown.** It stays in the schema only
 because the column is `notNull`; the UI dropped it because every copy hypothesis is a single-element
-swap the snippet applies, so there is no cost to vary and the copy prompt never defined the field. A
+swap, so there is no cost to vary and the copy prompt never defined the field. A
 flow fix keeps its `effort_score` on screen, where the prompt does define it and the cost is real. See
 [analysis-ui.md](analysis-ui.md#why-a-copy-hypothesis-shows-impact-but-no-effort).
 
@@ -171,9 +171,8 @@ constraint. Elements carrying a styled fragment are marked `styled fragment` in 
 list so the field is only spent where it can be honoured; everywhere else it is `null`.
 
 `generateAlternateVariants` never sees that list, so the route infers it from the recommendation having
-chosen an emphasis at all. `emphasis` is stored on `variants`, snapshotted onto
-`experiments.variant_emphasis` at launch, and served to the snippet — an operator who edits the copy in
-the test runner can leave it matching nothing, which the swap treats exactly like absent.
+chosen an emphasis at all. `emphasis` is stored on `variants` and read by the variant preview, which
+treats an emphasis matching nothing exactly like an absent one.
 
 **The character ceiling is measured, the word ceiling is derived.** `M` is `PageElement.capacity`,
 counted off the live page by `captureElements` — see

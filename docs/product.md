@@ -10,32 +10,27 @@ The user pastes a client's landing page URL. The tool scrapes the page, analyzes
 and messaging, then produces a prioritized set of recommendations — each with a rationale and, where
 the change is a line of text, the new copy already written.
 
-## Two stages, and they are not the same product
+## One stage, and that is the whole product
 
-**Stage 1 — the pitch.** The agency runs an analysis and hands over a report. It needs **the URL and
-nothing else**: no snippet, no access to the client's site, no cooperation from the client's developer.
-On a paid plan the report carries the agency's own logo and name and nothing of ours, because it is the
+The agency runs an analysis and hands over a report. It needs **the URL and nothing else**: no access
+to the client's site, no cooperation from the client's developer, nothing installed anywhere. On a
+paid plan the report carries the agency's own logo and name and nothing of ours, because it is the
 document they put in front of a prospect to win the work. See [report.md](report.md).
 
-**This stage is the product.** It is what the paid plan is bought for, it is what runs before the deal
-exists, and it is the surface every other decision here answers to.
+**There used to be a second stage**, a live A/B test that measured a chosen variant against the
+control on real traffic. It is gone, and the reasons are worth keeping:
 
-**Stage 2 — the proof.** A live A/B test measures a chosen variant against the control on real traffic.
-It needs the snippet installed and the conversion element marked, which means access to the client's
-site — so it comes **after** the work is won, and for some clients it never comes at all. It is the
-strongest thing the product can say, and it is deliberately not the thing it leads with.
+- **It was never validated end to end.** No snippet was ever installed on a real client site, with a
+  real CSP and a real tag manager.
+- **Most clients could not have used it.** Required sample scales with `(1-p)/p`: on a form-fill goal
+  converting at 2%, detecting a 25% lift needs about 27,600 impressions. A landing page doing a
+  thousand visitors a month never gets there, so the window closes with no verdict.
+- **It asked for the hardest thing in the sale**: access to someone else's site plus a developer
+  marking an element.
 
-**The split is navigation, not just positioning.** Stage 1 is `/analyses/[id]` and its four tabs, all
-of which need nothing but the URL. Stage 2 is `/analyses/[id]/tests`, reached from a named block at the
-foot of the analysis that says what it requires. They were one screen once — the step needing site
-access sat as a fifth tab beside four that needed none — and that is the confusion this separation
-exists to end. See [analysis-ui.md](analysis-ui.md).
-
-Two consequences worth stating, because they are easy to un-learn:
-
-- **The report never mentions the snippet.** Nothing about running a test reaches either report surface,
-  and a prospect reading someone else's teardown installs nothing.
-- **A client who never installs the snippet is a normally-served customer**, not a half-onboarded one.
+The consequence to keep in mind: **nothing in this product makes a causal claim.** The readout says
+what was counted, and no surface says what a change will produce — see
+[invariants.md](invariants.md#a-delta-is-arithmetic-between-two-measurements-never-a-result-attributed-to-a-change).
 
 ## Tech stack
 
@@ -57,7 +52,7 @@ Two consequences worth stating, because they are easy to un-learn:
 
 **Analyze**
 
-- Paste a landing page URL and generate ranked A/B test hypotheses
+- Paste a landing page URL and generate ranked wording fixes, each with the replacement copy written
 - Get a ranked flow playbook alongside them: structural fixes with implementation steps (offer login
   with Google, cut the signup form, add a Q&A block, repeat the CTA after pricing), grounded in a
   measured structural readout of the page rather than in a guess at what it contains
@@ -70,21 +65,9 @@ Two consequences worth stating, because they are easy to un-learn:
 
 **Decide**
 
-- Browse ranked hypotheses, each with an AI-recommended challenger to test (no manual variant-picking)
-- Swap the recommendation for one of two alternates, written on demand on the run-a-test screen
-- Update hypothesis status (pending -> testing -> completed -> skipped)
-- Export hypotheses (paid plan)
-
-**Prove**
-
-- Install a one-line tracking snippet on the landing page, and mark the element a click on which
-  counts as a conversion with one fixed attribute
-- Launch a live A/B test from a chosen variant, over a 7 / 14 / 30-day window
-- Auto-apply the variant copy client-side, so **the copy** needs no change to the page; marking the
-  conversion element is the one edit the install does require
-- Measure conversion rate and statistical significance per test
-- Auto-finalize a test at its end date (daily cron) and produce a report with a recommendation
-- Declare a winner or stop a running test
+- Browse ranked hypotheses, each with one AI-recommended replacement line
+- Ask for two alternate options per idea, written on demand from the analysis screen
+- See the recommended copy rendered onto a screenshot of the real page before handing it over
 
 **Hand over**
 
@@ -100,7 +83,7 @@ Two consequences worth stating, because they are easy to un-learn:
 - Sign up, log in, log out via Google OAuth
 - Switch language between English and Brazilian Portuguese
 - Track past work as a grid of clients (dashboard), one card per analyzed landing page
-- Usage gate for free tier: hard block at 3 analyses/month, 1 concurrent live test
+- Usage gate for free tier: hard block at 3 analyses/month
 
 ## How a customer gets in
 
@@ -125,7 +108,8 @@ Revoking is the same screen. It takes effect on the next request, not the next l
 
 - **No self-serve checkout and no published price** — see
   [invariants.md](invariants.md#there-is-no-self-serve-checkout-and-no-published-price)
-- **No manual variant-picking circuit.** The AI recommends one challenger; the live test decides the
-  winner
-- **No "set up test" button on a flow fix.** A flow fix changes structure, not one line of text, so
-  the embed snippet has nothing to swap
+- **No live A/B testing, no snippet, no tracking, no significance.** See the section above for why
+  that stage was removed rather than fixed
+- **No causal claim on any surface.** Nothing states what a change will produce, because nothing here
+  controlled for anything — see
+  [invariants.md](invariants.md#a-delta-is-arithmetic-between-two-measurements-never-a-result-attributed-to-a-change)

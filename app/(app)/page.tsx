@@ -5,10 +5,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { SectionBadge } from '@/components/section-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
 import { WaitlistForm } from '@/components/waitlist-form'
-import type { Locale, Section } from '@/lib/enums'
+import type { Section } from '@/lib/enums'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { pageMetadata } from '@/lib/seo'
-import { formatNumber, t } from '@/lib/i18n/format'
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import { cn } from '@/lib/utils'
 
@@ -18,7 +17,6 @@ const SAMPLE_SCORES = [
   { impact: 7, effort: 1 },
   { impact: 6, effort: 3 }
 ]
-const SAMPLE_VISITORS = 2140
 
 const PAIN_CHANNELS = ['border-coral', 'border-purple', 'border-teal']
 
@@ -56,7 +54,7 @@ export default async function LandingPage() {
           </div>
         </div>
 
-        <HeroReadout dictionary={d} locale={locale} />
+        <HeroReadout dictionary={d} />
       </section>
 
       <section className="space-y-10">
@@ -182,31 +180,15 @@ export default async function LandingPage() {
   )
 }
 
-function HeroReadout({ dictionary, locale }: { dictionary: Dictionary; locale: Locale }) {
+function HeroReadout({ dictionary }: { dictionary: Dictionary }) {
   const { readout, sample } = dictionary.landing
 
   return (
     <Card className="animate-pop-in shadow-sm">
       <div className="flex items-center justify-between border-b px-4 py-2.5">
         <span className="font-mono text-xs text-muted-foreground">{readout.domain}</span>
-        <span className="flex items-center gap-1.5 panel-label text-[0.6rem] text-green">
-          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-green" />
-          {readout.liveTest}
-        </span>
       </div>
       <CardContent className="space-y-3 p-4">
-        <div className="flex items-center justify-between rounded-md border border-green bg-green/10 p-3">
-          <div>
-            <p className="text-sm font-medium">{readout.winner}</p>
-            <p className="text-xs text-muted-foreground">
-              {t(readout.detail, { visitors: formatNumber(SAMPLE_VISITORS, locale) })}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="font-display text-lg font-semibold text-green">{readout.lift}</p>
-            <p className="panel-label text-[0.6rem] text-green">{readout.significant}</p>
-          </div>
-        </div>
         {sample.map((hunch, i) => (
           <div key={SAMPLE_SECTIONS[i]} className="rounded-md border p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

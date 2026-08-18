@@ -43,7 +43,7 @@ analyses
 - crawler_access  (jsonb, nullable: CrawlerAccess, what the site's robots.txt allows an AI crawler)
 - keywords        (jsonb, nullable: PageKeywords, the terms the page repeats and where they appear)
 - competitor_structures (jsonb, nullable: CompetitorStructure[], only in paid Competitor mode)
-- embed_key       (uuid, unique: public opaque key the snippet uses; never expose analyses.id)
+- embed_key       (uuid, unique: public opaque key the report URL uses; never expose analyses.id)
 - locale          (enum: LOCALE, default: en)
 - market          (enum: MARKET, default: us)
 - created_at      (timestamp)
@@ -68,7 +68,6 @@ hypotheses
 - rationale      (text)
 - selector       (text, nullable: DOM anchor captured during scrape for client-side apply)
 - target         (enum: HYPOTHESIS_TARGET, default: manual)
-- status         (enum: HYPOTHESIS_STATUS, default: pending)
 - created_at     (timestamp)
 
 flow_fixes                      <- BOTH ranked lists of fixes, one row each
@@ -93,7 +92,6 @@ variants
 - emphasis       (text, nullable: substring of THIS row's copy belonging in the element's existing
                   styled fragment; never a substring of current_copy -- see ai-pipeline.md)
 - position       (int: 0 = the recommended challenger; 1 and 2 are the on-demand alternates)
-- status         (enum: VARIANT_STATUS, default: proposed)
 - screenshot_url (text, nullable: same-origin path -- /screenshots/<file>)
 - screenshot_overflow (bool: the copy was still clipped at the smallest size the fit will use)
 - created_at     (timestamp)
@@ -113,41 +111,6 @@ report_views                    <- one row per human open of a public report
 - created_at (timestamp)
 - index(embed_key)
 
-experiments
-- id            (uuid, PK)
-- analysis_id   (FK -> analyses.id)
-- hypothesis_id (FK -> hypotheses.id)
-- variant_id    (FK -> variants.id: the single challenger against the control copy)
-- status        (enum: EXPERIMENT_STATUS, default: running)
-- selector      (text, nullable: snapshot from hypothesis at launch)
-- control_copy  (text: snapshot of original copy)
-- variant_copy  (text: snapshot of challenger copy)
-- variant_emphasis (text, nullable: snapshot of variants.emphasis, pinned to variant_copy above --
-                 an operator editing the copy at launch can leave it matching nothing, which the
-                 swap treats as absent)
-- split_percent (int, default 50: % of visitors bucketed into the variant arm)
-- duration_days (int, default 14: one of EXPERIMENT_DURATIONS 7/14/30)
-- started_at    (timestamp)
-- ends_at       (timestamp, nullable: started_at + duration_days)
-- stopped_at    (timestamp, nullable)
-- created_at    (timestamp)
-
-experiment_stats
-- id            (uuid, PK)
-- experiment_id (FK -> experiments.id)
-- arm           (enum: EXPERIMENT_ARM)
-- impressions   (int, default 0)
-- conversions   (int, default 0)
-- unique(experiment_id, arm)   <- one row per arm, counters incremented atomically
-
-experiment_events               <- dedupe ledger behind experiment_stats
-- id            (uuid, PK)
-- experiment_id (FK -> experiments.id)
-- visitor_id    (uuid: sticky per-browser id minted by the snippet, not a user)
-- arm           (enum: EXPERIMENT_ARM)
-- type          (enum: TRACK_EVENT)
-- created_at    (timestamp)
-- unique(experiment_id, visitor_id, arm, type)  <- a counter only moves on a fresh insert
 
 stripe_events                   <- webhook idempotency + ordering
 - id               (text, PK: the Stripe event id)
@@ -163,10 +126,8 @@ stripe_events                   <- webhook idempotency + ordering
 users       1 -> N  analyses
 analyses    1 -> N  hypotheses
 analyses    1 -> N  flow_fixes
-analyses    1 -> N  experiments
 analyses    1 -> N  page_snapshots
 hypotheses  1 -> N  variants
-experiments 1 -> N  experiment_stats
 users       1 -> 1  subscriptions
 ```
 
@@ -229,8 +190,8 @@ share this table, this `category` column and one component.
 because a visibility fix categorized `trust` would render under the wrong heading and the prompt alone
 cannot prevent that.
 
-No variants, no target, no status: nothing here is a single-element text swap, so there is nothing for
-the embed snippet to apply and nothing to A/B. A founder ships the steps by hand.
+No variants and no target: nothing here is a single-element text swap, so there is no replacement line
+to render. A founder ships the steps by hand.
 
 ### `waitlist` is unique per `(email, source)`, not per email
 

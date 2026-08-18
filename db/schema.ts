@@ -12,11 +12,8 @@ import {
   uuid
 } from 'drizzle-orm/pg-core'
 import {
-  EXPERIMENT_ARM,
-  EXPERIMENT_STATUS,
   FIX_KIND,
   FLOW_CATEGORY,
-  HYPOTHESIS_STATUS,
   HYPOTHESIS_TARGET,
   LEAD_SOURCE,
   LOCALE,
@@ -24,9 +21,7 @@ import {
   SECTIONS,
   SUBSCRIPTION_PLAN,
   SUBSCRIPTION_STATUS,
-  TRACK_EVENT,
-  USER_ROLE,
-  VARIANT_STATUS
+  USER_ROLE
 } from '@/lib/enums'
 import {
   DEFAULT_LEAD_SOURCE,
@@ -46,13 +41,8 @@ import type { PageKeywords } from '@/lib/keywords'
 export const subscriptionPlanEnum = pgEnum('subscription_plan', SUBSCRIPTION_PLAN)
 export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUS)
 export const sectionEnum = pgEnum('section', SECTIONS)
-export const hypothesisStatusEnum = pgEnum('hypothesis_status', HYPOTHESIS_STATUS)
 export const hypothesisTargetEnum = pgEnum('hypothesis_target', HYPOTHESIS_TARGET)
-export const variantStatusEnum = pgEnum('variant_status', VARIANT_STATUS)
 export const flowCategoryEnum = pgEnum('flow_category', FLOW_CATEGORY)
-export const experimentStatusEnum = pgEnum('experiment_status', EXPERIMENT_STATUS)
-export const experimentArmEnum = pgEnum('experiment_arm', EXPERIMENT_ARM)
-export const trackEventEnum = pgEnum('track_event', TRACK_EVENT)
 export const localeEnum = pgEnum('locale', LOCALE)
 export const marketEnum = pgEnum('market', MARKET)
 export const fixKindEnum = pgEnum('fix_kind', FIX_KIND)
@@ -143,7 +133,6 @@ export const hypotheses = pgTable('hypotheses', {
   rationale: text('rationale').notNull(),
   selector: text('selector'),
   target: hypothesisTargetEnum('target').notNull().default('manual'),
-  status: hypothesisStatusEnum('status').notNull().default('pending'),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
@@ -157,7 +146,6 @@ export const variants = pgTable('variants', {
   // A substring of `copy` that belongs in the element's existing styled fragment. See ai-pipeline.md.
   emphasis: text('emphasis'),
   position: integer('position').notNull().default(0),
-  status: variantStatusEnum('status').notNull().default('proposed'),
   screenshotUrl: text('screenshot_url'),
   screenshotOverflow: boolean('screenshot_overflow').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow()
@@ -177,32 +165,6 @@ export const flowFixes = pgTable('flow_fixes', {
   effortScore: integer('effort_score').notNull(),
   evidence: text('evidence'),
   position: integer('position').notNull().default(0),
-  createdAt: timestamp('created_at').notNull().defaultNow()
-})
-
-export const experiments = pgTable('experiments', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  analysisId: uuid('analysis_id')
-    .notNull()
-    .references(() => analyses.id, { onDelete: 'cascade' }),
-  hypothesisId: uuid('hypothesis_id')
-    .notNull()
-    .references(() => hypotheses.id, { onDelete: 'cascade' }),
-  variantId: uuid('variant_id')
-    .notNull()
-    .references(() => variants.id, { onDelete: 'cascade' }),
-  status: experimentStatusEnum('status').notNull().default('running'),
-  selector: text('selector'),
-  controlCopy: text('control_copy').notNull(),
-  variantCopy: text('variant_copy').notNull(),
-  // Snapshot beside variant_copy, and pinned to it: an operator who edits the copy at launch can
-  // leave the emphasis matching nothing, which the swap treats as absent.
-  variantEmphasis: text('variant_emphasis'),
-  splitPercent: integer('split_percent').notNull().default(50),
-  durationDays: integer('duration_days').notNull().default(14),
-  startedAt: timestamp('started_at').notNull().defaultNow(),
-  endsAt: timestamp('ends_at'),
-  stoppedAt: timestamp('stopped_at'),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
@@ -241,35 +203,6 @@ export const stripeEvents = pgTable('stripe_events', {
   receivedAt: timestamp('received_at').notNull().defaultNow()
 })
 
-export const experimentEvents = pgTable(
-  'experiment_events',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    experimentId: uuid('experiment_id')
-      .notNull()
-      .references(() => experiments.id, { onDelete: 'cascade' }),
-    visitorId: uuid('visitor_id').notNull(),
-    arm: experimentArmEnum('arm').notNull(),
-    type: trackEventEnum('type').notNull(),
-    createdAt: timestamp('created_at').notNull().defaultNow()
-  },
-  (table) => [unique().on(table.experimentId, table.visitorId, table.arm, table.type)]
-)
-
-export const experimentStats = pgTable(
-  'experiment_stats',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    experimentId: uuid('experiment_id')
-      .notNull()
-      .references(() => experiments.id, { onDelete: 'cascade' }),
-    arm: experimentArmEnum('arm').notNull(),
-    impressions: integer('impressions').notNull().default(0),
-    conversions: integer('conversions').notNull().default(0)
-  },
-  (table) => [unique().on(table.experimentId, table.arm)]
-)
-
 export const usersRelations = relations(users, ({ many, one }) => ({
   analyses: many(analyses),
   subscription: one(subscriptions, {
@@ -292,7 +225,6 @@ export const analysesRelations = relations(analyses, ({ one, many }) => ({
   }),
   hypotheses: many(hypotheses),
   flowFixes: many(flowFixes),
-  experiments: many(experiments),
   snapshots: many(pageSnapshots)
 }))
 
@@ -325,29 +257,6 @@ export const variantsRelations = relations(variants, ({ one }) => ({
   })
 }))
 
-export const experimentsRelations = relations(experiments, ({ one, many }) => ({
-  analysis: one(analyses, {
-    fields: [experiments.analysisId],
-    references: [analyses.id]
-  }),
-  hypothesis: one(hypotheses, {
-    fields: [experiments.hypothesisId],
-    references: [hypotheses.id]
-  }),
-  variant: one(variants, {
-    fields: [experiments.variantId],
-    references: [variants.id]
-  }),
-  stats: many(experimentStats)
-}))
-
-export const experimentStatsRelations = relations(experimentStats, ({ one }) => ({
-  experiment: one(experiments, {
-    fields: [experimentStats.experimentId],
-    references: [experiments.id]
-  })
-}))
-
 export type User = typeof users.$inferSelect
 export type Subscription = typeof subscriptions.$inferSelect
 export type Analysis = typeof analyses.$inferSelect
@@ -356,6 +265,4 @@ export type PageSnapshot = typeof pageSnapshots.$inferSelect
 export type Hypothesis = typeof hypotheses.$inferSelect
 export type Variant = typeof variants.$inferSelect
 export type FlowFix = typeof flowFixes.$inferSelect
-export type Experiment = typeof experiments.$inferSelect
-export type ExperimentStat = typeof experimentStats.$inferSelect
 export type Waitlist = typeof waitlist.$inferSelect

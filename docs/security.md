@@ -10,7 +10,6 @@ Excluded from the matcher:
 | Prefix | Why |
 | ------ | --- |
 | `/api/billing/webhook` | Stripe calls it directly |
-| `/api/track`, `/embed.js` | the snippet on the customer's site calls them cross-origin, no session |
 | `/api/waitlist`, `/api/report` | they back the public report, read by prospects with no session |
 | `/api/cron` | driven by the cron services, authenticated by `CRON_SECRET` |
 | `/api/health` | Railway's deploy probe, which must not depend on a session check — see [deployment.md](deployment.md#healthcheck) |
@@ -233,8 +232,7 @@ trivially bypassable. It falls back to a shared bucket rather than to no limit a
 
 ## CORS — `lib/cors.ts`
 
-The snippet and the public report run on customer domains we do not know in advance, so the wildcard is
-the point. See
+The public report is read from domains we do not know in advance, so the wildcard is the point. See
 [invariants.md](invariants.md#the-public-routes-are-cors-open-and-must-never-send-credentials).
 
 ## Security headers — `next.config.ts`
@@ -243,8 +241,7 @@ HSTS, `nosniff`, `DENY` framing, `Referrer-Policy` and `Permissions-Policy` are 
 
 The CSP ships as `Content-Security-Policy-Report-Only` until `CSP_ENFORCE=1`: Next inlines its bootstrap
 script and Tailwind inlines styles, so the policy needs `'unsafe-inline'` without a nonce, and shipping
-it enforced-but-wrong breaks the app. `/embed.js` is exempted — it is meant to be loaded by any
-customer's page.
+it enforced-but-wrong breaks the app.
 
 `img-src` names the only third-party origin left (Google avatars). `js.stripe.com`, `api.stripe.com`
 and `hooks.stripe.com` were dropped with the embedded checkout, and `frame-src` is `'none'` — the app

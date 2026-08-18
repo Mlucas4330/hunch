@@ -10,13 +10,11 @@ performance detail, not the security boundary — see [security.md](security.md)
 | `GET /api/analyses` | session | history, free capped at 3 |
 | `GET /api/analyses/[id]` | session + ownership | |
 | `POST /api/analyses/[id]/measure` | session + ownership | measures the page again, appending a snapshot |
-| `PATCH /api/hypotheses/[id]` | session + ownership | `status` only |
-| `GET\|POST /api/hypotheses/[id]/variants` | session + ownership | the two alternates |
+| `GET\|POST /api/hypotheses/[id]/variants` | session + ownership | the two alternates, on demand from the analysis screen |
 | `GET /api/usage` | session | |
 | `POST /api/billing/webhook` | Stripe signature | grants the plan |
-| experiments + tracking | see [experiments.md](experiments.md) | |
 | `POST /api/report/screenshot`, `POST /api/report/view`, `POST /api/waitlist` | embed key / open | see [report.md](report.md) |
-| `GET /api/cron/*` | `CRON_SECRET` | see [experiments.md](experiments.md) |
+| `GET /api/cron/*` | `CRON_SECRET` | screenshot pruning and weekly re-measure — see [deployment.md](deployment.md) |
 | `GET /api/health` | — | Railway's deploy probe, imports nothing — see [deployment.md](deployment.md#healthcheck) |
 
 ## Analyses
@@ -183,7 +181,7 @@ decision to the person making them, and writes them to the `users` row.
   SVG is deliberately unsupported — see [security.md](security.md).
 
 The previous file is unlinked **after** the row stops pointing at it, so a failed write never leaves
-the column dangling — the same ordering rule the prune job follows in [experiments.md](experiments.md).
+the column dangling — the same ordering rule the screenshot prune job follows.
 
 Rate limited as `brand`, because each accepted call can write to the volume.
 

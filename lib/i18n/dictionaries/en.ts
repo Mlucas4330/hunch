@@ -1,13 +1,13 @@
 export const en = {
   metadata: {
     title: 'Hunch',
-    description: 'Turn your landing page into ranked, competitor-grounded A/B test hunches.',
-    ogImageAlt: 'Hunch - ranked A/B test hypotheses for your landing page',
+    description: 'Turn a landing page into a measured teardown with ranked fixes and the copy already written.',
+    ogImageAlt: 'Hunch - a measured teardown of your landing page',
     pages: {
       landing: {
-        title: 'Find what costs you signups',
+        title: 'A teardown you can send under your own name',
         description:
-          'Paste your landing page URL and get the A/B tests worth running, ranked, grounded in real competitors, and already written.'
+          'Paste a landing page URL and get a measured teardown: ranked fixes grounded in real competitors, with the replacement copy already written.'
       },
       signin: {
         title: 'Sign in',
@@ -15,27 +15,19 @@ export const en = {
       },
       dashboard: {
         title: 'Your clients',
-        description: 'Every client landing page you have analyzed, and the tests each one produced.'
+        description: 'Every client landing page you have analyzed, and the report each one produced.'
       },
       analysis: {
-        title: 'Your test ideas',
-        description: 'Ranked A/B test hypotheses and the flow playbook for this landing page.'
+        title: 'What to change',
+        description: 'Ranked wording fixes and the flow playbook for this landing page.'
       },
       analysisReport: {
         title: 'Conversion teardown',
         description: 'The printable teardown for this landing page analysis.'
       },
-      analysisTests: {
-        title: 'Live A/B tests',
-        description: 'Install the snippet and run the ideas from this analysis on the real page.'
-      },
       settings: {
         title: 'Your brand',
         description: 'The logo and name that go on every report you hand over.'
-      },
-      test: {
-        title: 'Run a test',
-        description: 'Approve the challenger, set the conversion goal, and launch the live test.'
       },
       leads: {
         title: 'Waitlist leads',
@@ -50,9 +42,9 @@ export const en = {
         description: 'Which public reports have been opened, and when.'
       },
       report: {
-        title: 'A/B test plan for {host}',
+        title: 'Conversion teardown for {host}',
         description:
-          '{count} ranked tests to lift conversion on {host}, with the copy to run and the reasoning behind each one.'
+          '{count} ranked fixes for {host}, measured on the page, with the replacement copy and the reasoning behind each one.'
       }
     }
   },
@@ -97,32 +89,6 @@ export const en = {
     market: {
       us: 'United States',
       br: 'Brazil'
-    },
-    hypothesisStatus: {
-      pending: 'Pending',
-      testing: 'Testing',
-      completed: 'Completed',
-      skipped: 'Skipped'
-    },
-    variantStatus: {
-      proposed: 'Proposed',
-      testing: 'Testing',
-      winner: 'Winner',
-      rejected: 'Rejected'
-    },
-    experimentStatus: {
-      running: 'Running',
-      stopped: 'Stopped',
-      completed: 'Completed'
-    },
-    experimentArm: {
-      control: 'Control',
-      variant: 'Variant'
-    },
-    experimentRecommendation: {
-      ship_variant: 'Ship the variant',
-      keep_control: 'Keep current copy',
-      inconclusive: 'Inconclusive - not enough traffic'
     },
     plan: {
       free: 'Free',
@@ -173,8 +139,8 @@ export const en = {
 
   landing: {
     eyebrow: 'Audit tooling for people who sell CRO',
-    headlineTop: 'Show the prospect what their page costs them.',
-    headlineBottom: 'Send it under your own name.',
+    headlineTop: 'Hand a prospect a teardown of their own page.',
+    headlineBottom: 'Under your name, with nothing invented.',
     lead: 'Paste any landing page. Get a measured teardown you can put in front of a client in minutes, with the ranked fixes and the copy already written.',
     cta: 'Run a report',
     howItWorksLink: 'How it works',
@@ -195,11 +161,6 @@ export const en = {
 
     readout: {
       domain: 'landing page',
-      liveTest: 'Live test',
-      winner: 'Headline variant wins',
-      detail: '14-day test, {visitors} visitors',
-      lift: '+18%',
-      significant: 'Significant',
       why: 'Why'
     },
 
@@ -227,12 +188,12 @@ export const en = {
 
     how: {
       eyebrow: 'How it works',
-      heading: 'Win the meeting first. Prove the lift after you have signed.',
-      intro: 'The report is what gets you in the room: a measured teardown of a page you were never given access to. The live test is what keeps you there once the work is yours.'
+      heading: 'Measure their page. Put your name on it. Send it.',
+      intro: 'The report is what gets you in the room: a measured teardown of a page you were never given access to, and a document with nothing of ours anywhere on it.'
     },
     tracks: [
       {
-        label: 'Send the report',
+        label: 'Measure the page',
         note: 'Minutes, no access needed',
         steps: [
           {
@@ -244,26 +205,26 @@ export const en = {
             body: 'A measured readout of the page, then ranked fixes across flow, copy and discoverability, each with the replacement copy written.'
           },
           {
-            label: 'Send it as yours',
-            body: 'Share the link or hand over the printed version. On a paid plan there is nothing on it that says us.'
+            label: 'Check where it came from',
+            body: 'Every number was counted on their page when we loaded it. Nothing is averaged from a benchmark, estimated, or filled in by a model.'
           }
         ]
       },
       {
-        label: 'Prove the lift',
-        note: 'After the contract',
+        label: 'Make it yours',
+        note: 'Set once per account',
         steps: [
           {
-            label: 'Install it once',
-            body: 'Once you have access to the client site: one script tag, plus one attribute on the button that counts as a conversion. After that the copy changes from here, with no further deploys.'
+            label: 'Set your brand',
+            body: 'Your logo, your name and your accent colour, saved once in settings and applied to every report after it.'
           },
           {
-            label: 'Pick a window',
-            body: 'Choose 7, 14, or 30 days. Significance is read once at the finish line, so nobody calls a winner early.'
+            label: 'Send the link or the PDF',
+            body: 'Share the report link or hand over the printed version. On a paid plan there is nothing on either one that says us.'
           },
           {
-            label: 'Show the verdict',
-            body: 'The test closes into conversion lift, statistical significance and a plain recommendation. That is your renewal conversation.'
+            label: 'No wall for their client',
+            body: 'Nothing blurred, no signup asked for, no email captured. The person you sent it to reads all of it.'
           }
         ]
       }
@@ -328,7 +289,7 @@ export const en = {
     eyebrow: 'Clients',
     title: 'Your clients',
     hintLabel: 'How analysis works',
-    hint: "Paste your client's live landing page URL. Hunch scans the copy, studies competitors, and generates ranked A/B test ideas. Add *business details* so the copy comes back finished instead of with [placeholders]. On paid plans, paste competitor URLs (*Competitor mode*) to ground the ideas; free analyses find competitors automatically.",
+    hint: "Paste your client's live landing page URL. Hunch measures the page, studies competitors, and ranks the fixes worth making. Add *business details* so the copy comes back finished instead of with [placeholders]. On paid plans, paste competitor URLs (*Competitor mode*) to ground the ideas; free analyses find competitors automatically.",
     subtitle: "Paste a client's landing page URL to generate their ranked teardown.",
     emptyTitle: 'No clients yet',
     emptyDescription: "Paste a client's landing page URL above to run your first analysis."
@@ -338,13 +299,13 @@ export const en = {
     phases: [
       'Scraping your page...',
       'Researching competitors...',
-      'Writing your test ideas...',
+      'Writing the new copy...',
       'Saving results...'
     ],
     urlPlaceholder: 'https://your-landing-page.com',
     analyze: 'Analyze',
     analyzing: 'Analyzing...',
-    waitNote: 'This usually takes 2 to 3 minutes. Keep this tab open while we scrape the page, study competitors, and write your tests.',
+    waitNote: 'This usually takes 2 to 3 minutes. Keep this tab open while we scrape the page, study competitors, and write the new copy.',
     briefSummary: 'Add business details (optional)',
     briefPlaceholder: "Who it's for, your real numbers (users, trial length, pricing), and what makes you different. We use these to write finished copy instead of placeholders.",
     competitorSummary: 'Competitor mode',
@@ -373,14 +334,13 @@ export const en = {
   history: {
     openAria: 'Open analysis for {url}',
     deleteAria: 'Delete analysis for {url}',
-    tests: 'Tests'
   },
 
   analysis: {
-    eyebrow: 'What to test',
-    title: 'Your test ideas',
+    eyebrow: 'What to change',
+    title: 'What to change on this page',
     hintLabel: 'How to use this screen',
-    hint: 'Each tab is one kind of fix, ranked by likely impact. *Flow* and *SEO* are changes you ship by hand; *Copy* is the wording, and every idea there comes with the replacement already written. When you have access to the site and want to prove a change rather than argue it, the *Live A/B test* tab is where you install the snippet and run one test at a time.',
+    hint: 'Each tab is one kind of fix, ranked by likely impact. *Flow* and *SEO* are changes you ship by hand; *Copy* is the wording, and every idea there comes with the replacement already written. Every number in the readout above was counted on the page itself, so nothing here is estimated.',
     backToDashboard: 'Back to clients',
     benchmarkedAgainst: 'Benchmarked against:',
     marketNote: '(market: {market})',
@@ -434,9 +394,9 @@ export const en = {
 
   flow: {
     eyebrow: 'Fix the flow',
-    title: 'Before you test the words',
-    hintLabel: 'Why these have no test button',
-    hint: 'These change the *structure* of your page, not one line of text, so there is nothing for the snippet to swap and nothing to A/B. Ship them by hand: they usually pay off more than any wording change, and they make the copy tests below cleaner to read.',
+    title: 'Before you touch the words',
+    hintLabel: 'Why these are shipped by hand',
+    hint: 'These change the *structure* of your page, not one line of text, so they are shipped by hand rather than as a wording swap. They usually pay off more than any wording change.',
     stepsLabel: 'How to ship it',
     evidenceLabel: 'Why',
     count: {
@@ -584,98 +544,23 @@ export const en = {
 
   hypothesisList: {
     manualSetup: 'Manual setup',
-    testThisFirst: 'Test this first',
+    testThisFirst: 'Start here',
     recommendedChallenger: 'Recommended challenger',
     competitorEvidence: 'From a competitor',
-    placeholderWarning: "Has [placeholders] - you'll replace them with your real details when you set up the test.",
-    viewTest: 'View test',
-    setUpTest: 'Set up test',
+    placeholderWarning: 'Has [placeholders] - replace them with the real details before you hand this over.',
+    otherOptions: 'Other options',
+    writingOptions: 'Writing other options...',
     backlog: {
       one: '{count} more idea',
       other: '{count} more ideas'
     }
   },
 
-  embedSnippet: {
-    title: 'Install the tracking snippet',
-    body: 'Step one. Paste this once, just before the closing body tag on your landing page. It applies running variants and reports results back automatically.',
-    goalTitle: 'Step two: mark what counts as a conversion',
-    goalBody: 'Add this attribute to the element a visitor clicks when they convert, usually your main call to action. Without it the snippet can count visitors but never a result, and a test cannot be launched.',
-    troubleshootTitle: 'Test running but recording nothing?',
-    cspBody: 'Check this before anything else. The usual cause is a Content-Security-Policy on the landing page: a security header listing which domains are allowed to run scripts. The snippet is served from another domain, so a strict policy blocks it. Ask whoever manages the site to allow this origin in both directives below.',
-    cspBoth: 'Both are needed. With only the first, the snippet loads and then reports nothing, silently.',
-    debugBody: 'To see what the snippet is doing, add data-debug="1" to the tag and open the browser console on the landing page. It reports what it found, which variant it applied and what it sent.'
-  },
-
-  testList: {
-    eyebrow: 'Prove it',
-    title: 'Run a live test',
-    hintLabel: 'What belongs on this screen',
-    hint: 'Everything about running a test lives here, because it is the step you reach for *after* you have access to the site. Install the snippet once, then run one test at a time: the snippet shows the challenger to half the visitors and the result, not an opinion, decides the winner. Only ideas whose copy maps to a single element can run this way - the rest are shipped by hand from the analysis.',
-    empty: 'None of the ideas in this analysis map to a single element, so there is nothing the snippet can swap. Ship them by hand from the analysis.'
-  },
-
-  exampleTest: {
-    eyebrow: 'Example',
-    problem: 'The headline names the product category instead of the outcome the visitor came for.',
-    controlCopy: 'The complete platform for modern support teams',
-    variantCopy: 'Answer every ticket before your customer asks twice',
-    caption:
-      'A sample of what a finished test looks like. These counts are made up and nothing here was measured on your page - your own numbers appear here once a test you launched has run.'
-  },
-
-  runTest: {
-    eyebrow: 'Live A/B test',
-    hintLabel: 'How running a test works',
-    hint: 'Your current copy is the *control*. Pick a *challenger*, edit it to fit your product (replace any [bracketed] placeholders with real details), and choose how long to run. On *Launch*, the snippet shows the challenger to half your visitors and tracks conversions. When the window ends we read the result once and recommend a winner.',
-    backToTests: 'Back to the tests',
-    relaunch: 'Run another test'
-  },
-
-  testRunner: {
-    controlTitle: 'Control (your current copy)',
-    challengerTitle: 'Challenger to test',
-    variant: 'Variant {letter}',
-    recommendedSuffix: ' (recommended)',
-    writingAlternates: 'Writing alternates...',
-    placeholderWarning: 'This copy still has [placeholders] like [trial length]. Replace them with your real details before launching, or your visitors will see the brackets.',
-    goalTitle: 'What counts as a conversion',
-    goalHelp: 'Add this attribute to the element a visitor clicks when they convert, usually your main call to action. One click on it is one conversion. It replaces guessing at a CSS selector, which breaks silently the next time the page is redesigned.',
-    goalMissing: 'That attribute is not on the page yet, so this test could only ever record visitors and never a result. Add it, publish the page, then launch.',
-    testLength: 'Test length',
-    days: '{days} days',
-    launch: 'Launch test',
-    launching: 'Launching...',
-    gatedBefore: 'You already have a test running. Free plans run one at a time.',
-    gatedAfter: 'to run more.',
-    manualTarget: 'This idea is a manual setup: its copy does not map to a single element we can swap automatically, so it cannot run as a live text test. Apply the recommended copy on your page by hand.',
-    alreadyRunning: 'This idea already has a live test. Stop it before launching another one.',
-    error: 'Something went wrong launching the test.'
-  },
-
-  experimentPanel: {
-    stop: 'Stop',
-    discard: 'Discard',
-    declareWinner: 'Declare winner',
-    recommendation: 'Recommendation',
-    copyReport: 'Copy report',
-    downloadMd: 'Download .md',
-    upgradeToExport: 'Talk to us to export',
-    notEnoughData: 'Not enough data yet.',
-    finalizing: 'Finalizing...',
-    endsIn: { one: 'Ends in {days} day', other: 'Ends in {days} days' },
-    lift: 'lift',
-    drop: 'drop',
-    magnitude: '{value}% {direction}',
-    significant: 'Significant: {magnitude} (p={pValue}).',
-    notSignificant: '{magnitude} so far, not yet significant (p={pValue}).'
-  },
-
   report: {
-    backToTestIdeas: 'Back to test ideas',
+    backToTestIdeas: 'Back to the analysis',
     printHint: 'Press Ctrl or Cmd + P to save as PDF',
     teardown: 'Conversion teardown',
-    plan: 'A/B test plan',
+    plan: 'Conversion teardown',
     landingPageAnalyzed: 'Landing page analyzed',
     preparedBy: 'Prepared by {name}',
     dated: 'Reviewed on {date}',
@@ -684,12 +569,12 @@ export const en = {
     changesFound: 'Changes recommended',
     copyWritten: 'Copy already written',
     benchmarkedAgainst: 'Benchmarked against',
-    testThisFirst: 'Test this first',
+    testThisFirst: 'Start here',
     problem: 'Problem',
     recommendation: 'Recommendation',
     current: 'Current',
     changeTo: 'Change to',
-    placeholderNote: 'Contains [placeholders]. Swap in your real details before launching.',
+    placeholderNote: 'Contains [placeholders]. Swap in the real details before you hand this over.',
     whyThisWorks: 'Why this works',
     manualSetup: 'Manual setup',
     manualSetupBody: 'This change touches a section that is not a single-line text swap, so an in-context preview is not available. Apply the recommended copy by hand.',
@@ -703,17 +588,17 @@ export const en = {
     previewRetry: 'Try again',
     previewOverflow:
       'This copy does not fit the space your page gives that element, so the preview shows it cut off. Shorten it, or give the element more room before you ship it.',
-    footerQuestion: 'Want these measured live on your page?',
+    footerQuestion: 'Want a teardown like this for your own page?',
     generatedBy: 'Generated by Hunch'
   },
 
   waitlist: {
     seeMore: 'See more',
     heading: {
-      one: '{count} more high-impact test is ready',
-      other: '{count} more high-impact tests are ready'
+      one: '{count} more high-impact fix is ready',
+      other: '{count} more high-impact fixes are ready'
     },
-    body: 'Join the waitlist to unlock the full teardown, the recommended copy for every section, and live A/B testing on your page.',
+    body: 'Join the waitlist to unlock the full teardown and the recommended copy for every section.',
     done: 'You are on the list. We will be in touch.',
     emailPlaceholder: 'you@company.com',
     phonePlaceholder: 'Phone (optional)',
@@ -771,24 +656,6 @@ export const en = {
     never: 'Never'
   },
 
-  export: {
-    filename: 'ab-test-report.md',
-    title: 'A/B test report',
-    source: 'Source',
-    section: 'Section',
-    duration: 'Duration',
-    days: 'days',
-    recommendation: 'Recommendation',
-    problem: 'Problem',
-    result: 'Result',
-    arm: 'Arm',
-    copy: 'Copy',
-    conversions: 'Conversions / Visitors',
-    rate: 'Rate',
-    uplift: 'Uplift',
-    pValue: 'p-value',
-    notAvailable: 'n/a'
-  }
 }
 
 export type Dictionary = typeof en

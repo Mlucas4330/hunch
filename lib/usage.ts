@@ -1,5 +1,5 @@
 import type { User } from '@/db/schema'
-import { FREE_ANALYSES_LIMIT, FREE_EXPERIMENTS_LIMIT } from '@/lib/constants'
+import { FREE_ANALYSES_LIMIT } from '@/lib/constants'
 
 type UsageUser = Pick<User, 'plan' | 'analysesCount' | 'usagePeriodStart'>
 
@@ -15,17 +15,6 @@ export function effectiveAnalysesCount(user: UsageUser, now: Date = new Date()):
 
 export function hasReachedFreeLimit(user: UsageUser, now: Date = new Date()): boolean {
   return user.plan === 'free' && effectiveAnalysesCount(user, now) >= FREE_ANALYSES_LIMIT
-}
-
-export function hasReachedFreeExperimentLimit(
-  user: Pick<User, 'plan'>,
-  runningCount: number
-): boolean {
-  return user.plan === 'free' && runningCount >= FREE_EXPERIMENTS_LIMIT
-}
-
-export function canExport(plan: User['plan']): boolean {
-  return plan !== 'free'
 }
 
 export function canWhiteLabel(plan: User['plan']): boolean {

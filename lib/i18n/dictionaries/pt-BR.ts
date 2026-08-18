@@ -4,13 +4,13 @@ export const ptBR: Dictionary = {
   metadata: {
     title: 'Hunch',
     description:
-      'Transforme uma landing page em um diagnóstico medido, com testes A/B rankeados e baseados em concorrentes reais.',
-    ogImageAlt: 'Hunch - diagnóstico de conversão rankeado para uma landing page',
+      'Transforme uma landing page em um diagnóstico medido, com as correções priorizadas e a copy já escrita.',
+    ogImageAlt: 'Hunch - diagnóstico medido de uma landing page',
     pages: {
       landing: {
-        title: 'Da sugestão à prova de que funcionou',
+        title: 'Um diagnóstico para enviar com o seu nome',
         description:
-          'Cole qualquer landing page e receba um diagnóstico medido, com as correções priorizadas e a copy já escrita. Depois coloque cada uma no ar e veja qual funcionou.'
+          'Cole qualquer landing page e receba um diagnóstico medido: correções priorizadas, baseadas em concorrentes reais, com a copy já escrita.'
       },
       signin: {
         title: 'Entrar',
@@ -19,27 +19,19 @@ export const ptBR: Dictionary = {
       dashboard: {
         title: 'Seus clientes',
         description:
-          'Todas as landing pages de clientes que você analisou e os testes que cada uma gerou.'
+          'Todas as landing pages de clientes que você analisou e o relatório que cada uma gerou.'
       },
       analysis: {
-        title: 'Suas ideias de teste',
-        description: 'Hipóteses de teste A/B rankeadas e o playbook de fluxo desta landing page.'
+        title: 'O que mudar',
+        description: 'Correções de texto priorizadas e o playbook de fluxo desta landing page.'
       },
       analysisReport: {
         title: 'Diagnóstico de conversão',
         description: 'A versão para impressão desta análise de landing page.'
       },
-      analysisTests: {
-        title: 'Testes A/B ao vivo',
-        description: 'Instale o snippet e rode as ideias desta análise na página real.'
-      },
       settings: {
         title: 'Sua marca',
         description: 'O logo e o nome que vão em todo relatório que você entrega.'
-      },
-      test: {
-        title: 'Rodar um teste',
-        description: 'Aprove o desafiante, defina a meta de conversão e lance o teste ao vivo.'
       },
       leads: {
         title: 'Leads da lista de espera',
@@ -54,9 +46,9 @@ export const ptBR: Dictionary = {
         description: 'Quais relatórios públicos foram abertos, e quando.'
       },
       report: {
-        title: 'Plano de testes A/B para {host}',
+        title: 'Diagnóstico de conversão de {host}',
         description:
-          '{count} testes rankeados para aumentar a conversão de {host}, com o texto para rodar e o raciocínio por trás de cada um.'
+          '{count} correções priorizadas para {host}, medidas na própria página, com o texto substituto e o raciocínio por trás de cada uma.'
       }
     }
   },
@@ -101,32 +93,6 @@ export const ptBR: Dictionary = {
     market: {
       us: 'Estados Unidos',
       br: 'Brasil'
-    },
-    hypothesisStatus: {
-      pending: 'Pendente',
-      testing: 'Em teste',
-      completed: 'Concluída',
-      skipped: 'Ignorada'
-    },
-    variantStatus: {
-      proposed: 'Proposta',
-      testing: 'Em teste',
-      winner: 'Vencedora',
-      rejected: 'Rejeitada'
-    },
-    experimentStatus: {
-      running: 'Rodando',
-      stopped: 'Interrompido',
-      completed: 'Concluído'
-    },
-    experimentArm: {
-      control: 'Controle',
-      variant: 'Variante'
-    },
-    experimentRecommendation: {
-      ship_variant: 'Publique a variante',
-      keep_control: 'Mantenha o texto atual',
-      inconclusive: 'Inconclusivo - tráfego insuficiente'
     },
     plan: {
       free: 'Gratuito',
@@ -177,9 +143,9 @@ export const ptBR: Dictionary = {
 
   landing: {
     eyebrow: 'Ferramenta de auditoria para quem vende CRO',
-    headlineTop: 'Sugestão de melhoria todo mundo tem.',
-    headlineBottom: 'Prova de que funcionou, quase ninguém.',
-    lead: 'Cole a landing page do seu cliente. Em minutos você tem o diagnóstico medido e as correções priorizadas com a copy já escrita. Depois coloca cada uma no ar e volta com o número que prova qual funcionou.',
+    headlineTop: 'Numa auditoria, todo mundo chuta número.',
+    headlineBottom: 'Este relatório conta, e sai com o seu nome.',
+    lead: 'Cole a landing page do seu cliente. Em minutos você tem o diagnóstico medido e as correções priorizadas com a copy já escrita, num documento que sai sem marca nossa e sem muro nenhum.',
     cta: 'Rodar um relatório',
     howItWorksLink: 'Como funciona',
 
@@ -201,11 +167,6 @@ export const ptBR: Dictionary = {
 
     readout: {
       domain: 'landing page',
-      liveTest: 'Teste no ar',
-      winner: 'Variante de título venceu',
-      detail: 'Teste de 14 dias, {visitors} visitantes',
-      lift: '+18%',
-      significant: 'Significativo',
       why: 'Por quê'
     },
 
@@ -222,11 +183,11 @@ export const ptBR: Dictionary = {
           'Uma URL e alguns minutos. O diagnóstico volta contado na página dele, e opinião com número do lado deixa de ser questão de gosto.'
       },
       {
-        headline: 'Sua entrega termina na ideia.',
+        headline: 'Número inventado queima a sua reputação.',
         reality:
-          'Você lista o que mudar, o cliente publica algumas, e três meses depois ninguém sabe dizer qual delas mexeu o ponteiro. Na renovação você volta com argumento, não com resultado.',
+          'A ferramenta cospe "isso aumenta 23% da sua conversão", você repassa no relatório, e seis meses depois o cliente cobra os 23%. Quem assinou o documento foi você, não ela.',
         answer:
-          'Cada ideia daqui pode entrar no ar como teste na página do cliente e fechar com veredito: venceu, perdeu, ou não deu tráfego para dizer.'
+          'Aqui nenhum número sai de modelo. Campos de formulário, CTAs acima da dobra, tempo de carregamento, imagens sem alt: tudo contado na página dele, no dia em que a gente abriu.'
       },
       {
         headline: 'Relatório com a marca dos outros não é entregável seu.',
@@ -239,12 +200,12 @@ export const ptBR: Dictionary = {
 
     how: {
       eyebrow: 'Como funciona',
-      heading: 'Primeiro o relatório ganha a reunião. Depois o teste segura o contrato.',
-      intro: 'O relatório é o que coloca você na sala: um diagnóstico medido de uma página a que você nunca teve acesso. O teste no ar é o que mantém você lá depois que o trabalho é seu.'
+      heading: 'Primeiro meça a página. Depois coloque o seu nome nela.',
+      intro: 'O relatório é o que coloca você na sala: um diagnóstico medido de uma página a que você nunca teve acesso, num documento que o cliente dele lê inteiro sem ver o nome de mais ninguém além do seu.'
     },
     tracks: [
       {
-        label: 'Mande o relatório',
+        label: 'Meça a página',
         note: 'Minutos, sem precisar de acesso',
         steps: [
           {
@@ -256,26 +217,26 @@ export const ptBR: Dictionary = {
             body: 'Primeiro o que foi medido na página. Depois as correções priorizadas em fluxo, copy e descoberta, cada uma com o texto substituto já escrito. Se você adicionar um briefing do negócio, ele volta com os dados reais do cliente.'
           },
           {
-            label: 'Envie como seu',
-            body: 'Mande o link ou entregue a versão impressa. No plano pago não tem nada ali que diga o nosso nome.'
+            label: 'Veja de onde veio cada número',
+            body: 'Tudo foi contado na página dele no momento em que a gente abriu. Nada é média de benchmark, nada é estimativa, e nada foi preenchido por modelo.'
           }
         ]
       },
       {
-        label: 'Prove o que funcionou',
-        note: 'Depois do contrato',
+        label: 'Deixe o documento seu',
+        note: 'Configura uma vez',
         steps: [
           {
-            label: 'Instale uma vez',
-            body: 'Quando você já tem acesso ao site do cliente: uma linha de script, mais um atributo no botão que conta como conversão. Depois disso a copy muda daqui, sem novo deploy.'
+            label: 'Coloque a sua marca',
+            body: 'Sua logo, seu nome e sua cor de destaque, salvos uma vez nas configurações e aplicados em todo relatório dali em diante.'
           },
           {
-            label: 'Escolha a janela',
-            body: 'Escolha 7, 14 ou 30 dias. A significância é lida uma vez só, quando a janela fecha, então ninguém canta vencedor antes da hora.'
+            label: 'Mande o link ou o PDF',
+            body: 'Compartilhe o link do relatório ou entregue a versão impressa. No plano pago não tem nada em nenhum dos dois que diga o nosso nome.'
           },
           {
-            label: 'Mostre o veredito',
-            body: 'O teste fecha em ganho de conversão, significância estatística e uma recomendação direta. É com isso que você senta na conversa de renovação.'
+            label: 'Sem muro para o cliente dele',
+            body: 'Nada borrado, nenhum cadastro pedido, nenhum e-mail capturado. Quem recebeu lê o documento inteiro.'
           }
         ]
       }
@@ -291,8 +252,8 @@ export const ptBR: Dictionary = {
         body: 'O diagnóstico conta o que está na página: campos de formulário, CTAs acima da dobra, tempo de carregamento, imagens sem alt. Número que a gente tirou da página, nunca número que um modelo inventou.'
       },
       {
-        title: 'A ideia já vem pronta para testar',
-        body: 'Cada correção priorizada traz a copy substituta e o raciocínio por trás dela. Essa mesma copy vira um teste no ar na página do cliente, sem novo deploy, e fecha em veredito.'
+        title: 'Copy pronta, não prompt',
+        body: 'Cada correção priorizada traz o texto substituto e o raciocínio por trás dele. Com um briefing do negócio, ele volta com os dados reais do cliente já dentro.'
       },
       {
         title: 'Seu para enviar',
@@ -340,7 +301,7 @@ export const ptBR: Dictionary = {
     eyebrow: 'Clientes',
     title: 'Seus clientes',
     hintLabel: 'Como a análise funciona',
-    hint: 'Cole a URL da landing page do seu cliente. O Hunch lê o texto, estuda concorrentes e gera ideias de teste A/B rankeadas. Adicione *detalhes do negócio* para o texto voltar pronto em vez de com [placeholders]. Nos planos pagos, cole URLs de concorrentes (*Modo concorrentes*) para embasar as ideias; análises gratuitas encontram concorrentes automaticamente.',
+    hint: 'Cole a URL da landing page do seu cliente. O Hunch mede a página, estuda concorrentes e prioriza as correções que valem a pena. Adicione *detalhes do negócio* para o texto voltar pronto em vez de com [placeholders]. Nos planos pagos, cole URLs de concorrentes (*Modo concorrentes*) para embasar as ideias; análises gratuitas encontram concorrentes automaticamente.',
     subtitle: 'Cole a URL da landing page de um cliente para gerar o diagnóstico dele.',
     emptyTitle: 'Nenhum cliente ainda',
     emptyDescription:
@@ -351,17 +312,17 @@ export const ptBR: Dictionary = {
     phases: [
       'Lendo sua página...',
       'Pesquisando concorrentes...',
-      'Escrevendo suas ideias de teste...',
+      'Escrevendo a copy nova...',
       'Salvando resultados...'
     ],
     urlPlaceholder: 'https://sua-landing-page.com',
     analyze: 'Analisar',
     analyzing: 'Analisando...',
     waitNote:
-      'Isso costuma levar de 2 a 3 minutos. Mantenha esta aba aberta enquanto lemos a página, estudamos concorrentes e escrevemos seus testes.',
+      'Isso costuma levar de 2 a 3 minutos. Mantenha esta aba aberta enquanto lemos a página, estudamos concorrentes e escrevemos a copy nova.',
     briefSummary: 'Adicionar detalhes do negócio (opcional)',
     briefPlaceholder:
-      'Para quem é o produto, os números reais (usuários, duração do teste grátis, preços) e o que o diferencia. É com isso que a copy volta pronta em vez de vir com placeholders.',
+      'Para quem é o produto, os números reais (usuários, duração do trial, preços) e o que o diferencia. É com isso que a copy volta pronta em vez de vir com placeholders.',
     competitorSummary: 'Modo concorrentes',
     competitorPaidOnly: '(Pro)',
     competitorHint: 'Cole até {max} landing pages de concorrentes para embasar as ideias.',
@@ -390,14 +351,13 @@ export const ptBR: Dictionary = {
   history: {
     openAria: 'Abrir análise de {url}',
     deleteAria: 'Excluir análise de {url}',
-    tests: 'Testes'
   },
 
   analysis: {
-    eyebrow: 'O que testar',
-    title: 'Suas ideias de teste',
+    eyebrow: 'O que mudar',
+    title: 'O que mudar nesta página',
     hintLabel: 'Como usar esta tela',
-    hint: 'Cada aba é um tipo de correção, ordenada pelo impacto provável. *Fluxo* e *SEO* são mudanças que alguém aplica à mão; *Copy* é o texto, e ali cada ideia já vem com a versão nova escrita. Quando você tiver acesso ao site e quiser provar uma mudança em vez de discutir, a aba *Teste A/B ao vivo* é onde se instala o snippet e roda um teste por vez.',
+    hint: 'Cada aba é um tipo de correção, ordenada pelo impacto provável. *Fluxo* e *SEO* são mudanças que alguém aplica à mão; *Copy* é o texto, e ali cada ideia já vem com a versão nova escrita. Todo número do diagnóstico acima foi contado na própria página, então nada aqui é estimativa.',
     backToDashboard: 'Voltar para clientes',
     benchmarkedAgainst: 'Ideias embasadas nestes concorrentes:',
     marketNote: '(mercado: {market})',
@@ -451,9 +411,9 @@ export const ptBR: Dictionary = {
 
   flow: {
     eyebrow: 'Ajuste o fluxo',
-    title: 'Antes de testar as palavras',
-    hintLabel: 'Por que isto não tem botão de teste',
-    hint: 'Isto muda a *estrutura* da sua página, não uma linha de texto, então não há nada para o snippet trocar nem para testar em A/B. Implemente na mão: costuma dar mais retorno do que qualquer mudança de texto, e deixa os testes de copy abaixo mais fáceis de ler.',
+    title: 'Antes de mexer nas palavras',
+    hintLabel: 'Por que isto sai à mão',
+    hint: 'Isto muda a *estrutura* da sua página, não uma linha de texto, então sai à mão, e não como troca de texto. Costuma dar mais retorno do que qualquer mudança de texto.',
     stepsLabel: 'Como implementar',
     evidenceLabel: 'Por quê',
     count: {
@@ -601,104 +561,24 @@ export const ptBR: Dictionary = {
 
   hypothesisList: {
     manualSetup: 'Configuração manual',
-    testThisFirst: 'Teste isto primeiro',
+    testThisFirst: 'Comece por aqui',
     recommendedChallenger: 'Desafiante recomendado',
     competitorEvidence: 'Do concorrente',
     placeholderWarning:
-      'Contém [placeholders] - você vai substituí-los pelos seus dados reais ao configurar o teste.',
-    viewTest: 'Ver teste',
-    setUpTest: 'Configurar teste',
+      'Contém [placeholders] - substitua pelos dados reais antes de entregar.',
+    otherOptions: 'Outras opções',
+    writingOptions: 'Escrevendo outras opções...',
     backlog: {
       one: 'mais {count} ideia',
       other: 'mais {count} ideias'
     }
   },
 
-  embedSnippet: {
-    title: 'Instale o snippet de rastreamento',
-    body: 'Passo um. Cole isto uma vez, logo antes da tag de fechamento do body da landing page. Ele aplica as variantes em andamento e envia os resultados de volta sozinho.',
-    goalTitle: 'Passo dois: marque o que conta como conversão',
-    goalBody: 'Adicione este attribute no elemento que o visitante clica ao converter, normalmente o seu call to action principal. Sem ele o snippet conta visitantes mas nunca um resultado, e nenhum teste pode ser lançado.',
-    troubleshootTitle: 'Teste rodando mas sem registrar nada?',
-    cspBody: 'Confira isto antes de qualquer outra coisa. A causa mais comum é um Content-Security-Policy na landing page: um header de segurança que lista quais domínios podem rodar scripts. O snippet vem de outro domínio, então uma policy restritiva bloqueia ele. Peça para quem cuida do site liberar esta origem nas duas diretivas abaixo.',
-    cspBoth: 'As duas são necessárias. Só com a primeira, o snippet carrega e depois não reporta nada, em silêncio.',
-    debugBody: 'Para ver o que o snippet está fazendo, adicione data-debug="1" na tag e abra o console do navegador na landing page. Ele conta o que encontrou, qual variante aplicou e o que enviou.'
-  },
-
-  testList: {
-    eyebrow: 'Prove',
-    title: 'Rodar um teste ao vivo',
-    hintLabel: 'O que fica nesta tela',
-    hint: 'Tudo sobre rodar um teste está aqui, porque é o passo que vem *depois* de você ter acesso ao site. Instale o snippet uma vez e rode um teste por vez: ele mostra o desafiante para metade dos visitantes, e quem decide o vencedor é o resultado, não a opinião de ninguém. Só entram aqui as ideias cujo texto cai em um elemento único - o resto sai à mão, pela análise.',
-    empty: 'Nenhuma ideia desta análise cai em um elemento único, então não há nada para o snippet trocar. Aplique à mão, pela análise.'
-  },
-
-  exampleTest: {
-    eyebrow: 'Exemplo',
-    problem: 'O título diz a categoria do produto, e não o resultado que o visitante veio buscar.',
-    controlCopy: 'A plataforma completa para times de suporte modernos',
-    variantCopy: 'Responda cada chamado antes do cliente perguntar de novo',
-    caption:
-      'Uma amostra de como fica um teste concluído. Estes números são inventados e nada aqui foi medido na sua landing page - os seus aparecem neste lugar quando um teste que você lançou terminar de rodar.'
-  },
-
-  runTest: {
-    eyebrow: 'Teste A/B ao vivo',
-    hintLabel: 'Como rodar um teste funciona',
-    hint: 'Seu texto atual é o *controle*. Escolha um *desafiante*, edite para o seu produto (troque qualquer [espaço reservado] entre colchetes por dados reais) e escolha por quanto tempo rodar. Ao clicar em *Lançar*, o snippet mostra o desafiante para metade dos visitantes e registra as conversões. Quando a janela termina, lemos o resultado uma vez e recomendamos um vencedor.',
-    backToTests: 'Voltar para os testes',
-    relaunch: 'Rodar outro teste'
-  },
-
-  testRunner: {
-    controlTitle: 'Controle (seu texto atual)',
-    challengerTitle: 'Desafiante a testar',
-    variant: 'Variante {letter}',
-    recommendedSuffix: ' (recomendada)',
-    writingAlternates: 'Escrevendo alternativas...',
-    placeholderWarning:
-      'Este texto ainda tem [placeholders] como [duração do teste]. Substitua pelos seus dados reais antes de lançar, ou seus visitantes verão os colchetes.',
-    goalTitle: 'O que conta como conversão',
-    goalHelp:
-      'Adicione este attribute no elemento que o visitante clica ao converter, normalmente o seu call to action principal. Um clique nele é uma conversão. Isso substitui o chute em um seletor CSS, que quebra em silêncio no próximo redesign da página.',
-    goalMissing:
-      'Esse attribute ainda não está na página, então este teste só conseguiria registrar visitantes e nunca um resultado. Adicione, publique a página, e então lance o teste.',
-    testLength: 'Duração do teste',
-    days: '{days} dias',
-    launch: 'Lançar teste',
-    launching: 'Lançando...',
-    gatedBefore: 'Você já tem um teste rodando. Planos gratuitos rodam um por vez.',
-    gatedAfter: 'para rodar mais.',
-    manualTarget:
-      'Esta ideia é de configuração manual: o texto dela não corresponde a um único elemento que possamos trocar automaticamente, então ela não roda como teste de texto ao vivo. Aplique o texto recomendado na sua página manualmente.',
-    alreadyRunning:
-      'Esta ideia já tem um teste ao vivo. Interrompa esse teste antes de lançar outro.',
-    error: 'Algo deu errado ao lançar o teste.'
-  },
-
-  experimentPanel: {
-    stop: 'Interromper',
-    discard: 'Descartar',
-    declareWinner: 'Declarar vencedora',
-    recommendation: 'Recomendação',
-    copyReport: 'Copiar relatório',
-    downloadMd: 'Baixar .md',
-    upgradeToExport: 'Fale com a gente para exportar',
-    notEnoughData: 'Dados insuficientes por enquanto.',
-    finalizing: 'Finalizando...',
-    endsIn: { one: 'Termina em {days} dia', other: 'Termina em {days} dias' },
-    lift: 'de ganho',
-    drop: 'de queda',
-    magnitude: '{value}% {direction}',
-    significant: 'Significativo: {magnitude} (p={pValue}).',
-    notSignificant: '{magnitude} até agora, ainda não significativo (p={pValue}).'
-  },
-
   report: {
-    backToTestIdeas: 'Voltar às ideias de teste',
+    backToTestIdeas: 'Voltar para a análise',
     printHint: 'Pressione Ctrl ou Cmd + P para salvar em PDF',
     teardown: 'Análise de conversão',
-    plan: 'Plano de teste A/B',
+    plan: 'Diagnóstico de conversão',
     landingPageAnalyzed: 'Landing page analisada',
     preparedBy: 'Preparado por {name}',
     dated: 'Revisado em {date}',
@@ -707,7 +587,7 @@ export const ptBR: Dictionary = {
     changesFound: 'Mudanças recomendadas',
     copyWritten: 'Texto já escrito',
     benchmarkedAgainst: 'Ideias embasadas nestes concorrentes',
-    testThisFirst: 'Teste isto primeiro',
+    testThisFirst: 'Comece por aqui',
     problem: 'Problema',
     recommendation: 'Recomendação',
     current: 'Atual',
@@ -729,17 +609,17 @@ export const ptBR: Dictionary = {
     previewRetry: 'Tentar de novo',
     previewOverflow:
       'Este texto não cabe no espaço que sua página dá para esse elemento, então a prévia mostra ele cortado. Encurte o texto, ou dê mais espaço ao elemento antes de publicar.',
-    footerQuestion: 'Quer medir isso ao vivo na sua página?',
+    footerQuestion: 'Quer um diagnóstico assim para a sua página?',
     generatedBy: 'Gerado pelo Hunch'
   },
 
   waitlist: {
     seeMore: 'Ver mais',
     heading: {
-      one: 'Mais {count} teste de alto impacto está pronto',
-      other: 'Mais {count} testes de alto impacto estão prontos'
+      one: 'Mais {count} correção de alto impacto está pronta',
+      other: 'Mais {count} correções de alto impacto estão prontas'
     },
-    body: 'Entre na lista de espera para liberar a análise completa, o texto recomendado para cada seção e testes A/B ao vivo na sua página.',
+    body: 'Entre na lista de espera para liberar a análise completa e o texto recomendado para cada seção.',
     done: 'Você está na lista. Entraremos em contato.',
     emailPlaceholder: 'voce@empresa.com',
     phonePlaceholder: 'Telefone (opcional)',
@@ -798,22 +678,4 @@ export const ptBR: Dictionary = {
     never: 'Nunca'
   },
 
-  export: {
-    filename: 'relatorio-teste-ab.md',
-    title: 'Relatório de teste A/B',
-    source: 'Origem',
-    section: 'Seção',
-    duration: 'Duração',
-    days: 'dias',
-    recommendation: 'Recomendação',
-    problem: 'Problema',
-    result: 'Resultado',
-    arm: 'Braço',
-    copy: 'Texto',
-    conversions: 'Conversões / Visitantes',
-    rate: 'Taxa',
-    uplift: 'Ganho',
-    pValue: 'valor-p',
-    notAvailable: 'n/d'
-  }
 }

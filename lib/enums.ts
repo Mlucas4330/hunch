@@ -34,8 +34,7 @@ export type Section = (typeof SECTIONS)[number]
 export const FIX_KIND = ['flow', 'visibility'] as const
 export type FixKind = (typeof FIX_KIND)[number]
 
-// Only the four "what to change" tabs. Running a live test is its own screen, because it is the one
-// step that needs access to the client's site -- see docs/product.md.
+// The four "what to change" tabs -- see docs/product.md.
 export const ANALYSIS_TAB = ['flow', 'copy', 'seo', 'ai'] as const
 export type AnalysisTab = (typeof ANALYSIS_TAB)[number]
 
@@ -71,51 +70,25 @@ export const AI_FIX_CATEGORY: VisibilityFixCategory = 'ai_answerability'
 export const FLOW_CATEGORY = [...FLOW_FIX_CATEGORY, ...VISIBILITY_FIX_CATEGORY] as const
 export type FlowCategory = (typeof FLOW_CATEGORY)[number]
 
-export const HYPOTHESIS_STATUS = ['pending', 'testing', 'completed', 'skipped'] as const
-export type HypothesisStatus = (typeof HYPOTHESIS_STATUS)[number]
-
-// `auto` resolves to a single element and can be swapped by the snippet; `manual` is applied by hand.
+// `auto` resolves to a single element and can be swapped automatically for the variant preview;
+// `manual` is applied by hand.
 export const HYPOTHESIS_TARGET = ['auto', 'manual'] as const
 export type HypothesisTarget = (typeof HYPOTHESIS_TARGET)[number]
 
-export const VARIANT_STATUS = ['proposed', 'testing', 'winner', 'rejected'] as const
-export type VariantStatus = (typeof VARIANT_STATUS)[number]
-
 export const SUBSCRIPTION_STATUS = ['active', 'canceled', 'past_due'] as const
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUS)[number]
-
-export const EXPERIMENT_STATUS = ['running', 'stopped', 'completed'] as const
-export type ExperimentStatus = (typeof EXPERIMENT_STATUS)[number]
-
-export const EXPERIMENT_ARM = ['control', 'variant'] as const
-export type ExperimentArm = (typeof EXPERIMENT_ARM)[number]
-
-export const TRACK_EVENT = ['impression', 'conversion'] as const
-export type TrackEvent = (typeof TRACK_EVENT)[number]
-
-export const EXPERIMENT_ACTION = ['stop', 'declare_winner', 'discard'] as const
-export type ExperimentAction = (typeof EXPERIMENT_ACTION)[number]
-
-export const EXPERIMENT_DURATIONS = [7, 14, 30] as const
-export type ExperimentDuration = (typeof EXPERIMENT_DURATIONS)[number]
-
-export const EXPERIMENT_RECOMMENDATION = ['ship_variant', 'keep_control', 'inconclusive'] as const
-export type ExperimentRecommendation = (typeof EXPERIMENT_RECOMMENDATION)[number]
 
 // Abuse gates, distinct from the plan quotas. Windows live in RATE_LIMITS, so a kind added here
 // fails typecheck until it is given one.
 export const RATE_LIMIT_KIND = [
   'analysis',
   'variants',
-  'experiment',
   'screenshot',
   'brand',
   // Its own kind rather than `analysis`: the backfill spends no allowance. See docs/api.md.
   'measure',
   'waitlist',
   'report_view',
-  'track_event',
-  'track_config',
   'signin'
 ] as const
 export type RateLimitKind = (typeof RATE_LIMIT_KIND)[number]
