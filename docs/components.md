@@ -175,6 +175,35 @@ check (a `Content-Security-Policy` blocking a script from another origin), print
 that origin needs to be allowed in, and points at `data-debug="1"` for the rest. The copy-paste
 directives are generated from the same `origin` as the tag, so they cannot drift from it.
 
+## Example test — `components/example-test.tsx`
+
+A static, non-interactive card showing what a finished live test looks like: the section badge and
+status pill, the control copy struck through above the challenger, the two arm tiles, the significance
+line and the recommendation. No buttons, no links, no request. It renders on the two stage-2 surfaces
+only — see [analysis-ui.md](analysis-ui.md) — and reaches neither report.
+
+**Every number it shows is computed by `experimentResult()` (`lib/stats.ts`)** from the sample
+impression and conversion counts in `EXAMPLE_TEST_COUNTS`, which clear `MIN_SAMPLE` and
+`MIN_CONVERSIONS` on purpose. So the rate, the lift, the p-value and the verdict are all produced by
+the code that produces the real ones, and the card can never display a result the gates would refuse.
+The counts live as module consts in the component, the same idiom as `SAMPLE_SCORES` on the landing
+page.
+
+**It reuses `ArmStat` and `summary` from `components/experiment-panel.tsx`** — both pure, both
+exported for this — so the example's tiles and its significance sentence are literally the code the
+real panel runs and cannot drift from what the reader will actually see. It does **not** reuse
+`ExperimentPanel` itself: that component polls `/api/experiments/[id]` while running, renders Stop /
+Discard / Declare winner while running, and renders the export actions once done. All three are wrong
+for a mock, and an `example` prop gating them would put three behavioural branches into a live
+component to serve a static card.
+
+**The dashed border and the `caption` line are load-bearing, not decoration.** This is a fabricated
+result rendered inside the app, on screens where a reader expects their own data, so the card has to
+say that the counts are made up and that nothing in it was measured on their page. Softening that copy
+turns the example into the invented measurement the rules exist to prevent — see
+[invariants.md](invariants.md#a-number-reaches-the-reader-through-code-never-through-a-token-a-model-wrote).
+The copy describes what a finished test looks like and never what the reader's own test will produce.
+
 ## Upgrade prompt — `components/upgrade-prompt.tsx`
 
 The post-value ask, and the counterpart to the public report: the report captures a *prospect's* email,

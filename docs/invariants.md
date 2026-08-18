@@ -190,6 +190,29 @@ The e2e case `publishes no price publicly` is what keeps a price from drifting b
 
 *Governs:* [api.md](api.md), [components.md](components.md), [product.md](product.md)
 
+### Stage 2 is reached from the client, never from the analysis
+
+The analysis needs nothing but a URL, which is why it can be sent to a prospect before anything is
+won. Running a test needs the snippet installed on the customer's site, so it is the step that comes
+after the close. Mixing the two put the second half of the job inside the document handed to someone
+who has not bought yet.
+
+So the **only** entry to `/analyses/[id]/tests` is the `Tests` action on the client card
+(`ReportDeliverables variant="compact"`, `/dashboard`). The analysis screen links to no test screen,
+and no test screen links back to the analysis: the list returns to the clients, and a single test
+returns to the list.
+
+The action rides in the compact deliverables cluster and **only** there — the `full` variant sits on
+the analysis screen, which is exactly the surface this rule keeps clear. That is why one component
+renders three actions in one shape and two in the other, and why a third card must never appear
+beside the two documents.
+
+The action renders whatever the analysis contains, including when nothing in it is testable: the
+destination explains the absence with `testList.empty`, and "no idea here maps to a single element"
+is information a reader has to be able to reach.
+
+*Governs:* [analysis-ui.md](analysis-ui.md), [report.md](report.md), [experiments.md](experiments.md)
+
 ## Integrity of results
 
 ### An event without a `visitorId` is dropped, never counted

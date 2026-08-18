@@ -372,7 +372,8 @@ export const en = {
 
   history: {
     openAria: 'Open analysis for {url}',
-    deleteAria: 'Delete analysis for {url}'
+    deleteAria: 'Delete analysis for {url}',
+    tests: 'Tests'
   },
 
   analysis: {
@@ -611,27 +612,23 @@ export const en = {
     title: 'Run a live test',
     hintLabel: 'What belongs on this screen',
     hint: 'Everything about running a test lives here, because it is the step you reach for *after* you have access to the site. Install the snippet once, then run one test at a time: the snippet shows the challenger to half the visitors and the result, not an opinion, decides the winner. Only ideas whose copy maps to a single element can run this way - the rest are shipped by hand from the analysis.',
-    empty: 'None of the ideas in this analysis map to a single element, so there is nothing the snippet can swap. Ship them by hand from the analysis.',
-    backToAnalysis: 'Back to the analysis'
+    empty: 'None of the ideas in this analysis map to a single element, so there is nothing the snippet can swap. Ship them by hand from the analysis.'
   },
 
-  nextStage: {
-    eyebrow: 'After you win the work',
-    title: 'Prove the lift on their page',
-    body: 'Everything above needs nothing but the URL, which is why you can send it to a prospect. This is the other half: put a change live on the real page and let the result decide whether it worked.',
-    requirement: 'Needs access to the site: one snippet installed, and the button you count as a conversion marked.',
-    cta: 'Open the live test',
-    ready: {
-      one: '{count} idea here can run as a live test',
-      other: '{count} ideas here can run as a live test'
-    }
+  exampleTest: {
+    eyebrow: 'Example',
+    problem: 'The headline names the product category instead of the outcome the visitor came for.',
+    controlCopy: 'The complete platform for modern support teams',
+    variantCopy: 'Answer every ticket before your customer asks twice',
+    caption:
+      'A sample of what a finished test looks like. These counts are made up and nothing here was measured on your page - your own numbers appear here once a test you launched has run.'
   },
 
   runTest: {
     eyebrow: 'Live A/B test',
     hintLabel: 'How running a test works',
     hint: 'Your current copy is the *control*. Pick a *challenger*, edit it to fit your product (replace any [bracketed] placeholders with real details), and choose how long to run. On *Launch*, the snippet shows the challenger to half your visitors and tracks conversions. When the window ends we read the result once and recommend a winner.',
-    backToIdeas: 'Back to ideas',
+    backToTests: 'Back to the tests',
     relaunch: 'Run another test'
   },
 

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { EmbedSnippet } from '@/components/embed-snippet'
+import { ExampleTest } from '@/components/example-test'
 import { InfoHint } from '@/components/info-hint'
 import { RichText } from '@/components/rich-text'
 import { SectionBadge } from '@/components/section-badge'
@@ -62,9 +63,12 @@ export function TestList({
       <EmbedSnippet appUrl={appUrl} embedKey={embedKey} />
 
       {ordered.length === 0 ? (
-        <Card className="p-6 text-center">
-          <p className="text-sm text-muted-foreground">{copy.empty}</p>
-        </Card>
+        <div className="space-y-4">
+          <Card className="p-6 text-center">
+            <p className="text-sm text-muted-foreground">{copy.empty}</p>
+          </Card>
+          <ExampleTest />
+        </div>
       ) : (
         <div className="space-y-2">
           {ordered.map((hypothesis) => (

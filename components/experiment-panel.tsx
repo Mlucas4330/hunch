@@ -214,7 +214,7 @@ function countdown(endsAt: string | null, dictionary: Dictionary): string {
   return t(dictionary.experimentPanel.endsIn, { count: days, days })
 }
 
-function ArmStat({
+export function ArmStat({
   label,
   arm,
   isLeader,
@@ -240,7 +240,7 @@ function ArmStat({
   )
 }
 
-function summary(
+export function summary(
   upliftPct: number | null,
   pValue: number | null,
   significant: boolean,

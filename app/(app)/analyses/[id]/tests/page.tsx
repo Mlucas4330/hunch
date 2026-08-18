@@ -40,7 +40,7 @@ export default async function AnalysisTestsPage({ params }: { params: Promise<{ 
     <div className="animate-fade-up space-y-6">
       <div className="flex items-center justify-between gap-4">
         <Button asChild variant="ghost" size="sm">
-          <Link href={`/analyses/${analysis.id}`}>{t.testList.backToAnalysis}</Link>
+          <Link href="/dashboard">{t.analysis.backToDashboard}</Link>
         </Button>
         <p className="truncate font-mono text-sm text-muted-foreground">{analysis.url}</p>
       </div>

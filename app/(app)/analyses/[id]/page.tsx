@@ -7,7 +7,6 @@ import { getCurrentUser } from '@/lib/current-user'
 import { HypothesisList } from '@/components/hypothesis-list'
 import { FlowPlaybook } from '@/components/flow-playbook'
 import { AnalysisTabs } from '@/components/analysis-tabs'
-import { NextStage } from '@/components/next-stage'
 import { InfoHint } from '@/components/info-hint'
 import { ReportDeliverables } from '@/components/report-deliverables'
 import { UpgradePrompt } from '@/components/upgrade-prompt'
@@ -51,7 +50,6 @@ export default async function AnalysisDetailPage({
 
   const fixes = splitFixes(analysis.flowFixes)
   const visibility = splitVisibility(analysis.flowFixes)
-  const testable = analysis.hypotheses.filter((hypothesis) => hypothesis.target === 'auto')
   const measured = hasReadout(readout(readoutFor(analysis)))
   const history = measured ? await readoutHistory(analysis.id) : { previous: null, scores: [] }
 
@@ -139,8 +137,6 @@ export default async function AnalysisDetailPage({
           )
         }}
       />
-
-      <NextStage t={t} analysisId={analysis.id} testable={testable.length} />
 
       {user.plan === 'free' && <UpgradePrompt />}
     </div>

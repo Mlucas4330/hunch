@@ -8,7 +8,7 @@
 | `/auth/signin` | Auth | Google OAuth via NextAuth, plus Microsoft Entra ID where it is configured; returns to `callbackUrl` |
 | `/dashboard` | Clients | Grid of past analyses, one card per client, above the new-analysis form |
 | `/analyses/[id]` | What to test | The two deliverables, then four tabs: flow, copy, SEO, found-by-AI |
-| `/analyses/[id]/tests` | Live A/B tests | The snippet plus one row per testable idea — **stage 2, its own screen** |
+| `/analyses/[id]/tests` | Live A/B tests | The snippet plus one row per testable idea — **stage 2, reached from the client card** |
 | `/analyses/[id]/tests/[hypothesisId]` | Live A/B test | Approve/swap/edit the challenger, set the goal, launch, monitor |
 | `/analyses/[id]/report` | Print report | One stacked page, owner-authenticated — see [report.md](report.md) |
 | `/r/[embedKey]` | Public report | Two shapes by owner plan. No session — see [report.md](report.md) |
@@ -72,6 +72,12 @@ schema change — there is no `client_name` column and no `clients` table.
 - The footer also carries `ReportDeliverables variant="compact"` — the copy-link and PDF actions in
   labelled form, so the two documents are discoverable before an analysis is opened. It escapes the
   overlay the same way. See [report.md](report.md#report-deliverables--componentsreport-deliverablestsx).
+- **The third action in that cluster is `Tests`**, and it is the only way into `/analyses/[id]/tests` —
+  see
+  [invariants.md](invariants.md#stage-2-is-reached-from-the-client-never-from-the-analysis).
+  The card is where the two halves of the job are peers: one document you can send today, one stage you
+  reach once you have access to their site. It is deliberately **not** a document, which is why it
+  exists only in the compact variant.
 - **Empty state**: shown when the user has no clients yet. Single CTA — paste a client's landing page
   URL above.
 
@@ -156,18 +162,13 @@ are persisted in Postgres.
   existed: their rows are all `flow`, so SEO and AI are genuinely empty.
 - `seo` and `ai` are the same rows cut by category — see [data-model.md](data-model.md).
 
-### The stage-2 entry — `components/next-stage.tsx`
+### No entry to stage 2
 
-Below the tabs, above `UpgradePrompt`. Named, with what the stage requires spelled out, the count of
-testable ideas, and the link to `/analyses/[id]/tests`.
-
-**It sits after the content deliberately**, mirroring `landing.tracks`, where the second track is placed
-after the close because nobody installs a script tag for a prospect. Putting it at the top beside
-`ReportDeliverables` would conflate the two: those are documents, this is a stage.
-
-**It renders even when nothing is testable**, showing `testList.empty` and no link. The old tab simply
-vanished in that case, which left a reader no way to find out why — the answer (no idea here maps to a
-single element) is information, not an absence.
+Nothing on this screen mentions running a test. There used to be a `NextStage` callout below the tabs
+and it is gone: the entry moved to the client card, per
+[invariants.md](invariants.md#stage-2-is-reached-from-the-client-never-from-the-analysis).
+This screen is the thing a prospect is allowed to read, and asking that reader to install a script tag
+was the last place the two stages still touched.
 
 ### The ranked hypothesis list — `components/hypothesis-list.tsx`
 
@@ -239,7 +240,10 @@ arrived unchanged, since it already carried its own heading and `InfoHint`.
 - **Rows are not `DisclosureCard`s.** The ranked lists are things to read and weigh; this is a list of
   things to launch, so each row is one line.
 - An analysis where every idea is `manual` still **renders the screen**, with `testList.empty` in place
-  of the rows — there is nothing for the snippet to swap and the reader is told so.
+  of the rows — there is nothing for the snippet to swap and the reader is told so. `ExampleTest` sits
+  beneath that line: the reader who lands here has no test to look at, and telling them what one looks
+  like is the only thing this screen can still do for them. See
+  [components.md](components.md#example-test--componentsexample-testtsx).
 - It owns the `GET /api/experiments?analysisId=` fetch that `HypothesisList` used to make. The request
   moved rather than multiplied. A `running` experiment sorts to the top.
 - The page query selects `hypotheses` only. It renders no readout, no playbook and no report action:
@@ -261,6 +265,11 @@ arrived unchanged, since it already carried its own heading and `InfoHint`.
 - **"Launch test"** -> `POST /api/experiments`. `403 limit_reached` shows an inline upgrade CTA,
   `422 manual_target` explains the idea has to be applied by hand, `409 already_running` surfaces
   `testRunner.alreadyRunning`, and `422 goal_missing` says the attribute is not on the page yet.
+- **`ExampleTest` closes the launch form**, so the reader can see what launching produces before
+  deciding to. It needs no condition of its own: `TestRunner` renders `LaunchForm` only while no
+  experiment exists, so the example is gone the moment a real panel is there — and the two never show
+  together, which is what would make a mock ambiguous. See
+  [components.md](components.md#example-test--componentsexample-testtsx).
 - Once an experiment exists (loaded server-side or just launched), the results panel renders in place.
 - **A finished test never blocks the next one.** The panel keeps its numbers, but once the experiment is
   no longer `running` a "Run another test" button sits under it and clears the local state back to the

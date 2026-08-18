@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ExampleTest } from '@/components/example-test'
 import { ExperimentPanel, type PanelExperiment } from '@/components/experiment-panel'
 import {
   CONTACT_PATH,
@@ -305,6 +306,8 @@ function LaunchForm({
         </p>
       )}
       {error && <p className="text-sm text-destructive">{dictionary.testRunner.error}</p>}
+
+      <ExampleTest />
     </div>
   )
 }

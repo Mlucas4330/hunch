@@ -4,6 +4,10 @@ The whole loop: launch a test, serve it to the customer's page, count, decide. E
 running a test lives on its own screen, `/analyses/[id]/tests`, because testing is the step that comes
 **after** the work is won and access to the site exists — see [analysis-ui.md](analysis-ui.md).
 
+That screen is reached from the client card on `/dashboard` and from nowhere else, and it returns there
+rather than to the analysis — see
+[invariants.md](invariants.md#stage-2-is-reached-from-the-client-never-from-the-analysis).
+
 It never appears on the public report: a prospect reading someone else's teardown installs no snippet.
 
 ## Launching — `POST /api/experiments`
@@ -305,3 +309,9 @@ intended cost — do not add an index for it.
   (`canExport`); free plans get an upgrade link to `CONTACT_PATH` in its place.
 - Status -> pill colour from `EXPERIMENT_STATUS_BADGE_CLASS`: `running` amber, `completed` green,
   `stopped` gray.
+
+`ArmStat` and `summary` are exported from this file for `components/example-test.tsx`, which renders a
+sample test on the two stage-2 screens before a real one exists. Both are pure, so the example shows
+the arm tiles and the significance sentence this panel would show. The example deliberately does not
+reuse `ExperimentPanel` itself — see
+[components.md](components.md#example-test--componentsexample-testtsx).

@@ -90,7 +90,7 @@ export default async function RunTestPage({
           <h1 className="font-display text-2xl font-bold tracking-tight">{hypothesis.problem}</h1>
         </div>
         <Button asChild variant="ghost" size="sm" className="sm:shrink-0">
-          <Link href={`/analyses/${id}`}>{t.runTest.backToIdeas}</Link>
+          <Link href={`/analyses/${id}/tests`}>{t.runTest.backToTests}</Link>
         </Button>
       </div>
 

@@ -54,7 +54,9 @@ async function openCopyTab(page: Page) {
 }
 
 async function startFirstTest(page: Page) {
-  await page.getByTestId('next-stage').getByRole('link', { name: 'Open the live test' }).click()
+  const id = new URL(page.url()).pathname.split('/').pop()
+  await page.goto('/dashboard')
+  await page.getByTestId('analysis-history').locator(`a[href="/analyses/${id}/tests"]`).click()
   await page.waitForURL(/\/analyses\/[0-9a-f-]+\/tests$/)
   await page.getByRole('link', { name: 'Set up test' }).first().click()
   await page.waitForURL(/\/analyses\/[0-9a-f-]+\/tests\/[0-9a-f-]+$/)
@@ -229,16 +231,51 @@ test.describe('core features', () => {
     await openCopyTab(page)
     await expect(page.getByText('Ship faster: releases in').first()).toBeVisible()
     await expect(page.getByRole('link', { name: 'Set up test' })).toHaveCount(0)
+    await expect(page.getByTestId('deliverables').getByRole('link', { name: 'Tests' })).toHaveCount(
+      0
+    )
 
-    await page.getByTestId('next-stage').getByRole('link', { name: 'Open the live test' }).click()
+    await page.goto('/dashboard')
+    const history = page.getByTestId('analysis-history')
+    await expect(history.getByText(url)).toBeVisible()
+    await history.getByRole('link', { name: 'Tests' }).first().click()
     await page.waitForURL(/\/analyses\/[0-9a-f-]+\/tests$/)
     const tests = page.getByTestId('test-list')
     await expect(tests.getByText('Install the tracking snippet')).toBeVisible()
     await expect(tests.getByTestId('test-row').first()).toBeVisible()
     await expect(tests.getByRole('link', { name: 'Set up test' }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Back to clients' })).toBeVisible()
+  })
+
+  test('shows an example test only until a real one exists', async ({ page }) => {
+    const url = `https://example.com/?t=${Date.now()}-example`
 
     await page.goto('/dashboard')
-    await expect(page.getByTestId('analysis-history').getByText(url)).toBeVisible()
+    await page.fill('input[name="url"]', url)
+    await page.getByRole('button', { name: 'Analyze' }).click()
+    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
+
+    await expect(page.getByTestId('example-test')).toHaveCount(0)
+
+    await startFirstTest(page)
+
+    const example = page.getByTestId('example-test')
+    await expect(example).toBeVisible()
+    await expect(example).toContainText('Example')
+    // Derived by experimentResult() from the sample counts. Fails if they drop below the
+    // significance gates.
+    await expect(example).toContainText('Significant: 25.0% lift (p=0.031)')
+    await expect(example).toContainText('Ship the variant')
+
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().endsWith('/api/experiments') && r.request().method() === 'POST'
+      ),
+      page.getByTestId('launch-experiment').click()
+    ])
+
+    await expect(page.getByTestId('experiment-panel')).toBeVisible()
+    await expect(page.getByTestId('example-test')).toHaveCount(0)
   })
 
   test('ranks the top ideas open and collapses the backlog', async ({ page }) => {
@@ -324,7 +361,7 @@ test.describe('core features', () => {
     // Four tabs, all about what to change. Running a test is its own screen and reaches no report.
     await expect(anon.getByRole('tab')).toHaveCount(4)
     await expect(anon.getByTestId('test-list')).toHaveCount(0)
-    await expect(anon.getByTestId('next-stage')).toHaveCount(0)
+    await expect(anon.getByTestId('example-test')).toHaveCount(0)
 
     await anon.getByRole('tab', { name: 'Wording' }).click()
     const preview = anon.getByTestId('variant-preview').first()

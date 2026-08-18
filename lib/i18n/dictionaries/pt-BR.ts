@@ -389,7 +389,8 @@ export const ptBR: Dictionary = {
 
   history: {
     openAria: 'Abrir análise de {url}',
-    deleteAria: 'Excluir análise de {url}'
+    deleteAria: 'Excluir análise de {url}',
+    tests: 'Testes'
   },
 
   analysis: {
@@ -629,27 +630,23 @@ export const ptBR: Dictionary = {
     title: 'Rodar um teste ao vivo',
     hintLabel: 'O que fica nesta tela',
     hint: 'Tudo sobre rodar um teste está aqui, porque é o passo que vem *depois* de você ter acesso ao site. Instale o snippet uma vez e rode um teste por vez: ele mostra o desafiante para metade dos visitantes, e quem decide o vencedor é o resultado, não a opinião de ninguém. Só entram aqui as ideias cujo texto cai em um elemento único - o resto sai à mão, pela análise.',
-    empty: 'Nenhuma ideia desta análise cai em um elemento único, então não há nada para o snippet trocar. Aplique à mão, pela análise.',
-    backToAnalysis: 'Voltar para a análise'
+    empty: 'Nenhuma ideia desta análise cai em um elemento único, então não há nada para o snippet trocar. Aplique à mão, pela análise.'
   },
 
-  nextStage: {
-    eyebrow: 'Depois que o trabalho é seu',
-    title: 'Prove o ganho na página dele',
-    body: 'Tudo acima precisa só da URL, e é por isso que você pode mandar para um prospect. Esta é a outra metade: colocar uma mudança no ar na página real e deixar o resultado dizer se funcionou.',
-    requirement: 'Precisa de acesso ao site: um snippet instalado e o botão que conta como conversão marcado.',
-    cta: 'Abrir o teste ao vivo',
-    ready: {
-      one: '{count} ideia daqui pode virar um teste ao vivo',
-      other: '{count} ideias daqui podem virar um teste ao vivo'
-    }
+  exampleTest: {
+    eyebrow: 'Exemplo',
+    problem: 'O título diz a categoria do produto, e não o resultado que o visitante veio buscar.',
+    controlCopy: 'A plataforma completa para times de suporte modernos',
+    variantCopy: 'Responda cada chamado antes do cliente perguntar de novo',
+    caption:
+      'Uma amostra de como fica um teste concluído. Estes números são inventados e nada aqui foi medido na sua landing page - os seus aparecem neste lugar quando um teste que você lançou terminar de rodar.'
   },
 
   runTest: {
     eyebrow: 'Teste A/B ao vivo',
     hintLabel: 'Como rodar um teste funciona',
     hint: 'Seu texto atual é o *controle*. Escolha um *desafiante*, edite para o seu produto (troque qualquer [espaço reservado] entre colchetes por dados reais) e escolha por quanto tempo rodar. Ao clicar em *Lançar*, o snippet mostra o desafiante para metade dos visitantes e registra as conversões. Quando a janela termina, lemos o resultado uma vez e recomendamos um vencedor.',
-    backToIdeas: 'Voltar às ideias',
+    backToTests: 'Voltar para os testes',
     relaunch: 'Rodar outro teste'
   },
 
