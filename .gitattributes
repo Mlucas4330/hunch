@@ -1,4 +1,4 @@
-# cron-call.sh runs inside a Linux container. A CRLF committed from a Windows checkout makes sh read
-# the trailing \r as part of the last argument, which fails as a malformed URL rather than as
-# anything pointing at line endings.
-*.sh text eol=lf
+# `eol=lf` rather than plain `text=auto`: the index was already LF, and what actually broke was the
+# working tree. A Windows checkout under core.autocrlf=true lands CRLF, tooling then writes LF, and
+# the file ends up mixed. This pins both sides to LF and overrides whatever core.autocrlf is set to.
+* text=auto eol=lf
