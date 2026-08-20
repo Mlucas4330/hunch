@@ -1,5 +1,5 @@
-import type { Profile } from 'next-auth'
-import { ADMIN_ROLE, POST_SIGNIN_REDIRECT, VERIFIED_EMAIL_CLAIM } from '@/lib/constants'
+import type { Account, Profile } from 'next-auth'
+import { ADMIN_ROLE, GITHUB_EMAILS_URL, POST_SIGNIN_REDIRECT, VERIFIED_EMAIL } from '@/lib/constants'
 import type { OAuthProvider } from '@/lib/enums'
 import type { User } from '@/db/schema'
 
@@ -9,30 +9,87 @@ export function safeCallbackUrl(raw: string | string[] | undefined): string {
   return raw
 }
 
-export function microsoftLoginAllowed(): boolean {
-  return Boolean(
-    process.env.AUTH_MICROSOFT_ENTRA_ID_ID && process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET
-  )
-}
-
-// Optional claims arrive as booleans from Google and have been seen as strings from Entra ID.
+// Optional claims arrive as booleans from Google.
 function claimIsTrue(value: unknown): boolean {
   return value === true || value === 'true' || value === '1'
 }
 
-// Fails closed: a provider with no claim listed, or a claim that is absent, never keys a user row.
-// See docs/security.md.
-export function providerVerifiedEmail(
-  providerId: string | undefined,
+type GithubEmail = { email: string; primary: boolean; verified: boolean }
+
+/**
+ * GitHub does not emit a verified-email claim, and its `profile.email` can be null when the account
+ * keeps its address private. The only place the truth exists is the REST endpoint, so this asks it.
+ *
+ * **Every failure path refuses.** A timeout, a 403 from a missing `user:email` scope, or a body that
+ * is not the shape expected all return null — because the alternative, reading "we could not check"
+ * as "verified", turns a GitHub outage into an open door onto rows that hold credits.
+ */
+async function githubVerifiedEmail(accessToken: string | undefined): Promise<string | null> {
+  if (!accessToken) return null
+
+  try {
+    const res = await fetch(GITHUB_EMAILS_URL, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
+    })
+
+    if (!res.ok) {
+      console.error('[auth] github email lookup refused', res.status)
+      return null
+    }
+
+    const emails: unknown = await res.json()
+    if (!Array.isArray(emails)) return null
+
+    const primary = (emails as GithubEmail[]).find(
+      (entry) =>
+        entry?.primary === true && entry?.verified === true && typeof entry.email === 'string'
+    )
+
+    return primary?.email ?? null
+  } catch (error) {
+    console.error('[auth] github email lookup failed', error)
+    return null
+  }
+}
+
+/**
+ * The address a provider will vouch for, or null.
+ *
+ * The user row is keyed on email and there is no `accounts` table, so **whoever presents an address
+ * next owns everything in the row** — which, after credits, means money. Each provider therefore
+ * declares *how* its address is verified, and **a provider with no strategy declared is refused
+ * outright**. That default is the point: a provider added to `authConfig` without an entry here locks
+ * itself out rather than letting itself in. See docs/security.md.
+ *
+ * **The address returned is what keys the row, and it is not always `profile.email`** — GitHub's can
+ * be null or unverified while a different address on the same account is the verified primary one.
+ */
+export async function verifiedEmailFor(
+  account: Account | null | undefined,
   profile: Profile | undefined
-): boolean {
-  const claim = VERIFIED_EMAIL_CLAIM[providerId as OAuthProvider]
-  return Boolean(claim) && claimIsTrue(profile?.[claim])
+): Promise<string | null> {
+  const strategy = VERIFIED_EMAIL[account?.provider as OAuthProvider]
+  if (!strategy) return null
+
+  if (strategy.kind === 'claim') {
+    if (!claimIsTrue(profile?.[strategy.claim])) return null
+    return typeof profile?.email === 'string' ? profile.email : null
+  }
+
+  return githubVerifiedEmail(account?.access_token)
 }
 
 export function credentialsLoginAllowed(): boolean {
   if (process.env.NODE_ENV === 'production') return false
   return process.env.ALLOW_CREDENTIALS_LOGIN === '1'
+}
+
+export function githubLoginAllowed(): boolean {
+  return Boolean(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET)
 }
 
 // Grants the role at sign-in. The gate below is what authorizes a request. See docs/invariants.md.

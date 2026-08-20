@@ -1,17 +1,29 @@
-export const SUBSCRIPTION_PLAN = ['free', 'pro'] as const
-export type SubscriptionPlan = (typeof SUBSCRIPTION_PLAN)[number]
 
 // Granted from ADMIN_EMAIL at sign-in, never revoked by one. See docs/invariants.md.
 export const USER_ROLE = ['user', 'admin'] as const
 export type UserRole = (typeof USER_ROLE)[number]
 
-// The ids Auth.js gives the OAuth providers. Each one needs a verified-email claim before its
-// email may key a user row -- see VERIFIED_EMAIL_CLAIM and docs/security.md.
-export const OAUTH_PROVIDER = ['google', 'microsoft-entra-id'] as const
+// The ids Auth.js gives the OAuth providers. Each one must declare how its address is verified
+// before it may key a user row -- see VERIFIED_EMAIL and docs/security.md.
+export const OAUTH_PROVIDER = ['google', 'github'] as const
 export type OAuthProvider = (typeof OAUTH_PROVIDER)[number]
+
+// Who took the money. Written into `credit_transactions.provider` and `payment_events.provider`, so
+// a value added here is a value those two columns start carrying. Both adapters end at
+// `grantCredits` and neither touches a table -- see docs/invariants.md.
+export const PAYMENT_PROVIDER = ['stripe', 'mercadopago'] as const
+export type PaymentProvider = (typeof PAYMENT_PROVIDER)[number]
 
 export const LOCALE = ['en', 'pt-BR'] as const
 export type Locale = (typeof LOCALE)[number]
+
+// The blog posts, in render order. A slug is the URL segment and the dictionary key at once, so a
+// post added here fails typecheck until it is written in both locales. See docs/seo.md.
+export const BLOG_SLUG = ['what-is-seo', 'what-is-copy', 'ai-is-the-new-google'] as const
+export type BlogSlug = (typeof BLOG_SLUG)[number]
+
+// The post the landing page's AI section links into.
+export const AI_POST_SLUG: BlogSlug = 'ai-is-the-new-google'
 
 // Measured from the page, never from the UI locale. See docs/invariants.md.
 export const MARKET = ['us', 'br'] as const
@@ -33,6 +45,10 @@ export type Section = (typeof SECTIONS)[number]
 // Discriminates the two ranked lists sharing flow_fixes. See docs/data-model.md.
 export const FIX_KIND = ['flow', 'visibility'] as const
 export type FixKind = (typeof FIX_KIND)[number]
+
+// The two shapes a route's loading shell can take: a grid of rows, or one analysis.
+export const ROUTE_SKELETON = ['list', 'detail'] as const
+export type RouteSkeleton = (typeof ROUTE_SKELETON)[number]
 
 // The four "what to change" tabs -- see docs/product.md.
 export const ANALYSIS_TAB = ['flow', 'copy', 'seo', 'ai'] as const
@@ -75,27 +91,41 @@ export type FlowCategory = (typeof FLOW_CATEGORY)[number]
 export const HYPOTHESIS_TARGET = ['auto', 'manual'] as const
 export type HypothesisTarget = (typeof HYPOTHESIS_TARGET)[number]
 
-export const SUBSCRIPTION_STATUS = ['active', 'canceled', 'past_due'] as const
-export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUS)[number]
+// Why the balance moved. `purchase` and `refund` are the two directions a payment can push it;
+// `unlock` is the one thing that spends. See docs/data-model.md.
+export const CREDIT_REASON = ['purchase', 'unlock', 'refund'] as const
+export type CreditReason = (typeof CREDIT_REASON)[number]
 
-// Abuse gates, distinct from the plan quotas. Windows live in RATE_LIMITS, so a kind added here
-// fails typecheck until it is given one.
+// What a queued job is doing. `unavailable` is not an error state: it means the work can never
+// succeed for this input (a manual hypothesis, a stale selector), which is a different answer from
+// "still working" and used to reach the client as the same one. See docs/scraping.md.
+export const JOB_STATUS = ['queued', 'running', 'ready', 'unavailable'] as const
+export type JobStatus = (typeof JOB_STATUS)[number]
+
+// Abuse gates. Windows live in RATE_LIMITS, so a kind added here fails typecheck until it is given
+// one.
 export const RATE_LIMIT_KIND = [
   'analysis',
   'variants',
   'screenshot',
-  'brand',
   // Its own kind rather than `analysis`: the backfill spends no allowance. See docs/api.md.
   'measure',
-  'waitlist',
-  'report_view',
-  'signin'
+  // Polling must not spend the budget the work itself spends: at a few seconds an interval, one
+  // preview would burn the screenshot quota on its own. See docs/scraping.md.
+  'job_status',
+  'signin',
+  // Creating a payment is one call to the provider and no browser, so the budget is loose. It is its
+  // own kind because a failed card retried three times must not spend the analysis allowance.
+  'billing'
 ] as const
 export type RateLimitKind = (typeof RATE_LIMIT_KIND)[number]
 
-// Unique per (email, source), not per email -- see docs/data-model.md.
-export const LEAD_SOURCE = ['report', 'contact'] as const
-export type LeadSource = (typeof LEAD_SOURCE)[number]
+// What the landing page's live feed may say about a row, and the whole of it. Both states are read
+// off columns rather than stored: `running` is a row with no measurement yet, `done` is one with a
+// measurement. There is no `failed` because nothing here is entitled to guess why a row is empty --
+// past PULSE_RUNNING_MAX_AGE_MS the feed drops it instead. See docs/analysis-ui.md.
+export const PULSE_STATE = ['running', 'done'] as const
+export type PulseState = (typeof PULSE_STATE)[number]
 
 // The only numbers the product may show. measuredFindings (lib/readout.ts) may emit no id outside
 // this list, and every id has a sentence in dictionary.readout. See docs/readout.md.
@@ -142,22 +172,3 @@ export type ReadoutGroup = (typeof READOUT_GROUP)[number]
 
 export const READOUT_UNIT = ['count', 'seconds', 'megabytes', 'presence'] as const
 export type ReadoutUnit = (typeof READOUT_UNIT)[number]
-
-// A strict subset of PageStructure: only what is measured identically on every page. Conversion rate
-// is not here and never can be -- we measure pages, not their traffic.
-export const READOUT_COMPARISON = [
-  'form_fields',
-  'social_signin',
-  'above_fold_ctas',
-  'nav_links',
-  'word_count',
-  'pricing',
-  'testimonials',
-  'faq',
-  'sticky_cta',
-  'meta_description',
-  'structured_data',
-  'lcp',
-  'page_weight'
-] as const
-export type ReadoutComparison = (typeof READOUT_COMPARISON)[number]

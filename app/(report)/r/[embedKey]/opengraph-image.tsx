@@ -2,8 +2,8 @@ import { ImageResponse } from 'next/og'
 import { dictionaryFor } from '@/lib/i18n'
 import { DEFAULT_LOCALE, OG_COLORS, OG_IMAGE_SIZE } from '@/lib/constants'
 import { displayHost } from '@/lib/host'
-import { loadReport, reportBrand } from '@/lib/report'
-import { OgFrame, OgStat, OgWordmark, OgBrandName } from '@/components/og'
+import { loadReport } from '@/lib/analyses'
+import { OgFrame, OgStat, OgWordmark } from '@/components/og'
 
 const t = dictionaryFor(DEFAULT_LOCALE)
 
@@ -32,16 +32,12 @@ export default async function Image({ params }: { params: Promise<{ embedKey: st
   // The same two counts the cover shows, so the unfurl and the page it opens never disagree.
   const changes = analysis.hypotheses.length + analysis.flowFixes.length
   const ready = analysis.hypotheses.filter((h) => h.target === 'auto').length
-  const brand = reportBrand(analysis)
 
-  // The agency's name in text, never its logo: satori cannot read a file off the volume, and inlining
-  // the bytes as a data URI inside an image route buys nothing the name does not already buy. See
-  // docs/seo.md.
   return new ImageResponse(
     (
       <OgFrame>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {brand.whiteLabel ? <OgBrandName name={brand.name} /> : <OgWordmark />}
+          <OgWordmark />
           <div style={{ display: 'flex', fontSize: 24, color: OG_COLORS.mutedForeground }}>
             {t.report.plan}
           </div>

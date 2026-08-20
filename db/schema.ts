@@ -6,6 +6,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -15,22 +16,18 @@ import {
   FIX_KIND,
   FLOW_CATEGORY,
   HYPOTHESIS_TARGET,
-  LEAD_SOURCE,
   LOCALE,
   MARKET,
+  CREDIT_REASON,
   SECTIONS,
-  SUBSCRIPTION_PLAN,
-  SUBSCRIPTION_STATUS,
   USER_ROLE
 } from '@/lib/enums'
 import {
-  DEFAULT_LEAD_SOURCE,
   DEFAULT_LOCALE,
   DEFAULT_MARKET,
   DEFAULT_USER_ROLE
 } from '@/lib/constants'
 import type {
-  CompetitorStructure,
   PagePerformance,
   PageSeo,
   PageStructure
@@ -38,61 +35,43 @@ import type {
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
 
-export const subscriptionPlanEnum = pgEnum('subscription_plan', SUBSCRIPTION_PLAN)
-export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUS)
 export const sectionEnum = pgEnum('section', SECTIONS)
 export const hypothesisTargetEnum = pgEnum('hypothesis_target', HYPOTHESIS_TARGET)
 export const flowCategoryEnum = pgEnum('flow_category', FLOW_CATEGORY)
 export const localeEnum = pgEnum('locale', LOCALE)
 export const marketEnum = pgEnum('market', MARKET)
 export const fixKindEnum = pgEnum('fix_kind', FIX_KIND)
-export const leadSourceEnum = pgEnum('lead_source', LEAD_SOURCE)
 export const userRoleEnum = pgEnum('user_role', USER_ROLE)
+export const creditReasonEnum = pgEnum('credit_reason', CREDIT_REASON)
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
   avatarUrl: text('avatar_url'),
-  plan: subscriptionPlanEnum('plan').notNull().default('free'),
   role: userRoleEnum('role').notNull().default(DEFAULT_USER_ROLE),
-  brandName: text('brand_name'),
-  brandLogoUrl: text('brand_logo_url'),
-  brandAccent: text('brand_accent'),
   stripeCustomerId: text('stripe_customer_id'),
-  analysesCount: integer('analyses_count').notNull().default(0),
-  usagePeriodStart: timestamp('usage_period_start').notNull().defaultNow(),
+  // The balance, and the only thing that says someone paid. Read from the row on every request and
+  // never carried in the JWT -- a token lives SESSION_MAX_AGE_SECONDS, so a balance stamped into one
+  // is stale the instant something is bought or spent. See docs/invariants.md.
+  credits: integer('credits').notNull().default(0),
   lastSignInAt: timestamp('last_sign_in_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow()
-})
-
-export const subscriptions = pgTable('subscriptions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  stripeSubscriptionId: text('stripe_subscription_id').notNull().unique(),
-  plan: subscriptionPlanEnum('plan').notNull(),
-  status: subscriptionStatusEnum('status').notNull(),
-  currentPeriodEnd: timestamp('current_period_end').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
 export const analyses = pgTable('analyses', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
+  // Nullable: an analysis can be born with no owner. Someone pastes a URL from an ad, gets the
+  // measured half, and only signs in if they want the rest -- so there is no user to hang it on at
+  // creation, and the opaque embed_key is what identifies it until a sign-in claims it.
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
   url: text('url').notNull(),
   brief: text('brief'),
-  competitors: jsonb('competitors').$type<{ name: string; url: string }[]>(),
-  researchBrief: text('research_brief'),
   structure: jsonb('structure').$type<PageStructure>(),
   seo: jsonb('seo').$type<PageSeo>(),
   performance: jsonb('performance').$type<PagePerformance>(),
   crawlerAccess: jsonb('crawler_access').$type<CrawlerAccess>(),
   keywords: jsonb('keywords').$type<PageKeywords>(),
-  competitorStructures: jsonb('competitor_structures').$type<CompetitorStructure[]>(),
   locale: localeEnum('locale').notNull().default(DEFAULT_LOCALE),
   market: marketEnum('market').notNull().default(DEFAULT_MARKET),
   embedKey: uuid('embed_key').notNull().defaultRandom().unique(),
@@ -166,54 +145,48 @@ export const flowFixes = pgTable('flow_fixes', {
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
-export const waitlist = pgTable(
-  'waitlist',
+// Every movement of the balance, in both directions. Not decoration: without it "a credit went
+// missing" has no answer, and a webhook that pays twice is indistinguishable from one that paid once.
+export const creditTransactions = pgTable(
+  'credit_transactions',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    email: text('email').notNull(),
-    phone: text('phone'),
-    embedKey: uuid('embed_key'),
-    source: leadSourceEnum('source').notNull().default(DEFAULT_LEAD_SOURCE),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // Signed: a purchase is positive, an unlock negative, a refund positive again.
+    delta: integer('delta').notNull(),
+    reason: creditReasonEnum('reason').notNull(),
+    analysisId: uuid('analysis_id').references(() => analyses.id, { onDelete: 'set null' }),
+    // Which payment this came from. The unique below is the idempotency key: the same provider
+    // reference can never be granted twice, however many times a webhook is delivered.
+    provider: text('provider'),
+    providerRef: text('provider_ref'),
     createdAt: timestamp('created_at').notNull().defaultNow()
   },
   (table) => [
-    unique().on(table.email, table.source)
+    unique('credit_transactions_provider_ref_idx').on(table.provider, table.providerRef),
+    index('credit_transactions_user_idx').on(table.userId, table.createdAt)
   ]
 )
 
-export const reportViews = pgTable(
-  'report_views',
+// Which webhook deliveries have already been handled, for every provider. Keyed on
+// `(provider, event_id)` rather than on the id alone: two providers number their events
+// independently, so nothing stops them from colliding on a string. See docs/data-model.md.
+export const paymentEvents = pgTable(
+  'payment_events',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    embedKey: uuid('embed_key')
-      .notNull()
-      .references(() => analyses.embedKey, { onDelete: 'cascade' }),
-    createdAt: timestamp('created_at').notNull().defaultNow()
+    provider: text('provider').notNull(),
+    eventId: text('event_id').notNull(),
+    type: text('type').notNull(),
+    eventCreatedAt: timestamp('event_created_at').notNull(),
+    receivedAt: timestamp('received_at').notNull().defaultNow()
   },
-  (table) => [index('report_views_embed_key_idx').on(table.embedKey)]
+  (table) => [primaryKey({ columns: [table.provider, table.eventId] })]
 )
 
-export const stripeEvents = pgTable('stripe_events', {
-  id: text('id').primaryKey(),
-  type: text('type').notNull(),
-  subscriptionId: text('subscription_id'),
-  eventCreatedAt: timestamp('event_created_at').notNull(),
-  receivedAt: timestamp('received_at').notNull().defaultNow()
-})
-
-export const usersRelations = relations(users, ({ many, one }) => ({
-  analyses: many(analyses),
-  subscription: one(subscriptions, {
-    fields: [users.id],
-    references: [subscriptions.userId]
-  })
-}))
-
-export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
-  user: one(users, {
-    fields: [subscriptions.userId],
-    references: [users.id]
-  })
+export const usersRelations = relations(users, ({ many }) => ({
+  analyses: many(analyses)
 }))
 
 export const analysesRelations = relations(analyses, ({ one, many }) => ({
@@ -256,11 +229,9 @@ export const variantsRelations = relations(variants, ({ one }) => ({
 }))
 
 export type User = typeof users.$inferSelect
-export type Subscription = typeof subscriptions.$inferSelect
 export type Analysis = typeof analyses.$inferSelect
 
 export type PageSnapshot = typeof pageSnapshots.$inferSelect
 export type Hypothesis = typeof hypotheses.$inferSelect
 export type Variant = typeof variants.$inferSelect
 export type FlowFix = typeof flowFixes.$inferSelect
-export type Waitlist = typeof waitlist.$inferSelect

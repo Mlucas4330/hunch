@@ -18,11 +18,11 @@
     "test": "tsx --test \"lib/**/*.test.ts\"",
     "preview:screenshot": "tsx --env-file=.env scripts/preview-screenshot.mts",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "seed:pulse": "tsx --env-file=.env scripts/seed-pulse.mts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",
-    "@anthropic-ai/sdk": "^0.106.0",
     "@radix-ui/react-slot": "^1.2.3",
     "ai": "^4.3.16",
     "class-variance-authority": "^0.7.1",

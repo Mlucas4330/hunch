@@ -1,17 +1,11 @@
 import { READOUT_THRESHOLDS } from '@/lib/constants'
 import type {
-  ReadoutComparison,
   ReadoutFinding,
   ReadoutGroup,
   ReadoutSeverity,
   ReadoutUnit
 } from '@/lib/enums'
-import type {
-  CompetitorStructure,
-  PagePerformance,
-  PageSeo,
-  PageStructure
-} from '@/lib/scrape'
+import type { PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
 
@@ -23,27 +17,16 @@ export type MeasuredFinding = {
   unit: ReadoutUnit
 }
 
-export type ComparisonValue = number | boolean
-
-export type ComparisonRow = {
-  metric: ReadoutComparison
-  unit: ReadoutUnit
-  self: ComparisonValue
-  competitors: { name: string; value: ComparisonValue }[]
-}
-
 export type ReadoutInput = {
   structure: PageStructure | null
   seo: PageSeo | null
   performance: PagePerformance | null
   crawler: CrawlerAccess | null
   keywords: PageKeywords | null
-  competitors: CompetitorStructure[] | null
 }
 
 export type Readout = {
   findings: MeasuredFinding[]
-  comparison: ComparisonRow[]
 }
 
 function rank(value: number, warn: number, alert?: number): ReadoutSeverity {
@@ -281,73 +264,10 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
   return out
 }
 
-// What a row needs from one page. `seo` and `performance` are optional on a competitor scraped
-// before they were kept, which is exactly when a row has to disappear rather than default.
-type ComparisonPage = {
-  structure: PageStructure
-  seo: PageSeo | null | undefined
-  performance: PagePerformance | null | undefined
-}
-
-type ComparisonRead = (page: ComparisonPage) => ComparisonValue | null
-
-export function comparisonRows(input: ReadoutInput): ComparisonRow[] {
-  const { structure, seo, performance, competitors } = input
-  if (!structure || !competitors?.length) return []
-
-  const self: ComparisonPage = { structure, seo, performance }
-  const rivals = competitors.map((competitor) => ({
-    name: competitor.name,
-    page: {
-      structure: competitor.structure,
-      seo: competitor.seo,
-      performance: competitor.performance
-    }
-  }))
-
-  const row = (
-    metric: ReadoutComparison,
-    unit: ReadoutUnit,
-    read: ComparisonRead
-  ): ComparisonRow | null => {
-    const mine = read(self)
-    if (mine === null) return null
-
-    const theirs: ComparisonRow['competitors'] = []
-    for (const rival of rivals) {
-      const value = read(rival.page)
-      // One page that cannot answer takes the whole row: a blank cell in a comparison reads as a
-      // zero, and half a comparison is worse than none.
-      if (value === null) return null
-      theirs.push({ name: rival.name, value })
-    }
-
-    return { metric, unit, self: mine, competitors: theirs }
-  }
-
-  return [
-    row('form_fields', 'count', (p) => p.structure.formFieldCount),
-    row('social_signin', 'presence', (p) => p.structure.hasOauth),
-    row('above_fold_ctas', 'count', (p) => p.structure.aboveFoldCtaCount),
-    row('nav_links', 'count', (p) => p.structure.navLinkCount),
-    row('word_count', 'count', (p) => p.structure.wordCount),
-    row('pricing', 'presence', (p) => p.structure.hasPricing),
-    row('testimonials', 'presence', (p) => p.structure.hasTestimonials),
-    row('faq', 'presence', (p) => p.structure.hasFaq),
-    row('sticky_cta', 'presence', (p) => p.structure.hasStickyCta),
-    row('meta_description', 'presence', (p) =>
-      p.seo ? p.seo.metaDescription !== null : null
-    ),
-    row('structured_data', 'presence', (p) => (p.seo ? p.seo.jsonLdTypes.length > 0 : null)),
-    row('lcp', 'seconds', (p) => p.performance?.lcpMs ?? null),
-    row('page_weight', 'megabytes', (p) => p.performance?.transferredBytes ?? null)
-  ].filter((entry): entry is ComparisonRow => entry !== null)
-}
-
 export function readout(input: ReadoutInput): Readout {
-  return { findings: measuredFindings(input), comparison: comparisonRows(input) }
+  return { findings: measuredFindings(input) }
 }
 
 export function hasReadout(value: Readout): boolean {
-  return value.findings.length > 0 || value.comparison.length > 0
+  return value.findings.length > 0
 }

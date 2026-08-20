@@ -26,7 +26,18 @@ npx playwright test --project=dom   # just the DOM specs: no sign in, no databas
 
 npm run preview:screenshot                                   # defaults: https://vercel.com, h1
 npm run preview:screenshot -- https://foo.com "h1" out-dir   # url, selector, output dir
+
+npm run seed:pulse                                           # plant domains for the landing board
+npm run seed:pulse -- --clear                                # and take them out again
 ```
+
+`seed:pulse` exists because **the landing board counts domains, not analyses**. Every test run measures
+`example.com`, `publicLeaderboard` keeps one entry per domain, and one entry is below
+`PULSE_MIN_ENTRIES` — so the section correctly refuses to render and there is nothing to look at. The
+script plants enough distinct hostnames to see the sphere, tags every row `seed:pulse`, and `--clear`
+removes exactly those. **Local only.** The board's entire claim is that every chip is a page this tool
+measured, so planting rows anywhere real is the one thing it must never do — see
+[invariants.md](invariants.md#the-public-board-carries-a-domain-and-a-score-and-nothing-else).
 
 The first three are the gates and can go red. `preview:screenshot` **is not a test** — it asserts
 nothing, cannot fail, and is not in CI, which is why it is not named like one.
@@ -38,12 +49,22 @@ push goes live: Railway ships whatever is on `main` and fails a deploy only if t
 
 - **`ADMIN_EMAIL` and `ADMIN_PASSWORD` must be set** for the e2e suite to sign in. The suite sets
   `ALLOW_CREDENTIALS_LOGIN` for itself; see [security.md](security.md).
-- **Rate limiting is skipped entirely while `REDIS_URL` is unset**, which is why `.env.example` leaves it
-  empty: `analysis` is 5/hour, so a filled-in default would block you after five analyses of local
-  development. `docker compose` runs a Redis anyway, so setting `REDIS_URL=redis://localhost:6379` is
-  all it takes to exercise a real `429` — **worth doing at least once**, because a misconfigured
-  `REDIS_URL` in production looks exactly like a working one and nothing in the test suite reaches that
-  branch.
+- **`REDIS_URL` is now required to run an analysis at all.** It used to be optional, and the note here
+  used to say so. `POST /api/analyses` enqueues with **no inline fallback** — running a scrape inside
+  the request is the unmetered path the fail-closed limit exists to prevent — so no Redis means every
+  analysis answers `503 queue_unavailable`, refunds the credit and deletes the row. Nothing in the UI
+  names Redis, so it shows up as an Analyze button that returns you to the dashboard. `docker compose`
+  already runs one: set `REDIS_URL=redis://localhost:6379`.
+- **Setting it also turns rate limiting on, and `analysis` is 5/hour**, which is the reason
+  `.env.example` used to leave it empty. Note the budget counts **requests, not analyses**: the
+  limiter runs before the body is parsed, so a rejected URL or a queue failure spends a token too.
+  Five an hour is easy to hit while iterating.
+- **`E2E_FIXTURES=1` skips rate limiting entirely**, which is what lets the suite run: it creates six
+  analyses on one account and would otherwise take a `429` on the sixth. The budgets exist to cap what
+  a route costs, and under fixtures a route costs nothing — no browser opens and no tokens are spent.
+  See `lib/rate-limit.ts`.
+- A misconfigured `REDIS_URL` in production looks exactly like a working one, so **confirm it with a
+  real `429`** rather than by reading the config.
 - **`PUPPETEER_SKIP_DOWNLOAD` must stay unset locally**, where `npm run dev`, the e2e suite and
   `preview:screenshot` all launch Chrome in-process. Production sets it; see
   [deployment.md](deployment.md).

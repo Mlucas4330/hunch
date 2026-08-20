@@ -8,6 +8,13 @@ const baseURL = `http://localhost:${PORT}`
 
 export const E2E_CRON_SECRET = 'e2e-cron-secret'
 
+// The suite signs in as the admin and then runs analyses, and **an analysis spends a credit for
+// everyone, admin included** — there is no exemption by role and there must not be one, or the suite
+// would stop covering the path that charges. So the setup buys the run a balance. Comfortably above
+// the handful the specs create, because running out shows up as a navigation that never happens
+// rather than as anything naming credits.
+export const E2E_CREDITS = 50
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,

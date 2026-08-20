@@ -1,22 +1,5 @@
 import { PLAYBOOK_MAX, PLAYBOOK_MIN, PLAYBOOK_STEPS_MAX, VISIBILITY_MAX } from '@/lib/constants'
 
-export const competitorResearchPrompt = (
-  market: string
-) => `You are a competitive research analyst for SaaS landing pages.
-
-From the extracted copy of the landing page below, identify 2-3 direct competitors in the same
-category. Use web search to find each competitor's current landing page and summarize how they
-position themselves: headline angle, primary CTA, social proof, and pricing framing.
-
-This product sells in ${market}. The competitors you return must be companies this product's own
-buyers would realistically evaluate against it in ${market}, not the best known companies in the
-category worldwide. Prefer companies that actually operate and sell there. A global company counts
-only if it genuinely competes in that market. If you can only find companies serving a different
-market, say so plainly rather than returning them as if they were competitors.
-
-Return a concise brief: for each competitor, its name, landing page URL, and the specific patterns
-worth borrowing or beating. This brief will ground a set of A/B test hypotheses, so be concrete.`
-
 const marketRules = (market: string) => `- This product sells in ${market}. Every recommendation must
   be something the founder can actually implement there: never suggest a payment method, an
   authentication provider, a trust seal, a compliance certification, a review platform, or an
@@ -57,15 +40,20 @@ invent anything beyond the page and this brief.
   smaller idea rather than more words.
 - Rewrite using the page's OWN real claims plus any Business details provided. NEVER invent
   statistics, customer counts, testimonials, quotes, or company names that are not in the page or
-  the brief. NEVER put a competitor's name inside the variant copy.
+  the brief.
 - When a variant needs a specific the founder has NOT supplied (a metric, a customer quote, a logo,
   a price), use a square-bracket placeholder they fill in: [X], [time], [customer quote], [logo],
   [$price]. Without a brief, a variant should read as a usable template, not a finished claim with
   made-up numbers.
-- Each variant has: copy (the literal replacement text defined above), evidence (one sentence
-  naming the competitor and the STRATEGY it borrows, plus how to apply it with the founder's own
-  assets, for example "Linear quantifies adoption instead of asserting trust, so drop in your real
-  count of active teams"), and emphasis.
+- Each variant has: copy (the literal replacement text defined above), evidence, and emphasis.
+- evidence is ONE sentence naming the CRO mechanism the rewrite uses, grounded in what THIS page
+  shows: what the current line leaves the visitor to infer, and what the replacement states outright.
+  For example "the current line asserts that the product is trusted while the rewrite says what it
+  actually does, so the visitor no longer has to work the benefit out for themselves".
+- evidence must carry NO quantitative claim of any kind: no percentage, no conversion lift figure, no
+  count of what other companies do, no "studies show", no named benchmark or report. You were given
+  one page and no measurements beyond it, so any number you wrote there would be invented. Argue from
+  the mechanism instead.
 - emphasis is for elements marked "styled fragment" in the Page elements list: those render part of
   their text in a different weight or colour. Set it to the run of words in YOUR OWN copy that
   deserves that treatment, copied character for character out of your copy field and appearing there
@@ -82,9 +70,8 @@ export const systemPrompt = (
   market: string
 ) => `You are a senior conversion rate optimization (CRO) strategist for SaaS landing pages.
 
-You are given the extracted copy of a landing page plus a competitive research brief covering 2-3
-direct competitors. Produce 5-8 high-leverage A/B test hypotheses, ranked by impact_score
-(descending), grounded in what competitors actually do.
+You are given the extracted copy of a landing page. Produce 5-8 high-leverage A/B test hypotheses,
+ranked by impact_score (descending), grounded in what this page itself shows.
 
 For each hypothesis focus on:
 - Specificity of claims (vague value props -> concrete, quantified outcomes)
@@ -101,8 +88,8 @@ Rules:
   a, button, p) is NOT a section value: pick the enum value describing that element's role on the
   page, and use other when none of them fits.
 - Keep prose tight and scannable. problem is ONE sentence (about 20 words or fewer) naming the gap,
-  with no competitor names or fixes inside it. rationale is ONE sentence on why the challenger wins.
-  Do not restate the competitor evidence here; that belongs in each variant's evidence line.
+  with no fixes inside it. rationale is ONE sentence on why the challenger wins. Do not restate the
+  variant's evidence here; that belongs in each variant's evidence line.
 - You are given a "Page elements" list where each line is one real on-page element as <tag> "text"
   followed by that element's word ceiling and its character ceiling. current_copy must be the
   verbatim text of exactly ONE of those elements. Never merge the text of two elements, and never
@@ -120,13 +107,11 @@ Rules:
   hypotheses and must not be smuggled in as one. They are produced separately as flow fixes, so if
   the change you have in mind cannot be made by replacing the text of one element, drop it and spend
   the slot on a copy change instead.
-- Also return the competitors array (name + url) you benchmarked against.
 - impact_score is an integer from 1 to 10.
-- rationale explains why the variants should win, grounded in CRO principles and the competitors.
+- rationale explains why the variants should win, grounded in CRO principles and in what this page
+  shows.
 - The ${language} and no-dash rules above apply to problem and rationale too. The only exception is
   current_copy, which must quote the page's exact characters.
-- The competitive research brief may be written in another language. Read it in whatever language it
-  arrives in, but write your output in ${language} regardless.
 ${marketRules(market)}`
 
 export const playbookPrompt = (

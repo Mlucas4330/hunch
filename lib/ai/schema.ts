@@ -25,13 +25,7 @@ export const HypothesisSchema = z.object({
   rationale: z.string()
 })
 
-export const CompetitorSchema = z.object({
-  name: z.string(),
-  url: z.string()
-})
-
 export const AnalysisOutputSchema = z.object({
-  competitors: z.array(CompetitorSchema).max(4),
   hypotheses: z.array(HypothesisSchema).min(5).max(8)
 })
 
@@ -67,7 +61,6 @@ export const VisibilityOutputSchema = z.object({
 
 export type AlternateVariantsOutput = z.infer<typeof AlternateVariantsSchema>
 export type VariantOutput = z.infer<typeof VariantSchema>
-export type CompetitorOutput = z.infer<typeof CompetitorSchema>
 export type HypothesisOutput = z.infer<typeof HypothesisSchema>
 export type AnalysisOutput = z.infer<typeof AnalysisOutputSchema>
 export type FlowFixOutput = z.infer<typeof FlowFixSchema>

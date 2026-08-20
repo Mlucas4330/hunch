@@ -9,11 +9,9 @@ import { FlowPlaybook } from '@/components/flow-playbook'
 import { AnalysisTabs } from '@/components/analysis-tabs'
 import { InfoHint } from '@/components/info-hint'
 import { ReportDeliverables } from '@/components/report-deliverables'
-import { UpgradePrompt } from '@/components/upgrade-prompt'
 import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
 import { getDictionary } from '@/lib/i18n'
-import { t as fill } from '@/lib/i18n/format'
 import { MeasuredReadout } from '@/components/measured-readout'
 import { MeasurePage } from '@/components/measure-page'
 import { readoutFor, readoutHistory, splitFixes, splitVisibility } from '@/lib/analyses'
@@ -73,33 +71,9 @@ export default async function AnalysisDetailPage({
         </div>
       </div>
 
-      {analysis.competitors && analysis.competitors.length > 0 && (
-        <p className="text-sm text-muted-foreground" data-testid="benchmarked-against">
-          {t.analysis.benchmarkedAgainst}{' '}
-          {analysis.competitors.map((competitor, i) => (
-            <span key={competitor.url}>
-              {i > 0 && ', '}
-              <a
-                href={competitor.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-foreground underline-offset-2 hover:underline"
-              >
-                {competitor.name}
-              </a>
-            </span>
-          ))}
-          <span className="text-muted-foreground">
-            {' '}
-            {fill(t.analysis.marketNote, { market: t.labels.market[analysis.market] })}
-          </span>
-        </p>
-      )}
-
       <ReportDeliverables
         reportUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
         embedKey={analysis.embedKey}
-        analysisId={analysis.id}
       />
 
       {measured ? (
@@ -122,23 +96,32 @@ export default async function AnalysisDetailPage({
           seo: visibility.seo.length,
           ai: visibility.ai.length
         }}
+        // Each panel carries a `key` even though none of them is in an array here. They are created
+        // in a server component and rendered by a client one, and crossing that boundary costs them
+        // the marking that tells React these are statically placed children -- so on the client side
+        // they look like an unkeyed list and dev warns about every one. See docs/analysis-ui.md.
         panels={{
-          flow: <FlowPlaybook fixes={fixes.flow} expandFrom={PLAYBOOK_EXPANDED_COUNT} />,
-          copy: <HypothesisList hypotheses={analysis.hypotheses} />,
+          flow: <FlowPlaybook key="flow" fixes={fixes.flow} expandFrom={PLAYBOOK_EXPANDED_COUNT} />,
+          copy: <HypothesisList key="copy" hypotheses={analysis.hypotheses} />,
           seo: (
             <FlowPlaybook
+              key="seo"
               fixes={visibility.seo}
               section="seo"
               expandFrom={PLAYBOOK_EXPANDED_COUNT}
             />
           ),
           ai: (
-            <FlowPlaybook fixes={visibility.ai} section="ai" expandFrom={PLAYBOOK_EXPANDED_COUNT} />
+            <FlowPlaybook
+              key="ai"
+              fixes={visibility.ai}
+              section="ai"
+              expandFrom={PLAYBOOK_EXPANDED_COUNT}
+            />
           )
         }}
       />
 
-      {user.plan === 'free' && <UpgradePrompt />}
     </div>
   )
 }

@@ -6,9 +6,8 @@ import { users } from '@/db/schema'
 import { authConfig } from '@/auth.config'
 import { clientIp, enforceRateLimit } from '@/lib/rate-limit'
 import { secretsMatch } from '@/lib/secure-compare'
-import { credentialsLoginAllowed, isAdminEmail, providerVerifiedEmail } from '@/lib/auth-policy'
+import { credentialsLoginAllowed, isAdminEmail, verifiedEmailFor } from '@/lib/auth-policy'
 import { ADMIN_ROLE, DEFAULT_USER_ROLE } from '@/lib/constants'
-import type { SubscriptionPlan } from '@/lib/enums'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -37,8 +36,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         await db
           .insert(users)
-          .values({ email: ADMIN_EMAIL, name: 'Admin', plan: 'pro', role: ADMIN_ROLE })
-          .onConflictDoUpdate({ target: users.email, set: { plan: 'pro', role: ADMIN_ROLE } })
+          .values({ email: ADMIN_EMAIL, name: 'Admin', role: ADMIN_ROLE })
+          .onConflictDoUpdate({ target: users.email, set: { role: ADMIN_ROLE } })
 
         return { email: ADMIN_EMAIL, name: 'Admin' }
       }
@@ -46,10 +45,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (!user.email) return false
-
       const isOAuth = account?.type === 'oauth' || account?.type === 'oidc'
-      if (isOAuth && !providerVerifiedEmail(account?.provider, profile)) return false
+
+      // **The address the provider vouches for is the one that keys the row**, not the one the
+      // profile happened to carry. They are the same for Google and can differ for GitHub, whose
+      // `profile.email` is null when the account keeps it private while a verified primary address
+      // exists on the account. Using the profile's would key the row on an address nobody verified.
+      if (isOAuth) {
+        const verified = await verifiedEmailFor(account, profile)
+        if (!verified) return false
+        user.email = verified
+      }
+
+      if (!user.email) return false
 
       const name = user.name ?? user.email
       const avatarUrl = user.image ?? null
@@ -97,7 +105,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (dbUser) {
         token.id = dbUser.id
-        token.plan = dbUser.plan
       }
 
       return token
@@ -105,7 +112,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
-        session.user.plan = token.plan as SubscriptionPlan
       }
       return session
     }

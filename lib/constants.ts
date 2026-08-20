@@ -1,52 +1,60 @@
 import type {
+  BlogSlug,
   FlowCategory,
-  LeadSource,
   Locale,
   Market,
   OAuthProvider,
   RateLimitKind,
   ReadoutSeverity,
   Section,
-  SubscriptionPlan,
   UserRole
 } from '@/lib/enums'
+import type { PaymentProvider } from '@/lib/enums'
 
 // Only reached when NEXT_PUBLIC_APP_URL is unset: local dev and the e2e run.
 export const FALLBACK_APP_ORIGIN = 'http://localhost:3000'
 
 // Shared by middleware.ts and app/robots.ts so the two can never drift.
-export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/admin', '/settings']
+export const PROTECTED_PREFIXES = ['/dashboard', '/analyses']
 
 export const POST_SIGNIN_REDIRECT = '/dashboard'
 
-// Where the operator grants a plan after closing a sale. See docs/product.md.
-export const ADMIN_ACCOUNTS_PATH = '/admin/accounts'
-export const ADMIN_LEADS_PATH = '/admin/leads'
-export const ADMIN_REPORTS_PATH = '/admin/reports'
+// Read by the nav, the sitemap and the landing's link into the AI post.
+export const BLOG_PATH = '/blog'
 
-// The operator's own menu, offered only to a user whose stored role is admin. Each key names the
-// dictionary section whose `title` labels the link, so the menu and the page can never disagree.
-export const ADMIN_NAV_LINKS = [
-  { href: ADMIN_ACCOUNTS_PATH, key: 'accounts' },
-  { href: ADMIN_LEADS_PATH, key: 'leads' },
-  { href: ADMIN_REPORTS_PATH, key: 'reports' }
-] as const
-
-// Where every paid-plan prompt sends the reader. See docs/invariants.md.
-export const CONTACT_PATH = '/#contact'
+// Publication dates, in ISO. They reach the reader through formatDate and the sitemap's
+// lastModified, so they are the real date a post was written and nothing infers them.
+export const BLOG_POST_DATE: Record<BlogSlug, string> = {
+  'what-is-seo': '2026-08-20',
+  'what-is-copy': '2026-08-20',
+  'ai-is-the-new-google': '2026-08-20'
+}
 
 export const CALLBACK_URL_PARAM = 'callbackUrl'
 
-// The claim that says the provider itself verified the address. Without it the email is a string
-// the caller chose, and the user row is keyed by email. See docs/security.md.
-export const VERIFIED_EMAIL_CLAIM: Record<OAuthProvider, string> = {
-  google: 'email_verified',
-  'microsoft-entra-id': 'xms_edov'
+// How each provider's address is verified, declared per provider rather than assumed.
+//
+// The row is keyed on email with no `accounts` table, so whoever presents an address next owns
+// whatever is in that row -- credits included. **A provider absent from this map is refused**, which
+// is what makes adding one to authConfig without thinking lock itself out instead of letting itself
+// in.
+//
+// Two strategies, because GitHub has no equivalent of Google's claim: its OAuth profile carries no
+// `email_verified` and its `email` can be null outright when the account keeps it private, so the
+// only answer is asking its API. See docs/security.md.
+export const VERIFIED_EMAIL: Record<
+  OAuthProvider,
+  { kind: 'claim'; claim: string } | { kind: 'remote' }
+> = {
+  google: { kind: 'claim', claim: 'email_verified' },
+  github: { kind: 'remote' }
 }
 
-// Work and school accounts. The tenant segment is swapped for the id_token's own tid on callback,
-// so this stays multi-tenant. Overridden by AUTH_MICROSOFT_ENTRA_ID_ISSUER.
-export const ENTRA_ISSUER = 'https://login.microsoftonline.com/organizations/v2.0'
+export const GITHUB_EMAILS_URL = 'https://api.github.com/user/emails'
+
+// Without this scope the emails endpoint answers 403 and every GitHub login is refused -- correctly,
+// but for a reason nothing in the error would name.
+export const GITHUB_SCOPE = 'read:user user:email'
 
 // The founder's own channels, in the site footer. Never on a report surface -- see
 // docs/components.md.
@@ -59,9 +67,6 @@ export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`
 export const DEFAULT_LOCALE: Locale = 'en'
 
 export const LOCALE_COOKIE = 'locale'
-
-// localStorage rather than a cookie: nothing server-side reads it.
-export const UPGRADE_PROMPT_DISMISSED_KEY = 'hunch.upgrade-prompt.dismissed'
 
 // Never translated.
 export const LOCALE_LABEL: Record<Locale, string> = {
@@ -115,7 +120,7 @@ export const AI_CRAWLER_AGENTS = [
   'CCBot'
 ]
 
-// Short: it runs alongside competitor research and must never be what makes an analysis slow.
+// Short: it runs alongside the scrape and must never be what makes an analysis slow.
 export const ROBOTS_FETCH_TIMEOUT_MS = 5_000
 
 // A robots.txt larger than this is not a robots.txt. The far end is not ours.
@@ -184,8 +189,10 @@ export const SCRAPE_PAINT_SETTLE_MS = 250
 // per deploy because railway.json pins numReplicas: 1. See docs/scraping.md.
 export const SCRAPE_MAX_CONCURRENT_PAGES = 3
 
-// Asymmetric by call site: a preview that gives up degrades to a retry button and costs nothing.
-export const SCREENSHOT_QUEUE_MAX_WAIT_MS = 5_000
+// The worker waits here, not the reader: the request that asks for a preview now returns as soon as
+// the job is queued, so giving up after five seconds would throw away work nobody is waiting on.
+// It used to be 5s because the client was holding the connection. See docs/scraping.md.
+export const SCREENSHOT_QUEUE_MAX_WAIT_MS = 120_000
 
 // An analysis has already committed to a Sonnet call and needs several slots at once, so it waits.
 export const SCRAPE_QUEUE_MAX_WAIT_MS = 120_000
@@ -197,6 +204,123 @@ export const BROWSER_CONNECT_RETRY_DELAY_MS = 1_000
 const MINUTE_MS = 60 * 1000
 const HOUR_MS = 60 * MINUTE_MS
 
+// How long a finished job stays readable after the worker wrote it. It only has to outlive the
+// client's polling, and the durable answer is in Postgres either way -- `variants.screenshot_url` is
+// what a reload reads, never the job.
+export const JOB_TTL_MS = 10 * MINUTE_MS
+
+// How often the client asks. Short enough that a fast job does not feel queued, long enough that it
+// is not a busy loop against Redis.
+export const JOB_POLL_INTERVAL_MS = 2_000
+
+// Past this the queue stops accepting rather than promising work it will not get to. An unbounded
+// queue on one browser container is the outage it exists to prevent, not a safeguard against it.
+export const QUEUE_MAX_DEPTH = 50
+
+// How long the form waits for a queued analysis before giving up on the reader's behalf. Measured on
+// the wall clock rather than a retry count, because what matters is how long someone has been
+// looking at a spinner. Generous: the queue is serial and a burst puts real analyses behind it.
+export const ANALYSIS_WAIT_MAX_MS = 8 * MINUTE_MS
+
+// Where the browser keeps the keys of analyses it started with no account. It is the only thing
+// tying an anonymous run to the person who started it, so a sign-in reads it to claim them.
+export const ANONYMOUS_ANALYSES_KEY = 'hunch.anonymous-analyses'
+
+// The landing page's live proof: the ranked board of pages this tool has measured, and the feed of
+// what it is measuring right now. Both read what was already counted -- see docs/analysis-ui.md.
+
+// How often the landing page asks. Two orders of magnitude slower than JOB_POLL_INTERVAL_MS because
+// nobody is waiting on this: it is ambience, not a job someone started.
+export const PULSE_POLL_INTERVAL_MS = 20_000
+
+// The answer is shared by every reader on the page, so it is cached once rather than queried per
+// poll. Shorter than the interval, so a poll never serves an answer the next one would repeat.
+export const PULSE_CACHE_SECONDS = 15
+
+// Chips on the sphere. Past this they overlap into an unreadable ball at the size it renders.
+export const PULSE_SPHERE_MAX = 28
+
+// The legible half: the sphere carries movement, this carries the ranking.
+export const PULSE_TOP_COUNT = 5
+
+// Below this there is no board, only a handful of rows pretending to be one, so the whole section is
+// left out rather than padded. Nothing here is ever seeded -- see docs/invariants.md.
+export const PULSE_MIN_ENTRIES = 3
+
+// How many recent rows the feed carries. Enough that the toast does not repeat itself between polls.
+export const PULSE_FEED_MAX = 12
+
+// An analysis with no measurement yet is only "running" while it could still be: past the deadline
+// the form itself gives up on, the row is a failure, not work in progress, and the feed drops it
+// rather than announcing a page that is not being looked at. Derived so the two can never disagree.
+export const PULSE_RUNNING_MAX_AGE_MS = ANALYSIS_WAIT_MAX_MS
+
+// One toast at a time: how long it stays, and the gap before the next.
+export const PULSE_TOAST_VISIBLE_MS = 6_000
+export const PULSE_TOAST_GAP_MS = 9_000
+
+// Closing it silences the toast for the tab, not forever.
+export const PULSE_TOAST_DISMISSED_KEY = 'hunch.pulse-dismissed'
+
+// The sphere's own geometry, in the same spirit as TREND_CHART: numbers the component reads, never
+// numbers a reader sees. `spin` is radians per millisecond, `friction` the per-frame decay applied to
+// a flick, and the two depth numbers are how far a chip at the back fades and shrinks.
+export const PULSE_SPHERE = {
+  size: 520,
+  radius: 205,
+  spin: 0.00022,
+  friction: 0.94,
+  dragSensitivity: 0.006,
+  minOpacity: 0.3,
+  minScale: 0.62
+} as const
+
+// What is for sale. The price id is the only thing that decides how many credits a payment is worth
+// -- see creditsForPrice in lib/stripe.ts -- and the label is what the home page prints beside it.
+//
+// The three sizes are a question as much as an offer: a page owner needs one or two, so a pack of ten
+// selling well would say the buyer is not who this was rebuilt for. See docs/product.md.
+// `amountBrl` is the Mercado Pago half of the same decision. Stripe keeps the amount on its own
+// servers behind the price id, so the id is enough there; the Payment Brick has the browser send the
+// amount, which makes it an input nobody may trust. The number here is what the server charges and
+// what the webhook matches a payment against -- see creditsForAmount in lib/mercadopago.ts.
+export const CREDIT_PACKS = [
+  { id: 'single', credits: 1, amountBrl: 19, priceId: process.env.STRIPE_PRICE_SINGLE ?? '' },
+  { id: 'trio', credits: 3, amountBrl: 39, priceId: process.env.STRIPE_PRICE_TRIO ?? '' },
+  { id: 'pack', credits: 10, amountBrl: 99, priceId: process.env.STRIPE_PRICE_PACK ?? '' }
+] as const
+
+export type CreditPackId = (typeof CREDIT_PACKS)[number]['id']
+
+// The two ids that reach `credit_transactions.provider` and `payment_events.provider`. Here rather
+// than beside each adapter so a client component can name one without importing a server module.
+export const STRIPE_PROVIDER: PaymentProvider = 'stripe'
+export const MERCADOPAGO_PROVIDER: PaymentProvider = 'mercadopago'
+
+// What a focus trap counts as a stop. `[tabindex="-1"]` is deliberately absent: it marks something
+// focusable by script, not by Tab. See components/ui/dialog.tsx.
+export const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])'
+
+// What the Payment Brick needs on the client, and what both halves compare a payment's status
+// against. Here rather than in lib/mercadopago.ts because that file reaches for node:crypto and the
+// Brick component is a client one. The SDK host is also in the CSP -- see next.config.ts.
+export const MERCADOPAGO_SDK_URL = 'https://sdk.mercadopago.com/js/v2'
+export const MERCADOPAGO_BRICK_CONTAINER = 'mercadopago-brick'
+export const MERCADOPAGO_APPROVED = 'approved'
+// The notification family that carries money. Merchant orders and the rest say nothing about it.
+export const MERCADOPAGO_PAYMENT_TOPIC = 'payment'
+
+// The Brick's own locale codes, which are not the app's. See docs/i18n.md.
+export const MERCADOPAGO_LOCALE: Record<Locale, string> = {
+  en: 'en-US',
+  'pt-BR': 'pt-BR'
+}
+
+// Which pack the section marks as the one most buyers take. A constant rather than a literal, since
+// the component needs the same answer twice -- for the border and for the button variant.
+export const FEATURED_CREDIT_PACK: CreditPackId = 'trio'
+
 // Sized by what each route costs us, not by what a plan allows.
 export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: number }> = {
   analysis: { tokens: 5, windowMs: HOUR_MS },
@@ -205,14 +329,12 @@ export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: numb
   // Looser than `analysis` because it buys no generation, tighter than `variants` because it
   // opens a browser.
   measure: { tokens: 10, windowMs: HOUR_MS },
-  waitlist: { tokens: 5, windowMs: HOUR_MS },
-  // Each accepted call can write a file to the volume, so it is bounded like screenshot rather than
-  // like an ordinary form save.
-  brand: { tokens: 10, windowMs: HOUR_MS },
-  // Loose: it gates nothing but noise in the operator's own follow-up signal, and one reader
-  // reloading a report is normal.
-  report_view: { tokens: 60, windowMs: HOUR_MS },
-  signin: { tokens: 5, windowMs: 15 * MINUTE_MS }
+  // Deliberately loose, and its own kind for that reason. Polling costs one Redis read; sharing the
+  // `screenshot` budget would let a single preview burn the whole quota at JOB_POLL_INTERVAL_MS and
+  // stop the job the caller already spent a browser slot on.
+  job_status: { tokens: 600, windowMs: HOUR_MS },
+  signin: { tokens: 5, windowMs: 15 * MINUTE_MS },
+  billing: { tokens: 20, windowMs: HOUR_MS }
 }
 
 // Same-origin, so no next/image remote pattern and img-src 'self' already covers them.
@@ -226,37 +348,7 @@ export const SCREENSHOT_FILENAME_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9
 // volume is not dependable. See docs/deployment.md.
 export const SCREENSHOT_RETENTION_DAYS = 30
 
-// Brand logos live under their own BRAND_DIR, never SCREENSHOT_DIR: the prune cron deletes everything
-// older than SCREENSHOT_RETENTION_DAYS, so a logo stored there would vanish on its own weeks later and
-// silently take the agency's report back to anonymous. See docs/deployment.md.
-export const BRAND_PUBLIC_PATH = '/brand'
-
-// Exactly what saveBrandLogo() writes, mirroring SCREENSHOT_FILENAME_PATTERN. See docs/security.md.
-export const BRAND_FILENAME_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.(?:png|jpg)$/
-
-export const BRAND_LOGO_MAX_BYTES = 512 * 1024
-
-// Sniffed from the file's own bytes, never from the declared Content-Type. SVG is deliberately absent:
-// it is served same-origin and can carry script. See docs/security.md.
-export const BRAND_LOGO_SIGNATURES = [
-  { ext: 'png', bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
-  { ext: 'jpg', bytes: [0xff, 0xd8, 0xff] }
-] as const
-
-export const BRAND_NAME_MAX_LENGTH = 40
-
-// next/image needs intrinsic dimensions; the rendered size comes from CSS, so these are an upper
-// bound on the box rather than the drawn size.
-export const BRAND_LOGO_DISPLAY_HEIGHT = 32
-export const BRAND_LOGO_DISPLAY_MAX_WIDTH = 200
-
-// The accent is agency-supplied and reaches an inline style, so it is matched against this before it
-// is ever stored. Anything else is rejected and the report falls back to its own tokens.
-export const BRAND_ACCENT_PATTERN = /^#[0-9a-fA-F]{6}$/
-
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
-
-export const FREE_ANALYSES_LIMIT = 3
 
 // How many hypotheses the public report shows in full before the wall.
 export const REPORT_PREVIEW_LIMIT = 3
@@ -348,14 +440,6 @@ export const VISIBILITY_MAX = 6
 // A handoff, not a measurement window: buffered LCP entries arrive on a task after observe()
 // returns. See docs/scraping.md.
 export const SCRAPE_LCP_FLUSH_MS = 50
-
-// Also the correct backfill: the wall was the only thing writing leads before the contact form.
-export const DEFAULT_LEAD_SOURCE: LeadSource = 'report'
-
-export const DEFAULT_PLAN: SubscriptionPlan = 'free'
-
-// The plan a closed sale grants, by hand or through the webhook. See docs/product.md.
-export const PAID_PLAN: SubscriptionPlan = 'pro'
 
 export const DEFAULT_USER_ROLE: UserRole = 'user'
 
@@ -492,6 +576,21 @@ export const DEFAULT_OG_IMAGE_PATH = '/opengraph-image'
 // One measure for every surface: the navbar, the app pages and both reports. See docs/components.md.
 export const CONTAINER_CLASS = 'mx-auto w-full max-w-5xl px-4'
 
+// --- Scroll reveal ------------------------------------------------------------------------------
+//
+// Shared by the inline script in app/layout.tsx, components/scroll-reveal.tsx and the rules in
+// app/globals.css. The script is stringified into the document, so it reads these rather than
+// repeating the literals where a rename could miss one.
+
+// Set on <html> before first paint, and only when the reveal can actually be driven. The hidden
+// state in globals.css hangs off it, so its absence means "paint everything". See docs/components.md.
+export const REVEAL_READY_ATTR = 'data-reveal'
+export const REVEALED_ATTR = 'data-revealed'
+
+// Fires the reveal once the element is a little past the bottom edge, so it lands under the reader's
+// eye rather than exactly on the fold line.
+export const REVEAL_ROOT_MARGIN = '0px 0px -12% 0px'
+
 // Semantic token utilities from app/globals.css -- never raw Tailwind colors or hex values.
 export const SECTION_BADGE_CLASS: Record<Section, string> = {
   headline: 'bg-purple/15 text-purple',
@@ -572,17 +671,6 @@ export const READOUT_SCORE_THRESHOLDS = {
   warnAtOrBelow: 80,
   alertAtOrBelow: 50
 } as const
-
-// `contact` is green: it means someone asked to talk, in a list dominated by wall hits.
-export const LEAD_SOURCE_BADGE_CLASS: Record<LeadSource, string> = {
-  report: 'bg-neutral/15 text-neutral',
-  contact: 'bg-green/15 text-green'
-}
-
-export const PLAN_BADGE_CLASS: Record<SubscriptionPlan, string> = {
-  free: 'bg-neutral/15 text-neutral',
-  pro: 'bg-purple/15 text-purple'
-}
 
 export function impactScoreBadgeClass(score: number): string {
   if (score >= 8) return 'bg-coral/15 text-coral'

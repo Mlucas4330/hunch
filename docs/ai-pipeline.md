@@ -1,7 +1,12 @@
 # AI pipeline
 
-Three `generateObject` calls in one `Promise.all` — hypotheses, playbook, visibility audit — behind a
-web-search step. `lib/ai/`.
+Three `generateObject` calls in one `Promise.all` — hypotheses, playbook, visibility audit. `lib/ai/`.
+
+**There is no web-search step and no competitor research.** It used to run a Haiku call with the
+`web_search` tool before generation, and it was roughly half the cost of an analysis: search is
+agentic, so each of its three rounds resent the conversation plus the content of the results. Removing
+it took a run from about $0.17 to about $0.09. Nothing replaced it — the prompts argue from the one
+page in front of them, which is the only thing they ever measured.
 
 The prompts are the core IP and iterate carefully. Everything they may **not** say is in
 [invariants.md](invariants.md#generation).
@@ -19,42 +24,10 @@ Testimonial: ...
 Pricing: ...
 ```
 
-## 2. Competitor research (web search)
-
-Before structured generation, a web-search step with the official Anthropic SDK (`@anthropic-ai/sdk`,
-tool `web_search_20250305`) using `competitorResearchPrompt(market)` finds 2-3 real competitor landing
-pages and summarizes their positioning into a brief. The brief is passed into `generateObject` so
-variants are grounded, and each variant carries an `evidence` line naming the pattern it borrows.
-
-Persisted to `analyses.research_brief` so the on-demand alternates never re-run the search. Degrades
-gracefully to an empty brief (no `ANTHROPIC_API_KEY`, or a failure) so generation still succeeds.
-Skipped entirely when `E2E_FIXTURES=1`.
-
-**It runs on `RESEARCH_MODEL` (`claude-haiku-4-5`), not the generation model**: it is
-search-and-summarize, not strategy. Two constraints come with that choice and must hold — Haiku
-rejects the `effort` parameter, and it supports only the basic `web_search_20250305` tool variant (the
-`_20260209` dynamic-filtering variant needs Sonnet 4.6 or newer). `max_uses` is `RESEARCH_MAX_SEARCHES`
-(3); each use is a serial round trip, so more of them buys latency rather than coverage.
-
-The search tool is given `user_location` from `MARKET_SEARCH_LOCATION[market]`. This was the one place
-in the pipeline that ignored where the product sells: without it the search runs from nowhere in
-particular, English-language results win, and a Brazilian product is benchmarked against American
-companies it never competes with. `user_location` is a parameter of the basic variant, so the Haiku
-constraints still hold.
-
-**Paid Competitor mode skips this step.** `analyzeLandingPage` scrapes the supplied URLs concurrently
-and concatenates the cleaned copy into the brief instead. A URL that fails to scrape drops out of the
-brief rather than failing the batch.
-
-That path also **keeps the `PageStructure` each of those scrapes already returned** — the page was
-opened, measured and closed either way, so the comparison table costs nothing. The auto-search path
-stores none; see
-[invariants.md](invariants.md#a-comparison-exists-only-where-the-competitor-page-was-actually-opened).
-
 A founder `brief`, when present, is appended to the generation prompt so variants use real facts and
 come back finished rather than as `[placeholder]` templates.
 
-## 3. Schemas
+## 2. Schemas
 
 ```typescript
 const VariantSchema = z.object({ copy: z.string(), evidence: z.string() })
@@ -69,7 +42,6 @@ const HypothesisSchema = z.object({
 })
 
 const AnalysisOutputSchema = z.object({
-    competitors: z.array(z.object({ name: z.string(), url: z.string() })).max(4),
     hypotheses: z.array(HypothesisSchema).min(5).max(8)
 })
 
@@ -124,9 +96,9 @@ genuinely wrong (a page that did not render, a model refusal) and must keep reje
 problem left, and a floor would buy an invented finding to fill the quota. `FlowPlaybook` renders
 nothing for an empty list, so `[]` is a correct answer.
 
-## 4. Hypotheses — `systemPrompt`
+## 3. Hypotheses — `systemPrompt`
 
-Focus: grounding every hypothesis and variant in the competitor brief, specificity of claims, CTA
+Focus: grounding every hypothesis and variant in what the page itself shows, specificity of claims, CTA
 strength, social proof quality, value proposition clarity, friction reduction. Return 5-8 hypotheses
 ranked by impact descending, each with **one** evidence-bearing variant — the single challenger it
 most recommends testing.
@@ -201,7 +173,7 @@ Logging makes the ceiling's effectiveness measurable, which has to come before e
 fixtures in `lib/ai/fixtures.ts` all fit their own ceilings, so they stay a correct reference rendering
 of the rule.
 
-## 5. Playbook — `generatePlaybook`
+## 4. Playbook — `generatePlaybook`
 
 A second `generateObject` over `PlaybookOutputSchema`, in `Promise.all` with the hypothesis call, so it
 costs no additional latency. Fed the structure JSON and the founder brief. **Resolves to `[]` on any
@@ -217,7 +189,7 @@ Load-bearing prompt rules:
 
 `playbookPrompt` is the other half of the core IP and iterates just as carefully as `systemPrompt`.
 
-## 6. Visibility audit — `generateVisibility`
+## 5. Visibility audit — `generateVisibility`
 
 A third `generateObject` in the same `Promise.all`, also resolving to `[]` on any failure. Fed
 `PageSeo`, two `PageStructure` fields, the `fetchCrawlerAccess` result from
@@ -233,7 +205,7 @@ keyword tool. See
 credibility rests on — see
 [invariants.md](invariants.md#the-audit-measured-the-page-not-the-index).
 
-## 7. Market
+## 6. Market
 
 `marketRules(market)` in `lib/ai/prompt.ts` is shared by every prompt that receives a market, because
 the risk is identical in all of them and must not be phrased three ways. See
@@ -242,7 +214,7 @@ the risk is identical in all of them and must not be phrased three ways. See
 Detection is `lib/market.ts`, measured from the page — see
 [invariants.md](invariants.md#the-market-is-measured-from-the-page-never-taken-from-the-ui-locale).
 
-## 8. Output language
+## 7. Output language
 
 `systemPrompt`, `alternateVariantsPrompt` and `playbookPrompt` take a language name
 (`AI_OUTPUT_LANGUAGE[locale]`) and instruct the model to write `problem`, `rationale`, `copy` and
@@ -253,17 +225,15 @@ route reads that stored value. See
 [invariants.md](invariants.md#generated-content-is-pinned-to-the-locale-it-was-written-in).
 
 The typographic rule restricts **punctuation only** — see
-[invariants.md](invariants.md#pt-br-is-a-rewrite-not-a-translation). The competitor research brief
-stays in whatever language the search returns; generation translates its substance into the target
-language.
+[invariants.md](invariants.md#pt-br-is-a-rewrite-not-a-translation).
 
-## 9. The call
+## 8. The call
 
 ```typescript
 const result = await generateObject({
     model: anthropic('claude-sonnet-4-6'),
     schema: AnalysisOutputSchema,
     system: systemPrompt(AI_OUTPUT_LANGUAGE[locale]),
-    prompt: `Landing page copy:\n\n${cleanedPageContent}\n\nCompetitive research brief:\n\n${brief}`
+    prompt: `Landing page copy:\n\n${cleanedPageContent}${elementsSection}${briefSection}`
 })
 ```

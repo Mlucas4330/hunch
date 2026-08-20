@@ -3,20 +3,21 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useI18n } from '@/components/i18n-provider'
+import { BLOG_PATH, POST_SIGNIN_REDIRECT } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 const LINKS = [
-  { href: '/dashboard', key: 'dashboard' },
-  { href: '/settings', key: 'settings' }
+  { href: BLOG_PATH, key: 'blog', requiresSession: false },
+  { href: POST_SIGNIN_REDIRECT, key: 'dashboard', requiresSession: true }
 ] as const
 
-export function NavLinks() {
+export function NavLinks({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname()
   const { dictionary } = useI18n()
 
   return (
     <>
-      {LINKS.map((link) => {
+      {LINKS.filter((link) => signedIn || !link.requiresSession).map((link) => {
         const active = pathname.startsWith(link.href)
         return (
           <Link
@@ -24,7 +25,7 @@ export function NavLinks() {
             href={link.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'panel-label text-[0.7rem] transition-colors',
+              'panel-label rounded-sm text-[0.7rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
             )}
           >

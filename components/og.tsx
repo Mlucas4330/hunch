@@ -37,16 +37,6 @@ export function OgWordmark() {
   )
 }
 
-export function OgBrandName({ name }: { name: string | null }) {
-  if (!name) return <div style={{ display: 'flex' }} />
-
-  return (
-    <div style={{ display: 'flex', fontSize: 34, fontWeight: 600, color: OG_COLORS.ink }}>
-      {name}
-    </div>
-  )
-}
-
 export function OgStat({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
     <div

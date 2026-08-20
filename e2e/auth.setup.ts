@@ -1,6 +1,13 @@
 import { test as setup, expect } from '@playwright/test'
+import { grantCredits } from '@/lib/credits'
+import { E2E_CREDITS } from '../playwright.config'
 
 const authFile = 'e2e/.auth/admin.json'
+
+// Not `stripe`. The ledger records who said a payment happened, and saying Stripe did when the suite
+// did would put a lie in the one table whose whole job is being auditable. A distinct provider also
+// keeps the `(provider, provider_ref)` idempotency key clear of any real payment's.
+const E2E_PROVIDER = 'e2e'
 
 setup('authenticate as admin', async ({ page }) => {
   // Covers the warm-up below: the per-test default is sized for a compiled app, and this step exists
@@ -19,9 +26,20 @@ setup('authenticate as admin', async ({ page }) => {
   await page.click('button:has-text("Sign in as admin")')
 
   await page.waitForURL(/\/dashboard/)
-  await expect(page.getByRole('heading', { name: 'Your clients' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your pages' })).toBeVisible()
 
   await page.context().storageState({ path: authFile })
+
+  // Buys the run its credits, through the one function allowed to move a balance — never by updating
+  // `users.credits` directly, which would leave the ledger disagreeing with the column and skip the
+  // guard the real path depends on. See docs/invariants.md. The ref is per run, so a second run
+  // grants again instead of being swallowed as a duplicate delivery.
+  await grantCredits({
+    email,
+    credits: E2E_CREDITS,
+    provider: E2E_PROVIDER,
+    providerRef: `run-${Date.now()}`
+  })
 
   // `next dev` compiles a route the first time it is hit, and creating an analysis crosses three of
   // them. That cost landed on whichever test ran first, which then blew the per-test timeout while

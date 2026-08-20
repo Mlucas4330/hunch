@@ -1,7 +1,7 @@
 ﻿import { test, expect, type Page } from '@playwright/test'
 
 async function openCopyTab(page: Page) {
-  await page.getByRole('tab', { name: 'Wording' }).click()
+  await page.getByRole('tab', { name: 'Copy' }).click()
 }
 
 test.describe('core features', () => {
@@ -21,14 +21,17 @@ test.describe('core features', () => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
     const page = await context.newPage()
 
-    await page.goto('/admin/leads')
-    await expect(page).toHaveURL(/callbackUrl=%2Fadmin%2Fleads/)
+    // `/analyses` is a protected prefix with no page of its own, so it renders not-found once the
+    // redirect lands. That is fine and deliberate: what is under test is the callbackUrl round trip,
+    // and the URL is the whole assertion. It used to point at `/admin/leads`, which no longer exists.
+    await page.goto('/analyses')
+    await expect(page).toHaveURL(/callbackUrl=%2Fanalyses/)
 
     await page.fill('input[name="email"]', process.env.ADMIN_EMAIL!)
     await page.fill('input[name="password"]', process.env.ADMIN_PASSWORD!)
     await page.click('button:has-text("Sign in as admin")')
 
-    await expect(page).toHaveURL(/\/admin\/leads$/)
+    await expect(page).toHaveURL(/\/analyses$/)
 
     await context.close()
   })
@@ -54,23 +57,15 @@ test.describe('core features', () => {
 
     await page.goto('/')
     await expect(page).toHaveURL(/\/$/)
-    await expect(page.getByRole('link', { name: 'Run a report' }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Score my page' }).first()).toBeVisible()
 
     await context.close()
   })
 
   test('renders the dashboard at /dashboard', async ({ page }) => {
     await page.goto('/dashboard')
-    await expect(page.getByRole('heading', { name: 'Your clients' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Your pages' })).toBeVisible()
     await expect(page.locator('input[name="url"]')).toBeVisible()
-  })
-
-  test('shows the plan badge in the account menu', async ({ page }) => {
-    await page.goto('/dashboard')
-    await page.getByTestId('account-menu').locator('summary').click()
-    await expect(
-      page.getByTestId('account-menu').getByText('Pro', { exact: true })
-    ).toBeVisible()
   })
 
   test('signs out from the account menu', async ({ browser }) => {
@@ -90,21 +85,52 @@ test.describe('core features', () => {
     await context.close()
   })
 
-  test('hides the free-tier allowance from paid plans', async ({ page }) => {
-    await page.goto('/dashboard')
-    await expect(page.getByRole('heading', { name: 'Your clients' })).toBeVisible()
-    await expect(page.getByTestId('usage-banner')).toHaveCount(0)
-  })
-
-  test('publishes no price publicly and offers a way to talk instead', async ({ browser }) => {
+  // A inversao que o teste anterior prometia: os pacotes chegaram, entao o preco TEM de estar la,
+  // com o selo dizendo qual deles a maioria leva. O formulario de contato segue sem existir.
+  test('prices the three packs on the landing and marks the one most buyers take', async ({
+    browser
+  }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
     const page = await context.newPage()
 
     await page.goto('/')
-    await expect(page.getByText(/\$\d/)).toHaveCount(0)
 
-    const contact = page.locator('#contact')
-    await expect(contact.getByRole('button', { name: 'Ask for a report' })).toBeVisible()
+    const packs = page.getByTestId('credit-packs')
+    await expect(packs.getByText('R$19').first()).toBeVisible()
+    await expect(packs.getByText('R$39').first()).toBeVisible()
+    await expect(packs.getByText('R$99').first()).toBeVisible()
+    await expect(packs.getByText('Most chosen')).toHaveCount(1)
+    await expect(packs.getByRole('button', { name: 'Buy' })).toHaveCount(3)
+
+    await expect(page.locator('#contact')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Score my page' }).first()).toBeVisible()
+
+    await context.close()
+  })
+
+  // A rota que a landing consulta e publica, e o que ela devolve e a unica coisa que separa a prova
+  // social de um vazamento: dominio e nota, nunca a embed key, o caminho da URL ou o dono. Este teste
+  // existe para falhar no dia em que alguem alargar a query. Ver docs/security.md.
+  test('exposes only a domain and a score on the public pulse route', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    const page = await context.newPage()
+
+    const res = await page.request.get('/api/pulse')
+    expect(res.ok()).toBe(true)
+
+    const body = await res.json()
+    expect(Array.isArray(body.leaderboard)).toBe(true)
+    expect(Array.isArray(body.pulse)).toBe(true)
+
+    for (const entry of body.leaderboard) {
+      expect(Object.keys(entry).sort()).toEqual(['domain', 'score'])
+    }
+    for (const entry of body.pulse) {
+      expect(Object.keys(entry).sort()).toEqual(['at', 'domain', 'score', 'state'])
+    }
+
+    const raw = await res.text()
+    expect(raw).not.toMatch(/embedKey|userId|"url"|https?:\/\//)
 
     await context.close()
   })
@@ -119,8 +145,8 @@ test.describe('core features', () => {
     ])
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR')
-    await expect(page.getByRole('link', { name: 'Rodar um relatório' }).first()).toBeVisible()
-    await expect(page.getByText('Run a report')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Ver a minha nota' }).first()).toBeVisible()
+    await expect(page.getByText('Score my page')).toHaveCount(0)
 
     await context.close()
   })
@@ -136,19 +162,18 @@ test.describe('core features', () => {
 
     await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
 
-    await expect(page.getByTestId('benchmarked-against')).toContainText('Linear')
 
+
+    // One destination, not two: the PDF and the /analyses/[id]/report route are both gone, so the
+    // card count is the assertion. A second Open link reappearing here means something reintroduced a
+    // deliverable without a name -- see docs/report.md.
     const deliverables = page.getByTestId('deliverables')
     await expect(deliverables.getByText('Interactive report')).toBeVisible()
-    await expect(deliverables.getByText('PDF report')).toBeVisible()
     await expect(deliverables.getByRole('button', { name: 'Copy link' })).toBeVisible()
-    await expect(deliverables.getByRole('link', { name: 'Open' }).first()).toHaveAttribute(
+    await expect(deliverables.getByRole('link', { name: 'Open' })).toHaveCount(1)
+    await expect(deliverables.getByRole('link', { name: 'Open' })).toHaveAttribute(
       'href',
       /\/r\/[0-9a-f-]+$/
-    )
-    await expect(deliverables.getByRole('link', { name: 'Open' }).last()).toHaveAttribute(
-      'href',
-      /\/analyses\/[0-9a-f-]+\/report$/
     )
 
     await openCopyTab(page)
@@ -244,14 +269,14 @@ test.describe('core features', () => {
     await playbook.getByRole('button', { name: 'Why these are shipped by hand' }).click()
     await expect(playbook.getByRole('tooltip')).toContainText('shipped by hand')
 
-    await page.getByRole('tab', { name: 'Search visibility' }).click()
+    await page.getByRole('tab', { name: 'SEO' }).click()
     const seo = page.getByTestId('seo-playbook')
     await expect(seo).toBeVisible()
     await expect(seo.getByTestId('seo-fix')).toHaveCount(2)
     await expect(seo.getByTestId('flow-fix')).toHaveCount(0)
     await expect(seo.getByRole('heading', { name: 'Write a meta description' })).toBeVisible()
 
-    await page.getByRole('tab', { name: 'AI visibility' }).click()
+    await page.getByRole('tab', { name: 'AI' }).click()
     const ai = page.getByTestId('ai-playbook')
     await expect(ai).toBeVisible()
     await expect(ai.getByTestId('ai-fix')).toHaveCount(1)
@@ -267,15 +292,14 @@ test.describe('core features', () => {
     const anon = await context.newPage()
     await anon.goto(`/r/${analysis.embedKey}`)
     await expect(anon.getByTestId('flow-playbook').getByTestId('flow-fix')).toHaveCount(4)
-    await expect(anon.getByRole('button', { name: 'Join the waitlist' })).toHaveCount(0)
 
-    await anon.getByRole('tab', { name: 'AI visibility' }).click()
+    await anon.getByRole('tab', { name: 'AI' }).click()
     await expect(anon.getByTestId('ai-playbook').getByTestId('ai-fix')).toHaveCount(1)
 
     // Four tabs, all about what to change.
     await expect(anon.getByRole('tab')).toHaveCount(4)
 
-    await anon.getByRole('tab', { name: 'Wording' }).click()
+    await anon.getByRole('tab', { name: 'Copy' }).click()
     const preview = anon.getByTestId('variant-preview').first()
     await expect(preview.getByRole('button', { name: 'See how this looks on your page' })).toBeVisible()
     await expect(preview.getByRole('img')).toHaveCount(0)
@@ -297,119 +321,4 @@ test.describe('core features', () => {
     await expect(page).toHaveURL(analysisUrl)
     await expect(page.getByRole('heading', { name: 'What to change on this page' })).toBeVisible()
   })
-
-  test('serves a paid report as an unbranded deliverable', async ({ page, browser }) => {
-    const url = `https://example.com/?t=${Date.now()}-report`
-
-    await page.goto('/dashboard')
-    await page.fill('input[name="url"]', url)
-    await page.getByRole('button', { name: 'Analyze' }).click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
-
-    const origin = new URL(page.url()).origin
-    const analysisId = page.url().split('/').pop()
-    const detail = await page.request.get(`${origin}/api/analyses/${analysisId}`)
-    const { analysis } = await detail.json()
-
-    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
-    const anon = await context.newPage()
-    await anon.goto(`/r/${analysis.embedKey}`)
-
-    await expect(anon.getByRole('heading', { name: 'example.com', exact: true })).toBeVisible()
-    await expect(anon.getByText(url)).toBeVisible()
-
-    await expect(anon.getByRole('button', { name: 'Join the waitlist' })).toHaveCount(0)
-    await expect(
-      anon.getByRole('heading', { name: /more high-impact tests? (is|are) ready/ })
-    ).toHaveCount(0)
-
-    await expect(anon.getByText('Generated by Hunch')).toHaveCount(0)
-    await expect(anon.getByTestId('report-brand')).toHaveCount(0)
-    await expect(anon).toHaveTitle(/^(?!.*Hunch).*$/)
-
-    await context.close()
-
-    await page.goto(`/analyses/${analysisId}/report`)
-    await expect(page.getByRole('heading', { name: 'example.com', exact: true })).toBeVisible()
-    await expect(page.getByTestId('report-brand')).toHaveCount(0)
-    await expect(page.getByText('Generated by Hunch')).toHaveCount(0)
-    await expect(page).toHaveTitle(/^(?!.*Hunch).*$/)
-  })
-
-  test('captures a contact lead and shows the operator where it came from', async ({
-    page,
-    browser
-  }) => {
-    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
-    const anon = await context.newPage()
-    await anon.goto('/')
-
-    const email = `lead-${Date.now()}@example.com`
-    const contact = anon.locator('#contact')
-    await contact.locator('input[type="email"]').fill(email)
-    const [waitlistResponse] = await Promise.all([
-      anon.waitForResponse((r) => r.url().endsWith('/api/waitlist')),
-      contact.getByRole('button', { name: 'Ask for a report' }).click()
-    ])
-    expect(waitlistResponse.status()).toBe(201)
-    await expect(contact.getByText('Got it. We will reply to that address today.')).toBeVisible()
-
-    await context.close()
-
-    await page.goto('/admin/leads')
-    await expect(page.getByRole('heading', { name: /Waitlist leads/ })).toBeVisible()
-    const row = page.locator('tr', { hasText: email })
-    await expect(row).toBeVisible()
-    await expect(row.getByText('Asked to talk')).toBeVisible()
-  })
-
-  test('grants a plan to an account that does not exist yet', async ({ page }) => {
-    const email = `buyer-${Date.now()}@example.com`
-
-    await page.goto('/admin/accounts')
-    await page.fill('input[name="email"]', email)
-    await page.getByRole('button', { name: 'Grant pro' }).first().click()
-
-    const row = page.locator('tr', { hasText: email })
-    await expect(row).toBeVisible()
-    await expect(row.getByText('Pro')).toBeVisible()
-    await expect(row.getByText('Never signed in')).toBeVisible()
-
-    await row.getByRole('button', { name: 'Revoke' }).click()
-    await expect(page.locator('tr', { hasText: email }).getByText('Free')).toBeVisible()
-  })
-
-  test('hides the accounts view from non-admins', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
-    const page = await context.newPage()
-
-    await page.goto('/admin/accounts')
-    await expect(page).toHaveURL(/\/auth\/signin/)
-
-    await context.close()
-  })
-
-  test('hides the leads view from non-admins', async ({ browser }) => {
-    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
-    const page = await context.newPage()
-
-    await page.goto('/admin/leads')
-    await expect(page).toHaveURL(/\/auth\/signin/)
-
-    await context.close()
-  })
-
-  test('never shows the upgrade prompt to a paid plan', async ({ page }) => {
-    const url = `https://example.com/?t=${Date.now()}-upgrade`
-
-    await page.goto('/dashboard')
-    await page.fill('input[name="url"]', url)
-    await page.getByRole('button', { name: 'Analyze' }).click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
-
-    await openCopyTab(page)
-    await expect(page.getByTestId('hypothesis-card').first()).toBeVisible()
-    await expect(page.getByTestId('upgrade-prompt')).toHaveCount(0)
-  })
 })
-

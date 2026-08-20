@@ -14,9 +14,28 @@ page indexable**.
 
 ## Indexability
 
-**`/` is the only indexable route**, and the only entry in `app/sitemap.ts`. Everything else passes
-`index: false`. `app/robots.ts` disallows the same prefixes, importing `PROTECTED_PREFIXES` from
-`lib/constants.ts` so it can never drift from `middleware.ts`.
+**The indexable routes are `/`, `/blog` and the posts**, and they are exactly the entries in
+`app/sitemap.ts`. Everything else passes `index: false`. `app/robots.ts` disallows the same prefixes,
+importing `PROTECTED_PREFIXES` from `lib/constants.ts` so it can never drift from `middleware.ts`.
+
+`/` used to be the only one. The blog was added as a destination for paid traffic that explains a
+concept before asking for a URL, and a page written to be read by strangers is a page there is no
+reason to hide from a crawler.
+
+**The sitemap is derived from `BLOG_SLUG`, never listed by hand**, so a post added to the enum cannot
+be published without an entry -- and cannot be published at all until it is written in both
+dictionaries, because the slug is the dictionary key. `lastModified` for a post comes from
+`BLOG_POST_DATE`, which is a real publication date rather than `new Date()`: a sitemap claiming every
+post changed today is a sitemap saying nothing.
+
+**A post's title and description are the post's own `title` and `excerpt`**, not a separate
+`metadata.pages.*` entry. They are still dictionary strings, and keeping them as one string means the
+card in the index, the browser tab and the unfurl cannot describe the post three different ways.
+`metadata.pages.blog` exists for the index page, which has no post to borrow from.
+
+Posts carry no `opengraph-image.tsx`, so they unfurl with the site-wide card. A per-post card would
+be the same `next/og` work the report already does -- worth doing when a post is actually being
+shared, not before.
 
 The public report is `noindex` but carries a **full, per-report Open Graph card**: it is pasted into
 cold email and DMs, where the unfurl is the whole first impression. **An unknown embed key must produce
@@ -42,21 +61,11 @@ gets indexed. **Do not add hreflang without first giving the locales real URLs.*
 - The images resolve their dictionary with `dictionaryFor(DEFAULT_LOCALE)`, not `getDictionary()`:
   unfurlers send no cookies, and avoiding the cookie read keeps the site-wide card static.
 
-## White-label reaches metadata too
+## There is no white-label in metadata any more
 
-`openGraph.siteName`, the root `%s | Hunch` title template and `OgWordmark` are two of the four gated
-surfaces — see
-[invariants.md](invariants.md#white-label-hangs-off-one-resolver-on-four-independent-surfaces).
-`pageMetadata({ unbranded, brandName })` handles both.
+`pageMetadata()` used to take `unbranded` and `brandName`, because a browser prints the `<title>`
+into a printed page header and `openGraph.siteName` rides every unfurl — the two places our name
+reached a reader without being on the page. Both went with the brand columns, so the helper now takes
+only `ownImage` and always says `Hunch`.
 
-`unbranded` strips us; `brandName` puts the agency there instead, so a paid title reads
-`<title> | <agency>` rather than merely losing its suffix, and `siteName` carries the agency. With no
-name configured it falls back to `{ absolute: title }`, which is what the flag did on its own.
-
-### The OG card carries the agency's name, never its logo
-
-`OgBrandName` renders text. Satori cannot read a file off the volume, so putting the logo here would
-mean reading the binary from disk inside an image route and inlining it as a data URI — for a card
-whose requirement is already met by the name: nothing of ours appears, and the agency signs it.
-
-**This is a decision, not an omission.** Do not "fix" it by embedding the file.
+`components/og.tsx` lost `OgBrandName` for the same reason; `OgWordmark` is the only mark left.

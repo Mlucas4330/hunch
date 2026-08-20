@@ -1,12 +1,12 @@
 import { AuthError } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { signIn } from '@/auth'
-import { Button } from '@/components/ui/button'
+import { SubmitButton } from '@/components/submit-button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Wordmark } from '@/components/wordmark'
 import { getDictionary } from '@/lib/i18n'
-import { credentialsLoginAllowed, microsoftLoginAllowed, safeCallbackUrl } from '@/lib/auth-policy'
+import { credentialsLoginAllowed, githubLoginAllowed, safeCallbackUrl } from '@/lib/auth-policy'
 import { CALLBACK_URL_PARAM } from '@/lib/constants'
 import { pageMetadata } from '@/lib/seo'
 
@@ -25,7 +25,7 @@ export default async function SignInPage({
   const error = params.error
   const callbackUrl = safeCallbackUrl(params[CALLBACK_URL_PARAM])
   const showCredentialsForm = credentialsLoginAllowed()
-  const showMicrosoftButton = microsoftLoginAllowed()
+  const showGithub = githubLoginAllowed()
 
   return (
     <div className="flex justify-center py-12">
@@ -42,21 +42,19 @@ export default async function SignInPage({
               await signIn('google', { redirectTo: callbackUrl })
             }}
           >
-            <Button type="submit" className="w-full">
-              {t.signIn.google}
-            </Button>
+            <SubmitButton className="w-full">{t.signIn.google}</SubmitButton>
           </form>
 
-          {showMicrosoftButton && (
+          {showGithub && (
             <form
               action={async () => {
                 'use server'
-                await signIn('microsoft-entra-id', { redirectTo: callbackUrl })
+                await signIn('github', { redirectTo: callbackUrl })
               }}
             >
-              <Button type="submit" variant="outline" className="w-full">
-                {t.signIn.microsoft}
-              </Button>
+              <SubmitButton variant="outline" className="w-full">
+                {t.signIn.github}
+              </SubmitButton>
             </form>
           )}
 
@@ -105,9 +103,9 @@ export default async function SignInPage({
                   autoComplete="current-password"
                 />
                 {error && <p className="text-sm text-destructive">{t.signIn.invalidCredentials}</p>}
-                <Button type="submit" variant="outline" className="w-full">
+                <SubmitButton variant="outline" className="w-full">
                   {t.signIn.adminSubmit}
-                </Button>
+                </SubmitButton>
               </form>
             </>
           )}

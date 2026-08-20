@@ -1,8 +1,6 @@
 import { Linkedin, MessageCircle } from 'lucide-react'
-import Link from 'next/link'
 import { Wordmark } from '@/components/wordmark'
 import {
-  CONTACT_PATH,
   CONTAINER_CLASS,
   LINKEDIN_URL,
   WHATSAPP_URL
@@ -52,9 +50,6 @@ export async function SiteFooter() {
           >
             <MessageCircle className="size-4" aria-hidden />
           </a>
-          <Link href={CONTACT_PATH} className={linkClass}>
-            {t.footer.contact}
-          </Link>
         </nav>
       </div>
     </footer>

@@ -17,7 +17,6 @@ deprecated and `railway.json` must never name it again.
 | `Postgres` | Railway plugin | |
 | `Redis` | Railway plugin | rate limit counters only |
 | `cron-prune` | `railway.cron-prune.json` (*Config as code*, set by hand) | calls `/api/cron/prune-screenshots`; own hour so the two never hit `app` together |
-| `cron-remeasure` | `railway.cron-remeasure.json` (*Config as code*, set by hand) | calls `/api/cron/remeasure`; **weekly**, and the only cron that opens browsers — its own hour, and Monday rather than daily, because each run costs `browser` slots against real customer pages |
 
 Every service but the plugins is the **same repo** pointed at a different config file. The schedules
 live in `deploy.cronSchedule` in those files rather than in the dashboard, so a changed cron time
@@ -29,26 +28,25 @@ Railway creates exactly one service per import, so:
 
 1. Add the `Postgres` and `Redis` plugins.
 2. Set the variables from `.env.example` on `app`, plus `AUTH_TRUST_HOST=true` and
-   `SCREENSHOT_DIR=/data/screenshots` and `BRAND_DIR=/data/brand`. **Two are per-environment origins and must not be copied**:
+   `SCREENSHOT_DIR=/data/screenshots`. **One is per-environment origins and must not be copied**:
    leave `AUTH_URL` **empty** and set `NEXT_PUBLIC_APP_URL` to the service's public domain. Add
    `PUPPETEER_SKIP_DOWNLOAD=true` as well — production connects to the `browser` service over CDP and
    never launches Chrome itself, so the ~180MB Chromium puppeteer's postinstall would otherwise pull
    into every build is dead weight.
-3. Mount a volume on `app` at `/data`, so `/data/screenshots` and `/data/brand` are both persisted.
+3. Mount a volume on `app` at `/data`, so `/data/screenshots` is persisted.
 
-   **They must stay separate directories.** `prune-screenshots` deletes everything under
-   `SCREENSHOT_DIR` past its retention, so a logo written there would delete itself weeks later and
-   return a paid agency's report to anonymous with nothing in any log naming the cause. An agency logo
-   is never pruned: it is one small file per account, replaced in place, and it is load-bearing on the
-   deliverable.
+   It used to hold a second directory for agency logos, kept apart from the screenshots because
+   `prune-screenshots` deletes everything under `SCREENSHOT_DIR` past its retention and a logo there
+   would have deleted itself weeks later. White-label is gone, so `BRAND_DIR` is gone with it — but
+   the reason is worth keeping in view: **anything else ever written under `SCREENSHOT_DIR` inherits
+   the prune.**
 4. Add a second service from the same repo, set *Config as code* to `railway.browser.json`, give it
    **no variables and no domain**, then set `BROWSER_URL` on `app` to
    `http://${{browser.RAILWAY_PRIVATE_DOMAIN}}:9222` — as a reference, and with both the `http://`
    and the `:9222` spelled out. See [scraping.md](scraping.md#browser-lifecycle-and-the-concurrency-cap)
    for what each half of that value is load-bearing for.
-5. Add `cron-prune` and `cron-remeasure`, both from the same repo, pointed at
-   `railway.cron-prune.json` and `railway.cron-remeasure.json`. Give
-   **each** of them these two, as references rather than copies:
+5. Add `cron-prune` from the same repo, pointed at `railway.cron-prune.json`. Give it these two, as
+   references rather than copies:
 
    ```
    CRON_SECRET = ${{ app.CRON_SECRET }}
@@ -122,21 +120,47 @@ turn one failed call into a restart loop against `app`. Railway also **skips** a
 predecessor is still going, and guarantees no better than a few minutes' accuracy, which is why these
 are daily jobs and not a substitute for anything time-sensitive.
 
+## Mercado Pago
+
+The provider that can charge in BRL against a CPF, which is what makes it the one selling today.
+
+Three variables: `MERCADOPAGO_ACCESS_TOKEN`, `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY` (the Brick is
+initialised with it in the browser) and `MERCADOPAGO_WEBHOOK_SECRET`. **Test and production
+credentials come in pairs and must never be mixed** — a production token with a test public key
+produces a form whose payments are refused with no useful error. The packs are only offered when the
+token and the public key are both set (`mercadoPagoEnabled`); otherwise the buttons fall back to
+Stripe checkout.
+
+A **notification URL** at `https://<domain>/api/billing/mercadopago/webhook`, registered under "Suas
+integrações" for the `payment` topic. Its secret is shown once there, and it is the same one the
+route verifies against — a route answering `400 invalid_signature` on every delivery is almost always
+that secret rather than a broken handler.
+
+How much a payment is worth comes from `CREDIT_PACKS.amountBrl`, and it has to match the price the
+dictionary prints, exactly as the Stripe price ids do.
+
 ## Stripe
 
-Two things, both on the Stripe side, and the plan is granted by neither alone:
+Kept alongside, and it charges nothing until it is configured. A **webhook endpoint** at
+`https://<domain>/api/billing/webhook` subscribed to `checkout.session.completed`, with its signing
+secret in `STRIPE_WEBHOOK_SECRET`. It claims every delivery into `payment_events` before doing any
+work, and grants credits for a session whose
+`payment_status` is `paid` — see [api.md](api.md#post-apibillingwebhook).
 
-1. A **webhook endpoint** at `https://<domain>/api/billing/webhook` subscribed to
-   `checkout.session.completed`, `customer.subscription.updated` and `customer.subscription.deleted`.
-   Its signing secret is `STRIPE_WEBHOOK_SECRET`.
-2. A **payment link** charging the price in `STRIPE_PRICE_ID`. That link is the whole purchase flow —
-   the seller sends it after the call, and nothing in the app links to it. A link on any other price
-   takes the payment and leaves the account on `free`.
+Plus **one price id per credit pack** in `STRIPE_PRICE_SINGLE`, `STRIPE_PRICE_TRIO` and
+`STRIPE_PRICE_PACK`. Those ids are the only thing that decides how many credits a payment buys, and
+an unset one makes that pack refuse checkout rather than sell nothing.
+
+**Two things hold one number and Stripe is not asked at render time:** the amount each price charges,
+and the amount printed on the home page. Change them together or the page lies about what it costs.
+
+Whether Stripe can charge in BRL at all without a registered company is still open. That is why
+granting goes through one provider-agnostic path — see
+[invariants.md](invariants.md#credits-are-granted-by-one-internal-path-and-no-provider-code-touches-the-tables).
 
 The signing secret differs between the dashboard's test and live modes and between endpoints, so a
-webhook that answers `400 invalid_signature` on every delivery is almost always the wrong secret rather
-than a broken route. How the payer is matched to an account, and the one case where the match fails, is
-in [api.md](api.md#post-apibillingwebhook).
+webhook that answers `400 invalid_signature` on every delivery is almost always the wrong secret
+rather than a broken route.
 
 ## The build
 

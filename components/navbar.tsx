@@ -23,44 +23,32 @@ export async function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-5 md:flex">
+          <NavLinks signedIn={Boolean(user)} />
+          <LanguageToggle locale={locale} />
           {user ? (
-            <>
-              <NavLinks />
-              <LanguageToggle locale={locale} />
-              <AccountMenu user={user} />
-            </>
+            <AccountMenu user={user} />
           ) : (
-            <>
-              <LanguageToggle locale={locale} />
-              <Button asChild size="sm">
-                <Link href="/auth/signin">{t.nav.signIn}</Link>
-              </Button>
-            </>
+            <Button asChild size="sm">
+              <Link href="/auth/signin">{t.nav.signIn}</Link>
+            </Button>
           )}
         </div>
 
         <MobileMenu label={t.nav.menuAria}>
+          <div className="flex flex-col items-start gap-2">
+            <NavLinks signedIn={Boolean(user)} />
+          </div>
+          <div className="flex">
+            <LanguageToggle locale={locale} />
+          </div>
           {user ? (
-            <>
-              <div className="flex flex-col items-start gap-2">
-                <NavLinks />
-              </div>
-              <div className="flex">
-                <LanguageToggle locale={locale} />
-              </div>
-              <div className="border-t pt-3">
-                <AccountPanel user={user} />
-              </div>
-            </>
+            <div className="border-t pt-3">
+              <AccountPanel user={user} />
+            </div>
           ) : (
-            <>
-              <div className="flex">
-                <LanguageToggle locale={locale} />
-              </div>
-              <Button asChild size="sm" className="w-full">
-                <Link href="/auth/signin">{t.nav.signIn}</Link>
-              </Button>
-            </>
+            <Button asChild size="sm" className="w-full">
+              <Link href="/auth/signin">{t.nav.signIn}</Link>
+            </Button>
           )}
         </MobileMenu>
       </nav>

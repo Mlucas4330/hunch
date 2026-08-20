@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { ExternalLink, FileText, Link2 } from 'lucide-react'
+import { ExternalLink, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { InfoHint } from '@/components/info-hint'
@@ -11,15 +10,17 @@ import { useI18n } from '@/components/i18n-provider'
 
 type CopyState = 'idle' | 'copied' | 'failed'
 
+// One destination now that the PDF is gone. The pair of named cards existed to tell two documents
+// apart, so with one left the naming is the card's own heading and nothing else -- see
+// docs/report.md. The clipboard fallback stays: navigator.clipboard is undefined outside a secure
+// context, and without it the button is simply dead on plain http.
 export function ReportDeliverables({
   reportUrl,
   embedKey,
-  analysisId,
   variant = 'full'
 }: {
   reportUrl: string
   embedKey: string
-  analysisId: string
   variant?: 'full' | 'compact'
 }) {
   const { dictionary } = useI18n()
@@ -32,7 +33,6 @@ export function ReportDeliverables({
   }, [origin])
 
   const href = `${origin}/r/${embedKey}`
-  const printHref = `/analyses/${analysisId}/report`
 
   async function onCopy() {
     setState((await writeToClipboard(href)) ? 'copied' : 'failed')
@@ -56,12 +56,6 @@ export function ReportDeliverables({
           <Link2 aria-hidden className="h-3.5 w-3.5" />
           {copyLabel}
         </Button>
-        <Button asChild variant="ghost" size="sm" className="h-8 px-2 text-xs">
-          <Link href={printHref} aria-label={copy.pdfTitle}>
-            <FileText aria-hidden className="h-3.5 w-3.5" />
-            {copy.pdfShort}
-          </Link>
-        </Button>
       </div>
     )
   }
@@ -75,42 +69,25 @@ export function ReportDeliverables({
         </InfoHint>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Card className="flex flex-col gap-3 p-4">
-          <div className="space-y-1">
-            <h2 className="font-display text-sm font-semibold tracking-tight">
-              {copy.interactiveTitle}
-            </h2>
-            <p className="text-sm text-muted-foreground">{copy.interactiveBody}</p>
-          </div>
-          <div className="mt-auto flex flex-wrap items-center gap-2">
-            <Button asChild size="sm">
-              <a href={href} target="_blank" rel="noopener noreferrer">
-                <ExternalLink aria-hidden className="h-4 w-4" />
-                {copy.open}
-              </a>
-            </Button>
-            <Button variant="outline" size="sm" onClick={onCopy}>
-              {copyLabel}
-            </Button>
-          </div>
-        </Card>
-
-        <Card className="flex flex-col gap-3 p-4">
-          <div className="space-y-1">
-            <h2 className="font-display text-sm font-semibold tracking-tight">{copy.pdfTitle}</h2>
-            <p className="text-sm text-muted-foreground">{copy.pdfBody}</p>
-          </div>
-          <div className="mt-auto flex flex-wrap items-center gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href={printHref}>
-                <FileText aria-hidden className="h-4 w-4" />
-                {copy.open}
-              </Link>
-            </Button>
-          </div>
-        </Card>
-      </div>
+      <Card className="flex flex-col gap-3 p-4">
+        <div className="space-y-1">
+          <h2 className="font-display text-sm font-semibold tracking-tight">
+            {copy.interactiveTitle}
+          </h2>
+          <p className="text-sm text-muted-foreground">{copy.interactiveBody}</p>
+        </div>
+        <div className="mt-auto flex flex-wrap items-center gap-2">
+          <Button asChild size="sm">
+            <a href={href} target="_blank" rel="noopener noreferrer">
+              <ExternalLink aria-hidden className="h-4 w-4" />
+              {copy.open}
+            </a>
+          </Button>
+          <Button variant="outline" size="sm" onClick={onCopy}>
+            {copyLabel}
+          </Button>
+        </div>
+      </Card>
     </section>
   )
 }

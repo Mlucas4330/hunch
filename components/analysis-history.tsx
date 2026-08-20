@@ -50,13 +50,13 @@ export function AnalysisHistory({
         return (
           <Card
             key={analysis.id}
-            className="relative flex flex-col transition-all hover:-translate-y-0.5 hover:border-foreground/20"
+            className="relative flex flex-col hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-sm focus-within:-translate-y-0.5 focus-within:border-foreground/20"
           >
             <CardContent className="flex flex-1 flex-col gap-3 p-4">
               <Link
                 href={`/analyses/${analysis.id}`}
                 aria-label={t(dictionary.history.openAria, { url: analysis.url })}
-                className="absolute inset-0 rounded-lg"
+                className="absolute inset-0 rounded-lg focus-visible:outline-none"
               />
               <div className="flex items-start justify-between gap-2">
                 <h2 className="truncate font-display text-base font-semibold tracking-tight">
@@ -114,7 +114,6 @@ export function AnalysisHistory({
                   variant="compact"
                   reportUrl={appUrl}
                   embedKey={analysis.embedKey}
-                  analysisId={analysis.id}
                 />
               </div>
             </CardContent>

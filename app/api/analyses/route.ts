@@ -1,178 +1,125 @@
 import { NextResponse } from 'next/server'
-import { eq, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db'
-import { analyses, flowFixes, hypotheses, pageSnapshots, users, variants } from '@/db/schema'
+import { analyses } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
-import { enforceRateLimit } from '@/lib/rate-limit'
-import { hasReachedFreeLimit, periodExpired } from '@/lib/usage'
-import { listAnalysesForUser } from '@/lib/analyses'
-import { analyzeLandingPage } from '@/lib/analyze'
+import { refundCredit, spendCredit } from '@/lib/credits'
+import { clientIp, enforceRateLimit } from '@/lib/rate-limit'
+import { listAnalysesForUser, parsePaging } from '@/lib/analyses'
+import { enqueue, jobId, registerRunner } from '@/lib/queue'
+import { ANALYSIS_JOB_KIND, analysisProgress, runAnalysis } from '@/lib/run-analysis'
+import { detectMarket } from '@/lib/market'
 import { getLocale } from '@/lib/i18n'
-import { snapshotValues } from '@/lib/snapshots'
-import { ScrapeError } from '@/lib/scrape'
-import { UnsafeUrlError } from '@/lib/url-guard'
+import { assertPublicUrl, UnsafeUrlError } from '@/lib/url-guard'
+
+registerRunner(ANALYSIS_JOB_KIND, runAnalysis)
 
 const BodySchema = z.object({
   url: z.string().url(),
-  brief: z.string().trim().max(2000).optional(),
-  competitorUrls: z.array(z.string().url()).max(3).optional()
+  brief: z.string().trim().max(2000).optional()
 })
 
 export async function POST(request: Request) {
   const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  const limited = await enforceRateLimit('analysis', user.id)
+  // **The anonymous path fails closed, and it is the only route that does.** Failing open is right
+  // where the cost of a request is a query; here every accepted call opens a real browser against
+  // three shared slots, with no session behind it. A Redis outage that silently removed the limit
+  // would be the bill and the outage at once. See docs/invariants.md.
+  const limited = user
+    ? await enforceRateLimit('analysis', user.id)
+    : await enforceRateLimit('analysis', clientIp(request), undefined, { failClosed: true })
   if (limited) return limited
 
   const parsed = BodySchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'invalid_url' }, { status: 422 })
 
-  if (hasReachedFreeLimit(user)) {
-    return NextResponse.json({ error: 'limit_reached' }, { status: 403 })
-  }
-
-  const brief = parsed.data.brief || undefined
-  const competitorUrls = user.plan === 'free' ? undefined : parsed.data.competitorUrls
-  const locale = await getLocale()
-
-  let output
+  // Checked before anything is written, so a refused URL never leaves a row behind. The scrape
+  // re-applies it per request anyway -- see docs/security.md.
   try {
-    output = await analyzeLandingPage(parsed.data.url, { brief, competitorUrls, locale })
+    await assertPublicUrl(parsed.data.url)
   } catch (error) {
     if (error instanceof UnsafeUrlError) {
       return NextResponse.json({ error: 'invalid_url' }, { status: 422 })
     }
-    if (error instanceof ScrapeError) {
-      return NextResponse.json({ error: 'scrape_failed' }, { status: 502 })
-    }
-    console.error('[api/analyses] analysis failed', error)
-    return NextResponse.json({ error: 'analysis_failed' }, { status: 500 })
+    throw error
   }
 
+  const brief = parsed.data.brief || undefined
+  const locale = await getLocale()
+
   try {
-    const ranked = [...output.hypotheses].sort((a, b) => b.impact_score - a.impact_score)
+    // The row is created before the work so the caller gets an embed key it can navigate to and poll
+    // immediately, rather than holding a connection for the length of a scrape. Its measured columns
+    // are null until the job fills them, which is the same state an analysis from before those
+    // columns existed is in -- so every surface already knows how to render it.
+    const [created] = await db
+      .insert(analyses)
+      .values({
+        userId: user?.id ?? null,
+        url: parsed.data.url,
+        brief: brief ?? null,
+        locale,
+        market: detectMarket({ url: parsed.data.url, lang: null })
+      })
+      .returning({ id: analyses.id, embedKey: analyses.embedKey })
 
-    const analysis = await db.transaction(async (tx) => {
-      const [created] = await tx
-        .insert(analyses)
-        .values({
-          userId: user.id,
-          url: parsed.data.url,
-          brief: brief ?? null,
-          competitors: output.competitors,
-          researchBrief: output.researchBrief || null,
-          structure: output.structure,
-          seo: output.seo,
-          performance: output.performance,
-          crawlerAccess: output.crawlerAccess,
-          keywords: output.keywords,
-          competitorStructures: output.competitorStructures.length
-            ? output.competitorStructures
-            : null,
-          locale,
-          market: output.market
-        })
-        .returning()
-
-      await tx.insert(pageSnapshots).values(snapshotValues(created.id, output))
-
-      const rows = await tx
-        .insert(hypotheses)
-        .values(
-          ranked.map((h) => ({
-            analysisId: created.id,
-            section: h.section,
-            problem: h.problem,
-            currentCopy: h.current_copy,
-            impactScore: h.impact_score,
-            rationale: h.rationale,
-            selector: h.selector,
-            target: h.target
-          }))
-        )
-        .returning()
-
-      const variantRows = await tx
-        .insert(variants)
-        .values(
-          rows.flatMap((row, i) =>
-            ranked[i].variants.map((variant, position) => ({
-              hypothesisId: row.id,
-              copy: variant.copy,
-              evidence: variant.evidence,
-              emphasis: variant.emphasis,
-              position
-            }))
-          )
-        )
-        .returning()
-
-      const rankedFixes = [
-        ...[...output.playbook]
-          .sort((a, b) => b.impact_score - a.impact_score)
-          .map((fix, position) => ({ fix, kind: 'flow' as const, position })),
-        ...[...output.visibility]
-          .sort((a, b) => b.impact_score - a.impact_score)
-          .map((fix, position) => ({ fix, kind: 'visibility' as const, position }))
-      ]
-      const fixRows = rankedFixes.length
-        ? await tx
-            .insert(flowFixes)
-            .values(
-              rankedFixes.map(({ fix, kind, position }) => ({
-                analysisId: created.id,
-                kind,
-                category: fix.category,
-                title: fix.title,
-                problem: fix.problem,
-                steps: fix.steps,
-                impactScore: fix.impact_score,
-                evidence: fix.evidence,
-                position
-              }))
-            )
-            .returning()
-        : []
-
-      const rolled = periodExpired(user.usagePeriodStart)
-      await tx
-        .update(users)
-        .set(
-          rolled
-            ? { analysesCount: 1, usagePeriodStart: new Date() }
-            : { analysesCount: sql`${users.analysesCount} + 1` }
-        )
-        .where(eq(users.id, user.id))
-
-      return {
-        ...created,
-        flowFixes: fixRows,
-        hypotheses: rows.map((row) => ({
-          ...row,
-          variants: variantRows.filter((v) => v.hypothesisId === row.id)
-        }))
+    // **Spent before the work, refunded if the work fails.** The other order — generate, then
+    // charge — means a crash between the two hands out a free analysis, and there is no way to tell
+    // afterwards which of the two happened.
+    if (user) {
+      const { spent } = await spendCredit(user.id, created.id)
+      if (!spent) {
+        await db.delete(analyses).where(eq(analyses.id, created.id))
+        return NextResponse.json({ error: 'no_credits' }, { status: 402 })
       }
-    })
+    }
 
-    return NextResponse.json({ analysis }, { status: 201 })
-  } catch {
-    return NextResponse.json({ error: 'persist_failed' }, { status: 500 })
+    const job = await enqueue(jobId(ANALYSIS_JOB_KIND, created.id))
+
+    // Unlike the preview, there is no inline fallback here: without Redis there is no queue, and
+    // running a scrape inside the request is exactly the unmetered path the fail-closed limit above
+    // exists to prevent.
+    if (!job || job.status === 'unavailable') {
+      if (user) await refundCredit(user.id, created.id)
+      await db.delete(analyses).where(eq(analyses.id, created.id))
+      return NextResponse.json({ error: 'queue_unavailable' }, { status: 503 })
+    }
+
+    return NextResponse.json(
+      { embedKey: created.embedKey, id: created.id, owned: Boolean(user) },
+      { status: 202 }
+    )
+  } catch (error) {
+    console.error('[api/analyses] could not start', error)
+    return NextResponse.json({ error: 'analysis_failed' }, { status: 500 })
   }
 }
 
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const embedKey = searchParams.get('embedKey')
+
+  // Progress is readable by whoever holds the key, because the anonymous caller who started the
+  // analysis has nothing else to identify themselves with. It answers three booleans and no content.
+  if (embedKey) {
+    const progress = z.string().uuid().safeParse(embedKey).success
+      ? await analysisProgress(embedKey)
+      : null
+
+    return progress
+      ? NextResponse.json(progress)
+      : NextResponse.json({ error: 'not_found' }, { status: 404 })
+  }
+
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(request.url)
-  const PagingSchema = z.coerce.number().int().positive().optional().catch(undefined)
-
-  const { rows, total, page } = await listAnalysesForUser(user, {
-    page: PagingSchema.parse(searchParams.get('page') ?? undefined),
-    limit: PagingSchema.parse(searchParams.get('limit') ?? undefined)
+  const { rows, total, page, pages } = await listAnalysesForUser(user, {
+    page: parsePaging(searchParams.get('page')),
+    limit: parsePaging(searchParams.get('limit'))
   })
 
-  return NextResponse.json({ analyses: rows, total, page })
+  return NextResponse.json({ analyses: rows, total, page, pages })
 }

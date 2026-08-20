@@ -60,16 +60,6 @@ export interface PageStructure {
   wordCount: number
 }
 
-// `seo` and `performance` are optional because rows stored before they were kept do not have them,
-// and a comparison row is dropped rather than guessed. See docs/readout.md.
-export interface CompetitorStructure {
-  name: string
-  url: string
-  structure: PageStructure
-  seo?: PageSeo
-  performance?: PagePerformance
-}
-
 export interface PageSeo {
   title: string | null
   metaDescription: string | null

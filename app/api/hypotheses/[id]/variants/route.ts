@@ -24,7 +24,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     where: eq(hypotheses.id, id),
     with: {
       analysis: {
-        columns: { userId: true, brief: true, researchBrief: true, locale: true, market: true }
+        columns: { userId: true, brief: true, locale: true, market: true }
       },
       variants: { orderBy: (v, { asc }) => asc(v.position) }
     }
@@ -50,7 +50,6 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       rationale: hypothesis.rationale,
       recommendedCopy: recommended.copy,
       emphasized: recommended.emphasis !== null,
-      researchBrief: hypothesis.analysis.researchBrief,
       founderBrief: hypothesis.analysis.brief,
       locale: hypothesis.analysis.locale,
       market: hypothesis.analysis.market

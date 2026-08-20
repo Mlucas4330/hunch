@@ -42,7 +42,7 @@ export function AnalysisTabs({
       <div
         role="tablist"
         aria-label={dictionary.analysis.title}
-        className="flex flex-wrap gap-1 border-b"
+        className="flex flex-wrap gap-x-2 gap-y-1 border-b"
       >
         {available.map((tab, index) => (
           <button
@@ -58,15 +58,23 @@ export function AnalysisTabs({
             tabIndex={tab === active ? 0 : -1}
             onClick={() => setSelected(tab)}
             onKeyDown={(event) => onKeyDown(event, index)}
+            // The hover has to draw the tab's own box, not just recolour its text: with only a colour
+            // change the row reads as one strip of words and nothing tells the reader where one target
+            // ends and the next begins.
             className={cn(
-              '-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+              '-mb-px flex items-center gap-2 rounded-t-md border-b-2 px-4 py-3 text-sm font-medium transition-colors active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               tab === active
                 ? 'border-purple text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+                : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >
             {dictionary.analysis.tabs[tab]}
-            <span className="font-mono text-xs tabular-nums text-muted-foreground">
+            <span
+              className={cn(
+                'rounded-sm px-1.5 py-0.5 font-mono text-xs tabular-nums',
+                tab === active ? 'bg-purple/15 text-purple' : 'bg-muted text-muted-foreground'
+              )}
+            >
               {counts[tab]}
             </span>
           </button>
@@ -82,6 +90,11 @@ export function AnalysisTabs({
           hidden={tab !== active}
           className="space-y-6"
         >
+          {/* The tab label is the short technical term because it sits in a wrapping row; the direct
+              question lives here, where there is width for it. See docs/analysis-ui.md. */}
+          <h2 className="text-balance font-display text-xl font-bold tracking-tight">
+            {dictionary.analysis.tabQuestions[tab]}
+          </h2>
           {panels[tab]}
         </div>
       ))}

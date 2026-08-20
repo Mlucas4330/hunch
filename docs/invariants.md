@@ -37,6 +37,13 @@ No percentage, no lift figure, no count of what other companies do, no "studies 
 measurement any generation call has is the readout of the one page in front of it, so a number in
 `evidence` is invented by construction. The prompts require the CRO mechanism instead.
 
+**It governs all three `evidence` fields**: the flow fix, the visibility fix, and the variant. The
+variant's used to be the exception — it named a competitor pattern the rewrite borrowed — and that
+field now argues the same mechanism as the other two: what the current line leaves the visitor to
+infer, and what the replacement states outright. Competitor research is gone (see
+[product.md](product.md)), so there is no longer any source a borrowed pattern could come from, and a
+named company in `evidence` would be invented exactly like a number.
+
 Unconditional. It used to have an escape hatch for when corpus evidence was supplied, and that hatch
 is exactly what would have to come back with a corpus.
 
@@ -92,15 +99,6 @@ or a block. "We could not check" and "they block AI crawlers" are opposite concl
 
 *Governs:* [scraping.md](scraping.md), [ai-pipeline.md](ai-pipeline.md)
 
-### A comparison exists only where the competitor page was actually opened
-
-Paid Competitor mode scrapes those pages for the research brief, so keeping the `PageStructure` it
-already measured costs nothing. The auto-search path's competitors are URLs a model cited without
-anyone loading them; comparing against those would be exactly the invented number the rules above
-exist to prevent, so that path stores none and the table does not render.
-
-*Governs:* [ai-pipeline.md](ai-pipeline.md), [readout.md](readout.md)
-
 ## Generation
 
 ### The market is a filter on what may be recommended, never a fact the model knows
@@ -118,9 +116,9 @@ the risk is identical in all of them and must not be phrased three ways.
 
 A `.br` domain or a Portuguese `lang` attribute decides it, and nothing else does. Weaker signals were
 deliberately left out — a BRL price appears on plenty of global pricing tables — because the two
-directions of error are not symmetric. Missing a Brazilian page costs one unfocused competitor search;
-marking a US page Brazilian rewrites the whole analysis around the wrong country and shows the reader
-nothing that explains it.
+directions of error are not symmetric. Missing a Brazilian page costs one recommendation phrased for
+the wrong country; marking a US page Brazilian rewrites the whole analysis around the wrong country
+and shows the reader nothing that explains it.
 
 Pinned to `analyses.market` at creation, for the same reason as `locale`.
 
@@ -152,70 +150,114 @@ forbids the characters Portuguese requires.
 
 ## Product surfaces
 
-### White-label hangs off one resolver, on four independent surfaces
+### Credits are granted by one internal path, and no provider code touches the tables
 
-White-label is the capability the paid plan is bought for, and it has **two halves**: our name comes
-off, and the agency's goes on in its place. Both halves reach a report from the same four places, and
-doing three of them still ships a document that either advertises us or arrives anonymous:
+A provider adapter verifies a payment and works out what it bought. **`grantCredits` is the only
+thing that moves a balance**, and `spendCredit` / `refundCredit` the only things that move it back.
 
-1. **The public report page** — `ReportBrandMark`, `report.generatedBy`, `report.footerQuestion`, `WaitlistWall`
-2. **The metadata** — `openGraph.siteName` and the root layout's `%s | Hunch` title template, which
-   becomes `%s | <agency>` rather than merely losing its suffix
-3. **The OG card** — `OgWordmark` / `OgBrandName`, the first thing the reader sees when the link
-   arrives by email
-4. **The print report** — owner-authenticated, so nothing about it looks like a public surface, yet
-   the landing page sells "hand over the printed version" and a browser prints the tab title into the
-   page header
+This is the load-bearing decision, and it is not tidiness. Stripe may not be able to charge in BRL
+without a registered company, which makes a second provider a matter of when rather than if. Written
+the other way round — a webhook that knows how to add credits — plugging in the second one means
+reimplementing idempotency, row creation and the ledger a second time, and the two copies drift the
+first time one is fixed.
 
-All four answer to **one resolver**, `reportBrand()` / `brandFor()` (`lib/report.ts`) over
-`canWhiteLabel(plan)` (`lib/usage.ts`), which returns the whole decision as a `ReportBrand`:
-`{ whiteLabel, name, logoUrl, accent }`. It is a struct rather than four fields threaded separately
-**because that is what makes half a decision impossible to implement** — a consumer either has the
-brand or does not. Two of the four are easy to miss, for opposite reasons: the unfurl is not part of
-the page, and the print report is not a link at all.
+Four rules hold the money side together:
 
-The subtractive half is the one that must never regress: a paid report that fails to render the
-agency's logo is a blank space, while a paid report that keeps `Wordmark` is a broken promise.
+- **Idempotency is keyed on the payment, not on the message about it.** `payment_events` claims the
+  delivery so a retry does no work twice; the unique on `(provider, provider_ref)` claims the payment
+  so even a delivery that slipped past the first guard cannot credit twice. The second is the
+  guarantee that matters. A claim that outlives a **failed** handling is the mirror-image bug — every
+  retry then answers `duplicate` and the paid credit is lost for good — so the Mercado Pago route
+  releases its claim before answering `500`.
+- **Spend before the work, refund if the work fails.** The other order hands out a free analysis
+  whenever something crashes between the two, and nothing afterwards can tell which happened.
+  `AnalysisOutputSchema`'s `.min(5)` deliberately does not degrade, so "paid for a Sonnet call and got
+  nothing" is a real path.
+- **The balance is never in the JWT.** A token lives `SESSION_MAX_AGE_SECONDS`, so a balance stamped
+  into one is stale the instant something is bought or spent — free credit in one direction, credit
+  that looks vanished in the other. Read from the row per request, exactly as the role is.
+- **What a payment is worth comes from our own price map**, never from provider metadata and never
+  from the buyer. Stripe metadata is dashboard-editable, so honouring a `credits` field there lets
+  whoever holds dashboard access mint credits without a payment. The Payment Brick makes the same
+  rule bite harder: **the browser submits `transaction_amount`**, so the route overwrites it from
+  `CREDIT_PACKS.amountBrl` on the way in, and the webhook matches the API's own
+  `transaction_amount` against that map on the way back. An approved payment for an amount no pack
+  charges buys nothing.
 
-*Governs:* [report.md](report.md), [seo.md](seo.md), [security.md](security.md)
+The second provider has landed and the shape held: Mercado Pago verifies a payment, works out what it
+bought, and calls `grantCredits`. `lib/credits.ts` did not change to accommodate it, which is the
+whole return on writing it this way.
 
-### There is no self-serve checkout, and no published price
+*Governs:* [api.md](api.md), [data-model.md](data-model.md), [product.md](product.md)
 
-A plan is granted by a sale a person closed on a call and billed through a Stripe payment link the
-seller sends; the webhook promotes the account. `/billing`, the checkout dialog, the published price
-and the `checkout` and `portal` routes are gone, and so is every client-side Stripe dependency. Every
-paid-plan prompt points at `CONTACT_PATH` (`/#contact`).
+### The free half is what code counted; the paid half is what a model wrote
 
-The one route that stays is the webhook, and the payment link is the only way an account is ever
-promoted automatically — so **the link must charge the price in `STRIPE_PRICE_ID`**, which is how
-the webhook names the plan when the subscription carries no `metadata.plan`.
+`measuredFindings`, `readoutScore` and `extractKeywords` are pure arithmetic over what the scrape
+counted. They call no model, so **an analysis with no owner costs a browser slot and zero tokens** —
+which is what makes it safe to hand to ad traffic where most visitors never convert.
 
-The e2e case `publishes no price publicly` is what keeps a price from drifting back onto `/`.
+The cut is `analyses.user_id`, not a flag. Ownership is exactly the thing that says someone paid, so
+one nullable column carries the whole decision and no second source of truth can disagree with it.
 
-*Governs:* [api.md](api.md), [components.md](components.md), [product.md](product.md)
+Two consequences that must hold together:
+
+- **The readout is never gated**, on any surface. It is the part the reader can check against their
+  own site in one click, and gating a measurement of someone's own page reads as a trick — see
+  [readout.md](readout.md).
+- **A token spent on an ownerless analysis is a bug**, not a cost. If one ever appears, the split
+  leaked.
+
+*Governs:* [product.md](product.md), [api.md](api.md), [readout.md](readout.md)
+
+### The public board carries a domain and a score, and nothing else
+
+The landing page ranks pages this tool has measured, and every one of them belongs to somebody who
+did not ask to be on a marketing page. **What leaves the server is `{ domain, score }`, and the shape
+is the entire control** — `publicLeaderboard` and `analysisPulse` in `lib/analyses.ts` select those
+columns, and `GET /api/pulse` returns exactly what they hand back.
+
+Three omissions carry the rule, and each fails differently if it is undone:
+
+- **The embed key** is the only credential the public report has, so publishing keys next to domains
+  hands over every teardown ever run in one response.
+- **The URL's path** is frequently an unlisted campaign page; `displayHost` reduces it to a hostname.
+- **The owner** is nobody's business. A domain and a score do not say who paid to have it measured.
+
+The board itself is subject to the measurement rules above like every other surface: an entry is a
+score this code counted and froze into `page_snapshots`, deduplicated by domain. Below
+`PULSE_MIN_ENTRIES` the section does not render, because **padding a board with examples is the
+invented data the whole product refuses** — there is no seed anywhere and there must never be one.
+
+*Governs:* [security.md](security.md), [api.md](api.md), [analysis-ui.md](analysis-ui.md)
 
 ## Security
 
 ### A user row may exist before its first sign-in, and only a provider-verified email may claim one
 
-There is no self-serve checkout, so the account has to be ready before the buyer ever opens the app.
-Two paths write a row nobody has signed in to: the operator granting a plan in `/admin/accounts`, and
-the Stripe webhook creating the payer when a payment link is paid by someone with no account. Both
-insert `{ email, name: email }` and set `plan` — that is the whole provisioning record, and it is why
-the sign-in upsert writes `name`, `avatarUrl`, `role` and `lastSignInAt` and **never** `plan`. First
-sign-in fills in the person; the entitlement was already there. `last_sign_in_at` staying null is what
-tells the operator the grant is still waiting.
+Someone can pay before they have ever opened the app, so the row has to be able to exist without a
+sign-in behind it. `grantCredits` is the only writer that does it now — the operator screen that used
+to grant plans by hand is gone — but the shape is unchanged: insert `{ email, name: email }` and set
+the entitlement. That is the whole provisioning record, and it is why the sign-in upsert writes `name`,
+`avatarUrl`, `role` and `lastSignInAt` and **never** the entitlement. First sign-in fills in the
+person; what they bought was already there.
 
 The other half is the price of keying rows on email with no `accounts` table: **whoever presents that
 email next owns everything in the row.** So an OAuth sign-in is refused unless the provider's own
-verified-email claim is exactly true — `email_verified` for Google, `xms_edov` for Entra ID, per
-`VERIFIED_EMAIL_CLAIM` — and a provider with no claim listed is refused outright. An absent claim is
+provider will vouch for the address. **Each provider declares *how*, in `VERIFIED_EMAIL`**: a claim
+read off the profile for Google, a call to `GET /user/emails` for GitHub, whose OAuth profile carries
+no such claim and whose `email` is null outright when the account keeps it private. A provider with no
+strategy declared is refused.
+
+**The address that keys the row is the verified one, not the one the profile carried** — for GitHub
+they can differ, and using the profile's would key a row on an address nobody verified. **Every
+failure of the remote check refuses**: a timeout or a 403 from a missing `user:email` scope must not
+read as "verified", or a GitHub outage becomes an open door onto rows holding credits. An absent claim is
 never read as a verified one, and a provider added to `authConfig` without naming its claim locks
 itself out rather than letting itself in.
 
 The two halves are one rule because they are the same row seen from both ends: pre-provisioning is
-only safe while the claim side holds, and weakening the claim hands over a paid account rather than an
-empty one.
+only safe while the claim side holds, and weakening the claim hands over a row with money in it
+rather than an empty one.
 
 *Governs:* [security.md](security.md), [data-model.md](data-model.md), [api.md](api.md)
 
@@ -233,15 +275,24 @@ undoing it.
 
 *Governs:* [security.md](security.md), [data-model.md](data-model.md)
 
-### Rate limiting fails open, deliberately
+### Rate limiting fails open, except where failing open is the bill
 
-A missing `REDIS_URL`, a wrong one, or a Redis that is simply down means no limit at all on the public
-endpoints — silently, by design, so infrastructure trouble never becomes an outage. Both paths log.
+A missing `REDIS_URL`, a wrong one, or a Redis that is simply down means no limit at all — silently,
+by design, so infrastructure trouble never becomes an outage. Both paths log.
 
 The consequence to remember: **a misconfigured `REDIS_URL` looks exactly like a working one.** Confirm
 with a real `429`, never by reading the config.
 
-*Governs:* [security.md](security.md), [deployment.md](deployment.md)
+**`POST /api/analyses` with no session is the one exception, and it must stay one.** Failing open is
+right where a request costs a query. There, every accepted call opens a real browser against three
+shared slots with nobody behind it, so no limit is not a degraded feature — it is an unmetered bill
+and an outage at once. It passes `failClosed` and answers `503` when Redis cannot be reached.
+
+The two halves are one rule seen from both ends: **the default is open because infra trouble should
+not stop a paying user; the exception is closed because infra trouble must not open a public tap.**
+Adding `failClosed` anywhere else needs both of those to be true — no session, and real cost per call.
+
+*Governs:* [security.md](security.md), [api.md](api.md), [deployment.md](deployment.md)
 
 ### The public routes are CORS-open and must never send credentials
 

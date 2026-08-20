@@ -6,35 +6,39 @@ performance detail, not the security boundary — see [security.md](security.md)
 | Route | Auth | Notes |
 | ----- | ---- | ----- |
 | `GET\|POST /api/auth/[...nextauth]` | — | NextAuth catch-all |
-| `POST /api/analyses` | session | the core pipeline |
-| `GET /api/analyses` | session | history, free capped at 3 |
+| `POST /api/analyses` | **session optional** | queues the pipeline; anonymous gets the measured half only |
+| `GET /api/analyses` | session, or embed key for `?embedKey=` | history, or one analysis' progress |
 | `GET /api/analyses/[id]` | session + ownership | |
 | `POST /api/analyses/[id]/measure` | session + ownership | measures the page again, appending a snapshot |
 | `GET\|POST /api/hypotheses/[id]/variants` | session + ownership | the two alternates, on demand from the analysis screen |
-| `GET /api/usage` | session | |
-| `POST /api/billing/webhook` | Stripe signature | grants the plan |
-| `POST /api/report/screenshot`, `POST /api/report/view`, `POST /api/waitlist` | embed key / open | see [report.md](report.md) |
-| `GET /api/cron/*` | `CRON_SECRET` | screenshot pruning and weekly re-measure — see [deployment.md](deployment.md) |
+| `POST /api/billing/checkout` | session | opens a Checkout Session for a credit pack |
+| `POST /api/billing/webhook` | Stripe signature | grants credits for a paid session |
+| `POST /api/billing/mercadopago` | session | creates the payment the Payment Brick collected |
+| `POST /api/billing/mercadopago/webhook` | Mercado Pago signature | grants credits for an approved payment |
+| `POST /api/analyses/claim` | session | hands anonymous analyses to the account that just signed in |
+| `POST\|GET /api/report/screenshot` | embed key | queues a preview and reports on it — see [report.md](report.md) |
+| `GET /api/pulse` | — | the landing page's ranked board and live feed, domain and score only |
+| `GET /api/cron/prune-screenshots` | `CRON_SECRET` | see [deployment.md](deployment.md) |
 | `GET /api/health` | — | Railway's deploy probe, imports nothing — see [deployment.md](deployment.md#healthcheck) |
+
+**Routes that were removed with the agency framing:** `GET /api/usage` (no plans, no allowance),
+`POST /api/brand` (no white-label), `POST /api/waitlist` (no lead capture),
+`POST /api/report/view` (no open tracking) and `GET /api/cron/remeasure` (it swept paid plans, and
+without plans a sweep is browser time nobody asked for — re-measuring is the owner's click).
 
 ## Analyses
 
 ### `POST /api/analyses`
 
-Chain: usage gate -> Puppeteer scrape -> preprocess HTML -> detect market -> competitor research +
-robots.txt in parallel -> Claude (hypotheses + playbook + visibility audit in parallel) -> persist.
+Chain: rate limit -> Puppeteer scrape -> preprocess HTML -> detect market -> robots.txt -> Claude
+(hypotheses + playbook + visibility audit in parallel) -> persist.
 
 ```json
-{ "url": "https://example.com", "brief": "optional business details", "competitorUrls": ["https://rival.com"] }
+{ "url": "https://example.com", "brief": "optional business details" }
 ```
 
-`brief` (optional, all plans) is stored on the analysis and passed into generation so variants come
-back as finished copy instead of `[placeholders]`.
-
-`competitorUrls` (optional, max 3) is the paid **Competitor mode**, honored only when
-`user.plan !== 'free'` — a free user's URLs are dropped server-side and it auto-searches instead. When
-provided, `analyzeLandingPage` scrapes those pages for the competitive brief instead of running a web
-search, and `analyses.competitors` is set to them.
+`brief` (optional) is stored on the analysis and passed into generation so variants come back as
+finished copy instead of `[placeholders]`.
 
 ```json
 {
@@ -55,19 +59,24 @@ Both are additions to the analysis, never preconditions for it, and they ride th
 `persist_failed` catch as everything else in the transaction.
 
 `analyses.market` is written from `output.market`. **Nothing changes in `BodySchema`**: the market is
-measured from the page, not supplied by the client, exactly like `structure` and `researchBrief`.
+measured from the page, not supplied by the client, exactly like `structure`.
 
-Errors: `403` free tier limit reached · `422` invalid or unsupported URL (including one resolving to a
-private address) · `429` rate limited · `502` scrape failed · `500` Claude or DB failure.
+Errors: `422` invalid or unsupported URL (including one resolving to a private address) · `429` rate
+limited · `502` scrape failed · `500` Claude or DB failure.
 
 ### `GET /api/analyses`
 
-History. Free users: last 3. Paid: paginated via `?page=1&limit=10`. Reads through
+History, paginated via `?page=1&limit=10`. Reads through
 `listAnalysesForUser` — see [data-model.md](data-model.md).
 
 ```json
-{ "analyses": [ "...AnalysisRow[]" ], "total": 12, "page": 1 }
+{ "analyses": [ "...AnalysisRow[]" ], "total": 12, "page": 1, "pages": 2 }
 ```
+
+`page` is what was **served**, not what was asked for: a number past the end is clamped to the last
+page rather than answered with an empty list, and anything that is not a positive integer reads as
+page one. Both callers go through `parsePaging`, so the dashboard and this route cannot disagree —
+see [analysis-ui.md](analysis-ui.md#paging).
 
 ### `GET /api/analyses/[id]`
 
@@ -90,16 +99,10 @@ Errors mirror `POST /api/analyses` because the failures are the same: `422 inval
 that now resolves privately), `502 scrape_failed`, `500 measure_failed`, plus `404` for an unknown or
 unowned id and `429` from the `measure` rate limit.
 
-Two things it deliberately does **not** do:
+One thing it deliberately does **not** do:
 
-- **It does not touch `competitor_structures`.** Outside paid Competitor mode nobody ever opened those
-  pages — see
-  [invariants.md](invariants.md#a-comparison-exists-only-where-the-competitor-page-was-actually-opened).
-  A backfilled analysis renders the findings grid and no comparison, exactly like a real auto-search
-  analysis.
-- **It does not spend the monthly allowance**, and it is its own `RATE_LIMIT_KIND` rather than reusing
-  `analysis` for that reason: it completes an analysis the user already paid for and buys no
-  generation. The rate limit alone is the gate.
+- **It is its own `RATE_LIMIT_KIND` rather than reusing `analysis`**: it buys no generation, only
+  browser time. The rate limit alone is the gate.
 
 ## Hypotheses
 
@@ -115,7 +118,7 @@ Writes the two alternate challengers the analysis deliberately skipped. Ownershi
 **Idempotent**: a hypothesis that already has `VARIANTS_PER_HYPOTHESIS` (3) variants is returned
 unchanged, so a reload or a double fetch never appends duplicates. Otherwise it runs one small
 `generateObject` over `AlternateVariantsSchema`, seeded with the hypothesis plus the analysis's stored
-`research_brief` and `brief` — **no second web search** — and inserts the results at positions 1 and 2.
+`brief` and inserts the results at positions 1 and 2.
 
 `locale` **and `market`** are read from the stored analysis rather than re-derived, per
 [invariants.md](invariants.md#generated-content-is-pinned-to-the-locale-it-was-written-in).
@@ -126,127 +129,80 @@ Response: `{ variants: VariantRow[] }`, all three, ordered by position.
 
 The hypothesis's variants ordered by position, generating nothing.
 
-## Usage and plan capability
+## Pulse
 
-### `GET /api/usage`
+### `GET /api/pulse`
 
-```json
-{ "analyses_count": 2, "limit": 3, "plan": "free" }
-```
+What the landing page polls. Answers `{ leaderboard, pulse }` from `publicLeaderboard()` and
+`analysisPulse()` in `lib/analyses.ts`, both wrapped in `unstable_cache` for `PULSE_CACHE_SECONDS`.
 
-The free allowance is monthly and rolls **lazily** in `lib/usage.ts` rather than on a schedule. Every
-read and every write asks whether `users.usage_period_start` is still the current window; once it has
-lapsed the count reads as 0 and the next analysis restarts the window. **No cron is involved**, so a
-missed job can never leave a user permanently capped.
+A leaderboard entry is `{ domain, score }`; a feed entry is `{ domain, state, score, at }`, where
+`state` is `running` for a row with no measurement yet and `done` for one with a score. **The route
+may never widen either shape** — see
+[invariants.md](invariants.md#the-public-board-carries-a-domain-and-a-score-and-nothing-else).
 
-```typescript
-if (hasReachedFreeLimit(user)) {
-    return Response.json({ error: 'limit_reached' }, { status: 403 })
-}
-```
+**Fails open**, like everything except `POST /api/analyses`: a poll costs one cached read and opens no
+browser, so Redis being down here is a landing page without ambience rather than an unmetered bill —
+which is the only thing that earns `failClosed`. See
+[invariants.md](invariants.md#rate-limiting-fails-open-except-where-failing-open-is-the-bill). It
+spends the `job_status` budget for the reason that kind exists: cheap polling must not spend an
+allowance sized for work.
 
-Beside it live the two named capability checks, so neither is written as `plan !== 'free'` at each
-call site:
-
-- **`canExport(plan)`** — export is a paid-plan capability.
-- **`canWhiteLabel(plan)`** — decides whether a report renders as the owner's deliverable or as our
-  lead magnet. Four surfaces answer to it; see
-  [invariants.md](invariants.md#white-label-hangs-off-one-resolver-on-four-independent-surfaces).
-
-`loadReport` (`lib/report.ts`) carries the owner's plan to the unauthenticated public report, and it
-selects **an explicit column list** — `plan`, `brandName`, `brandLogoUrl`, `brandAccent` — rather than
-`user: true`. That is a boundary, not an optimization: everything a server component reads reaches the
-RSC payload, so the whole `users` row would publish the owner's email and `stripe_customer_id` inside
-the report they sent to their own client. **A column added to `users` is not added here by default,
-and that is the intent** — widening this list is a decision about what a stranger holding an embed key
-may see.
-
-`reportBrand()` beside it is the one derivation, so the page, its metadata and its OG card cannot
-disagree — `loadReport` is `cache()`d, so all three cost one query. `brandFor(user)` is the same
-derivation for the two owner-authenticated surfaces, which already hold the full row.
-
-## Brand
-
-### `POST /api/brand`
-
-Authenticated via `getCurrentUser()`, `403 plan_required` unless `canWhiteLabel(plan)`. Takes
-**multipart** form data — `name`, `accent`, `logo` (file), `removeLogo` — because the three are one
-decision to the person making them, and writes them to the `users` row.
-
-- `name` is capped at `BRAND_NAME_MAX_LENGTH`; empty saves as `null`.
-- `accent` must match `BRAND_ACCENT_PATTERN` (`#rrggbb`) or the request is rejected — it reaches an
-  inline `style`, so it is validated before storage, not at render.
-- `logo` is capped at `BRAND_LOGO_MAX_BYTES` and its type is **sniffed from the file's own bytes**
-  against `BRAND_LOGO_SIGNATURES`, never taken from the declared `Content-Type`. PNG and JPEG only;
-  SVG is deliberately unsupported — see [security.md](security.md).
-
-The previous file is unlinked **after** the row stops pointing at it, so a failed write never leaves
-the column dangling — the same ordering rule the screenshot prune job follows.
-
-Rate limited as `brand`, because each accepted call can write to the volume.
+A query that throws answers `200` with two empty arrays. The caller is a decoration on a marketing
+page; there is nothing for it to report and nothing for it to retry.
 
 ## Billing
 
-**The buyer never touches a billing screen here.** The sale is closed on a call and the seller sends a
-Stripe payment link — see
-[invariants.md](invariants.md#there-is-no-self-serve-checkout-and-no-published-price). What is left is
-everything that *grants* the plan: the `plan` column, `canWhiteLabel` / `canExport`, and the one route
-below.
+Two providers sell the same three credit packs, and **neither of them touches a credit table**. Each
+verifies a payment, works out what it bought, and calls `grantCredits` — see
+[invariants.md](invariants.md#credits-are-granted-by-one-internal-path-and-no-provider-code-touches-the-tables).
 
-`checkout` and `portal` were deleted along with `lib/stripe-client.ts`, the `@stripe/*-js` packages and
-the Stripe entries in the CSP. Nothing had called any of it since `/billing` went away, and a dormant
-authenticated route that mints a subscription is a liability, not an option kept open. Reopening the
-shop window later means writing the route back, not flipping a flag.
+Mercado Pago is the one that can charge in BRL against a CPF, so it is what sells today; Stripe stays
+wired for when there is a company behind it. `mercadoPagoEnabled()` decides which checkout the packs
+open, and the decision is made on the server.
+
+Both webhooks **must be excluded from NextAuth middleware**, and both claim their delivery into
+`payment_events` before doing any work.
+
+### `POST /api/billing/checkout`
+
+Session required. Opens a Stripe Checkout Session for one pack, with `customer_email` pinned to the
+signed-in account — **the email is never taken from the body**, or anyone could buy credits into
+someone else's account. A pack whose price id is unset answers `503` rather than selling nothing.
 
 ### `POST /api/billing/webhook`
 
-**Must be excluded from NextAuth middleware.** Verify the signature with
-`stripe.webhooks.constructEvent` against the **raw** body before processing.
+Verifies the signature with `stripe.webhooks.constructEvent` against the **raw** body, claims the
+event into `payment_events` (`provider = 'stripe'`, `event_id = event.id`, `onConflictDoNothing`), and
+for a `checkout.session.completed` whose `payment_status` is `paid` sums the line items through
+`creditsForPrice` and grants. The price id is the only input trusted: metadata is dashboard-editable.
 
-| Event | Effect |
-| ----- | ------ |
-| `checkout.session.completed` | create `subscriptions` row, update `users.plan` |
-| `customer.subscription.updated` | update `subscriptions.status` and `plan` |
-| `customer.subscription.deleted` | set `plan` back to `free`, mark subscription `canceled` |
+### `POST /api/billing/mercadopago`
 
-**Idempotency and ordering are two separate guards.** Every event is claimed into `stripe_events`
-(PK = `event.id`, `onConflictDoNothing`) *before* any work; a delivery that claims nothing returns
-`200` untouched, so Stripe's retries are no-ops. Ordering is guarded separately, because idempotency
-does not cover it: an `updated` whose `event.created` predates that subscription's recorded `deleted`
-is skipped rather than re-granting the plan the cancellation revoked.
+Session required, rate limited on the `billing` kind. Takes `{ pack, payment }` where `payment` is
+whatever the Payment Brick collected, and creates the payment with three fields the server decides
+rather than the browser:
 
-**Entitlement is never granted from metadata alone.** `metadata.plan` is writable from the Stripe
-dashboard, so it is accepted only when it is a real `SUBSCRIPTION_PLAN` value and otherwise falls
-through to the price id — which is why the payment link must charge `STRIPE_PRICE_ID`.
+- `transaction_amount` from `CREDIT_PACKS.amountBrl` — **the Brick submits an amount and it may not be
+  believed**
+- `external_reference` from the session's user id, which is how the webhook knows whom to credit;
+  Mercado Pago's `payer.email` is the buyer's account address and is frequently a different one
+- `notification_url`, so the delivery arrives where the signature is checked
 
-**The user is resolved in three steps, and the payment link is the reason there are three.** A link
-carries no `userId`, so the first two ways of identifying the buyer are empty on a first purchase:
+It answers the payment's status plus the Pix QR when there is one, and **grants nothing** — a card
+approved in this response is still credited by the webhook, so there is one path that moves a balance
+instead of two that have to agree.
 
-1. `users.stripe_customer_id` matching the subscription's customer — the only hit on every event
-   *after* the first, which is why step 3 writes it
-2. `metadata.userId`, accepted only when it parses as a uuid **and** resolves to a real row. Reachable
-   from the Stripe dashboard, and a non-uuid value there would otherwise crash the route on a `uuid`
-   column
-3. the Stripe customer's email against `users.email`, case-insensitively, and **the row is created
-   there if it does not exist** — lowercased, with the email as the name
+### `POST /api/billing/mercadopago/webhook`
 
-Step 3 is the one that promotes a payment-link sale, and it is why `syncSubscription` writes
-`users.stripe_customer_id` on every sync: `customer.subscription.updated` and `.deleted` carry no
-email, so without the backfill a renewal or a cancellation could not find the account the purchase
-already promoted.
+Verifies `x-signature` against `MERCADOPAGO_WEBHOOK_SECRET` (see
+[security.md](security.md#mercado-pago-webhook-signature)) and refuses anything unproven with `400`.
+Notifications outside the `payment` topic are acknowledged and ignored.
 
-Creating the row is what makes paying *before* signing in — the normal order for a sale closed on a
-call — resolve instead of vanishing. The buyer's first sign-in claims that row and finds the plan
-already granted; see
-[invariants.md](invariants.md#a-user-row-may-exist-before-its-first-sign-in-and-only-a-provider-verified-email-may-claim-one).
-Creation is limited to the two granting events: `customer.subscription.deleted` still resolves without
-it, because revoking a plan from an account that does not exist is a no-op.
+The claim is keyed `<payment id>:<topic>`, because a Pix payment notifies once pending and again once
+approved and collapsing those two would throw away the delivery carrying the money. It then **reads
+the payment back from the provider's API** — the notification body is an unsigned claim that something
+happened to an id — and grants only when the status is `approved` and the amount matches a pack.
 
-**A buyer who pays from an email that is not the one they sign in with still ends up in the wrong
-place** — they get a paid row on the paying address and a free one on the login address. That is now
-visible rather than silent: `/admin/accounts` shows a paid row that has never signed in. The fix is to
-grant the plan on the login email there. The route still logs `no user for subscription` and returns
-`200` for the residual case of a customer with no email at all.
-
-`lib/stripe.ts` pins `apiVersion` — the webhook reads `item.current_period_end`, whose shape has moved
-between versions, so following the account default turns an SDK upgrade into silent breakage.
+On an exception it releases the claim before answering `500`, so the retry can redo the work: a claim
+that survives a failure turns every retry into a no-op and loses a paid credit.

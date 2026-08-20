@@ -121,7 +121,7 @@ Returns `{ status, blockedAgents, blocksAll, sitemaps }`. Four things are load-b
 - **Fail-soft throughout**: every failure path resolves to `unknown`. A site whose robots.txt cannot
   be read still gets its analysis.
 - **It uses `fetch`, not a browser**, so it takes no `withBrowserSlot` slot, and it runs inside the
-  same `Promise.all` as competitor research — adding nothing to the critical path.
+  scrape, so it never becomes what makes an analysis slow.
 
 It is persisted to `analyses.crawler_access` and read twice from there: by the visibility prompt, and
 by the readout's `visibility` group. Feeding a prompt was its only job once, which meant the one thing
@@ -167,11 +167,11 @@ per-bundle — a cap that silently is not one.
 
 Three rules hold it together:
 
-- **The wait is asymmetric, by call site.** `screenshotVariant` passes
-  `SCREENSHOT_QUEUE_MAX_WAIT_MS` and fails fast, because the client degrades to a retry button and a
-  lost preview costs a prospect nothing. `scrapePage` passes `SCRAPE_QUEUE_MAX_WAIT_MS` and waits,
-  because an analysis has already committed to a Sonnet call and its competitor fan-out needs several
-  slots at once. Deliberately not a reserved-slot scheme — two literals do the same job.
+- **Both call sites now wait.** `SCREENSHOT_QUEUE_MAX_WAIT_MS` used to be 5s, because the reader was
+  holding the HTTP connection and a preview that gave up degraded to a retry button. **Nobody is
+  holding that connection any more** — see the queue below — so giving up early would throw away work
+  no one is waiting on. It matches `SCRAPE_QUEUE_MAX_WAIT_MS` now, and the asymmetry that justified
+  two different literals is gone with the reason for it.
 - **Nothing may await `scrapePage` / `screenshotVariant` while holding a slot.** Nothing does today
   (`analyze.ts` fans out flat), but a nested call self-deadlocks at the cap and presents as an
   analysis that simply hangs.
@@ -181,6 +181,65 @@ Three rules hold it together:
 The cap is per process, which only equals per deploy because `railway.json` pins `numReplicas: 1` (the
 screenshot volume requires it). Scaling `app` would multiply the real tab count; Redis is already
 available if a cross-process cap is ever genuinely needed.
+
+## The job queue — `lib/queue.ts`
+
+**It exists to separate two waits that used to be one.** A render holds a browser slot for as long as
+it takes; a reader holds a connection for as long as they are willing. While those were the same
+wait, the slot wait had to fit inside the reader's patience — which is why a preview gave up after
+five seconds and a busy moment showed a button that looked broken.
+
+Now `POST /api/report/screenshot` returns the instant the job is queued, a worker in this process
+drains it, and the client polls `GET` on the same route.
+
+**The worker is in-process, and that is a constraint rather than a preference.** A separate Railway
+service costs money, and the screenshot volume pins the app to `numReplicas: 1` — so "in this
+process" and "in this deploy" are the same sentence today. It is pinned to `globalThis` like the
+browser pool and the Redis client, for the same reason: Next re-evaluates modules per edit and splits
+bundles per route, so a module-scope singleton risks being one per bundle.
+
+### Four statuses, and the last two are the whole point
+
+`queued` / `running` / `ready` / `unavailable`. **"Still working" and "this can never work" used to
+reach the client as the same `error`**, so a preview that lost a race looked identical to one that was
+impossible — a manual hypothesis, a stale selector, an unwritable volume. The runner says which by
+resolving with a null url; only `unavailable` offers a retry.
+
+### The job id is the thing, never a token
+
+`<kind>:<ref>`, and for a screenshot the ref is the `variantId`. Two readers opening the same preview
+therefore share one job rather than racing to render the same variant twice and orphaning a file —
+the duplicate render [report.md](report.md) describes is closed by construction rather than by luck.
+
+### Three rules that hold it together
+
+- **Postgres wins over Redis.** `GET` reads `variants.screenshot_url` before it reads the job, so a
+  finished render whose job TTL has lapsed still answers `ready`. Redis holds the in-flight answer;
+  the row holds the durable one.
+- **The queue has a ceiling** (`QUEUE_MAX_DEPTH`) and answers `unavailable` past it. An unbounded
+  queue against one browser container is the outage it was supposed to prevent.
+- **Polling has its own rate limit.** `job_status` is deliberately loose and deliberately not
+  `screenshot`: at `JOB_POLL_INTERVAL_MS` a single preview would burn the render quota on its own and
+  stop the job it is waiting for.
+
+### Redis down falls back to rendering inline
+
+The route does the work in the request, exactly as it did before the queue. That keeps local dev
+without `REDIS_URL` working and keeps a Redis outage from taking previews out entirely, and it is why
+the client still sets `PREVIEW_REQUEST_TIMEOUT_MS` on the `POST` — the only path where that request
+is long.
+
+**This is the opposite call from the one the anonymous analysis route will make, on purpose.** A
+preview costs one browser slot for someone already holding a valid embed key; an unmetered public
+analysis is a bill. Same infrastructure, opposite failure direction, and both are deliberate.
+
+### A job in flight when the process restarts is lost
+
+It was popped off the list before it ran, so nothing picks it up: the client polls a `running` job
+until the TTL lapses, reads `unavailable`, and can ask again. That is the right trade for a
+screenshot — the work is idempotent and cheap to redo, and a processing list plus a reaper is
+machinery for a guarantee this does not need. **It stops being acceptable the moment a job spends a
+credit.**
 
 ## Running the scraper outside the Next build
 

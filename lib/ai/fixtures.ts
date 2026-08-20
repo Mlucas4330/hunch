@@ -188,7 +188,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       ],
       impact_score: 7,
       evidence:
-        'As páginas de referência resolvem dúvidas de preço e cancelamento na própria página.'
+        'A página faz o visitante sair para descobrir preço e cancelamento, e responder na própria página remove essa saída.'
     },
     {
       category: 'decision_load',
@@ -213,7 +213,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       ],
       impact_score: 5,
       evidence:
-        'As páginas de referência repetem uma ação em vez de oferecer várias concorrentes entre si.'
+        'Duas ações diferentes no mesmo campo de visão obrigam o visitante a escolher um caminho antes de escolher o produto.'
     }
   ]
 }
@@ -306,13 +306,13 @@ const ALTERNATE_VARIANTS: Record<Locale, VariantOutput[]> = {
       emphasis: null,
       copy: 'The workspace that gets [your core job] done in [timeframe]',
       evidence:
-        'Vercel headlines a concrete time-to-value - fill in the job and timeframe you can prove.'
+        'The current line names a category while this one names a finished outcome, so the visitor no longer has to infer what they get.'
     },
     {
       emphasis: null,
       copy: 'Stop [specific pain]. Start shipping.',
       evidence:
-        'Retool frames the headline against the cost of the status quo - name the pain your buyers feel.'
+        'The current line describes the product while this one names the cost of staying put, so the reason to act is stated rather than assumed.'
     }
   ],
   'pt-BR': [
@@ -320,26 +320,19 @@ const ALTERNATE_VARIANTS: Record<Locale, VariantOutput[]> = {
       emphasis: null,
       copy: 'O espaço de trabalho que resolve [seu trabalho principal] em [prazo]',
       evidence:
-        'A Vercel destaca um tempo até o valor concreto, preencha com o trabalho e o prazo que você consegue provar.'
+        'A linha atual anuncia uma categoria e esta anuncia um resultado pronto, então o visitante não precisa deduzir o que recebe.'
     },
     {
       emphasis: null,
       copy: 'Pare de [dor específica]. Comece a entregar.',
       evidence:
-        'A Retool posiciona o título contra o custo de continuar como está, nomeie a dor que seus compradores sentem.'
+        'A linha atual descreve o produto e esta nomeia o custo de continuar como está, então o motivo para agir fica escrito na página.'
     }
   ]
 }
 
-const COMPETITORS: AnalysisOutput['competitors'] = [
-  { name: 'Linear', url: 'https://linear.app' },
-  { name: 'Vercel', url: 'https://vercel.com' },
-  { name: 'Retool', url: 'https://retool.com' }
-]
-
 const ANALYSIS: Record<Locale, AnalysisOutput> = {
   en: {
-    competitors: COMPETITORS,
     hypotheses: [
       {
         section: 'headline',
@@ -351,12 +344,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
             emphasis: null,
             copy: 'Ship faster: releases in [days], not [weeks]',
             evidence:
-              'Linear leads with a quantified speed outcome - plug in your real before/after numbers.'
+              'The current headline asserts a category while the rewrite states the outcome, so the visitor reads the benefit instead of working it out.'
           }
         ],
         impact_score: 9,
         rationale:
-          'A specific, quantified outcome in the headline raises perceived value within the first 5 seconds, matching how the strongest competitors open.'
+          'A specific, quantified outcome in the headline raises perceived value within the first 5 seconds.'
       },
       {
         section: 'cta',
@@ -367,12 +360,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
             emphasis: null,
             copy: 'Start free, no card required',
             evidence:
-              'Linear and Vercel remove payment risk at the primary CTA - use only if your trial truly needs no card.'
+              'The current label asks for a decision without saying what it costs, and the rewrite answers that before the click.'
           }
         ],
         impact_score: 8,
         rationale:
-          'Removing risk and signalling zero cost lowers friction at the decision point, a lever every benchmarked competitor pulls.'
+          'Removing risk and signalling zero cost lowers friction at the decision point.'
       },
       {
         section: 'social_proof',
@@ -384,12 +377,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
             emphasis: null,
             copy: 'Trusted by [number] teams shipping every day',
             evidence:
-              'Linear quantifies adoption instead of asserting trust - drop in your real active-team count.'
+              'The current line asserts that the product is trusted while the rewrite points at something the visitor can check.'
           }
         ],
         impact_score: 7,
         rationale:
-          'Concrete numbers and recognizable names convert abstract trust into verifiable evidence, as the strongest competitor pages do.'
+          'Concrete numbers and recognizable names convert abstract trust into verifiable evidence.'
       },
       {
         section: 'pricing',
@@ -400,12 +393,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
             emphasis: null,
             copy: 'Free to start, [Pro] at [$price]',
             evidence:
-              'Vercel anchors on a free entry tier before paid - map this to your real tiers.'
+              'The current framing shows the full price first, and the rewrite puts the lowest commitment in front of it.'
           }
         ],
         impact_score: 6,
         rationale:
-          'Anchoring on a low-friction entry point reduces sticker shock, mirroring how competitors structure their pricing page.'
+          'Anchoring on a low-friction entry point reduces sticker shock.'
       },
       {
         section: 'features',
@@ -416,12 +409,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
             emphasis: null,
             copy: 'See data instantly, automate with the API, control access',
             evidence:
-              'Linear frames each feature as a job-to-be-done - keep your real capabilities, lead with the outcome.'
+              'The current text names a capability while the rewrite names the job it finishes, so the visitor maps it to their own work.'
           }
         ],
         impact_score: 5,
         rationale:
-          'Reframing capabilities as outcomes connects each feature to a buyer goal, as competitor feature sections do.'
+          'Reframing capabilities as outcomes connects each feature to a buyer goal.'
       },
       {
         section: 'subheadline',
@@ -431,17 +424,16 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
           {
             emphasis: null,
             copy: 'Set up in [setup time]. No migration, no training.',
-            evidence: 'Vercel pre-empts setup-effort objections - use your real onboarding time.'
+            evidence: 'The current subheadline leaves the setup question open, and the rewrite answers it where the objection appears.'
           }
         ],
         impact_score: 4,
         rationale:
-          'Using the subheadline to pre-empt the top objection keeps momentum toward the CTA, as competitor pages do.'
+          'Using the subheadline to pre-empt the top objection keeps momentum toward the CTA.'
       }
     ]
   },
   'pt-BR': {
-    competitors: COMPETITORS,
     hypotheses: [
       {
         section: 'headline',
@@ -453,12 +445,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
             emphasis: null,
             copy: 'Entregue em [dias], não em [semanas]',
             evidence:
-              'A Linear abre com um ganho de velocidade quantificado, use seus números reais de antes e depois.'
+              'O título atual afirma uma categoria e a reescrita declara o resultado, então o visitante lê o benefício em vez de deduzir.'
           }
         ],
         impact_score: 9,
         rationale:
-          'Um resultado específico e quantificado no título eleva o valor percebido nos primeiros 5 segundos, como abrem os concorrentes mais fortes.'
+          'Um resultado específico e quantificado no título eleva o valor percebido nos primeiros 5 segundos.'
       },
       {
         section: 'cta',
@@ -469,12 +461,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
             emphasis: null,
             copy: 'Comece grátis, sem cartão',
             evidence:
-              'Linear e Vercel tiram o risco de pagamento da chamada principal, use apenas se seu teste realmente dispensar cartão.'
+              'O rótulo atual pede uma decisão sem dizer o que ela custa, e a reescrita responde isso antes do clique.'
           }
         ],
         impact_score: 8,
         rationale:
-          'Remover o risco e sinalizar custo zero reduz o atrito no momento da decisão, alavanca que todo concorrente avaliado usa.'
+          'Remover o risco e sinalizar custo zero reduz o atrito no momento da decisão.'
       },
       {
         section: 'social_proof',
@@ -485,12 +477,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
             emphasis: null,
             copy: 'A escolha de [número] times que entregam',
             evidence:
-              'A Linear quantifica a adoção em vez de afirmar confiança, coloque seu número real de times ativos.'
+              'A linha atual afirma que o produto é confiável e a reescrita aponta algo que o visitante consegue conferir.'
           }
         ],
         impact_score: 7,
         rationale:
-          'Números concretos e nomes reconhecíveis convertem confiança abstrata em evidência verificável, como fazem as páginas concorrentes mais fortes.'
+          'Números concretos e nomes reconhecíveis convertem confiança abstrata em evidência verificável.'
       },
       {
         section: 'pricing',
@@ -501,12 +493,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
             emphasis: null,
             copy: 'Grátis para começar, [Pro] por [$preço]',
             evidence:
-              'A Vercel ancora num plano de entrada gratuito antes do pago, mapeie isso para seus planos reais.'
+              'O enquadramento atual mostra o preço cheio primeiro, e a reescrita coloca o menor compromisso à frente dele.'
           }
         ],
         impact_score: 6,
         rationale:
-          'Ancorar num ponto de entrada de baixo atrito reduz o choque de preço, espelhando como os concorrentes estruturam a página de planos.'
+          'Ancorar num ponto de entrada de baixo atrito reduz o choque de preço.'
       },
       {
         section: 'features',
@@ -518,12 +510,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
             emphasis: null,
             copy: 'Veja dados na hora, automatize pela API, controle acessos',
             evidence:
-              'A Linear apresenta cada recurso como uma tarefa a resolver, mantenha suas capacidades reais e comece pelo resultado.'
+              'O texto atual nomeia uma capacidade e a reescrita nomeia a tarefa que ela conclui, então o visitante liga ao próprio trabalho.'
           }
         ],
         impact_score: 5,
         rationale:
-          'Reformular capacidades como resultados conecta cada recurso a um objetivo do comprador, como fazem as seções de recursos dos concorrentes.'
+          'Reformular capacidades como resultados conecta cada recurso a um objetivo do comprador.'
       },
       {
         section: 'subheadline',
@@ -534,12 +526,12 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
             emphasis: null,
             copy: 'Configure em [tempo de setup]. Sem migração, sem treinamento.',
             evidence:
-              'A Vercel antecipa a objeção de esforço de configuração, use seu tempo real de onboarding.'
+              'O subtítulo atual deixa a dúvida de configuração aberta, e a reescrita responde onde a objeção aparece.'
           }
         ],
         impact_score: 4,
         rationale:
-          'Usar o subtítulo para antecipar a principal objeção mantém o avanço até a chamada para ação, como fazem as páginas concorrentes.'
+          'Usar o subtítulo para antecipar a principal objeção mantém o avanço até a chamada para ação.'
       }
     ]
   }

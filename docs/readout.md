@@ -165,16 +165,16 @@ No legend, because the title names the only series.
 
 **Re-measuring is the owner's, and it is bounded twice.** `POST /api/analyses/[id]/measure` is no
 longer idempotent — it is the re-measure — and the `measure` rate limit is what holds the browser
-cost. `GET /api/cron/remeasure` sweeps paid plans only, `REMEASURE_BATCH_MAX` analyses per run, serial,
-skipping anything measured within `REMEASURE_MIN_AGE_MS`. Free plans are never swept: an unbounded
-sweep re-opening every customer's landing page is exactly what the backfill was forbidden from
-becoming.
+cost. **There is no sweep.** The weekly cron that did it only ever touched paid plans, so it went with
+them — and the reasoning it was built on survives as the rule: an unbounded sweep re-opening every
+customer's landing page is exactly what the backfill was forbidden from becoming. Re-measuring is a
+click the owner makes.
 
 ## Where it renders
 
 Mounted on **all three** analysis surfaces, like `FlowPlaybook`, fed by `readoutFor(analysis)`: above
 the tabs on `/analyses/[id]`, between the `<h1>` and the tabs on the public report, and ahead of both
-fix lists on the print report.
+fix lists on the report.
 
 **Outside every wall on the public report.** It is the part a stranger can check against their own
 page in one click, so it is what earns the rest of the document a reading; gating a measurement of
@@ -182,33 +182,6 @@ someone's own site behind an email reads as a trick.
 
 Returns `null` when nothing was measured, so an analysis created before the columns existed has no
 section rather than an empty heading — the same contract `FlowPlaybook` has with an empty list.
-
-The **comparison table** is the one wide element, so it lives in its own `overflow-x-auto` (the report
-is read on a phone as often as not). It renders only in Competitor mode, per
-[invariants.md](invariants.md#a-comparison-exists-only-where-the-competitor-page-was-actually-opened).
-`READOUT_COMPARISON` is a strict subset of `PageStructure`: only things measured identically on every
-page and meaningful without context. Conversion rate is not there and never can be — we measure pages,
-not their traffic.
-
-It covers two kinds of row, and the second is the reason the table is worth reading. Four measure
-**friction** (`form_fields`, `social_signin`, `above_fold_ctas`, `nav_links`) and four measure what a
-page **offers** (`pricing`, `testimonials`, `faq`, `sticky_cta`). The offer rows are what surface "the
-competitor has this and the page does not", which is the argument an agency actually carries into a
-client meeting; without them the table only ever said whose form was longer.
-
-Rows read from `PageStructure`, `PageSeo` and `PagePerformance`, all three of which the Competitor
-scrape already produced. Each row carries its own `unit` so the render edge converts once, exactly as
-the findings do.
-
-**A row where any one page cannot answer is dropped whole.** `seo` and `performance` are optional on
-`CompetitorStructure` because rows stored before they were kept do not have them, and a blank cell in
-a comparison reads as a zero — half a comparison is worse than none.
-
-Every row is a **value, never a verdict**. The table does not mark having an FAQ as better than not
-having one, exactly as the `social_signin` row has never judged. The severity call belongs to the
-findings above it, which measured one page and can afford an opinion about it; a competitor's page was
-opened once, and ranking it would be
-[the claim the invariant forbids](invariants.md#the-readout-says-what-was-counted-never-what-it-will-produce).
 
 ## `components/measure-page.tsx` — what the null becomes, and only for the owner
 
@@ -218,7 +191,7 @@ a dashed panel, and a button posting to `POST /api/analyses/[id]/measure`, then 
 the server re-renders the real section in its place. Four states like `VariantPreview` — the shape is
 reused, the code is not — and the request is bounded by `MEASURE_REQUEST_TIMEOUT_MS`.
 
-**The public report and the print report keep rendering `MeasuredReadout` alone.** A prospect with no
+**The public report keeps rendering `MeasuredReadout` alone.** A prospect with no
 session must not be able to spend the owner's browser slots, and on paper there is nothing to click.
 Do not "fix" the missing button there.
 

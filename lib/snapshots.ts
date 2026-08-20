@@ -34,16 +34,14 @@ type SnapshotColumns = {
   keywords: PageKeywords | null
 }
 
-// A snapshot holds the same measured facts as the analysis row, so it reads as one too. Competitors
-// are never part of it: they were measured once, against a page, not against a date.
+// A snapshot holds the same measured facts as the analysis row, so it reads as one too.
 export function snapshotInput(snapshot: SnapshotColumns): ReadoutInput {
   return {
     structure: snapshot.structure,
     seo: snapshot.seo,
     performance: snapshot.performance,
     crawler: snapshot.crawlerAccess,
-    keywords: snapshot.keywords,
-    competitors: null
+    keywords: snapshot.keywords
   }
 }
 

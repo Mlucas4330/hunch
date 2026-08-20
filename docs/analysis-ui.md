@@ -4,82 +4,202 @@
 
 | Route | Page | Description |
 | ----- | ---- | ----------- |
-| `/` | Landing page | Credibility surface for a human-led sale: two tracks, contact form, **no prices** |
-| `/auth/signin` | Auth | Google OAuth via NextAuth, plus Microsoft Entra ID where it is configured; returns to `callbackUrl` |
-| `/dashboard` | Clients | Grid of past analyses, one card per client, above the new-analysis form |
-| `/analyses/[id]` | What to change | The two deliverables, then four tabs: flow, copy, SEO, found-by-AI |
-| `/analyses/[id]/report` | Print report | One stacked page, owner-authenticated — see [report.md](report.md) |
-| `/r/[embedKey]` | Public report | Two shapes by owner plan. No session — see [report.md](report.md) |
-| `/admin/leads` | Waitlist leads | Operator-only (`users.role`); the only place waitlist rows can be read |
-| `/admin/reports` | Report opens | Operator-only; open count and last open per analysis — see [report.md](report.md) |
-| `/admin/accounts` | Accounts | Operator-only; grant or revoke a plan by email, and see which granted rows have never signed in |
+| `/` | Landing page | Self-serve funnel for the page's own owner: the score, one track of three steps |
+| `/blog` | Blog index | Three posts, the destination for paid traffic -- see [seo.md](seo.md#indexability) |
+| `/blog/[slug]` | Blog post | One post, closing on the same CTA |
+| `/auth/signin` | Auth | Google OAuth via NextAuth; returns to `callbackUrl` |
+| `/dashboard` | My pages | Grid of past analyses, one card per page, above the new-analysis form |
+| `/analyses/[id]` | What to change | The report link, then four tabs: structure, copy, SEO, AI |
+| `/r/[embedKey]` | Public report | No session, authorized by the opaque key — see [report.md](report.md) |
 
 The app routes live under the `(app)` route group (`app/(app)/analyses/...`); the public report has its
 own group, `app/(report)/r/[embedKey]/`.
 
+**There is no `/admin` and no `/settings`.** The three operator screens went with the features they
+read (plans, waitlist leads, report opens) and the settings page existed only for white-label. The
+**gate** survives — `users.role`, `isAdmin`, `isAdminEmail`, `ADMIN_EMAIL` — because sign-in already
+writes the role and a credits screen will want it back.
+
 ## Landing page
 
-Written for the reader who **sells CRO to other people**. It is a credibility surface, not a
-self-serve funnel: the sale is run by a person, and what this page has to do is survive being googled
-after a cold report lands. All copy comes from `dictionary.landing`.
+Written for the person who **owns the landing page**, not for someone selling audits. It is a
+self-serve funnel: paste a URL, get a score, unlock the fixes. All copy comes from
+`dictionary.landing`.
 
-**The whole page argues one thesis: the document is yours, and it does not invent.** Those are the two
-halves of what the paid plan is bought for, and neither needs traffic, a snippet, or access to the
-client's site.
+**The whole page argues one thesis: here is your number, and we counted it.** The score is the hero
+because it is the half that costs no model tokens, the half the reader can check against their own
+page in one click, and the only thing here anyone shares unprompted.
 
-- Hero: the prospect's page, measured, sent under the reader's own name. The hero card is a **static
-  mock of a readout** and carries no numbers of its own — it used to show a fabricated "+18% lift,
-  Significant" strip, on the page that promises nothing is invented. Do not put a number back into it.
-- `#how` renders `landing.tracks`, two tracks of three steps each, numbered from 01 within their own
-  track: "Measure the page" (minutes, no access needed) and "Make it yours" (set once per account).
-  They are the two halves of the thesis, in order. **The array must stay length 2** — `page.tsx` lays
-  it out `lg:grid-cols-2`.
-- The value cards (`landing.proof`) cover one benefit each: measured-not-asserted, finished copy, and
-  yours-to-send.
+- Hero: the reader's own page, scored. The hero card is a **static mock of a readout**: a score and a
+  few finding rows on the placeholder domain in `landing.heroCard.domain`.
+- **What the hero card may never show is a miracle number** — a lift, a conversion rate, a revenue
+  figure, "X% more signups". It used to carry a fabricated "+18% lift, Significant" strip, on the
+  page whose whole thesis is that nothing is invented, and that is the thing to keep out.
+  Example **readout** values are a different animal: they are the shape of what the product returns,
+  shown on a domain nobody mistakes for a real measurement, the same way a screenshot of an interface
+  works on any sales page. The rule is therefore narrow and absolute: **no invented outcome, ever,
+  and no number presented as measured from anyone's real page.**
+- `#how` renders `landing.steps`, **one** track of three, numbered from 01: paste the URL, get the
+  score, unlock the fixes. It used to be two tracks side by side (`lg:grid-cols-2`), the second one
+  being "make the report yours" — that half went with white-label, and one path is what a self-serve
+  funnel has.
+- The three pains (`landing.pains`) are the page owner's, not an auditor's: not knowing which part is
+  losing people, tools that disagree with each other, and an AI that writes advice about a page it
+  never opened. That last one names the real alternative the reader will have already tried.
+- The value cards (`landing.proof`) cover one benefit each: measured-not-guessed, finished copy, and
+  seen-on-your-own-page.
 - **`pt-BR` argues a different case than `en`**, per
-  [i18n.md](i18n.md#pt-br-is-a-rewrite-not-a-translation). Same thesis, different way in: the English
-  page leads with the deliverable, the Portuguese one leads with the *invented number*, because the
-  Brazilian reader is surrounded by tools that print a percentage nobody measured and it is the
-  reader's own name on the document that repeats it. That lands in the hero and in the second pain
-  (*Número inventado queima a sua reputação*). The keys are identical either way; only the argument
-  differs.
-- **No price**, per
-  [invariants.md](invariants.md#there-is-no-self-serve-checkout-and-no-published-price).
-- `#contact` is a `WaitlistForm` with `source="contact"`, posting to the existing `/api/waitlist`. No
-  new endpoint and no new table — the leads land beside the report ones and are read in `/admin/leads`,
-  separated by their `source`.
+  [i18n.md](i18n.md#pt-br-is-a-rewrite-not-a-translation). The keys are identical either way; only
+  the argument differs.
 
-## Dashboard — the Clients screen
+### The AI section
 
-`components/analysis-history.tsx`. The dashboard is **Clients**, not an analysis log: every analysis
-the reader runs is one of *their* clients. That is a rename plus a layout, and deliberately **not** a
+`#ai`, between the pains and `#how`, from `landing.aiSearch`. It is the one place on the page that
+names a capability rather than the score: the analysis has an **AI** tab, and nothing on the landing
+said so.
+
+**It argues a mechanism and never a forecast.** An assistant's crawler fetches the document and reads
+what the page declares about itself, so anything assembled on screen is not there for it. That is a
+statement about how a page is read, and it is checkable.
+
+What it may never say is how much traffic comes from assistants, whether one mentions the reader
+today, or what fixing this will produce -- none of which was measured, per
+[invariants.md](invariants.md#the-audit-measured-the-page-not-the-index). It carries **no disclaimer
+line** saying so: one was written and then cut, because on a section that only ever describes how a
+page is read, a paragraph about what cannot be known raises a doubt the copy above never created. The
+limit is held by what the section claims, not by a caveat under it -- which means a future edit that
+promises a ranking or a citation has nothing left to catch it.
+
+The section closes with a link into `/blog/ai-is-the-new-google`, which is the same argument at
+length. `AI_POST_SLUG` names the target so the link cannot outlive the post.
+
+### The credit packs
+
+`components/credit-packs.tsx`, under `#credits`. Three cards from `CREDIT_PACKS`, each with its price,
+its price **per analysis**, a one-line tagline and what it includes — all from `dictionary.credits`.
+
+`FEATURED_CREDIT_PACK` names the one marked `credits.mostChosen`; it is `trio`, and the card carries
+the ring, the lift and the filled button. **It is a claim about the offer, not about the reader** —
+nothing here reads a session, so the mark is the same for everyone and cannot become a fabricated
+personal recommendation.
+
+**The displayed price, `CREDIT_PACKS.amountBrl` and the Stripe price id must move together.** The
+amount is a dictionary string because the page renders for a reader with no session and no round trip;
+a price edited at a provider and not here is a page that lies about what it costs. See
+[api.md](api.md).
+
+**The buy button does one of two things, and the server decides which.** With Mercado Pago configured
+it opens the Payment Brick in a modal over the page — card, Pix and boleto, no redirect — and
+otherwise it leaves for Stripe checkout. **One dialog serves the three cards**, keyed on which pack is
+open: three mounted Bricks would be three SDK initialisations racing for one container id. Pix clears after the reader has finished with the form, so what the Brick
+says afterwards is that the credits land when the payment is confirmed: **the page may not report a
+balance it has not read back.**
+
+**No feature line may promise an outcome.** They say what the credit buys — the score and its rows,
+the ranked fixes, the written copy, the preview — never what any of it will produce. Same rule as the
+readout's, and a pricing table is where it is easiest to break.
+
+### The live board
+
+`components/analysis-pulse.tsx`, which owns the sphere, the ranked list and the toast.
+
+- The board is `publicLeaderboard()` — the current score of every measured page, deduplicated by
+  domain with the best score winning — and the feed is `analysisPulse()`. **What may appear on it, and
+  what may never leave the server with it**, is in
+  [invariants.md](invariants.md#the-public-board-carries-a-domain-and-a-score-and-nothing-else).
+- **A failed query costs the section, never the page.** This is where ad traffic lands and it used to
+  need no database at all, so `pulseData()` catches and returns nothing.
+- The feed deduplicates by domain too. The same page is measured repeatedly — by its owner after a
+  change, by whoever pastes the URL next — and a ticker naming one site twelve times running reads as
+  a fake rather than as what the tool is doing.
+- **A row with no measurement is only `running` while it still could be.** Past
+  `PULSE_RUNNING_MAX_AGE_MS` (the deadline the analysis form itself gives up on) it is a job that
+  died, and the feed drops it rather than announcing a page nobody is looking at.
+- `components/analysis-sphere.tsx` places the chips on a Fibonacci lattice and turns it in
+  `requestAnimationFrame`, writing transforms onto the nodes so spinning costs no renders. Chips are
+  billboarded — always square to the reader — which is why the rotation is scripted rather than CSS.
+  Rank is deliberately **decorrelated from latitude**: handing the ranked entries to the lattice in
+  order puts the best score at one pole and reads as a sorted list rather than a sphere.
+- Under `prefers-reduced-motion` there is no idle spin and no idle frame; the sphere still answers a
+  drag.
+- The toast (`components/analysis-pulse-toast.tsx`) states one row at a time: a page being analyzed
+  now, or one just measured. **It is portalled to the body**, because the landing wrapper's
+  `animate-fade-up` leaves a transform behind and a transformed ancestor captures `position: fixed`.
+  Closing it silences the toast for the tab.
+
+## The blog
+
+Two screens under the `(app)` group, so they inherit the navbar, the footer and the one container.
+The index is three cards over `BLOG_SLUG`; the post is `components/blog-article.tsx` followed by the
+other two titles and `components/blog-cta.tsx` -- see [components.md](components.md#the-blog-pieces).
+
+- **It exists for paid traffic.** The reader arrives from an ad knowing they have a landing page
+  problem and not knowing what to call it, which is why the three posts are what SEO is, what copy is,
+  and what changes now that people ask an assistant. Every one of them ends on the same button.
+- **A post is subject to the same rule as every other surface: no invented number.** No "X% of
+  searches", no lift figure, no "studies show". A post argues the mechanism, exactly as a generated
+  `evidence` must -- see
+  [invariants.md](invariants.md#a-generated-evidence-never-carries-a-number). A blog is where that
+  rule is easiest to break and most expensive to break, because it is the first thing the reader ever
+  sees us say.
+- The AI post additionally states what nobody can know: whether an assistant mentions the reader
+  today, per [invariants.md](invariants.md#the-audit-measured-the-page-not-the-index).
+- `BLOG_SLUG` is the render order, the URL segment and the dictionary key at once. Adding a post is
+  adding a slug, then writing it in both locales; nothing else knows the list.
+- **Slugs stay English in both locales**, because the locale is a cookie and the two languages are
+  genuinely the same URL -- see [i18n.md](i18n.md#why-the-locale-is-a-cookie-and-not-a-url-segment).
+  A `pt-BR` slug would be a second URL for one post and a canonical claiming otherwise.
+
+## Dashboard — the My pages screen
+
+`components/analysis-history.tsx`. The dashboard lists the reader's **own** pages. It used to be
+**Clients**, one card per client of an agency; the cards and the query did not change when the reader
+did, only the words. It is deliberately **not** a
 schema change — there is no `client_name` column and no `clients` table.
+
+### Paging
+
+`listAnalysesForUser` returns ten a page, and the page comes from `?page=` rather than from client
+state, so a reload keeps it and the back button works on a grid that stays server rendered.
+
+- **The controls say Newer and Older, not Previous and Next.** The grid is newest first, which makes
+  "previous" ambiguous the moment a reader thinks about it — the page they came from, or the analyses
+  before these? Naming the direction by what is in it settles that.
+- **A page past the end is clamped to the last one**, in the query helper rather than in the page, so
+  the API answers the same way. Returning no rows would render the *empty state* — telling someone
+  with thirty analyses that they have none, which reads as data loss rather than as a stale link.
+- A number that is not a positive integer falls back to page one. `parsePaging` is shared with
+  `GET /api/analyses` so the two cannot drift.
+- The nav renders nothing at one page, which is every account until it has eleven analyses.
+
+This is not cosmetic: without it the ten newest were the only ones reachable, and anything older was
+stranded with no route to it.
 
 - `grid gap-4 sm:grid-cols-2 lg:grid-cols-3`, so three cards a row fit the `CONTAINER_CLASS` measure
   `app/(app)/layout.tsx` already sets — see [components.md](components.md). The `Card` is
   `flex flex-col` and the footer is `mt-auto`, so
   cards in a row end level whatever the host and url lengths are.
-- **The client is the hostname**, derived by `displayHost()` (`lib/host.ts`) — the one helper the public
-  report's title, its OG card and the competitor brief all read, so a host is spelled the same way
+- **The card is named by the hostname**, derived by `displayHost()` (`lib/host.ts`) — the one helper the
+  public report's title and its OG card both read, so a host is spelled the same way
   everywhere. Resolved server-side in the page's projection, like `formatDate` and the `labels.market`
   label beside it, so the client component receives finished strings.
 - **The full url is rendered under it, wrapping (`break-all`), never truncated.** It is the only thing
-  separating two analyses of one client, and what distinguishes them is the path and query at the
+  separating two analyses of one host, and what distinguishes them is the path and query at the
   *end* — exactly what an ellipsis eats. It also has to stay **one text node**: `e2e/core.spec.ts`
   locates a run by matching the whole url inside `analysis-history`.
 - Footer: date, a CSS dot, and the analysis's market.
 - **Delete is an icon** (`Trash2`), and confirm/cancel are icons too (`Check` / `X`). The two-step
-  inline confirm stays — `components/ui/` has no dialog primitive — and so does the rule from
+  inline confirm stays even though `components/ui/dialog.tsx` now exists: a modal to confirm one
+  reversible row is heavier than the action it guards. Also unchanged is the rule from
   `report-deliverables.tsx`: the accessible name is `aria-label` on the button, the icon is
   `aria-hidden`. No new dictionary keys; `common.delete` / `common.deleting` / `common.cancel` are the
   labels.
 - The whole card is a link via an `absolute inset-0` overlay, so the action cluster escapes it with
   `relative z-10`.
-- The footer also carries `ReportDeliverables variant="compact"` — the copy-link and PDF actions in
-  labelled form, so the two documents are discoverable before an analysis is opened. It escapes the
-  overlay the same way. See [report.md](report.md#report-deliverables--componentsreport-deliverablestsx).
-- **Empty state**: shown when the user has no clients yet. Single CTA — paste a client's landing page
-  URL above.
+- The footer also carries `ReportDeliverables variant="compact"` — the copy-link action in labelled
+  form, so the report is discoverable before an analysis is opened. It escapes the overlay the same
+  way. See [report.md](report.md#report-deliverables--componentsreport-deliverablestsx).
+- **Empty state**: shown when the user has no pages yet. Single CTA — paste a landing page URL above.
 
 ### URL input form
 
@@ -87,25 +207,18 @@ schema change — there is no `client_name` column and no `clients` table.
   is in progress.
 - A collapsible `<details>` "Add business details (optional)" textarea, prefilled from the user's most
   recent analysis `brief`, sent as `brief` so copy comes back finished.
-- A collapsible "Competitor mode" `<details>`: paid plans get up to 3 competitor URL inputs (sent as
-  `competitorUrls`); free plans see it locked with a link to `CONTACT_PATH`.
 
 ### Analysis loader
 
 Skeleton cards while `POST /api/analyses` is pending, with a four-phase progress label from
-`dictionary.urlForm.phases` paced by `PHASE_SCHEDULE` to the real pipeline: scraping -> researching
-competitors -> writing the new copy -> saving results.
+`dictionary.urlForm.phases` paced by `PHASE_SCHEDULE` to the real pipeline: scraping -> reading the
+head and timing the load -> writing the new copy -> saving results.
 
-### Usage gate banner — `components/usage-banner.tsx`
+### There is no usage gate
 
-- Rendered on the dashboard above the URL form, fed by `usageFor()`.
-- Free users only: renders nothing when `limit` is null, and nothing until 1 analysis remains.
-- Soft amber warning at 2/3; red hard block at 3/3, which also disables the URL form's input and submit
-  via the `blocked` prop, so the gate is visible **before** submitting rather than as a 403 after.
-- The count is the *effective* one from `usageFor()`, which reads 0 once the monthly window has rolled
-  over, so it never shows a stale number from a lapsed period.
-- **This is the only place the allowance is shown.** There used to be a second counter on `/billing`;
-  it went with that page.
+The monthly free allowance is gone with plans: no `usage-banner.tsx`, no `lib/usage.ts`, no `blocked`
+prop on the URL form. What replaces it is credits, and until they land nothing on this screen counts
+anything.
 
 ## The analysis screen (`app/(app)/analyses/[id]/page.tsx`)
 
@@ -114,38 +227,39 @@ competitors -> writing the new copy -> saving results.
 replacement line (`variants[0]`, the only variant written during the analysis) and the reader can ask
 for two alternates beside it.
 
-- **Benchmarked-against line**: the competitors (`analyses.competitors`) as links near the top, followed
-  by the market the analysis was run in (`analysis.marketNote` + `labels.market.*`). The market is named
-  there because it is the only thing that explains the list beside it: detection reads the page, and
-  when it reads it wrong the failure surfaces as inexplicably foreign competitors unless the reader can
-  see which market was used.
-- **The deliverables block** (`components/report-deliverables.tsx`) sits between that line and the
-  readout: the two documents this analysis produces, each named and described rather than left as an
-  unlabelled button. It is out of the header row on purpose — a control small enough to sit beside
-  `Back to clients` is a control a first-time reader never presses. See
+- **The deliverables block** (`components/report-deliverables.tsx`) sits above the readout: the one
+  document this analysis produces, named and described rather than left as an unlabelled button. It is
+  out of the header row on purpose — a control small enough to sit beside `Back` is a control a
+  first-time reader never presses. See
   [report.md](report.md#report-deliverables--componentsreport-deliverablestsx).
-- `MeasuredReadout` above the tabs, with the score, the trend, the findings, the keyword table and the
-  comparison — plus `MeasurePage variant="again"` beneath it. An analysis with nothing measured shows
+- `MeasuredReadout` above the tabs, with the score, the trend, the findings and the
+  keyword table — plus `MeasurePage variant="again"` beneath it. An analysis with nothing measured shows
   `MeasurePage` alone instead. Both are owner-only; the reports render `MeasuredReadout` by itself. See
   [readout.md](readout.md).
-- `UpgradePrompt` at the end when `user.plan === 'free'` — see [components.md](components.md).
 
 ### Four tabs — `components/analysis-tabs.tsx`, over the `ANALYSIS_TAB` enum
 
-**Page structure** (the playbook), **Wording** (the hypotheses), **Search visibility** and **AI
-visibility**. `flow` opens first — fix the structure before the wording — and if it is empty the
-first non-empty tab opens instead.
+**Structure** (the playbook), **Copy** (the hypotheses), **SEO** and **AI**. `flow` opens first — fix
+the structure before the wording — and if it is empty the first non-empty tab opens instead.
 
 **Every tab here is about what to change, and every one of them needs nothing but the URL.** There
 used to be a fifth, `tests`, holding the live A/B testing stage; that stage is gone entirely — see
 [product.md](product.md) — along with the `counts.tests` prop and the public report's `tests: 0` /
 `tests: null` pair that existed only to hold it out of a report.
 
-The labels are written for the client's business owner, not for a developer — see
-[report.md](report.md#the-cover--componentsreport-covertsx). **Only the labels changed**; the enum values
-are persisted in Postgres.
+**The labels went back to technical terms, and that reverses a documented decision on purpose.** They
+had been softened to *Page structure / Wording / Search visibility / AI visibility* because the reader
+was the client of an agency and not a developer. That reader is gone: someone who owns a landing page
+knows what SEO is, and the technical word is both shorter and more precise.
 
-- The analysis screen and the public report render the same shell; only the print report stays stacked.
+Each panel then opens with a **direct question** from `analysis.tabQuestions[tab]` — *A sua página está
+espantando quem chega?*, *O Google acha a sua página?* — because a wrapping row of tabs has no room
+for a sentence and a panel does. The question frames; it never asserts. What may not be invented is
+any **number**, and that rule is untouched.
+
+**Only the labels changed**; the enum values are persisted in Postgres.
+
+- The analysis screen and the public report render the same shell.
 - **Every panel stays mounted and inactive ones are `hidden`**, so switching tabs never remounts an
   already-rendered preview.
 - **An empty tab is not rendered.** `FlowPlaybook` returns `null` for an empty list, so the shell
@@ -167,17 +281,18 @@ finished with row 1 had no way to fold it away.
 - **The control line is not decoration.** The list showed only the challenger for a long time, which
   reads as a suggestion floating free of the page: a reader who cannot see the line being replaced
   cannot judge whether replacing it is an improvement, and the section badge alone does not locate it
-  on a page with four headings. The report and the print report always showed both; this is the
+  on a page with four headings. The report always showed both; this is the
   screen catching up, and it reuses their `report.current` keys rather than minting a second wording
   for the same idea.
 - That block holds **two different things**, and they are marked apart on purpose: `rationale` argues
-  the CRO mechanism, while the variant's `evidence` is the line that names a competitor and the
-  strategy it borrows. The evidence paragraph carries a teal `panel-label` prefix
-  (`hypothesisList.competitorEvidence`), the same idiom the landing hero mock uses. Unprefixed, the two
-  read as one undifferentiated paragraph and the competitor grounding — the most expensive part of the
-  pipeline to produce — lands as generic reasoning. Marking it is the whole fix: **nothing new is
-  generated about the competitor**, which would be forbidden on the auto-search path where no
-  competitor page was ever opened.
+  why the challenger wins, while the variant's `evidence` names the CRO mechanism the rewrite uses —
+  what the current line leaves the visitor to infer, and what the replacement states outright. The
+  evidence paragraph carries a teal `panel-label` prefix (`hypothesisList.evidenceMechanism`), the same
+  idiom the landing hero mock uses. Unprefixed, the two read as one undifferentiated paragraph and the
+  argument for the change lands as generic reasoning. Marking it is the whole fix: **nothing new is
+  generated there**, and what is generated obeys
+  [invariants.md](invariants.md#a-generated-evidence-never-carries-a-number) like every other
+  `evidence` field.
 - **Two alternate options, written on demand.** Only the recommendation exists when the screen loads.
   `Other options` fires `POST /api/hypotheses/[id]/variants`, shows a "Writing other options..."
   label, and renders the two alternates under the recommendation when they land. **Fail-quiet by
@@ -233,7 +348,7 @@ is the point. Consequences:
   shared `flow-fix` id across sections would break the e2e counts silently** — those counts are what
   assert the families never merge.
 - Rows are split by `splitFixes` and `splitVisibility`, never filtered inline at a call site.
-- **`visibility` is not dead.** It is the single combined section the print report renders, because on
+- **`visibility` survives as a value even though no surface renders it combined any more.** It was what the print report renders, because on
   paper there is nothing to click and the SEO / AI split would only mean two headings.
 
 They render as **separate sections rather than one impact-ranked list**: a founder deciding what to fix
@@ -251,7 +366,7 @@ first should not have "write a meta description" ranked in among the conversion 
 - **Renders `null` when there are no fixes**, so an analysis whose playbook generation failed simply has
   no section. `AnalysisTabs` relies on this.
 - **Every fix is a `DisclosureCard`.** `expandFrom` is the index past which they *start* closed — the two
-  tabbed surfaces pass `PLAYBOOK_EXPANDED_COUNT` (2), the **print report passes nothing**, so every fix
+  tabbed surfaces pass `PLAYBOOK_EXPANDED_COUNT` (2), and a stacked surface would pass nothing**, so every fix
   starts open. Either way a row can be closed.
 - The visibility section's `hint` states the limit of what was measured, per
   [invariants.md](invariants.md#the-audit-measured-the-page-not-the-index).

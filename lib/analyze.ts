@@ -1,5 +1,4 @@
-﻿import Anthropic from '@anthropic-ai/sdk'
-import { generateObject } from 'ai'
+﻿import { generateObject } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import {
   AlternateVariantsSchema,
@@ -14,17 +13,11 @@ import {
 } from '@/lib/ai/schema'
 import {
   alternateVariantsPrompt,
-  competitorResearchPrompt,
   playbookPrompt,
   systemPrompt,
   visibilityPrompt
 } from '@/lib/ai/prompt'
-import {
-  AI_OUTPUT_LANGUAGE,
-  DEFAULT_LOCALE,
-  MARKET_NAME,
-  MARKET_SEARCH_LOCATION
-} from '@/lib/constants'
+import { AI_OUTPUT_LANGUAGE, DEFAULT_LOCALE, MARKET_NAME } from '@/lib/constants'
 import {
   FIXTURE_CRAWLER_ACCESS,
   FIXTURE_KEYWORDS,
@@ -36,12 +29,10 @@ import {
   fixturePlaybook,
   fixtureVisibility
 } from '@/lib/ai/fixtures'
-import { displayHost } from '@/lib/host'
 import { detectMarket } from '@/lib/market'
 import { fetchCrawlerAccess, type CrawlerAccess } from '@/lib/robots'
 import { extractKeywords, type PageKeywords } from '@/lib/keywords'
 import {
-  type CompetitorStructure,
   type PageElement,
   type PagePerformance,
   type PageSeo,
@@ -55,10 +46,6 @@ import type { HypothesisTarget, Locale, Market } from '@/lib/enums'
 
 const MODEL = 'claude-sonnet-4-6'
 
-const RESEARCH_MODEL = 'claude-haiku-4-5'
-
-const RESEARCH_MAX_SEARCHES = 3
-
 const MAX_PROMPT_ELEMENTS = 150
 
 export type AnalyzedHypothesis = HypothesisOutput & {
@@ -67,7 +54,6 @@ export type AnalyzedHypothesis = HypothesisOutput & {
 }
 
 export type AnalysisResult = {
-  competitors: AnalysisOutput['competitors']
   hypotheses: AnalyzedHypothesis[]
   playbook: FlowFixOutput[]
   visibility: VisibilityFixOutput[]
@@ -76,14 +62,11 @@ export type AnalysisResult = {
   performance: PagePerformance
   crawlerAccess: CrawlerAccess
   keywords: PageKeywords
-  competitorStructures: CompetitorStructure[]
   market: Market
-  researchBrief: string
 }
 
 export type AnalyzeOptions = {
   brief?: string
-  competitorUrls?: string[]
   locale?: Locale
 }
 
@@ -150,7 +133,6 @@ export async function analyzeLandingPage(
     return resolveTargets({
       output: analysis,
       elements: fixtureElements,
-      researchBrief: '',
       playbook: fixturePlaybook(locale),
       visibility: fixtureVisibility(locale),
       structure: FIXTURE_STRUCTURE,
@@ -158,7 +140,6 @@ export async function analyzeLandingPage(
       performance: FIXTURE_PERFORMANCE,
       crawlerAccess: FIXTURE_CRAWLER_ACCESS,
       keywords: FIXTURE_KEYWORDS,
-      competitorStructures: [],
       market: fixtureMarket
     })
   }
@@ -170,16 +151,8 @@ export async function analyzeLandingPage(
   const keywords = keywordsFor(html, seo)
   const scrapedAt = Date.now()
 
-  const [competitorResearch, crawlerAccess] = await Promise.all([
-    options.competitorUrls?.length
-      ? researchProvidedCompetitors(options.competitorUrls).then(
-          async (provided) => provided ?? autoResearch(content, market)
-        )
-      : autoResearch(content, market),
-    fetchCrawlerAccess(url)
-  ])
-  const research = competitorResearch.brief
-  const researchedAt = Date.now()
+  const crawlerAccess = await fetchCrawlerAccess(url)
+  const crawlerCheckedAt = Date.now()
 
   const briefSection = options.brief
     ? `\n\nBusiness details from the founder (use these real facts to write finished copy):\n\n${options.brief}`
@@ -202,7 +175,7 @@ export async function analyzeLandingPage(
       schema: AnalysisOutputSchema,
       maxTokens: 16000,
       system: systemPrompt(AI_OUTPUT_LANGUAGE[locale], MARKET_NAME[market]),
-      prompt: `Landing page copy:\n\n${content}${elementsSection}\n\nCompetitive research brief:\n\n${research || 'No competitor research available.'}${briefSection}`
+      prompt: `Landing page copy:\n\n${content}${elementsSection}${briefSection}`
     }),
     generatePlaybook({
       structure,
@@ -223,8 +196,8 @@ export async function analyzeLandingPage(
 
   console.info('[analyze] timings (ms)', {
     scrape: scrapedAt - startedAt,
-    research: researchedAt - scrapedAt,
-    generation: Date.now() - researchedAt,
+    robotsCheck: crawlerCheckedAt - scrapedAt,
+    generation: Date.now() - crawlerCheckedAt,
     total: Date.now() - startedAt,
     market,
     robots: crawlerAccess.status,
@@ -232,17 +205,9 @@ export async function analyzeLandingPage(
     visibilityFixes: visibility.length
   })
 
-  const competitors = options.competitorUrls?.length
-    ? options.competitorUrls.map((competitorUrl) => ({
-        name: displayHost(competitorUrl),
-        url: competitorUrl
-      }))
-    : object.competitors
-
   return resolveTargets({
-    output: { ...object, competitors },
+    output: object,
     elements,
-    researchBrief: research,
     playbook,
     visibility,
     structure,
@@ -250,7 +215,6 @@ export async function analyzeLandingPage(
     performance,
     crawlerAccess,
     keywords,
-    competitorStructures: competitorResearch.structures,
     market
   })
 }
@@ -352,7 +316,6 @@ export type AlternateVariantsInput = {
   // Whether the target element has a styled fragment at all. The element list is long gone by now,
   // so it is inferred from the recommendation having chosen an emphasis.
   emphasized: boolean
-  researchBrief: string | null
   founderBrief: string | null
   locale: Locale
   market: Market
@@ -374,8 +337,7 @@ export async function generateAlternateVariants(
     `Word ceiling: the current copy is ${wordCount(input.currentCopy)} words. Every alternate must be ${variantWordBudget(wordCount(input.currentCopy))} words or fewer, and ${variantCharBudget(input.currentCopy)} characters or fewer. Copy past the character ceiling is cut off by the site's own CSS.`,
     input.emphasized
       ? 'This element has a styled fragment, so set emphasis on every alternate.'
-      : 'This element has no styled fragment, so set emphasis to null on every alternate.',
-    `Competitive research brief:\n${input.researchBrief || 'No competitor research available.'}`
+      : 'This element has no styled fragment, so set emphasis to null on every alternate.'
   ]
 
   if (input.founderBrief) {
@@ -405,44 +367,9 @@ function warnOverLength(section: string, currentCopy: string, variantCopy: strin
   console.warn('[analyze] variant over word budget', { section, budget, actual })
 }
 
-type CompetitorResearch = {
-  brief: string
-  structures: CompetitorStructure[]
-}
-
-async function autoResearch(pageContent: string, market: Market): Promise<CompetitorResearch> {
-  return { brief: await researchCompetitors(pageContent, market), structures: [] }
-}
-
-async function researchProvidedCompetitors(urls: string[]): Promise<CompetitorResearch | null> {
-  const scraped = await Promise.all(
-    urls.map(async (url) => {
-      try {
-        const { html, structure, seo, performance } = await scrapePage(url)
-        const name = displayHost(url)
-        return {
-          part: `Competitor: ${name} (${url})\n${preprocessHtml(html).slice(0, 2500)}`,
-          competitor: { name, url, structure, seo, performance }
-        }
-      } catch {
-        return null
-      }
-    })
-  )
-
-  const ok = scraped.filter((entry): entry is NonNullable<typeof entry> => entry !== null)
-  if (!ok.length) return null
-
-  return {
-    brief: ok.map((entry) => entry.part).join('\n\n---\n\n'),
-    structures: ok.map((entry) => entry.competitor)
-  }
-}
-
 function resolveTargets(input: {
   output: AnalysisOutput
   elements: PageElement[]
-  researchBrief: string
   playbook: FlowFixOutput[]
   visibility: VisibilityFixOutput[]
   structure: PageStructure
@@ -450,13 +377,11 @@ function resolveTargets(input: {
   performance: PagePerformance
   crawlerAccess: CrawlerAccess
   keywords: PageKeywords
-  competitorStructures: CompetitorStructure[]
   market: Market
 }): AnalysisResult {
   const {
     output,
     elements,
-    researchBrief,
     playbook,
     visibility,
     structure,
@@ -464,12 +389,9 @@ function resolveTargets(input: {
     performance,
     crawlerAccess,
     keywords,
-    competitorStructures,
     market
   } = input
   return {
-    competitors: output.competitors,
-    researchBrief,
     playbook,
     visibility,
     structure,
@@ -477,7 +399,6 @@ function resolveTargets(input: {
     performance,
     crawlerAccess,
     keywords,
-    competitorStructures,
     market,
     hypotheses: output.hypotheses.map((h) => {
       const resolved = resolveTarget(h.current_copy, elements)
@@ -491,38 +412,3 @@ function resolveTargets(input: {
     })
   }
 }
-
-async function researchCompetitors(pageContent: string, market: Market): Promise<string> {
-  if (!process.env.ANTHROPIC_API_KEY) return ''
-
-  try {
-    const client = new Anthropic()
-    const message = await client.messages.create({
-      model: RESEARCH_MODEL,
-      max_tokens: 2048,
-      tools: [
-        {
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: RESEARCH_MAX_SEARCHES,
-          user_location: { type: 'approximate', ...MARKET_SEARCH_LOCATION[market] }
-        }
-      ],
-      messages: [
-        {
-          role: 'user',
-          content: `${competitorResearchPrompt(MARKET_NAME[market])}\n\nLanding page copy:\n\n${pageContent}`
-        }
-      ]
-    })
-
-    return message.content
-      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-      .map((block) => block.text)
-      .join('\n')
-      .trim()
-  } catch {
-    return ''
-  }
-}
-

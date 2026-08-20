@@ -12,7 +12,6 @@ import { formatDecimal, formatNumber, t } from '@/lib/i18n/format'
 import {
   hasReadout,
   readout,
-  type ComparisonValue,
   type MeasuredFinding,
   type ReadoutInput
 } from '@/lib/readout'
@@ -92,50 +91,6 @@ export function MeasuredReadout({
       })}
 
       <KeywordTable keywords={input.keywords} />
-
-      {measured.comparison.length > 0 && (
-        <div className="space-y-2 break-inside-avoid">
-          <p className="panel-label text-[0.6rem] text-muted-foreground">
-            {copy.comparison.title}
-          </p>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-md border-collapse text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="p-2 font-medium" />
-                  <th className="p-2 font-display font-semibold">{copy.comparison.you}</th>
-                  {measured.comparison[0].competitors.map((competitor) => (
-                    <th
-                      key={competitor.name}
-                      className="p-2 font-mono text-xs font-normal text-muted-foreground"
-                    >
-                      {competitor.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {measured.comparison.map((row) => (
-                  <tr key={row.metric} className="border-b last:border-0">
-                    <td className="p-2 text-muted-foreground">
-                      {copy.comparison.metrics[row.metric]}
-                    </td>
-                    <td className="p-2 font-display font-semibold tabular-nums">
-                      {renderCell(row.self, row.unit, copy, locale)}
-                    </td>
-                    {row.competitors.map((competitor) => (
-                      <td key={competitor.name} className="p-2 tabular-nums text-muted-foreground">
-                        {renderCell(competitor.value, row.unit, copy, locale)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs text-muted-foreground">{copy.comparison.hint}</p>
-        </div>
-      )}
     </section>
   )
 }
@@ -144,16 +99,6 @@ type ReadoutCopy = ReturnType<typeof useI18n>['dictionary']['readout']
 
 function renderValue(finding: MeasuredFinding, copy: ReadoutCopy, locale: Locale): string {
   return renderUnit(finding.value, finding.unit, copy, locale)
-}
-
-function renderCell(
-  value: ComparisonValue,
-  unit: ReadoutUnit,
-  copy: ReadoutCopy,
-  locale: Locale
-): string {
-  if (typeof value === 'boolean') return value ? copy.presence.yes : copy.presence.no
-  return renderUnit(value, unit, copy, locale)
 }
 
 // Arithmetic between two measurements of the same page, shown in the same unit and with no verdict

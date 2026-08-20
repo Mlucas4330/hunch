@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { comparisonRows, hasReadout, measuredFindings, readout } from './readout'
+import { hasReadout, measuredFindings, readout } from './readout'
 import { READOUT_THRESHOLDS } from './constants'
-import type { CompetitorStructure, PagePerformance, PageSeo, PageStructure } from './scrape'
+import type { PagePerformance, PageSeo, PageStructure } from './scrape'
 import type { CrawlerAccess } from './robots'
 import type { PageKeywords } from './keywords'
 
@@ -78,8 +78,7 @@ function findingsFor(overrides: {
     seo: { ...SEO, ...overrides.seo },
     performance: { ...PERFORMANCE, ...overrides.performance },
     crawler: { ...CRAWLER, ...overrides.crawler },
-    keywords: overrides.keywords === undefined ? KEYWORDS : overrides.keywords,
-    competitors: null
+    keywords: overrides.keywords === undefined ? KEYWORDS : overrides.keywords
   })
 }
 
@@ -267,78 +266,10 @@ test('a null readout produces nothing at all', () => {
     seo: null,
     performance: null,
     crawler: null,
-    keywords: null,
-    competitors: null
+    keywords: null
   })
 
   assert.deepEqual(empty.findings, [])
-  assert.deepEqual(empty.comparison, [])
   assert.equal(hasReadout(empty), false)
 })
 
-test('the comparison table needs competitors that were actually measured', () => {
-  const competitors: CompetitorStructure[] = [
-    {
-      name: 'rival.com',
-      url: 'https://rival.com',
-      structure: { ...STRUCTURE, formFieldCount: 1, hasFaq: true }
-    }
-  ]
-
-  assert.deepEqual(
-    comparisonRows({
-      structure: STRUCTURE,
-      seo: SEO,
-      performance: PERFORMANCE,
-      crawler: CRAWLER,
-      keywords: KEYWORDS,
-      competitors: []
-    }),
-    [],
-    'no measured competitor means no table, never a table of one'
-  )
-
-  const rows = comparisonRows({
-    structure: STRUCTURE,
-    seo: SEO,
-    performance: PERFORMANCE,
-    crawler: CRAWLER,
-    keywords: KEYWORDS,
-    competitors
-  })
-  const formRow = rows.find((row) => row.metric === 'form_fields')
-
-  assert.equal(formRow?.self, STRUCTURE.formFieldCount)
-  assert.deepEqual(formRow?.competitors, [{ name: 'rival.com', value: 1 }])
-
-  assert.equal(
-    rows.find((row) => row.metric === 'lcp'),
-    undefined,
-    'a competitor scraped before performance was kept takes the whole row, never half of it'
-  )
-
-  const measured = comparisonRows({
-    structure: STRUCTURE,
-    seo: SEO,
-    performance: PERFORMANCE,
-    crawler: CRAWLER,
-    keywords: KEYWORDS,
-    competitors: [
-      { ...competitors[0], seo: SEO, performance: { ...PERFORMANCE, lcpMs: 2600 } }
-    ]
-  })
-  const lcpRow = measured.find((row) => row.metric === 'lcp')
-
-  assert.equal(lcpRow?.self, PERFORMANCE.lcpMs, 'values stay in the unit they were measured in')
-  assert.equal(lcpRow?.unit, 'seconds', 'and the row carries the unit the render edge converts with')
-  assert.deepEqual(lcpRow?.competitors, [{ name: 'rival.com', value: 2600 }])
-
-  const faqRow = rows.find((row) => row.metric === 'faq')
-
-  assert.equal(faqRow?.self, false, 'a boolean the page lacks reads as false, never as missing')
-  assert.deepEqual(
-    faqRow?.competitors,
-    [{ name: 'rival.com', value: true }],
-    'what the competitor has and the page does not is the row worth showing'
-  )
-})

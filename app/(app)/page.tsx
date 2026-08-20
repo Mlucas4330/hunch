@@ -2,17 +2,27 @@ import Link from 'next/link'
 import { auth } from '@/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { SectionBadge } from '@/components/section-badge'
-import { ScoreIndicator } from '@/components/score-indicator'
-import { WaitlistForm } from '@/components/waitlist-form'
-import type { Section } from '@/lib/enums'
+import { AnalysisPulse } from '@/components/analysis-pulse'
+import { CreditPacks } from '@/components/credit-packs'
+import {
+  analysisPulse,
+  publicLeaderboard,
+  type PublicScore,
+  type PulseEntry
+} from '@/lib/analyses'
+import {
+  BLOG_PATH,
+  MERCADOPAGO_PROVIDER,
+  PULSE_MIN_ENTRIES,
+  READOUT_SEVERITY_CLASS,
+  STRIPE_PROVIDER
+} from '@/lib/constants'
+import { mercadoPagoEnabled } from '@/lib/mercadopago'
+import { AI_POST_SLUG, type ReadoutSeverity } from '@/lib/enums'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { pageMetadata } from '@/lib/seo'
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import { cn } from '@/lib/utils'
-
-const SAMPLE_SECTIONS: Section[] = ['headline', 'cta', 'social_proof']
-const SAMPLE_IMPACTS = [9, 7, 6]
 
 const PAIN_CHANNELS = ['border-coral', 'border-purple', 'border-teal']
 
@@ -26,6 +36,12 @@ export default async function LandingPage() {
   const locale = await getLocale()
   const d = dictionaryFor(locale)
   const ctaHref = session?.user ? '/dashboard' : '/auth/signin'
+
+  // Rendered here so the board is in the HTML rather than appearing a poll later. Below
+  // PULSE_MIN_ENTRIES there is no board, only a couple of rows dressed as one, so the whole section
+  // is left out -- nothing on it is ever seeded. See docs/invariants.md.
+  const [leaderboard, pulse] = await pulseData()
+  const showPulse = leaderboard.length >= PULSE_MIN_ENTRIES
 
   return (
     <div className="animate-fade-up space-y-24 pb-12">
@@ -54,7 +70,7 @@ export default async function LandingPage() {
       </section>
 
       <section className="space-y-10">
-        <header className="space-y-1">
+        <header className="reveal space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">
             {d.landing.reality.eyebrow}
           </p>
@@ -64,7 +80,7 @@ export default async function LandingPage() {
         </header>
         <div className="space-y-4">
           {d.landing.pains.map((pain, i) => (
-            <Card key={pain.headline} className={cn('border-l-2', PAIN_CHANNELS[i])}>
+            <Card key={pain.headline} className={cn('reveal border-l-2', PAIN_CHANNELS[i])}>
               <CardContent className="grid gap-4 p-5 md:grid-cols-[1.1fr_1fr] md:items-center">
                 <div className="space-y-1.5">
                   <h3 className="font-display text-lg font-semibold tracking-tight">
@@ -81,40 +97,60 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      <section id="ai" className="space-y-10 scroll-mt-20">
+        <header className="reveal space-y-1">
+          <p className="panel-label text-[0.7rem] text-muted-foreground">
+            {d.landing.aiSearch.eyebrow}
+          </p>
+          <h2 className="font-display text-2xl font-bold tracking-tight">
+            {d.landing.aiSearch.heading}
+          </h2>
+          <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.aiSearch.body}</p>
+        </header>
+        <div className="grid gap-6 sm:grid-cols-3">
+          {d.landing.aiSearch.points.map((point) => (
+            <Card key={point.title} className="reveal border-l-2 border-teal">
+              <CardContent className="space-y-2 p-5">
+                <h3 className="font-display text-base font-semibold tracking-tight">
+                  {point.title}
+                </h3>
+                <p className="text-sm text-muted-foreground">{point.body}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="reveal flex border-t pt-4">
+          <Link
+            href={`${BLOG_PATH}/${AI_POST_SLUG}`}
+            className="panel-label text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {d.landing.aiSearch.link}
+          </Link>
+        </div>
+      </section>
+
       <section id="how" className="space-y-10 scroll-mt-20">
-        <header className="space-y-1">
+        <header className="reveal space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">{d.landing.how.eyebrow}</p>
           <h2 className="font-display text-2xl font-bold tracking-tight">{d.landing.how.heading}</h2>
           <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.how.intro}</p>
         </header>
-        <div className="grid gap-10 lg:grid-cols-2">
-          {d.landing.tracks.map((track) => (
-            <div key={track.label} className="space-y-6">
-              <div className="flex items-baseline gap-3">
-                <h3 className="font-display text-xl font-bold tracking-tight">{track.label}</h3>
-                <span className="panel-label text-[0.6rem] text-muted-foreground">{track.note}</span>
-              </div>
-              <ol className="grid gap-6 sm:grid-cols-3">
-                {track.steps.map((step, i) => (
-                  <li key={step.label} className="space-y-3">
-                    <span className="panel-label text-sm text-muted-foreground">
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-                    <div className="h-px bg-border" />
-                    <h4 className="font-display text-base font-semibold tracking-tight">
-                      {step.label}
-                    </h4>
-                    <p className="text-sm text-muted-foreground">{step.body}</p>
-                  </li>
-                ))}
-              </ol>
-            </div>
+        <ol className="grid gap-6 sm:grid-cols-3">
+          {d.landing.steps.map((step, i) => (
+            <li key={step.label} className="reveal space-y-3">
+              <span className="panel-label text-sm text-muted-foreground">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <div className="h-px bg-border" />
+              <h3 className="font-display text-base font-semibold tracking-tight">{step.label}</h3>
+              <p className="text-sm text-muted-foreground">{step.body}</p>
+            </li>
           ))}
-        </div>
+        </ol>
       </section>
 
       <section className="space-y-10">
-        <header className="space-y-1">
+        <header className="reveal space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">
             {d.landing.value.eyebrow}
           </p>
@@ -124,7 +160,7 @@ export default async function LandingPage() {
         </header>
         <div className="grid gap-6 sm:grid-cols-3">
           {d.landing.proof.map((item) => (
-            <Card key={item.title}>
+            <Card key={item.title} className="reveal">
               <CardContent className="space-y-2 p-5">
                 <h3 className="font-display text-lg font-semibold tracking-tight">{item.title}</h3>
                 <p className="text-sm text-muted-foreground">{item.body}</p>
@@ -133,35 +169,38 @@ export default async function LandingPage() {
           ))}
         </div>
       </section>
-      <section className="space-y-10" id="contact">
-        <header className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">
-            {d.landing.contact.eyebrow}
-          </p>
-          <h2 className="font-display text-2xl font-bold tracking-tight">
-            {d.landing.contact.heading}
-          </h2>
-          <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.contact.body}</p>
+
+      {showPulse && (
+        <section className="space-y-10">
+          <header className="reveal space-y-1">
+            <p className="panel-label text-[0.7rem] text-muted-foreground">
+              {d.landing.leaderboard.eyebrow}
+            </p>
+            <h2 className="font-display text-2xl font-bold tracking-tight">
+              {d.landing.leaderboard.heading}
+            </h2>
+            <p className="max-w-2xl pt-1 text-sm text-muted-foreground">
+              {d.landing.leaderboard.intro}
+            </p>
+          </header>
+          <AnalysisPulse initial={{ leaderboard, pulse }} />
+        </section>
+      )}
+
+      <section className="space-y-6" id="credits">
+        <header className="reveal space-y-1">
+          <p className="panel-label text-[0.7rem] text-muted-foreground">{d.credits.eyebrow}</p>
+          <h2 className="font-display text-2xl font-bold tracking-tight">{d.credits.heading}</h2>
+          <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.credits.body}</p>
         </header>
-        <div className="grid gap-6 sm:grid-cols-2">
-          <Card>
-            <CardContent className="p-5">
-              <WaitlistForm source="contact" copy={d.landing.contact.form} />
-            </CardContent>
-          </Card>
-          <ul className="space-y-3 self-center text-sm">
-            {d.landing.contact.points.map((point) => (
-              <li key={point} className="flex items-start gap-2">
-                <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-foreground" />
-                {point}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <CreditPacks
+          signedIn={Boolean(session?.user)}
+          provider={mercadoPagoEnabled() ? MERCADOPAGO_PROVIDER : STRIPE_PROVIDER}
+        />
       </section>
 
       <section>
-        <Card className="border-dashed">
+        <Card className="reveal border-dashed">
           <CardContent className="flex flex-col items-center gap-5 p-10 text-center">
             <h2 className="max-w-lg font-display text-2xl font-bold tracking-tight">
               {d.landing.finalCta.heading}
@@ -176,33 +215,49 @@ export default async function LandingPage() {
   )
 }
 
+// This page is where ad traffic lands and it used to need no database at all, so the section it gained
+// must not be able to take it down: a query that cannot run costs the board, never the page.
+async function pulseData(): Promise<[PublicScore[], PulseEntry[]]> {
+  try {
+    return await Promise.all([publicLeaderboard(), analysisPulse()])
+  } catch (error) {
+    console.error('[landing] pulse read failed', error)
+    return [[], []]
+  }
+}
+
 function HeroReadout({ dictionary }: { dictionary: Dictionary }) {
-  const { readout, sample } = dictionary.landing
+  const { heroCard } = dictionary.landing
 
   return (
     <Card className="animate-pop-in shadow-sm">
       <div className="flex items-center justify-between border-b px-4 py-2.5">
-        <span className="font-mono text-xs text-muted-foreground">{readout.domain}</span>
+        <span className="font-mono text-xs text-muted-foreground">{heroCard.domain}</span>
       </div>
-      <CardContent className="space-y-3 p-4">
-        {sample.map((hunch, i) => (
-          <div key={SAMPLE_SECTIONS[i]} className="rounded-md border p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <SectionBadge section={SAMPLE_SECTIONS[i]} />
-              <ScoreIndicator score={SAMPLE_IMPACTS[i]} />
+      <CardContent className="space-y-4 p-4">
+        <div className="space-y-1">
+          <p className="panel-label text-[0.6rem] text-muted-foreground">{heroCard.scoreLabel}</p>
+          <p className="font-display text-5xl font-bold tabular-nums tracking-tight">
+            {heroCard.score}
+            <span className="text-2xl text-muted-foreground">{heroCard.outOf}</span>
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          {heroCard.rows.map((row) => (
+            <div key={row.label} className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-muted-foreground">{row.label}</span>
+              <span
+                className={cn(
+                  'rounded-sm px-1.5 py-0.5 font-mono text-xs tabular-nums',
+                  READOUT_SEVERITY_CLASS[row.severity as ReadoutSeverity]
+                )}
+              >
+                {row.value}
+              </span>
             </div>
-            <p className="mt-2 text-sm">{hunch.problem}</p>
-            {'variant' in hunch && hunch.variant && (
-              <div className="mt-3 space-y-1 rounded-sm bg-muted p-2.5">
-                <p className="text-sm font-medium">{`"${hunch.variant}"`}</p>
-                <p className="text-xs text-muted-foreground">
-                  <span className="panel-label text-[0.6rem] text-teal">{readout.why}</span>{' '}
-                  {'evidence' in hunch ? hunch.evidence : null}
-                </p>
-              </div>
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </CardContent>
     </Card>
   )

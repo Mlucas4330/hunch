@@ -1,4 +1,5 @@
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
+import { ptBrBlog } from '@/lib/i18n/dictionaries/pt-BR.blog'
 
 export const ptBR: Dictionary = {
   metadata: {
@@ -8,42 +9,27 @@ export const ptBR: Dictionary = {
     ogImageAlt: 'Hunch - diagnóstico medido de uma landing page',
     pages: {
       landing: {
-        title: 'Um diagnóstico para enviar com o seu nome',
+        title: 'Descubra a nota da sua landing page',
         description:
-          'Cole qualquer landing page e receba um diagnóstico medido: correções priorizadas, baseadas em concorrentes reais, com a copy já escrita.'
+          'Cole a URL da sua landing page e receba uma nota de 0 a 100, medida na página, mais correções priorizadas com a copy substituta já escrita.'
       },
       signin: {
         title: 'Entrar',
         description: 'Entre no Hunch com o Google.'
       },
-      dashboard: {
-        title: 'Seus clientes',
+      blog: {
+        title: 'Blog',
         description:
-          'Todas as landing pages de clientes que você analisou e o relatório que cada uma gerou.'
+          'O que uma máquina lê da sua landing page, por que a copy é a parte que argumenta e o que muda agora que as pessoas perguntam para um assistente em vez de buscar.'
+      },
+      dashboard: {
+        title: 'Suas páginas',
+        description:
+          'Todas as landing pages que você já pontuou e o relatório que cada uma gerou.'
       },
       analysis: {
         title: 'O que mudar',
         description: 'Correções de texto priorizadas e o playbook de fluxo desta landing page.'
-      },
-      analysisReport: {
-        title: 'Diagnóstico de conversão',
-        description: 'A versão para impressão desta análise de landing page.'
-      },
-      settings: {
-        title: 'Sua marca',
-        description: 'O logo e o nome que vão em todo relatório que você entrega.'
-      },
-      leads: {
-        title: 'Leads da lista de espera',
-        description: 'Leads capturados pelos relatórios públicos.'
-      },
-      accounts: {
-        title: 'Contas',
-        description: 'Quem tem conta, em que plano está e quando entrou pela última vez.'
-      },
-      reports: {
-        title: 'Aberturas de relatório',
-        description: 'Quais relatórios públicos foram abertos, e quando.'
       },
       report: {
         title: 'Diagnóstico de conversão de {host}',
@@ -54,7 +40,6 @@ export const ptBR: Dictionary = {
   },
 
   common: {
-    upgrade: 'Falar com a gente',
     close: 'Fechar',
     cancel: 'Cancelar',
     delete: 'Excluir',
@@ -62,7 +47,8 @@ export const ptBR: Dictionary = {
     copy: 'Copiar',
     copied: 'Copiado',
     or: 'ou',
-    none: '-'
+    none: '-',
+    loading: 'Carregando'
   },
 
   labels: {
@@ -93,26 +79,13 @@ export const ptBR: Dictionary = {
     market: {
       us: 'Estados Unidos',
       br: 'Brasil'
-    },
-    plan: {
-      free: 'Gratuito',
-      pro: 'Pro'
-    },
-    userRole: {
-      user: 'Usuário',
-      admin: 'Admin'
-    },
-    leadSource: {
-      report: 'Muro do relatório',
-      contact: 'Pediu contato'
     }
   },
 
   nav: {
     homeAria: 'Início do Hunch',
-    dashboard: 'Clientes',
-    settings: 'Sua marca',
-    admin: 'Admin',
+    blog: 'Blog',
+    dashboard: 'Minhas páginas',
     signIn: 'Entrar',
     signOut: 'Sair',
     account: 'Conta',
@@ -122,7 +95,6 @@ export const ptBR: Dictionary = {
 
   footer: {
     copyright: 'Copyright {year} Hunch. Todos os direitos reservados.',
-    contact: 'Fale com a gente',
     linkedin: 'LinkedIn',
     whatsapp: 'WhatsApp'
   },
@@ -140,155 +112,133 @@ export const ptBR: Dictionary = {
   },
 
   landing: {
-    eyebrow: 'Ferramenta de auditoria para quem vende CRO',
-    headlineTop: 'Numa auditoria, todo mundo chuta número.',
-    headlineBottom: 'Este relatório conta, e sai com o seu nome.',
-    lead: 'Cole a landing page do seu cliente. Em minutos você tem o diagnóstico medido e as correções priorizadas com a copy já escrita, num documento que sai sem marca nossa e sem muro nenhum.',
-    cta: 'Rodar um relatório',
+    eyebrow: 'Nota gratuita da sua landing page',
+    headlineTop: 'Descubra a nota da sua landing page.',
+    headlineBottom: 'Medida na sua página, em menos de um minuto.',
+    lead: 'Cole a URL. A gente abre a página do jeito que um visitante abre, conta o que tem nela de verdade e dá uma nota de 0 a 100. Ver a nota não custa nada e não pede cadastro.',
+    cta: 'Ver a minha nota',
     howItWorksLink: 'Como funciona',
 
-    sample: [
-      {
-        problem:
-          'Seu H1 diz o que a empresa faz, e não por que o visitante deveria fechar a outra aba.',
-        variant: 'Mexa na sua página de preços sem depender de designer.',
-        evidence:
-          'A Linear abre com o resultado que o fundador quer, não com a lista de funcionalidades.'
-      },
-      {
-        problem: '"Cadastre-se" cobra compromisso antes de o visitante ver alguma vantagem.'
-      },
-      {
-        problem: 'Nada acima da dobra mostra que outra empresa já comprou isso.'
-      }
-    ],
-
-    readout: {
-      domain: 'landing page',
-      why: 'Por quê'
+    heroCard: {
+      domain: 'sualandingpage.com',
+      scoreLabel: 'Nota da página',
+      score: '47',
+      outOf: '/100',
+      rows: [
+        { label: 'Campos no formulário', value: '7', severity: 'alert' },
+        { label: 'CTAs acima da dobra', value: '6', severity: 'warn' },
+        { label: 'LCP', value: '4,2s', severity: 'alert' },
+        { label: 'Meta description', value: 'Ausente', severity: 'alert' },
+        { label: 'Depoimentos', value: 'Sim', severity: 'ok' }
+      ]
     },
 
     reality: {
-      eyebrow: 'Na prática',
-      heading: 'O trabalho que fecha o contrato é o que você faz antes de alguém pagar.'
+      eyebrow: 'A real',
+      heading: 'Não dá para arrumar o que ninguém metrificou.'
     },
     pains: [
       {
-        headline: 'Um diagnóstico bem feito leva meio dia.',
-        reality:
-          'Ler a página, conferir o head, cronometrar o carregamento, olhar dois concorrentes. Depois repetir tudo no próximo prospect, que talvez nem responda.',
-        answer:
-          'Uma URL e alguns minutos. O diagnóstico volta contado na página dele, e opinião com número do lado deixa de ser questão de gosto.'
+        headline: 'Você sabe que não converte. Só não sabe qual parte.',
+        reality: 'Chega gente, ninguém se cadastra, e cada palpite sobre o motivo custa mais uma semana.',
+        answer: 'Uma nota de 0 a 100 e exatamente as linhas que puxaram ela para baixo. Contadas na sua página, nunca chutadas.'
       },
       {
-        headline: 'Número inventado queima a sua reputação.',
-        reality:
-          'A ferramenta cospe "isso aumenta 23% da sua conversão", você repassa no relatório, e seis meses depois o cliente cobra os 23%. Quem assinou o documento foi você, não ela.',
-        answer:
-          'Aqui nenhum número sai de modelo. Campos de formulário, CTAs acima da dobra, tempo de carregamento, imagens sem alt: tudo contado na página dele, no dia em que a gente abriu.'
+        headline: 'Cada ferramenta diz uma coisa diferente.',
+        reality: 'Uma diz que a sua velocidade está boa, a seguinte diz que está péssima, e nenhuma diz o que mudar.',
+        answer: 'Um diagnóstico só, um número só, e cada linha é algo que você confere na sua própria página em um clique.'
       },
       {
-        headline: 'Relatório com a marca dos outros não é entregável seu.',
-        reality:
-          'Você não manda para o seu cliente um documento que faz propaganda de fornecedor, e muito menos um que pede o e-mail dele para liberar o resto.',
-        answer:
-          'No plano pago o relatório sai sem marca nossa, sem muro e sem nada borrado. É seu para enviar.'
+        headline: 'Perguntar para uma IA devolve conselho genérico.',
+        reality: 'Você cola a URL num chat e ele escreve dicas plausíveis sobre uma página que nunca abriu.',
+        answer: 'A gente carrega a sua página de verdade, conta o que tem nela e reescreve as linhas que precisam.'
       }
     ],
 
+    aiSearch: {
+      eyebrow: 'Visibilidade em IA',
+      heading: 'A IA é o novo Google, e ela nunca abre a sua página num navegador.',
+      body: 'Cada vez mais gente pergunta para um assistente em vez de buscar. O crawler por trás dele baixa o seu texto, lê e segue. A sua análise tem uma aba só para isso.',
+      points: [
+        {
+          title: 'Um leitor sem navegador',
+          body: 'Sem script, sem fonte, sem design. Ele fica com a versão mais crua da sua página, então tudo que só aparece na tela não existe para ele.'
+        },
+        {
+          title: 'O que a sua página diz sobre ela mesma',
+          body: 'Title, description, canonical, dados estruturados, alt text. A gente confere quais desses a sua página tem e quais estão faltando.'
+        },
+        {
+          title: 'O robots.txt voltou a importar',
+          body: 'O arquivinho que diz quem pode ler o seu site foi escrito para buscador. Hoje ele decide a mesma coisa para os crawlers de IA. A gente mostra o que o seu permite.'
+        }
+      ],
+      link: 'Ler: a IA é o novo Google?'
+    },
+
     how: {
       eyebrow: 'Como funciona',
-      heading: 'Primeiro meça a página. Depois coloque o seu nome nela.',
-      intro: 'O relatório é o que coloca você na sala: um diagnóstico medido de uma página a que você nunca teve acesso, num documento que o cliente dele lê inteiro sem ver o nome de mais ninguém além do seu.'
+      heading: 'Cole, veja a nota, corrija.',
+      intro: 'A nota é gratuita e não pede conta. Libere as correções quando quiser a copy nova escrita para você.'
     },
-    tracks: [
+    steps: [
       {
-        label: 'Meça a página',
-        note: 'Minutos, sem precisar de acesso',
-        steps: [
-          {
-            label: 'Cole a URL dele',
-            body: 'Qualquer landing page pública. A gente abre, mede e ainda estuda de dois a três concorrentes reais do mercado dele.'
-          },
-          {
-            label: 'Leia o diagnóstico',
-            body: 'Primeiro o que foi medido na página. Depois as correções priorizadas em fluxo, copy e descoberta, cada uma com o texto substituto já escrito. Se você adicionar um briefing do negócio, ele volta com os dados reais do cliente.'
-          },
-          {
-            label: 'Veja de onde veio cada número',
-            body: 'Tudo foi contado na página dele no momento em que a gente abriu. Nada é média de benchmark, nada é estimativa, e nada foi preenchido por modelo.'
-          }
-        ]
+        label: 'Cole a sua URL',
+        body: 'Qualquer landing page pública. A gente abre num navegador de verdade, do jeito que um visitante abre.'
       },
       {
-        label: 'Deixe o documento seu',
-        note: 'Configura uma vez',
-        steps: [
-          {
-            label: 'Coloque a sua marca',
-            body: 'Sua logo, seu nome e sua cor de destaque, salvos uma vez nas configurações e aplicados em todo relatório dali em diante.'
-          },
-          {
-            label: 'Mande o link ou o PDF',
-            body: 'Compartilhe o link do relatório ou entregue a versão impressa. No plano pago não tem nada em nenhum dos dois que diga o nosso nome.'
-          },
-          {
-            label: 'Sem muro para o cliente dele',
-            body: 'Nada borrado, nenhum cadastro pedido, nenhum e-mail capturado. Quem recebeu lê o documento inteiro.'
-          }
-        ]
+        label: 'Receba a sua nota',
+        body: 'De 0 a 100, com todas as linhas que formaram ela: campos de formulário, CTAs, tempo de carregamento, alt text, dados estruturados.'
+      },
+      {
+        label: 'Libere as correções',
+        body: 'Mudanças priorizadas com a copy substituta já escrita, e uma prévia dela na sua página real.'
       }
     ],
 
     value: {
       eyebrow: 'O que você recebe',
-      heading: 'Um relatório que aguenta ser questionado.'
+      heading: 'Números que dá para conferir, copy que dá para colar.'
     },
     proof: [
       {
         title: 'Medido, não chutado',
-        body: 'O diagnóstico conta o que está na página: campos de formulário, CTAs acima da dobra, tempo de carregamento, imagens sem alt. Número que a gente tirou da página, nunca número que um modelo inventou.'
+        body: 'Todo número é contado na sua página no momento em que a abrimos. Nada vem de média de benchmark, nem é estimado, nem preenchido por um modelo.'
       },
       {
         title: 'Copy pronta, não prompt',
-        body: 'Cada correção priorizada traz o texto substituto e o raciocínio por trás dele. Com um briefing do negócio, ele volta com os dados reais do cliente já dentro.'
+        body: 'Cada correção priorizada traz a linha substituta e o raciocínio por trás dela. Adicione os detalhes do seu negócio e ela volta com os seus números reais já dentro.'
       },
       {
-        title: 'Seu para enviar',
-        body: 'Relatório pago não tem logo nossa, não tem muro de e-mail e não tem nada borrado. Cole o link num e-mail ou entregue a versão impressa.'
+        title: 'Visto na sua própria página',
+        body: 'A copy nova é renderizada sobre um screenshot da sua página real, então você vê como ela fica antes de publicar.'
       }
     ],
 
-    contact: {
-      eyebrow: 'Fale com a gente',
-      heading: 'Conte quantas páginas você audita por mês.',
-      body: 'A gente roda um relatório real numa página que você escolher e mostra quanto custa enviar com o seu nome. Sem papo de vendedor.',
-      points: [
-        'Relatório com o seu nome, não com o nosso',
-        'Seu cliente nunca esbarra num muro de cadastro',
-        'Um diagnóstico medido por página, nada de modelo pronto',
-        'A gente responde no mesmo dia'
-      ],
-      form: {
-        emailPlaceholder: 'voce@agencia.com',
-        phonePlaceholder: 'Telefone (opcional)',
-        join: 'Pedir um relatório',
-        joining: 'Enviando...',
-        done: 'Recebido. A gente responde nesse e-mail hoje.',
-        error: 'Algo deu errado. Tente de novo.'
-      }
+    leaderboard: {
+      eyebrow: 'Medidos até agora',
+      heading: 'Veja todas as páginas analisadas e a nota que cada uma recebeu.',
+      intro: 'Cada chip é uma página real que carregamos e metrificamos. Arraste a esfera para olhar em volta.',
+      sphereLabel: 'Páginas medidas, por nota',
+      topLabel: 'Maiores notas',
+      outOf: '/100'
+    },
+
+    pulse: {
+      running: '{domain} está sendo analisado agora mesmo',
+      done: '{domain} acabou de ser medido: {score}/100',
+      dismiss: 'Fechar'
     },
 
     finalCta: {
-      heading: 'Escolha um prospect. Rode o relatório. Veja o que você teria mandado.'
+      heading: 'Cole a sua URL. Veja a sua nota.'
     }
   },
-
   signIn: {
     title: 'Entrar',
     description: 'Continue com sua conta de trabalho',
     google: 'Continuar com o Google',
-    microsoft: 'Continuar com a Microsoft',
+    github: 'Continuar com o GitHub',
     adminEmail: 'E-mail do admin',
     password: 'Senha',
     invalidCredentials: 'Credenciais inválidas',
@@ -296,20 +246,25 @@ export const ptBR: Dictionary = {
   },
 
   dashboard: {
-    eyebrow: 'Clientes',
-    title: 'Seus clientes',
+    eyebrow: 'Páginas',
+    title: 'Suas páginas',
     hintLabel: 'Como a análise funciona',
-    hint: 'Cole a URL da landing page do seu cliente. O Hunch mede a página, estuda concorrentes e prioriza as correções que valem a pena. Adicione *detalhes do negócio* para o texto voltar pronto em vez de com [placeholders]. Nos planos pagos, cole URLs de concorrentes (*Modo concorrentes*) para embasar as ideias; análises gratuitas encontram concorrentes automaticamente.',
-    subtitle: 'Cole a URL da landing page de um cliente para gerar o diagnóstico dele.',
-    emptyTitle: 'Nenhum cliente ainda',
-    emptyDescription:
-      'Cole a URL da landing page de um cliente acima para rodar sua primeira análise.'
+    hint: 'Cole a URL da landing page. O Hunch mede a página e prioriza as correções que valem a pena. Adicione *detalhes do negócio* para o texto voltar pronto em vez de com [placeholders].',
+    subtitle: 'Cole a URL de uma landing page para medir e receber as correções priorizadas.',
+    emptyTitle: 'Nenhuma página ainda',
+    emptyDescription: 'Cole a URL de uma landing page aqui em cima para rodar a sua primeira análise.',
+    pagination: {
+      label: 'Mais páginas suas',
+      previous: 'Mais recentes',
+      next: 'Mais antigas',
+      position: 'Página {page} de {pages}'
+    }
   },
 
   urlForm: {
     phases: [
       'Lendo sua página...',
-      'Pesquisando concorrentes...',
+      'Lendo o head e cronometrando o carregamento...',
       'Escrevendo a copy nova...',
       'Salvando resultados...'
     ],
@@ -317,17 +272,10 @@ export const ptBR: Dictionary = {
     analyze: 'Analisar',
     analyzing: 'Analisando...',
     waitNote:
-      'Isso costuma levar de 2 a 3 minutos. Mantenha esta aba aberta enquanto lemos a página, estudamos concorrentes e escrevemos a copy nova.',
+      'Isso costuma levar de 2 a 3 minutos. Mantenha esta aba aberta enquanto lemos a página, medimos e escrevemos a copy nova.',
     briefSummary: 'Adicionar detalhes do negócio (opcional)',
     briefPlaceholder:
       'Para quem é o produto, os números reais (usuários, duração do trial, preços) e o que o diferencia. É com isso que a copy volta pronta em vez de vir com placeholders.',
-    competitorSummary: 'Modo concorrentes',
-    competitorPaidOnly: '(Pro)',
-    competitorHint: 'Cole até {max} landing pages de concorrentes para embasar as ideias.',
-    competitorPlaceholder: 'https://um-concorrente.com',
-    competitorLockedBefore: 'Embase as ideias nos concorrentes que você escolher.',
-    competitorLockedAfter:
-      'para liberar o Modo concorrentes. Análises gratuitas encontram concorrentes automaticamente.',
     errorInvalidUrl: 'Informe uma URL válida, incluindo https://',
     errorGeneric: 'Algo deu errado. Tente novamente.',
     errorLimitReached:
@@ -337,14 +285,6 @@ export const ptBR: Dictionary = {
     errorAnalyzeFailed: 'Algo deu errado durante a análise. Tente novamente.'
   },
 
-  usageBanner: {
-    limitReached: 'Limite atingido',
-    almostOut: 'Quase no limite',
-    usageOf: 'de',
-    used: 'análises usadas neste mês.',
-    blockedNote: 'Fale com a gente para continuar analisando páginas.',
-    remainingNote: 'Faltam {remaining} para você chegar ao limite do plano gratuito.'
-  },
 
   history: {
     openAria: 'Abrir análise de {url}',
@@ -357,55 +297,30 @@ export const ptBR: Dictionary = {
     hintLabel: 'Como usar esta tela',
     hint: 'Cada aba é um tipo de correção, ordenada pelo impacto provável. *Fluxo* e *SEO* são mudanças que alguém aplica à mão; *Copy* é o texto, e ali cada ideia já vem com a versão nova escrita. Todo número do diagnóstico acima foi contado na própria página, então nada aqui é estimativa.',
     backToDashboard: 'Voltar para clientes',
-    benchmarkedAgainst: 'Ideias embasadas nestes concorrentes:',
-    marketNote: '(mercado: {market})',
     copyFailed: 'Não foi possível copiar',
     deliverables: {
       eyebrow: 'Entregáveis',
-      hintLabel: 'Qual dos dois enviar',
-      hint: 'Esta análise gera dois documentos para você entregar, e são os mesmos achados em dois formatos. O *relatório interativo* é um link: seu cliente abre no navegador, circula pelas abas e consegue ver cada troca de texto renderizada na página dele. O *relatório em PDF* é a mesma análise achatada em uma página só, para o cliente que quer algo para imprimir, encaminhar ou anexar. Em um plano pago, nenhum dos dois leva o nosso nome.',
+      hintLabel: 'Para quem mandar',
+      hint: 'O relatório é *um link*, e quem abrir não precisa de conta. Mande para quem de fato edita a página, seja o dev, o designer ou quem publica a mudança: a pessoa recebe as correções priorizadas e a copy substituta sem você ter que colar nada em uma mensagem. Cada troca de texto pode ser vista na sua página real, dentro do próprio relatório.',
       interactiveTitle: 'Relatório interativo',
-      interactiveBody: 'Uma página que seu cliente abre no navegador. Cada troca de texto pode ser vista na página real dele.',
-      pdfTitle: 'Relatório em PDF',
-      pdfShort: 'PDF',
-      pdfBody: 'Os mesmos achados em uma página só, para imprimir ou anexar em um e-mail.',
+      interactiveBody: 'Uma página que qualquer um abre com o link. Cada troca de texto pode ser vista na sua página real.',
       open: 'Abrir',
       copyLink: 'Copiar link'
     },
     tabs: {
-      flow: 'Estrutura da página',
-      copy: 'Textos',
-      seo: 'Visibilidade em busca',
-      ai: 'Visibilidade em IA'
+      flow: 'Estrutura',
+      copy: 'Copy',
+      seo: 'SEO',
+      ai: 'IA'
+    },
+    tabQuestions: {
+      flow: 'A sua página está espantando quem chega?',
+      copy: 'O seu texto convence, ou só descreve?',
+      seo: 'O Google acha a sua página?',
+      ai: 'A sua landing page é visível pela IA?'
     }
   },
 
-  settings: {
-    eyebrow: 'White label',
-    title: 'Sua marca',
-    hintLabel: 'Onde a sua marca aparece',
-    hint: 'No plano pago os relatórios não levam nenhuma marca nossa. O que você define aqui ocupa esse espaço, nos quatro lugares por onde o nosso nome chegava ao leitor: o *link do relatório* que o seu cliente abre, o *PDF* que você entrega, o card de prévia quando o link é colado no WhatsApp ou no email, e o título da aba que a impressora coloca no cabeçalho da página.',
-    nameLabel: 'Nome da agência',
-    namePlaceholder: 'Sua agência',
-    nameHint: 'Usado quando não há logo, e no card de prévia quando o link é compartilhado.',
-    logoLabel: 'Logo',
-    logoHint: 'PNG ou JPEG, até {kb} KB. Aparece no topo de todo relatório.',
-    logoReplace: 'Trocar o logo',
-    logoChoose: 'Escolher um arquivo',
-    logoRemove: 'Remover o logo',
-    accentLabel: 'Cor de destaque',
-    accentHint: 'Opcional. Um valor hex como #2C6BED.',
-    save: 'Salvar',
-    saving: 'Salvando...',
-    saved: 'Salvo',
-    error: 'Não deu para salvar. Confira o arquivo e tente de novo.',
-    errorLogoTooLarge: 'Esse arquivo passa de {kb} KB. Exporte menor e tente de novo.',
-    errorUnsupportedLogo: 'Esse arquivo não é PNG nem JPEG.',
-    errorInvalidAccent: 'A cor de destaque precisa ser um valor hex como #2C6BED.',
-    lockedTitle: 'A marca própria está no plano pago',
-    lockedBody: 'Relatórios do plano free levam o nosso nome. No plano pago eles levam o seu, e nada nosso chega ao seu cliente.',
-    lockedCta: 'Fale com a gente'
-  },
 
   flow: {
     eyebrow: 'Ajuste o fluxo',
@@ -524,26 +439,6 @@ export const ptBR: Dictionary = {
       },
       hint: 'Contado no próprio texto da página. São as palavras em torno das quais ela foi escrita, não o que as pessoas buscam.'
     },
-    comparison: {
-      title: 'A página lado a lado com os concorrentes indicados',
-      hint: 'Medido do mesmo jeito em todas elas, no mesmo tamanho de tela.',
-      you: 'Esta página',
-      metrics: {
-        form_fields: 'Campos no formulário',
-        social_signin: 'Login social',
-        above_fold_ctas: 'CTAs acima da dobra',
-        nav_links: 'Links do menu',
-        word_count: 'Palavras na página',
-        pricing: 'Preço na página',
-        testimonials: 'Depoimentos',
-        faq: 'FAQ',
-        sticky_cta: 'CTA fixo',
-        meta_description: 'Meta description',
-        structured_data: 'Dados estruturados',
-        lcp: 'LCP',
-        page_weight: 'Peso da página'
-      }
-    },
     measure: {
       explain:
         'Esta análise foi gerada antes de começarmos a contar. Carregamos a página de novo e medimos: campos de formulário, CTAs acima da dobra, tempo de carregamento, imagens sem alt.',
@@ -561,7 +456,7 @@ export const ptBR: Dictionary = {
     manualSetup: 'Configuração manual',
     testThisFirst: 'Comece por aqui',
     recommendedChallenger: 'Desafiante recomendado',
-    competitorEvidence: 'Do concorrente',
+    evidenceMechanism: 'O mecanismo',
     placeholderWarning:
       'Contém [placeholders] - substitua pelos dados reais antes de entregar.',
     otherOptions: 'Outras opções',
@@ -572,19 +467,86 @@ export const ptBR: Dictionary = {
     }
   },
 
+  credits: {
+    eyebrow: 'Créditos',
+    heading: 'Um crédito, uma análise completa.',
+    body: 'A nota é sempre gratuita. O crédito compra a metade que um modelo escreve: as correções priorizadas, a copy substituta e uma prévia dela na sua página real.',
+    balance: 'Você tem {count} créditos',
+    balanceOne: 'Você tem 1 crédito',
+    balanceNone: 'Você não tem créditos',
+    credits: { one: '{count} análise', other: '{count} análises' },
+    buy: 'Comprar',
+    opening: 'Abrindo o checkout...',
+    mostChosen: 'Mais escolhido',
+    mercadopago: {
+      loading: 'Carregando o formulário de pagamento...',
+      failed: 'Não deu para carregar o formulário de pagamento. Tente de novo daqui a pouco.',
+      approved: 'Pagamento aprovado.',
+      pending: 'Aguardando a confirmação do pagamento.',
+      qrAlt: 'QR Code do Pix',
+      creditsArrive: 'Os créditos entram na sua conta assim que o pagamento for confirmado.',
+      refresh: 'Atualizar o saldo'
+    },
+    packs: {
+      single: {
+        name: 'Avulso',
+        price: 'R$19',
+        perAnalysis: 'R$19 por análise',
+        tagline: 'Uma página, um diagnóstico dela.',
+        features: [
+          'A nota e cada linha que a formou',
+          'Correções priorizadas com a copy substituta escrita',
+          'Cada linha vista na sua página real'
+        ]
+      },
+      trio: {
+        name: 'Trio',
+        price: 'R$39',
+        perAnalysis: 'R$13 por análise',
+        tagline: 'Uma página, a reescrita dela e uma conferida depois.',
+        features: [
+          'Tudo do Avulso, três vezes',
+          'Espaço para medir de novo depois de publicar as mudanças',
+          'Os créditos não expiram'
+        ]
+      },
+      pack: {
+        name: 'Pacote',
+        price: 'R$99',
+        perAnalysis: 'R$9,90 por análise',
+        tagline: 'Um funil inteiro, ou uma carteira de clientes.',
+        features: [
+          'Tudo do Trio, dez análises no total',
+          'Dá para cada página de um funil',
+          'Os créditos não expiram'
+        ]
+      }
+    }
+  },
+
+  unlock: {
+    heading: 'A sua nota está medida. As correções estão escritas.',
+    body: 'Tudo acima foi contado na sua página. O que está atrás disso é a parte que alguém precisa escrever: mudanças priorizadas, a copy substituta e uma prévia dela na sua página real.',
+    points: [
+      'Correções priorizadas em estrutura, copy, SEO e IA',
+      'O texto novo, já escrito',
+      'Cada linha vista na sua própria página'
+    ],
+    cta: 'Liberar as correções'
+  },
+
   report: {
     backToTestIdeas: 'Voltar para a análise',
-    printHint: 'Pressione Ctrl ou Cmd + P para salvar em PDF',
     teardown: 'Análise de conversão',
-    plan: 'Diagnóstico de conversão',
+    measuringHeading: 'Medindo esta página...',
+    measuringBody: 'Estamos abrindo ela do jeito que um visitante abre e contando o que tem nela. Isso leva cerca de um minuto. A página se atualiza quando os números chegarem.',
+    plan: 'Nota da landing page',
     landingPageAnalyzed: 'Landing page analisada',
-    preparedBy: 'Preparado por {name}',
     dated: 'Revisado em {date}',
     summaryBody:
       'Passamos por esta página linha a linha e encontramos {changes} mudanças que valem a pena. {ready} delas são mudanças de texto, e o texto novo já está escrito aqui embaixo. As outras {structural} mudam como a página está montada.',
     changesFound: 'Mudanças recomendadas',
     copyWritten: 'Texto já escrito',
-    benchmarkedAgainst: 'Ideias embasadas nestes concorrentes',
     testThisFirst: 'Comece por aqui',
     problem: 'Problema',
     recommendation: 'Recomendação',
@@ -607,73 +569,15 @@ export const ptBR: Dictionary = {
     previewRetry: 'Tentar de novo',
     previewOverflow:
       'Este texto não cabe no espaço que sua página dá para esse elemento, então a prévia mostra ele cortado. Encurte o texto, ou dê mais espaço ao elemento antes de publicar.',
-    footerQuestion: 'Quer um diagnóstico assim para a sua página?',
+    footerQuestion: 'Quer uma nota assim para a sua página?',
     generatedBy: 'Gerado pelo Hunch'
   },
 
-  waitlist: {
-    seeMore: 'Ver mais',
-    heading: {
-      one: 'Mais {count} correção de alto impacto está pronta',
-      other: 'Mais {count} correções de alto impacto estão prontas'
-    },
-    body: 'Entre na lista de espera para liberar a análise completa e o texto recomendado para cada seção.',
-    done: 'Você está na lista. Entraremos em contato.',
-    emailPlaceholder: 'voce@empresa.com',
-    phonePlaceholder: 'Telefone (opcional)',
-    join: 'Entrar na lista de espera',
-    joining: 'Entrando...',
-    error: 'Algo deu errado. Tente novamente.'
-  },
 
-  upgradePrompt: {
-    eyebrow: 'Pro',
-    title: 'Mande este relatório com o seu nome',
-    body: 'No Pro o relatório sai sem marca nossa e sem muro de cadastro, então dá para entregar direto ao cliente. Junto vêm análises ilimitadas, modo concorrentes e exportação.',
-    dismiss: 'Agora não',
-    dismissAria: 'Dispensar aviso'
-  },
 
-  leads: {
-    eyebrow: 'Admin',
-    title: 'Leads da lista de espera',
-    empty: 'Nenhum lead ainda. Eles chegam pelo muro de um relatório público ou pelo formulário de contato.',
-    email: 'E-mail',
-    source: 'Origem',
-    phone: 'Telefone',
-    fromReport: 'Do relatório',
-    joined: 'Entrou em'
-  },
 
-  accounts: {
-    eyebrow: 'Admin',
-    title: 'Contas',
-    grantTitle: 'Conceder um plano',
-    grantHint:
-      'Conceda o plano quando fechar a venda. A conta não precisa existir ainda: o plano fica esperando no e-mail e já está lá no primeiro login.',
-    emailPlaceholder: 'comprador@empresa.com',
-    grantSubmit: 'Conceder pro',
-    email: 'E-mail',
-    plan: 'Plano',
-    lastSignIn: 'Último login',
-    neverSignedIn: 'Nunca entrou',
-    stripeCustomer: 'Customer do Stripe',
-    joined: 'Criada em',
-    action: 'Ação',
-    grant: 'Conceder pro',
-    revoke: 'Revogar'
-  },
 
-  reports: {
-    eyebrow: 'Admin',
-    title: 'Aberturas de relatório',
-    empty:
-      'Nenhuma análise ainda. Um relatório começa a contar aberturas na primeira vez que alguém carrega o link dele.',
-    page: 'Página',
-    owner: 'Dono',
-    views: 'Aberturas',
-    lastOpened: 'Aberto pela última vez',
-    never: 'Nunca'
-  },
 
+
+  blog: ptBrBlog
 }

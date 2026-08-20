@@ -77,6 +77,36 @@
   border-color: var(--color-border);
 }
 
+/* Tailwind v4's preflight dropped v3's pointer cursor on controls, so every button in the app was
+   rendering with the arrow. Restored here once rather than as a class on each call site. */
+button:not(:disabled),
+[role='button']:not(:disabled),
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+[role='button'][aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Anything that reacts to the pointer settles at the same speed, so the app has one tempo instead of
+   a different one per component. */
+a,
+button,
+summary,
+input,
+textarea,
+[role='button'] {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
 /* The whole app reads as a measurement surface: faint graph-paper grid behind the panels. */
 body {
   background-color: var(--color-background);
@@ -127,10 +157,82 @@ body {
   animation: pop-in 0.25s ease-out;
 }
 
+/*
+ * Scroll reveal.
+ *
+ * `.animate-fade-up` fires once on mount, so from the second screen down the page was static: the
+ * animation had finished long before a reader scrolled to it.
+ *
+ * **The hidden state is gated on `data-reveal`, which an inline script in `app/layout.tsx` sets on
+ * `<html>` before first paint.** That ordering is the whole safety argument: the class only ever
+ * hides content once something has confirmed it is able to reveal it again. If the script does not
+ * run, or the bundle behind `ScrollReveal` fails to load, the attribute is absent and every
+ * `.reveal` element paints normally -- the landing stays readable for ad traffic in the one case
+ * where it matters most. Setting the attribute from React instead would paint the content, then
+ * blank it, then fade it back in.
+ *
+ * The same script skips the attribute entirely under `prefers-reduced-motion: reduce`, and the block
+ * further down repeats that in CSS so neither half can strand the page invisible on its own.
+ *
+ * This replaced a pure CSS `animation-timeline: view()` version. That one was elegant and needed no
+ * JavaScript at all, but it is silently inert in Firefox, and the repo has no bundle budget on the
+ * landing that would justify the gap -- see components.md.
+ */
+[data-reveal] .reveal {
+  opacity: 0;
+  transform: translateY(1.5rem);
+}
+
+[data-reveal] .reveal[data-revealed] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.6s ease-out,
+    transform 0.6s ease-out;
+}
+
+/* Skeletons sweep rather than blink: a route that is still fetching reads as work in progress. */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklch, var(--color-foreground) 6%, transparent),
+    transparent
+  );
+  animation: shimmer 1.4s infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
-  .animate-pop-in {
+  .animate-pop-in,
+  .animate-shimmer {
     animation: none;
+  }
+
+  [data-reveal] .reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
   }
 }
 

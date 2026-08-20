@@ -1,158 +1,65 @@
 import { NextResponse } from 'next/server'
 import type Stripe from 'stripe'
-import { and, desc, eq, sql } from 'drizzle-orm'
 import { db } from '@/db'
-import { stripeEvents, subscriptions, users } from '@/db/schema'
-import { stripe, planForPriceId } from '@/lib/stripe'
-import { isUuid } from '@/lib/uuid'
-import { SUBSCRIPTION_PLAN } from '@/lib/enums'
-import type { SubscriptionPlan, SubscriptionStatus } from '@/lib/enums'
+import { paymentEvents } from '@/db/schema'
+import { grantCredits } from '@/lib/credits'
+import { STRIPE_PROVIDER } from '@/lib/constants'
+import { creditsForPrice, stripe } from '@/lib/stripe'
 
-function mapStatus(status: Stripe.Subscription.Status): SubscriptionStatus {
-  if (status === 'active' || status === 'trialing') return 'active'
-  if (status === 'past_due' || status === 'unpaid') return 'past_due'
-  return 'canceled'
-}
-
-function planFromSubscription(subscription: Stripe.Subscription): SubscriptionPlan | undefined {
-  const metadataPlan = subscription.metadata?.plan
-  if (metadataPlan && SUBSCRIPTION_PLAN.includes(metadataPlan as SubscriptionPlan)) {
-    return metadataPlan as SubscriptionPlan
-  }
-  const priceId = subscription.items.data[0]?.price.id
-  return priceId ? planForPriceId(priceId) : undefined
-}
-
-function customerIdOf(subscription: Stripe.Subscription): string | null {
-  if (typeof subscription.customer === 'string') return subscription.customer
-  return subscription.customer?.id ?? null
-}
-
-async function payerEmail(customerId: string): Promise<string | null> {
-  try {
-    const customer = await stripe.customers.retrieve(customerId)
-    return customer.deleted ? null : customer.email
-  } catch {
-    return null
-  }
-}
-
-// The buyer paid before ever signing in, which is the normal order for a sale closed on a call.
-// The row is theirs on first sign-in: that upsert writes name and avatar and never touches plan.
-async function payerUserId(email: string): Promise<string> {
-  const [row] = await db
-    .insert(users)
-    .values({ email, name: email })
-    .onConflictDoUpdate({ target: users.email, set: { email } })
-    .returning({ id: users.id })
-
-  return row.id
-}
-
-async function userIdForSubscription(
-  subscription: Stripe.Subscription,
-  createMissing = false
-): Promise<string | null> {
-  const customerId = customerIdOf(subscription)
-
-  if (customerId) {
-    const owner = await db.query.users.findFirst({
-      where: eq(users.stripeCustomerId, customerId),
-      columns: { id: true }
-    })
-    if (owner) return owner.id
-  }
-
-  const metadataUserId = subscription.metadata?.userId
-  if (isUuid(metadataUserId)) {
-    const claimed = await db.query.users.findFirst({
-      where: eq(users.id, metadataUserId),
-      columns: { id: true }
-    })
-    if (claimed) return claimed.id
-  }
-
-  if (customerId) {
-    const email = await payerEmail(customerId)
-    if (email) {
-      const normalized = email.toLowerCase()
-      const payer = await db.query.users.findFirst({
-        where: sql`lower(${users.email}) = ${normalized}`,
-        columns: { id: true }
-      })
-      if (payer) return payer.id
-      if (createMissing) return payerUserId(normalized)
-    }
-  }
-
-  return null
-}
-
-async function syncSubscription(subscription: Stripe.Subscription, plan: SubscriptionPlan) {
-  const userId = await userIdForSubscription(subscription, true)
-  if (!userId) {
-    console.error('[billing/webhook] no user for subscription', subscription.id)
-    return
-  }
-
-  const item = subscription.items.data[0]
-  const status = mapStatus(subscription.status)
-  const currentPeriodEnd = new Date(item.current_period_end * 1000)
-
-  await db
-    .insert(subscriptions)
-    .values({
-      userId,
-      stripeSubscriptionId: subscription.id,
-      plan,
-      status,
-      currentPeriodEnd
-    })
-    .onConflictDoUpdate({
-      target: subscriptions.stripeSubscriptionId,
-      set: { plan, status, currentPeriodEnd }
-    })
-
-  const customerId = customerIdOf(subscription)
-  await db
-    .update(users)
-    .set(customerId ? { plan, stripeCustomerId: customerId } : { plan })
-    .where(eq(users.id, userId))
-}
-
-async function claimEvent(event: Stripe.Event, subscriptionId: string | null): Promise<boolean> {
+// Idempotency lives in two places on purpose, and they guard different things.
+//
+// `payment_events` claims the delivery, so a retried webhook does no work twice. The unique on
+// `(provider, provider_ref)` in the ledger claims the payment, so even a delivery that slipped past
+// the first guard — a different event id for the same session, a manual replay — cannot credit twice.
+// The second one is the guarantee that actually matters, because it is keyed on the payment rather
+// than on the message about it.
+async function claimEvent(event: Stripe.Event): Promise<boolean> {
   const inserted = await db
-    .insert(stripeEvents)
+    .insert(paymentEvents)
     .values({
-      id: event.id,
+      provider: STRIPE_PROVIDER,
+      eventId: event.id,
       type: event.type,
-      subscriptionId,
       eventCreatedAt: new Date(event.created * 1000)
     })
     .onConflictDoNothing()
-    .returning({ id: stripeEvents.id })
+    .returning({ eventId: paymentEvents.eventId })
 
   return inserted.length > 0
 }
 
-async function supersededByCancellation(
-  event: Stripe.Event,
-  subscriptionId: string
-): Promise<boolean> {
-  const [cancellation] = await db
-    .select({ eventCreatedAt: stripeEvents.eventCreatedAt })
-    .from(stripeEvents)
-    .where(
-      and(
-        eq(stripeEvents.subscriptionId, subscriptionId),
-        eq(stripeEvents.type, 'customer.subscription.deleted')
-      )
-    )
-    .orderBy(desc(stripeEvents.eventCreatedAt))
-    .limit(1)
+// The Stripe adapter, and the whole of it: work out who paid and what they bought, then hand it to
+// the one internal path that moves a balance. It touches no credit table itself -- see lib/credits.ts
+// for why that separation is the load-bearing decision of this phase.
+async function creditFromSession(session: Stripe.Checkout.Session): Promise<void> {
+  const email = session.customer_details?.email ?? session.customer_email
+  if (!email) {
+    console.error('[billing/webhook] paid session with no email', session.id)
+    return
+  }
 
-  if (!cancellation) return false
-  return event.created * 1000 < cancellation.eventCreatedAt.getTime()
+  const items = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 })
+
+  // Summed across line items so a quantity of two, or two packs in one basket, is honoured. The
+  // price id is the only input: metadata is dashboard-editable and would let credits be minted.
+  const credits = items.data.reduce(
+    (total, item) => total + creditsForPrice(item.price?.id ?? '') * (item.quantity ?? 1),
+    0
+  )
+
+  if (credits <= 0) {
+    console.error('[billing/webhook] paid session bought no known pack', session.id)
+    return
+  }
+
+  const result = await grantCredits({
+    email,
+    credits,
+    provider: STRIPE_PROVIDER,
+    providerRef: session.id
+  })
+
+  console.info('[billing/webhook] credit grant', { session: session.id, credits, ...result })
 }
 
 export async function POST(request: Request) {
@@ -171,60 +78,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_signature' }, { status: 400 })
   }
 
-  const subscriptionId = subscriptionIdOf(event)
-
-  if (!(await claimEvent(event, subscriptionId))) {
+  if (!(await claimEvent(event))) {
     return NextResponse.json({ received: true, duplicate: true })
   }
 
-  switch (event.type) {
-    case 'checkout.session.completed': {
+  try {
+    if (event.type === 'checkout.session.completed') {
       const session = event.data.object
-      if (session.subscription) {
-        const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
-        const plan = planFromSubscription(subscription)
-        if (plan && !(await supersededByCancellation(event, subscription.id))) {
-          await syncSubscription(subscription, plan)
-        }
-      }
-      break
+      // `complete` is the only status that means the money moved. An expired or open session is a
+      // basket nobody paid for.
+      if (session.payment_status === 'paid') await creditFromSession(session)
     }
-    case 'customer.subscription.updated': {
-      const subscription = event.data.object
-      const plan = planFromSubscription(subscription)
-      if (plan && !(await supersededByCancellation(event, subscription.id))) {
-        await syncSubscription(subscription, plan)
-      }
-      break
-    }
-    case 'customer.subscription.deleted': {
-      const subscription = event.data.object
-      await db
-        .update(subscriptions)
-        .set({ status: 'canceled' })
-        .where(eq(subscriptions.stripeSubscriptionId, subscription.id))
-
-      const userId = await userIdForSubscription(subscription)
-      if (userId) {
-        await db.update(users).set({ plan: 'free' }).where(eq(users.id, userId))
-      }
-      break
-    }
+  } catch (error) {
+    // Answering 500 makes Stripe retry, and the retry is safe: the ledger's unique on the session id
+    // refuses a second grant even though the event claim has already been written.
+    console.error('[billing/webhook] handling failed', error)
+    return NextResponse.json({ error: 'handling_failed' }, { status: 500 })
   }
 
   return NextResponse.json({ received: true })
-}
-
-function subscriptionIdOf(event: Stripe.Event): string | null {
-  if (event.type === 'checkout.session.completed') {
-    const value = event.data.object.subscription
-    return typeof value === 'string' ? value : (value?.id ?? null)
-  }
-  if (
-    event.type === 'customer.subscription.updated' ||
-    event.type === 'customer.subscription.deleted'
-  ) {
-    return event.data.object.id
-  }
-  return null
 }

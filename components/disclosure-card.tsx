@@ -24,9 +24,9 @@ export function DisclosureCard({
   children: ReactNode
 }) {
   return (
-    <Card className={cn('break-inside-avoid', className)} data-testid={testId}>
+    <Card className={cn('break-inside-avoid transition-colors focus-within:border-foreground/20', className)} data-testid={testId}>
       <details open={defaultOpen} className="group">
-        <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4">
+        <summary className="flex list-none flex-wrap items-center gap-3 rounded-lg p-4 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
           {rank !== undefined && (
             <span className="font-mono text-xs tabular-nums text-muted-foreground">
               {String(rank).padStart(2, '0')}
@@ -44,7 +44,7 @@ export function DisclosureCard({
           {openScores && (
             <span className="hidden shrink-0 items-center gap-2 group-open:flex">{openScores}</span>
           )}
-          <span className="font-mono text-xs text-muted-foreground" aria-hidden>
+          <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground" aria-hidden>
             <span className="group-open:hidden">+</span>
             <span className="hidden group-open:inline">-</span>
           </span>

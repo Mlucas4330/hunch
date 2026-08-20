@@ -16,16 +16,11 @@ function measurement(overrides: Partial<MeasuredColumns>): MeasuredColumns {
   return { ...MEASUREMENT, ...overrides }
 }
 
-test('a snapshot reads as a readout, minus the competitors', () => {
+test('a snapshot reads as a readout', () => {
   const input = snapshotInput(snapshotValues('id', MEASUREMENT))
 
   assert.equal(input.structure, FIXTURE_STRUCTURE)
   assert.equal(input.crawler, FIXTURE_CRAWLER_ACCESS)
-  assert.equal(
-    input.competitors,
-    null,
-    'competitors were measured against a page, never against a date'
-  )
 })
 
 test('the score is frozen at capture', () => {
