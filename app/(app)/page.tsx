@@ -45,7 +45,7 @@ export default async function LandingPage() {
 
   return (
     <div className="animate-fade-up space-y-24 pb-12">
-      <section className="grid items-center gap-10 pt-6 lg:grid-cols-[1.05fr_1fr]">
+      <section className="grid items-center gap-10 pt-6 lg:grid-cols-[1fr_1.15fr]">
         <div className="space-y-6">
           <p className="panel-label text-[0.7rem] text-muted-foreground">{d.landing.eyebrow}</p>
           <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
@@ -70,7 +70,7 @@ export default async function LandingPage() {
       </section>
 
       <section className="space-y-10">
-        <header className="reveal space-y-1">
+        <header className="space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">
             {d.landing.reality.eyebrow}
           </p>
@@ -80,7 +80,7 @@ export default async function LandingPage() {
         </header>
         <div className="space-y-4">
           {d.landing.pains.map((pain, i) => (
-            <Card key={pain.headline} className={cn('reveal border-l-2', PAIN_CHANNELS[i])}>
+            <Card key={i} className={cn('border-l-2', PAIN_CHANNELS[i])}>
               <CardContent className="grid gap-4 p-5 md:grid-cols-[1.1fr_1fr] md:items-center">
                 <div className="space-y-1.5">
                   <h3 className="font-display text-lg font-semibold tracking-tight">
@@ -98,7 +98,7 @@ export default async function LandingPage() {
       </section>
 
       <section id="ai" className="space-y-10 scroll-mt-20">
-        <header className="reveal space-y-1">
+        <header className="space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">
             {d.landing.aiSearch.eyebrow}
           </p>
@@ -108,8 +108,8 @@ export default async function LandingPage() {
           <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.aiSearch.body}</p>
         </header>
         <div className="grid gap-6 sm:grid-cols-3">
-          {d.landing.aiSearch.points.map((point) => (
-            <Card key={point.title} className="reveal border-l-2 border-teal">
+          {d.landing.aiSearch.points.map((point, i) => (
+            <Card key={i} className="border-l-2 border-teal">
               <CardContent className="space-y-2 p-5">
                 <h3 className="font-display text-base font-semibold tracking-tight">
                   {point.title}
@@ -119,7 +119,7 @@ export default async function LandingPage() {
             </Card>
           ))}
         </div>
-        <div className="reveal flex border-t pt-4">
+        <div className="flex border-t pt-4">
           <Link
             href={`${BLOG_PATH}/${AI_POST_SLUG}`}
             className="panel-label text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground"
@@ -130,14 +130,14 @@ export default async function LandingPage() {
       </section>
 
       <section id="how" className="space-y-10 scroll-mt-20">
-        <header className="reveal space-y-1">
+        <header className="space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">{d.landing.how.eyebrow}</p>
           <h2 className="font-display text-2xl font-bold tracking-tight">{d.landing.how.heading}</h2>
           <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.how.intro}</p>
         </header>
         <ol className="grid gap-6 sm:grid-cols-3">
           {d.landing.steps.map((step, i) => (
-            <li key={step.label} className="reveal space-y-3">
+            <li key={i} className="space-y-3">
               <span className="panel-label text-sm text-muted-foreground">
                 {String(i + 1).padStart(2, '0')}
               </span>
@@ -150,7 +150,7 @@ export default async function LandingPage() {
       </section>
 
       <section className="space-y-10">
-        <header className="reveal space-y-1">
+        <header className="space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">
             {d.landing.value.eyebrow}
           </p>
@@ -159,8 +159,8 @@ export default async function LandingPage() {
           </h2>
         </header>
         <div className="grid gap-6 sm:grid-cols-3">
-          {d.landing.proof.map((item) => (
-            <Card key={item.title} className="reveal">
+          {d.landing.proof.map((item, i) => (
+            <Card key={i}>
               <CardContent className="space-y-2 p-5">
                 <h3 className="font-display text-lg font-semibold tracking-tight">{item.title}</h3>
                 <p className="text-sm text-muted-foreground">{item.body}</p>
@@ -172,7 +172,7 @@ export default async function LandingPage() {
 
       {showPulse && (
         <section className="space-y-10">
-          <header className="reveal space-y-1">
+          <header className="space-y-1">
             <p className="panel-label text-[0.7rem] text-muted-foreground">
               {d.landing.leaderboard.eyebrow}
             </p>
@@ -188,7 +188,7 @@ export default async function LandingPage() {
       )}
 
       <section className="space-y-6" id="credits">
-        <header className="reveal space-y-1">
+        <header className="space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">{d.credits.eyebrow}</p>
           <h2 className="font-display text-2xl font-bold tracking-tight">{d.credits.heading}</h2>
           <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.credits.body}</p>
@@ -200,7 +200,7 @@ export default async function LandingPage() {
       </section>
 
       <section>
-        <Card className="reveal border-dashed">
+        <Card className="border-dashed">
           <CardContent className="flex flex-col items-center gap-5 p-10 text-center">
             <h2 className="max-w-lg font-display text-2xl font-bold tracking-tight">
               {d.landing.finalCta.heading}
@@ -230,26 +230,26 @@ function HeroReadout({ dictionary }: { dictionary: Dictionary }) {
   const { heroCard } = dictionary.landing
 
   return (
-    <Card className="animate-pop-in shadow-sm">
-      <div className="flex items-center justify-between border-b px-4 py-2.5">
+    <Card className="animate-pop-in animate-hero-shine shadow-md">
+      <div className="flex items-center justify-between border-b px-5 py-3">
         <span className="font-mono text-xs text-muted-foreground">{heroCard.domain}</span>
       </div>
-      <CardContent className="space-y-4 p-4">
+      <CardContent className="space-y-6 p-6">
         <div className="space-y-1">
-          <p className="panel-label text-[0.6rem] text-muted-foreground">{heroCard.scoreLabel}</p>
-          <p className="font-display text-5xl font-bold tabular-nums tracking-tight">
+          <p className="panel-label text-[0.7rem] text-muted-foreground">{heroCard.scoreLabel}</p>
+          <p className="font-display text-7xl font-bold tabular-nums tracking-tight">
             {heroCard.score}
-            <span className="text-2xl text-muted-foreground">{heroCard.outOf}</span>
+            <span className="text-3xl text-muted-foreground">{heroCard.outOf}</span>
           </p>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {heroCard.rows.map((row) => (
-            <div key={row.label} className="flex items-center justify-between gap-3 text-sm">
+            <div key={row.label} className="flex items-center justify-between gap-3 text-base">
               <span className="text-muted-foreground">{row.label}</span>
               <span
                 className={cn(
-                  'rounded-sm px-1.5 py-0.5 font-mono text-xs tabular-nums',
+                  'rounded-sm px-2 py-1 font-mono text-sm tabular-nums',
                   READOUT_SEVERITY_CLASS[row.severity as ReadoutSeverity]
                 )}
               >

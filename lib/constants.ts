@@ -576,21 +576,6 @@ export const DEFAULT_OG_IMAGE_PATH = '/opengraph-image'
 // One measure for every surface: the navbar, the app pages and both reports. See docs/components.md.
 export const CONTAINER_CLASS = 'mx-auto w-full max-w-5xl px-4'
 
-// --- Scroll reveal ------------------------------------------------------------------------------
-//
-// Shared by the inline script in app/layout.tsx, components/scroll-reveal.tsx and the rules in
-// app/globals.css. The script is stringified into the document, so it reads these rather than
-// repeating the literals where a rename could miss one.
-
-// Set on <html> before first paint, and only when the reveal can actually be driven. The hidden
-// state in globals.css hangs off it, so its absence means "paint everything". See docs/components.md.
-export const REVEAL_READY_ATTR = 'data-reveal'
-export const REVEALED_ATTR = 'data-revealed'
-
-// Fires the reveal once the element is a little past the bottom edge, so it lands under the reader's
-// eye rather than exactly on the fold line.
-export const REVEAL_ROOT_MARGIN = '0px 0px -12% 0px'
-
 // Semantic token utilities from app/globals.css -- never raw Tailwind colors or hex values.
 export const SECTION_BADGE_CLASS: Record<Section, string> = {
   headline: 'bg-purple/15 text-purple',

@@ -79,7 +79,10 @@ export function MercadoPagoBrick({ pack, amount }: { pack: CreditPackId; amount:
         },
         callbacks: {
           onReady: () => setReady(true),
-          onError: () => setFailed(true),
+          onError: (error: unknown) => {
+            console.error('mercadopago brick', error)
+            setFailed(true)
+          },
           onSubmit: async ({ formData }: { formData: Record<string, unknown> }) => {
             setFailed(false)
 
@@ -90,6 +93,7 @@ export function MercadoPagoBrick({ pack, amount }: { pack: CreditPackId; amount:
             })
 
             if (!res.ok) {
+              console.error('mercadopago payment', res.status, await res.text())
               setFailed(true)
               throw new Error('payment_failed')
             }
@@ -102,7 +106,10 @@ export function MercadoPagoBrick({ pack, amount }: { pack: CreditPackId; amount:
         if (cancelled) created.unmount()
         else controller.current = created
       })
-      .catch(() => setFailed(true))
+      .catch((error: unknown) => {
+        console.error('mercadopago brick create', error)
+        setFailed(true)
+      })
 
     return () => {
       cancelled = true

@@ -157,40 +157,6 @@ body {
   animation: pop-in 0.25s ease-out;
 }
 
-/*
- * Scroll reveal.
- *
- * `.animate-fade-up` fires once on mount, so from the second screen down the page was static: the
- * animation had finished long before a reader scrolled to it.
- *
- * **The hidden state is gated on `data-reveal`, which an inline script in `app/layout.tsx` sets on
- * `<html>` before first paint.** That ordering is the whole safety argument: the class only ever
- * hides content once something has confirmed it is able to reveal it again. If the script does not
- * run, or the bundle behind `ScrollReveal` fails to load, the attribute is absent and every
- * `.reveal` element paints normally -- the landing stays readable for ad traffic in the one case
- * where it matters most. Setting the attribute from React instead would paint the content, then
- * blank it, then fade it back in.
- *
- * The same script skips the attribute entirely under `prefers-reduced-motion: reduce`, and the block
- * further down repeats that in CSS so neither half can strand the page invisible on its own.
- *
- * This replaced a pure CSS `animation-timeline: view()` version. That one was elegant and needed no
- * JavaScript at all, but it is silently inert in Firefox, and the repo has no bundle budget on the
- * landing that would justify the gap -- see components.md.
- */
-[data-reveal] .reveal {
-  opacity: 0;
-  transform: translateY(1.5rem);
-}
-
-[data-reveal] .reveal[data-revealed] {
-  opacity: 1;
-  transform: none;
-  transition:
-    opacity 0.6s ease-out,
-    transform 0.6s ease-out;
-}
-
 /* Skeletons sweep rather than blink: a route that is still fetching reads as work in progress. */
 @keyframes shimmer {
   100% {
@@ -217,16 +183,55 @@ body {
   animation: shimmer 1.4s infinite;
 }
 
+/*
+ * The hero card catches the light every few seconds.
+ *
+ * Same sweep as the skeletons above and deliberately so, but where a skeleton runs back to back to
+ * read as work in progress, this one is mostly pause: the idle stretch lives inside the keyframes,
+ * so a single infinite animation gives the rhythm and nothing has to keep time in JavaScript. The
+ * landing is a page somebody reads, and a sweep every 1.4s there would be a flicker to read around.
+ */
+@keyframes hero-shine {
+  0%,
+  85% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-hero-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-hero-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform: translateX(-100%);
+  /*
+   * Tilted and narrow, which is what separates a glint from a wash: the skeletons sweep a soft band
+   * across the whole width because they are saying "still working", while this one is a hard edge of
+   * light crossing a surface. A 90deg gradient at this width read as the card briefly going grey.
+   */
+  background-image: linear-gradient(
+    105deg,
+    transparent 42%,
+    color-mix(in oklch, var(--color-foreground) 14%, transparent) 50%,
+    transparent 58%
+  );
+  animation: hero-shine 6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-pop-in,
-  .animate-shimmer {
+  .animate-shimmer,
+  .animate-hero-shine::after {
     animation: none;
-  }
-
-  [data-reveal] .reveal {
-    opacity: 1;
-    transform: none;
   }
 
   *,

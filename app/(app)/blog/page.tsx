@@ -29,7 +29,7 @@ export default async function BlogIndexPage() {
         {BLOG_SLUG.map((slug) => {
           const post = blog.posts[slug]
           return (
-            <Card key={slug} className="reveal relative flex flex-col">
+            <Card key={slug} className="relative flex flex-col">
               <CardContent className="flex flex-1 flex-col gap-3 p-5">
                 <p className="panel-label text-[0.6rem] text-muted-foreground">
                   {formatDate(new Date(BLOG_POST_DATE[slug]), locale)}

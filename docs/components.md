@@ -28,41 +28,51 @@ state; server action forms had none, which is the click that reads as ignored. `
 page, the sign out form and the language toggle. The spinner is added beside the label rather than
 replacing it, so no button needs a second dictionary string.
 
-### Scroll reveal — `.reveal` + `components/scroll-reveal.tsx`
+### Hero glint — `.animate-hero-shine`
 
-`.animate-fade-up` fires once on mount, so from the second screen down the page was static: the
-animation had finished long before the reader scrolled to it. `.reveal` gives an element a 24px rise
-and a fade as it scrolls into view. Put the class on a server rendered element; nothing else is
-needed, and no wrapper component is involved.
+The landing's readout card catches the light every six seconds. It is the only motion on the page
+that repeats, and the card is the one element on the landing whose job is to be looked at.
 
-**Three pieces, and the order between them is the safety argument.** An inline script in
-`app/layout.tsx` sets `data-reveal` on `<html>` before first paint; `app/globals.css` hides `.reveal`
-*only* under that attribute; `ScrollReveal`, mounted once in `app/(app)/layout.tsx`, runs one
-`IntersectionObserver` over every `.reveal` on the page and stamps `data-revealed` as each arrives.
-Content is therefore only ever hidden after something has confirmed it can be un-hidden:
+**The rhythm lives inside the keyframes, not in a timer.** `hero-shine` holds the band off screen
+from 0% to 85% and crosses in the remaining 15%, so one infinite animation gives a 0.9s sweep and a
+5.1s pause, and nothing in JavaScript has to keep time. A `setInterval` toggling a class would be a
+second source of truth for a rhythm CSS can hold on its own.
 
-- **The script never runs, or the bundle fails** -- the attribute is absent, nothing is hidden, the
-  page reads normally. This is why the flag is not set from an effect, which would also paint the
-  content, blank it, and fade it back in.
-- **`prefers-reduced-motion: reduce`** -- the script skips the attribute and the CSS repeats the
-  rule, so neither half can strand the page invisible alone.
+**Diagonal and narrow is what separates a glint from a wash.** `.animate-shimmer` sweeps a soft band
+across the full width because a skeleton is saying "still working"; a 90deg gradient at that width on
+a near white card just reads as the card briefly going grey. At `105deg` with the stops inside
+`42%`--`58%` it reads as a hard edge of light crossing a surface instead. The colour is
+`--color-foreground` at 14%: a lighter sweep is invisible on a white card, and an accent tint at a
+strength you could actually see turned the whole card purple.
 
-The reveal is one way: elements are unobserved once revealed, because scrolling back up must not
-re-hide text somebody is reading. Nodes added after mount are not picked up -- everything carrying
-the class is in the server rendered HTML, and a `MutationObserver` on every page would be paid for a
-case that does not exist. The shared attribute names and `REVEAL_ROOT_MARGIN` live in
-`lib/constants.ts` because the script is stringified into the document and cannot import them.
+`overflow: hidden` on the host clips the band to the card's rounded corners, and `pointer-events:
+none` keeps the pseudo element out of the way of anything below it. `prefers-reduced-motion: reduce`
+stops the animation, which leaves the band parked off screen at `translateX(-100%)` rather than
+frozen across the content.
 
-Applied on `app/(app)/page.tsx`, the two blog routes and `components/blog-article.tsx`, whose article
-*sections* carry it and whose paragraphs deliberately do not: revealing every line makes prose read
-as a slideshow. The landing hero has no class -- it is on screen at load and keeps the wrapper's
-mount animation.
+**A scroll reveal used to live here and was removed.** Every section below the fold rose and faded as
+it came into view, driven by an `IntersectionObserver` over a `.reveal` class, with the hidden state
+gated on a `data-reveal` attribute an inline script set on `<html>` before first paint. The gate was
+the whole design: content was only ever hidden once something had confirmed it could be un-hidden.
 
-This replaced a pure CSS `animation-timeline: view()` version, which needed no JavaScript but is
-silently inert in Firefox. There is no bundle budget on the landing that would justify the gap: it
-already mounts five client components and ships ~122kB of first load JS, and the rules about ad
-traffic on it concern server cost -- zero tokens for an ownerless analysis, a failed query costing
-the section rather than the page -- never bundle size.
+It kept breaking anyway, and always in the same shape -- **the half that hides and the half that
+reveals had different lifetimes.** The attribute never came off `<html>` while the observer was bound
+to a snapshot of nodes, so a client side navigation, a locale switch that replaced list items keyed on
+translated strings, and a bundle that failed to arrive each left content at `opacity: 0` for good. Each
+fix was correct and each one uncovered the next: re-arm per route, then watch the tree for mutations,
+then stamp an attribute so the inline script could disarm itself when the bundle never landed. What
+finally settled it was that the effect was not worth the machinery.
+
+`motion` was weighed as the alternative and lost on one property. It renders `initial` into the
+server's HTML, so `opacity: 0` ships in the markup and a reader whose bundle never lands sees nothing
+-- the exact failure the gate existed to prevent, and no library can sell the other side of it:
+**visible without JavaScript and faded in with it needs a gate only JavaScript opens.** A library
+would have supplied the observer, which was never the hard part. The pure CSS `animation-timeline:
+view()` version that came before all of this was checked again in August 2026 and is still not
+Baseline, so it is still silently inert in Firefox.
+
+The wrapper level `.animate-fade-up` on each page is untouched by any of that. It fires once on mount
+and never hid anything, which is why it never had a failure mode to begin with.
 
 ## Loading shells — `components/route-skeleton.tsx`
 

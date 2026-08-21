@@ -4,18 +4,27 @@ import type { NextConfig } from 'next'
 // own component bundles from http2.mlstatic.com, calls Mercado Libre's fraud-signal endpoints on two
 // domains (.com and .com.br), and frames mercadolibre.com -- which is why frame-src is no longer
 // 'none'. A host missing here is a checkout that dies silently once CSP_ENFORCE is on.
+//
+// secure-fields.mercadopago.com serves the card fields and is listed twice on purpose: it is fetched
+// and then framed, so allowing only connect-src leaves the fields as grey skeletons forever and the
+// frame-src block does not even surface until the fetch is permitted.
 // See docs/security.md.
 const MERCADOPAGO = {
   script: ['https://sdk.mercadopago.com', 'https://http2.mlstatic.com'],
   connect: [
     'https://api.mercadopago.com',
+    'https://secure-fields.mercadopago.com',
     'https://api.mercadolibre.com',
     'https://http2.mlstatic.com',
     'https://www.mercadolibre.com',
     'https://www.mercadolivre.com'
   ],
   img: ['https://http2.mlstatic.com', 'https://www.mercadolibre.com', 'https://www.mercadolivre.com'],
-  frame: ['https://sdk.mercadopago.com', 'https://www.mercadolibre.com']
+  frame: [
+    'https://sdk.mercadopago.com',
+    'https://secure-fields.mercadopago.com',
+    'https://www.mercadolibre.com'
+  ]
 }
 
 const CSP = [

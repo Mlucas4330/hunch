@@ -27,8 +27,8 @@ export function BlogArticle({
       </header>
 
       <div className="space-y-10 border-t pt-8">
-        {post.sections.map((section) => (
-          <section key={section.heading} className="reveal space-y-4">
+        {post.sections.map((section, i) => (
+          <section key={i} className="space-y-4">
             <h2 className="font-display text-xl font-semibold tracking-tight">{section.heading}</h2>
             {section.paragraphs.map((paragraph) => (
               <p key={paragraph} className="text-sm leading-relaxed text-muted-foreground">

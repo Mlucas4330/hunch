@@ -57,7 +57,7 @@ export default async function BlogPostPage({ params }: Params) {
         locale={locale}
       />
 
-      <div className="reveal mx-auto max-w-2xl space-y-4 border-t pt-8">
+      <div className="mx-auto max-w-2xl space-y-4 border-t pt-8">
         <p className="panel-label text-[0.7rem] text-muted-foreground">{blog.postsLabel}</p>
         <ul className="space-y-2">
           {others.map((other) => (

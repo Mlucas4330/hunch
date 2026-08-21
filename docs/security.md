@@ -247,10 +247,26 @@ The CSP ships as `Content-Security-Policy-Report-Only` until `CSP_ENFORCE=1`: Ne
 script and Tailwind inlines styles, so the policy needs `'unsafe-inline'` without a nonce, and shipping
 it enforced-but-wrong breaks the app.
 
+**Report-only collects nothing.** There is no `report-uri` or `report-to`, so the mode buys console
+noise and no data, and a browser writes "Refused to load" for a report exactly as it does for a block.
+Reading the console is therefore not a way to tell whether the policy is costing anything: confirm by
+flipping a build to `CSP_ENFORCE=1` and driving the flow, never by reading messages. Reports of
+`script-src eval` show up intermittently and are still unattributed; a run that had 186 of them
+enforced-and-blocked reached the full working card form anyway, which is why `'unsafe-eval'` stays
+out. Attribute them before anyone adds it.
+
 `img-src` names Google avatars and `http2.mlstatic.com`, which is where the Payment Brick's card brand
-icons come from. The four Mercado Pago origins — `sdk.mercadopago.com` in `script-src` and `frame-src`,
-`api.mercadopago.com` and `api.mercadolibre.com` in `connect-src` — are what the Brick needs and the
-whole of it.
+icons come from. The Mercado Pago origins are grouped by directive in `MERCADOPAGO`, and each one was
+read off a real run of the Brick rather than guessed. What the list does **not** need is worth as much
+as what it does: no Mercado Pago host in `style-src` or `font-src`, no `'self'` or `blob:` in
+`frame-src` (the Brick's other iframes are `about:blank`, which `frame-src` does not check), and no
+`'unsafe-eval'`.
+
+**`secure-fields.mercadopago.com` is listed twice, and that is the one to remember.** It serves the
+card number, expiry and CVV fields, and it is first fetched and then framed, so it has to appear in
+`connect-src` **and** `frame-src`. Allowing one masks the other: with only `connect-src` the fields
+sit as grey skeletons forever, and the `frame-src` refusal does not even appear in the violation
+reports until the fetch is permitted. Nothing else the Brick touches is blocked by this policy.
 
 **`frame-src` is no longer `'none'`, and that is the product decision, not a header tweak:** the buyer
 now pays inside our page, in an iframe the provider serves. It is the cost of a checkout with no
