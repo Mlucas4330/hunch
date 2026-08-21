@@ -127,6 +127,23 @@ export type RateLimitKind = (typeof RATE_LIMIT_KIND)[number]
 export const BRIEF_FIELD = ['audience', 'offer', 'action', 'objection'] as const
 export type BriefField = (typeof BRIEF_FIELD)[number]
 
+// The answers each question offers, before anyone types anything. Tapping one is the whole
+// interaction, so the lists are short: past about five the step stops being a choice and becomes a
+// form again.
+//
+// These are ids, never text. What the reader taps is the sentence in
+// dictionary.urlForm.briefFields[field].options[id], and what reaches the brief is that sentence --
+// so an option is translated like every other string and the id never leaves the client. A reader
+// whose answer is not here picks BRIEF_OTHER and writes it, which is the case the presets exist to
+// make rare rather than to rule out -- "something else" is a mode the step is in, not an entry here.
+export const BRIEF_OPTION = {
+  audience: ['consumers', 'smb', 'enterprise', 'developers', 'creators'],
+  offer: ['saas', 'service', 'ecommerce', 'course', 'marketplace'],
+  action: ['signup', 'demo', 'purchase', 'waitlist', 'contact'],
+  objection: ['price', 'trust', 'unclear', 'switching', 'effort']
+} as const satisfies Record<BriefField, readonly string[]>
+
+
 // What the landing page's live feed may say about a row, and the whole of it. Both states are read
 // off columns rather than stored: `running` is a row with no measurement yet, `done` is one with a
 // measurement. There is no `failed` because nothing here is entitled to guess why a row is empty --

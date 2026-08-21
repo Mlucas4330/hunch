@@ -326,23 +326,60 @@ export const ptBR: Dictionary = {
     waitNote:
       'Isso costuma levar de 2 a 3 minutos. Mantenha esta aba aberta enquanto lemos a página, medimos e escrevemos a copy nova.',
     briefSummary: 'Adicionar detalhes do negócio (opcional)',
-    briefIntro: 'Quatro respostas curtas. São elas que transformam a copy reescrita de um modelo cheio de [placeholders] em linhas que dá para publicar.',
+    briefIntro: 'Quatro toques. São eles que transformam a copy reescrita de um modelo cheio de [placeholders] em linhas que dá para publicar.',
+    briefWizard: {
+      step: 'Etapa {step} de {total}',
+      back: 'Voltar',
+      skip: 'Pular',
+      other: 'Outra coisa',
+      otherPlaceholder: 'Descreva com as suas palavras',
+      done: 'Respondeu as quatro. Cole a URL aí em cima e mande ver.',
+      edit: 'Trocar'
+    },
     briefFields: {
       audience: {
-        label: 'Para quem é',
-        placeholder: 'Fundadores solo lançando o primeiro produto pago'
+        label: 'Público',
+        question: 'Quem cai nessa página?',
+        options: {
+          consumers: 'Pessoas comuns, comprando para si',
+          smb: 'Pequenos negócios e quem toca eles',
+          enterprise: 'Empresas grandes, com comitê de compra',
+          developers: 'Desenvolvedores e times técnicos',
+          creators: 'Criadores, freelancers e profissionais solo'
+        }
       },
       offer: {
-        label: 'O que você vende',
-        placeholder: 'Diagnóstico de landing page, R$ 19 por página, sem assinatura'
+        label: 'Oferta',
+        question: 'O que você vende para essa pessoa?',
+        options: {
+          saas: 'Software por assinatura',
+          service: 'Um serviço que eu mesmo entrego',
+          ecommerce: 'Um produto físico ou de compra única',
+          course: 'Um curso, comunidade ou conteúdo',
+          marketplace: 'Um marketplace ligando dois lados'
+        }
       },
       action: {
-        label: 'O que o visitante deve fazer',
-        placeholder: 'Colar uma URL e ver a nota gratuita'
+        label: 'Ação',
+        question: 'O que ela deveria fazer nessa página?',
+        options: {
+          signup: 'Criar uma conta ou começar um teste grátis',
+          demo: 'Agendar uma demo ou uma call',
+          purchase: 'Comprar, ali mesmo',
+          waitlist: 'Entrar numa lista de espera',
+          contact: 'Mandar uma mensagem ou pedir orçamento'
+        }
       },
       objection: {
-        label: 'O que trava a pessoa',
-        placeholder: 'Ela acha que é mais uma auditoria genérica feita por IA'
+        label: 'Objeção',
+        question: 'O que trava a pessoa na hora de fazer isso?',
+        options: {
+          price: 'Ela acha caro',
+          trust: 'Ela nunca ouviu falar de mim',
+          unclear: 'Ela não entende o que a coisa faz',
+          switching: 'Ela já usa outra solução',
+          effort: 'Ela imagina que configurar vai dar trabalho'
+        }
       }
     },
     errorInvalidUrl: 'Informe uma URL válida, incluindo https://',

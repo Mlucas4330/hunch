@@ -328,23 +328,60 @@ export const en = {
     analyzing: 'Analyzing...',
     waitNote: 'This usually takes 2 to 3 minutes. Keep this tab open while we scrape the page, measure it, and write the new copy.',
     briefSummary: 'Add business details (optional)',
-    briefIntro: 'Four short answers. They are what turns the rewritten copy from a template with [placeholders] into lines you can ship.',
+    briefIntro: 'Four taps. They are what turns the rewritten copy from a template with [placeholders] into lines you can ship.',
+    briefWizard: {
+      step: 'Step {step} of {total}',
+      back: 'Back',
+      skip: 'Skip this',
+      other: 'Something else',
+      otherPlaceholder: 'Describe it in your own words',
+      done: 'All four answered. Paste your URL above and go.',
+      edit: 'Change'
+    },
     briefFields: {
       audience: {
-        label: 'Who is it for',
-        placeholder: 'Solo founders shipping their first paid product'
+        label: 'Audience',
+        question: 'Who lands on this page?',
+        options: {
+          consumers: 'Regular people, buying for themselves',
+          smb: 'Small businesses and their owners',
+          enterprise: 'Big companies, with a buying committee',
+          developers: 'Developers and technical teams',
+          creators: 'Creators, freelancers and solo operators'
+        }
       },
       offer: {
-        label: 'What are you selling',
-        placeholder: 'A landing page teardown, 19 reais per page, no subscription'
+        label: 'Offer',
+        question: 'What are you selling them?',
+        options: {
+          saas: 'Software on a subscription',
+          service: 'A service I deliver myself',
+          ecommerce: 'A physical or one off product',
+          course: 'A course, community or content',
+          marketplace: 'A marketplace connecting two sides'
+        }
       },
       action: {
-        label: 'What should a visitor do',
-        placeholder: 'Paste a URL and start a free score'
+        label: 'Action',
+        question: 'What should they do on this page?',
+        options: {
+          signup: 'Start a free account or trial',
+          demo: 'Book a demo or a call',
+          purchase: 'Buy, right here',
+          waitlist: 'Join a waitlist',
+          contact: 'Send a message or a quote request'
+        }
       },
       objection: {
-        label: 'What stops them',
-        placeholder: 'They assume it is another generic AI audit'
+        label: 'Objection',
+        question: 'What stops them from doing it?',
+        options: {
+          price: 'They think it costs too much',
+          trust: 'They have never heard of me',
+          unclear: 'They cannot tell what it actually does',
+          switching: 'They already use something else',
+          effort: 'They expect it to be a pain to set up'
+        }
       }
     },
     errorInvalidUrl: 'Enter a valid URL, including https://',

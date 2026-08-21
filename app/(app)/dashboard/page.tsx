@@ -129,6 +129,12 @@ function Pagination({
 
 // A step with nowhere to go is a disabled button, never a link: an anchor cannot be disabled, and one
 // that navigates to a page that does not exist is worse than one the reader can see is spent.
+//
+// `scroll={false}` because the App Router scrolls to the top of the document on every navigation, and
+// these controls sit at the *bottom* of the grid they page. The default threw the reader back up to
+// the URL form on every click, so the button they had just pressed jumped out from under the cursor
+// and the rows they were paging through went off screen. Staying put is what makes a second click
+// possible without scrolling back down.
 function PageStep({
   href,
   disabled,
@@ -148,7 +154,9 @@ function PageStep({
 
   return (
     <Button asChild variant="outline" size="sm">
-      <Link href={href}>{children}</Link>
+      <Link href={href} scroll={false}>
+        {children}
+      </Link>
     </Button>
   )
 }

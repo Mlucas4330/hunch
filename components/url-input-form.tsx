@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { BriefWizard } from '@/components/brief-wizard'
 import { useI18n } from '@/components/i18n-provider'
 import { composeBrief, parseBrief } from '@/lib/brief'
-import { BRIEF_FIELD } from '@/lib/enums'
 import {
   ANALYSIS_WAIT_MAX_MS,
   ANONYMOUS_ANALYSES_KEY,
@@ -180,20 +180,12 @@ export function UrlInputForm({
         </summary>
         <div className="space-y-3 pt-3">
           <p className="text-xs text-muted-foreground">{dictionary.urlForm.briefIntro}</p>
-          {BRIEF_FIELD.map((field) => (
-            <label key={field} className="block space-y-1">
-              <span className="panel-label text-[0.7rem] text-muted-foreground">
-                {dictionary.urlForm.briefFields[field].label}
-              </span>
-              <Input
-                name={`brief-${field}`}
-                value={brief[field]}
-                onChange={(e) => setBrief((current) => ({ ...current, [field]: e.target.value }))}
-                disabled={pending}
-                placeholder={dictionary.urlForm.briefFields[field].placeholder}
-              />
-            </label>
-          ))}
+          <BriefWizard
+            value={brief}
+            onChange={setBrief}
+            disabled={pending}
+            copy={dictionary.urlForm}
+          />
         </div>
       </details>
 

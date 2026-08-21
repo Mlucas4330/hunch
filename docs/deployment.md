@@ -28,8 +28,8 @@ Railway creates exactly one service per import, so:
 
 1. Add the `Postgres` and `Redis` plugins.
 2. Set the variables from `.env.example` on `app`, plus `AUTH_TRUST_HOST=true` and
-   `SCREENSHOT_DIR=/data/screenshots`. **One is per-environment origins and must not be copied**:
-   leave `AUTH_URL` **empty** and set `NEXT_PUBLIC_APP_URL` to the service's public domain. Add
+   `SCREENSHOT_DIR=/data/screenshots`. **Two are per-environment origins and must not be copied**:
+   set **both** `AUTH_URL` and `NEXT_PUBLIC_APP_URL` to the service's public domain. Add
    `PUPPETEER_SKIP_DOWNLOAD=true` as well — production connects to the `browser` service over CDP and
    never launches Chrome itself, so the ~180MB Chromium puppeteer's postinstall would otherwise pull
    into every build is dead weight.
@@ -217,15 +217,27 @@ an app that never came up.
   it, so `process.env.X` is `''` and every `??` fallback in the codebase is skipped. `next build` runs
   each route's module scope, so an empty `STRIPE_SECRET_KEY` reaching `new Stripe()` fails the whole
   build on a route nobody touched. Delete the variable instead of blanking it, and guard with `||`.
-- **A copied `AUTH_URL` breaks Google sign-in outright, and `AUTH_TRUST_HOST` does not save you.**
-  NextAuth's `reqWithEnvURL` rewrites *every* auth request's origin to `AUTH_URL`'s whenever it is set,
-  with no `trustHost` involvement, and `createActionURL` prefers it over the request headers. A
-  `.env.example` value carried into the deploy makes the `redirect_uri` sent to Google
-  `http://localhost:3000/api/auth/callback/google`, which Google rejects as unregistered. Setting
-  `AUTH_URL` also makes `AUTH_TRUST_HOST` redundant — `trustHost` is already true from its presence — so
-  **the only safe production setting is empty**.
+- **`AUTH_URL` must be this deploy's own public origin**, and it fails in opposite directions from
+  either side of that. It used to say "leave it empty", which fixed one half and caused the other.
+  - **Copied from `.env.example`**, `reqWithEnvURL` rewrites *every* auth request's origin to it with
+    no `trustHost` involvement, and `createActionURL` prefers it over the request headers, so Google
+    receives `redirect_uri=http://localhost:3000/api/auth/callback/google` and rejects it.
+  - **Absent**, Auth.js builds its URLs from the request Next received, and **Next does not apply
+    `x-forwarded-host` to it** — so behind the proxy the origin is the container and sign-in redirects
+    to `https://localhost:8080`. Reproduced, not inferred: with `AUTH_TRUST_HOST=true` and correct
+    `X-Forwarded-*` headers set, the sign-in POST still answers
+    `location: https://localhost:8080/auth/signin`. Setting `AUTH_URL` to the public origin turns the
+    same request into `redirect_uri=https://<domain>/api/auth/callback/google`.
+
+  So the safe production setting is **the real origin**, not empty and not the dev value.
+- **A blank `AUTH_URL` is worse than a missing one**, and this is the sharpest edge of the empty
+  variable rule above. Auth.js resolves trust as `AUTH_URL ?? AUTH_TRUST_HOST ?? VERCEL ?? ...`, and
+  `??` falls through only on null or undefined. An empty string is neither, so it takes the chain,
+  resolves falsy, and **every auth request answers `UntrustedHost` no matter what `AUTH_TRUST_HOST`
+  says**. In a dashboard that means deleting the variable, never clearing it.
 - **`AUTH_TRUST_HOST=true` is required** behind Railway's proxy, or sign-in fails looking like broken
-  OAuth.
+  OAuth. It is not an alternative to `AUTH_URL`: it decides whether a request is served at all, never
+  what URL is built from it.
 - **The volume must be writable by the app.** `saveScreenshot` degrades quietly on `EACCES`
   (`/api/report/screenshot` returns `url: null` by design), so a mount the app cannot write shows up as
   reports without previews rather than as an error. Test it by requesting a preview on a real report. A

@@ -34,9 +34,9 @@ added back.
 **Registering the GitHub app.** Callback URL `https://<host>/api/auth/callback/github` — the default
 Auth.js route, since nothing here sets a `basePath`. Do not set the scope in GitHub's own UI:
 `GITHUB_SCOPE` is passed in `authConfig` because the default omits `user:email`, and without it the
-verification call answers 403 and refuses every GitHub login. In production leave `AUTH_URL` empty and
-set `AUTH_TRUST_HOST=true`; a set `AUTH_URL` rewrites the origin of every auth request and the
-provider then receives a `redirect_uri` pointing at localhost. See docs/deployment.md.
+verification call answers 403 and refuses every GitHub login. In production set `AUTH_URL` to this deploy's own public
+origin and `AUTH_TRUST_HOST=true`. `AUTH_URL` is what the `redirect_uri` is built from, and a copied
+localhost value and an absent one both end at localhost by different routes. See docs/deployment.md.
 
 ### Verification fails closed, and each provider declares how it verifies
 

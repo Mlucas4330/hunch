@@ -178,6 +178,12 @@ schema change — there is no `client_name` column and no `clients` table.
 
 ### Paging
 
+**The steps pass `scroll={false}`.** The App Router scrolls to the top of the document on every
+navigation, and these controls sit at the bottom of the grid they page, so the default threw the
+reader back up to the URL form on each click: the button jumped out from under the cursor and the rows
+being paged through went off screen. `e2e/pagination.spec.ts` holds the regression — it plants eleven
+rows, clicks Older, and asserts `window.scrollY` is still past zero.
+
 `listAnalysesForUser` returns ten a page, and the page comes from `?page=` rather than from client
 state, so a reload keeps it and the back button works on a grid that stays server rendered.
 
@@ -224,11 +230,22 @@ stranded with no route to it.
 
 - Single text input + submit, validating URL format client-side and disabling submit while an analysis
   is in progress.
-- A collapsible `<details>` "Add business details (optional)" holding **four short inputs** over
-  `BRIEF_FIELD` — who it is for, what you sell, what a visitor should do, what stops them — prefilled
-  by `parseBrief` from the user's most recent analysis `brief` and folded back into one string by
-  `composeBrief` at submit. It was a single blank textarea, and a blank box asks the reader to guess
-  what is useful. The `<details>` stays shut by default: the fast path is still paste and go.
+- A collapsible `<details>` "Add business details (optional)" holding `components/brief-wizard.tsx`:
+  four questions, one screen each, answered by **tapping an option**. Who lands here, what you sell
+  them, what they should do, what stops them. Selecting advances on its own, a segmented bar shows
+  which of the four have answers, and "Something else" opens a text input for anyone the presets do
+  not fit.
+- **What is stored is the option's own sentence, not its id.** `BRIEF_OPTION` in `lib/enums.ts` holds
+  the ids, the labels are dictionary strings like everything else, and `composeBrief` receives the
+  chosen label exactly as it would receive typed text. So the prompt reads the same prose it always
+  did, `lib/brief.ts` never learned what an option is, and adding or renaming one changes nothing
+  downstream.
+- It was four text inputs, and before that one textarea. The direction is the point: a blank box asks
+  the reader to work out what would be useful, and almost all of them answered it by writing nothing.
+  The `<details>` still starts shut, because the fast path is paste and go.
+- **Nothing in the wizard navigates.** Every step change is state, never a link or a `scrollIntoView`,
+  so the viewport cannot jump out from under the finger that just tapped. See the pagination note
+  below for the bug that rule exists to avoid.
 
 ### Analysis loader
 
