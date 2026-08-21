@@ -23,8 +23,22 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      # `POST /api/analyses` enqueues with no inline fallback, so without Redis every analysis
+      # answers 503 queue_unavailable -- which stops the suite at auth.setup.ts, whose warm-up
+      # creates one, and takes the whole chromium project down with it. Same image as
+      # docker-compose.yml so CI and a laptop agree. See docs/development.md.
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/hunch
+      REDIS_URL: redis://localhost:6379
       AUTH_SECRET: ci-only-not-a-real-secret
       ADMIN_EMAIL: admin@example.com
       ADMIN_PASSWORD: ci-only-not-a-real-password

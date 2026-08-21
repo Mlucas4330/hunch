@@ -31,7 +31,7 @@ test.describe('core features', () => {
     await page.fill('input[name="password"]', process.env.ADMIN_PASSWORD!)
     await page.click('button:has-text("Sign in as admin")')
 
-    await expect(page).toHaveURL(/\/analyses$/)
+    await page.waitForURL(/\/analyses$/)
 
     await context.close()
   })
@@ -46,7 +46,7 @@ test.describe('core features', () => {
     await page.fill('input[name="password"]', process.env.ADMIN_PASSWORD!)
     await page.click('button:has-text("Sign in as admin")')
 
-    await expect(page).toHaveURL(/\/dashboard$/)
+    await page.waitForURL(/\/dashboard$/)
 
     await context.close()
   })

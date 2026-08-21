@@ -54,7 +54,9 @@ push goes live: Railway ships whatever is on `main` and fails a deploy only if t
   the request is the unmetered path the fail-closed limit exists to prevent — so no Redis means every
   analysis answers `503 queue_unavailable`, refunds the credit and deletes the row. Nothing in the UI
   names Redis, so it shows up as an Analyze button that returns you to the dashboard. `docker compose`
-  already runs one: set `REDIS_URL=redis://localhost:6379`.
+  already runs one: set `REDIS_URL=redis://localhost:6379`. `.github/workflows/ci.yml` runs the same
+  image as a service for exactly this reason -- it did not, and the whole `chromium` project died at
+  `auth.setup.ts` with nothing in the log naming Redis.
 - **Setting it also turns rate limiting on, and `analysis` is 5/hour**, which is the reason
   `.env.example` used to leave it empty. Note the budget counts **requests, not analyses**: the
   limiter runs before the body is parsed, so a rejected URL or a queue failure spends a token too.
@@ -103,6 +105,17 @@ are picked by the same locale the real pipeline uses. The suite sets no locale c
 `retries` stays **0** so a flaky test is never silently absorbed. That is why `trace` is
 `retain-on-failure` and not `on-first-retry`: with no retries there is no first retry, and that setting
 recorded nothing.
+
+**The suite drives `next dev`, so a route's first hit pays for its compile, and that is why a URL is
+awaited rather than asserted.** `expect(page).toHaveURL()` is capped at the 5s expect timeout, which a
+credentials sign in followed by a first render does not always fit inside — the symptom is a snapshot
+showing the submit button still `[disabled]`, because `useFormStatus` is telling the truth and the
+request simply has not come back. `page.waitForURL()` inherits the 60s test timeout instead, which is
+what every navigation after an action uses. `toHaveURL` is right for a URL that has already settled,
+which is what the remaining five assert.
+
+`auth.setup.ts` pays the same cost deliberately and once, outside any test's timeout, for the three
+routes that creating an analysis crosses.
 
 ### Two projects
 

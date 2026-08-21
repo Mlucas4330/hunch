@@ -11,9 +11,9 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  # Rate limiting is skipped entirely while REDIS_URL is unset, so this service does nothing until
-  # you opt in. That is deliberate: `analysis` is 5/hour, so a filled-in REDIS_URL would block you
-  # after five analyses of local development. Set it when you want to exercise a real 429.
+  # Required, not optional. The comment here used to say this service did nothing until you filled in
+  # REDIS_URL, which stopped being true when the analysis queue landed: with it empty every analysis
+  # answers 503 and the Analyze button just returns you to the dashboard. See docs/development.md.
   redis:
     image: redis:7-alpine
     restart: unless-stopped
