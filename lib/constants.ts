@@ -22,6 +22,10 @@ export const POST_SIGNIN_REDIRECT = '/dashboard'
 // Read by the nav, the sitemap and the landing's link into the AI post.
 export const BLOG_PATH = '/blog'
 
+// Where every "buy credits" control points: the packs section on the landing page. Named once so the
+// unlock wall, the balance and the report cannot drift to three different links.
+export const CREDITS_ANCHOR = '/#credits'
+
 // Publication dates, in ISO. They reach the reader through formatDate and the sitemap's
 // lastModified, so they are the real date a post was written and nothing infers them.
 export const BLOG_POST_DATE: Record<BlogSlug, string> = {

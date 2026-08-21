@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { getDictionary } from '@/lib/i18n'
 import { MeasuredReadout } from '@/components/measured-readout'
 import { MeasurePage } from '@/components/measure-page'
+import { UnlockWall } from '@/components/unlock-wall'
 import { readoutFor, readoutHistory, splitFixes, splitVisibility } from '@/lib/analyses'
 import { hasReadout, readout } from '@/lib/readout'
 import { PLAYBOOK_EXPANDED_COUNT } from '@/lib/constants'
@@ -49,6 +50,13 @@ export default async function AnalysisDetailPage({
   const fixes = splitFixes(analysis.flowFixes)
   const visibility = splitVisibility(analysis.flowFixes)
   const measured = hasReadout(readout(readoutFor(analysis)))
+
+  // **An owned analysis can have nothing generated in it**, and now commonly does: a reader whose
+  // balance was empty gets an ownerless measured run, and claiming it on sign in hands them the row
+  // without ever having paid for the half a model writes. Rendering the tabs anyway gave them four
+  // empty panels and no way to read what had happened, so the same wall the public report uses stands
+  // here instead. See docs/invariants.md.
+  const generated = analysis.hypotheses.length > 0 || analysis.flowFixes.length > 0
   const history = measured ? await readoutHistory(analysis.id) : { previous: null, scores: [] }
 
   return (
@@ -89,38 +97,42 @@ export default async function AnalysisDetailPage({
         <MeasurePage analysisId={analysis.id} />
       )}
 
-      <AnalysisTabs
-        counts={{
-          flow: fixes.flow.length,
-          copy: analysis.hypotheses.length,
-          seo: visibility.seo.length,
-          ai: visibility.ai.length
-        }}
-        // Each panel carries a `key` even though none of them is in an array here. They are created
-        // in a server component and rendered by a client one, and crossing that boundary costs them
-        // the marking that tells React these are statically placed children -- so on the client side
-        // they look like an unkeyed list and dev warns about every one. See docs/analysis-ui.md.
-        panels={{
-          flow: <FlowPlaybook key="flow" fixes={fixes.flow} expandFrom={PLAYBOOK_EXPANDED_COUNT} />,
-          copy: <HypothesisList key="copy" hypotheses={analysis.hypotheses} />,
-          seo: (
-            <FlowPlaybook
-              key="seo"
-              fixes={visibility.seo}
-              section="seo"
-              expandFrom={PLAYBOOK_EXPANDED_COUNT}
-            />
-          ),
-          ai: (
-            <FlowPlaybook
-              key="ai"
-              fixes={visibility.ai}
-              section="ai"
-              expandFrom={PLAYBOOK_EXPANDED_COUNT}
-            />
-          )
-        }}
-      />
+      {generated ? (
+        <AnalysisTabs
+          counts={{
+            flow: fixes.flow.length,
+            copy: analysis.hypotheses.length,
+            seo: visibility.seo.length,
+            ai: visibility.ai.length
+          }}
+          // Each panel carries a `key` even though none of them is in an array here. They are created
+          // in a server component and rendered by a client one, and crossing that boundary costs them
+          // the marking that tells React these are statically placed children -- so on the client side
+          // they look like an unkeyed list and dev warns about every one. See docs/analysis-ui.md.
+          panels={{
+            flow: <FlowPlaybook key="flow" fixes={fixes.flow} expandFrom={PLAYBOOK_EXPANDED_COUNT} />,
+            copy: <HypothesisList key="copy" hypotheses={analysis.hypotheses} />,
+            seo: (
+              <FlowPlaybook
+                key="seo"
+                fixes={visibility.seo}
+                section="seo"
+                expandFrom={PLAYBOOK_EXPANDED_COUNT}
+              />
+            ),
+            ai: (
+              <FlowPlaybook
+                key="ai"
+                fixes={visibility.ai}
+                section="ai"
+                expandFrom={PLAYBOOK_EXPANDED_COUNT}
+              />
+            )
+          }}
+        />
+      ) : (
+        <UnlockWall embedKey={analysis.embedKey} />
+      )}
 
     </div>
   )

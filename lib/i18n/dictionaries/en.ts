@@ -663,7 +663,8 @@ export const en = {
       'The new wording, already written',
       'Each line previewed on your own page'
     ],
-    cta: 'Unlock the fixes'
+    cta: 'Unlock the fixes',
+    ctaBuy: 'Buy a credit to unlock'
   },
 
   report: {

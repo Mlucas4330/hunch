@@ -6,7 +6,7 @@ performance detail, not the security boundary — see [security.md](security.md)
 | Route | Auth | Notes |
 | ----- | ---- | ----- |
 | `GET\|POST /api/auth/[...nextauth]` | — | NextAuth catch-all |
-| `POST /api/analyses` | **session optional** | queues the pipeline; anonymous gets the measured half only |
+| `POST /api/analyses` | **session optional** | queues the pipeline; anything unpaid gets the measured half only |
 | `GET /api/analyses` | session, or embed key for `?embedKey=` | history, or one analysis' progress |
 | `GET /api/analyses/[id]` | session + ownership | |
 | `POST /api/analyses/[id]/measure` | session + ownership | measures the page again, appending a snapshot |
@@ -39,6 +39,18 @@ Chain: rate limit -> Puppeteer scrape -> preprocess HTML -> detect market -> rob
 
 `brief` (optional) is stored on the analysis and passed into generation so variants come back as
 finished copy instead of `[placeholders]`.
+
+**There is no `no_credits` refusal.** A signed in caller with an empty balance is answered `202` like
+everyone else, with `owned: false` and an ownerless analysis behind it: the measured half only, zero
+model tokens, and the unlock wall on the report. The route used to delete the row and answer `402`,
+which made holding a session strictly worse than not having one — the same person got a free readout
+signed out and nothing signed in.
+
+The order matters and is not obvious from reading it: the row is inserted **ownerless whoever is
+signed in**, because `spendCredit` writes a ledger row naming the analysis it paid for and cannot do
+that before one exists. `user_id` is then written only if a credit was actually taken, and always
+before the job is queued, since `runAnalysis` reads that column to decide whether to call a model. So
+"spend before the work" still holds: nothing has been enqueued at that point.
 
 ```json
 {

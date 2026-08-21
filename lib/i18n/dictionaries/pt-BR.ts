@@ -663,7 +663,8 @@ export const ptBR: Dictionary = {
       'O texto novo, já escrito',
       'Cada linha vista na sua própria página'
     ],
-    cta: 'Liberar as correções'
+    cta: 'Liberar as correções',
+    ctaBuy: 'Comprar um crédito para liberar'
   },
 
   report: {

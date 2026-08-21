@@ -207,6 +207,19 @@ which is what makes it safe to hand to ad traffic where most visitors never conv
 The cut is `analyses.user_id`, not a flag. Ownership is exactly the thing that says someone paid, so
 one nullable column carries the whole decision and no second source of truth can disagree with it.
 
+**An empty balance is not a refusal, it is the free half.** `POST /api/analyses` used to delete the
+row and answer `402` when `spendCredit` found nothing to spend, which made signing in strictly worse
+than staying signed out: the same person got the readout with no session and nothing at all with one.
+The row is now created ownerless whoever is signed in, and `user_id` is written **only once a credit
+has actually been taken** — so the branch `runAnalysis` reads is still ownership, still one column,
+and a run nobody paid for still costs zero tokens.
+
+The consequence to hold onto: **an owned analysis can contain nothing generated.** Claiming a free run
+after signing in hands over the row without the paid half ever having been bought, so
+`/analyses/[id]` renders the unlock wall rather than four empty tabs, exactly as `/r/<embedKey>` does.
+Buying credits does not retroactively generate anything — the reader runs the URL again with a credit
+in hand.
+
 Two consequences that must hold together:
 
 - **The readout is never gated**, on any surface. It is the part the reader can check against their

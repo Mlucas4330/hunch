@@ -3,6 +3,8 @@ import { Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { getDictionary } from '@/lib/i18n'
+import { getCurrentUser } from '@/lib/current-user'
+import { CREDITS_ANCHOR } from '@/lib/constants'
 
 /**
  * What sits where the fixes would be on an analysis nobody has paid for.
@@ -17,6 +19,16 @@ import { getDictionary } from '@/lib/i18n'
 export async function UnlockWall({ embedKey }: { embedKey: string }) {
   const t = await getDictionary()
   const copy = t.unlock
+
+  // **Sign in is only the answer for someone who is not signed in.** A reader with an account and an
+  // empty balance now reaches this wall too -- that is the point of a zero balance running ownerless
+  // rather than being refused -- and sending them to a sign in screen they are already past is a
+  // button that appears to do nothing. What they need is credits.
+  const user = await getCurrentUser()
+  const href = user
+    ? CREDITS_ANCHOR
+    : `/auth/signin?${new URLSearchParams({ callbackUrl: `/r/${embedKey}` })}`
+  const label = user ? copy.ctaBuy : copy.cta
 
   return (
     <Card className="border-dashed" data-testid="unlock-wall">
@@ -42,9 +54,7 @@ export async function UnlockWall({ embedKey }: { embedKey: string }) {
         </ul>
 
         <Button asChild>
-          <Link href={`/auth/signin?${new URLSearchParams({ callbackUrl: `/r/${embedKey}` })}`}>
-            {copy.cta}
-          </Link>
+          <Link href={href}>{label}</Link>
         </Button>
       </CardContent>
     </Card>
