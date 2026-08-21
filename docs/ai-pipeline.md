@@ -27,6 +27,18 @@ Pricing: ...
 A founder `brief`, when present, is appended to the generation prompt so variants use real facts and
 come back finished rather than as `[placeholder]` templates.
 
+**It is still one free text column, and the form now asks four questions into it.** `analyses.brief`
+was a blank textarea, which asked the reader to guess what was useful, and most of them wrote nothing.
+`composeBrief` in `lib/brief.ts` folds the four `BRIEF_FIELD` answers into one labelled string
+(`Audience: ...`, `Offer: ...`, `Action: ...`, `Objection: ...`) and `parseBrief` reads it back for
+the form. Nothing downstream changed: the prompts still receive prose.
+
+The labels are written in English at every locale, deliberately. They are read by the model and never
+by the reader, so translating them would make the same brief parse differently depending on which
+language the analysis happened to run in. `parseBrief` also has to stay forgiving — every brief
+written before the fields existed is one unlabelled paragraph, and those are the rows carrying real
+business detail, so anything unrecognised lands in `audience` intact rather than being dropped.
+
 ## 2. Schemas
 
 ```typescript

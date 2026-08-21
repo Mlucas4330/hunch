@@ -4,6 +4,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { AnalysisPulse } from '@/components/analysis-pulse'
 import { CreditPacks } from '@/components/credit-packs'
+import { LandingFaq } from '@/components/landing-faq'
+import { ProductDemo } from '@/components/product-demo'
+import { SwipeTrack } from '@/components/swipe-track'
+import { Testimonials } from '@/components/testimonials'
 import {
   analysisPulse,
   publicLeaderboard,
@@ -13,6 +17,7 @@ import {
 import {
   BLOG_PATH,
   MERCADOPAGO_PROVIDER,
+  PAIN_CHANNEL_CLASS,
   PULSE_MIN_ENTRIES,
   READOUT_SEVERITY_CLASS,
   STRIPE_PROVIDER
@@ -23,8 +28,6 @@ import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { pageMetadata } from '@/lib/seo'
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import { cn } from '@/lib/utils'
-
-const PAIN_CHANNELS = ['border-coral', 'border-purple', 'border-teal']
 
 export async function generateMetadata() {
   const { metadata } = await getDictionary()
@@ -64,6 +67,7 @@ export default async function LandingPage() {
               {d.landing.howItWorksLink}
             </Link>
           </div>
+          <p className="text-sm text-muted-foreground">{d.landing.ctaNote}</p>
         </div>
 
         <HeroReadout dictionary={d} />
@@ -78,9 +82,9 @@ export default async function LandingPage() {
             {d.landing.reality.heading}
           </h2>
         </header>
-        <div className="space-y-4">
+        <SwipeTrack label={d.landing.painsNav.label} copy={d.landing.painsNav}>
           {d.landing.pains.map((pain, i) => (
-            <Card key={i} className={cn('border-l-2', PAIN_CHANNELS[i])}>
+            <Card key={i} className={cn('h-full border-l-2', PAIN_CHANNEL_CLASS[i])}>
               <CardContent className="grid gap-4 p-5 md:grid-cols-[1.1fr_1fr] md:items-center">
                 <div className="space-y-1.5">
                   <h3 className="font-display text-lg font-semibold tracking-tight">
@@ -94,8 +98,10 @@ export default async function LandingPage() {
               </CardContent>
             </Card>
           ))}
-        </div>
+        </SwipeTrack>
       </section>
+
+      <ProductDemo copy={d.landing.demo} />
 
       <section id="ai" className="space-y-10 scroll-mt-20">
         <header className="space-y-1">
@@ -170,6 +176,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      <Testimonials copy={d.landing.testimonials} />
+
       {showPulse && (
         <section className="space-y-10">
           <header className="space-y-1">
@@ -199,6 +207,8 @@ export default async function LandingPage() {
         />
       </section>
 
+      <LandingFaq copy={d.landing.faq} />
+
       <section>
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center gap-5 p-10 text-center">
@@ -208,6 +218,7 @@ export default async function LandingPage() {
             <Button asChild size="lg">
               <Link href={ctaHref}>{d.landing.cta}</Link>
             </Button>
+            <p className="text-sm text-muted-foreground">{d.landing.ctaNote}</p>
           </CardContent>
         </Card>
       </section>

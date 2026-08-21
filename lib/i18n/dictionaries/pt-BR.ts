@@ -112,11 +112,12 @@ export const ptBR: Dictionary = {
   },
 
   landing: {
-    eyebrow: 'Nota gratuita da sua landing page',
+    eyebrow: 'Grátis. Sem conta. Em menos de um minuto.',
     headlineTop: 'Descubra a nota da sua landing page.',
     headlineBottom: 'Medida na sua página, em menos de um minuto.',
     lead: 'Cole a URL. A gente abre a página do jeito que um visitante abre, conta o que tem nela de verdade e dá uma nota de 0 a 100. Ver a nota não custa nada e não pede cadastro.',
-    cta: 'Ver a minha nota',
+    cta: 'Ver minha nota agora, de graça',
+    ctaNote: 'Sem cadastro, sem cartão, sem instalar nada. Só a sua URL.',
     howItWorksLink: 'Como funciona',
 
     heroCard: {
@@ -154,6 +155,19 @@ export const ptBR: Dictionary = {
         answer: 'A gente carrega a sua página de verdade, conta o que tem nela e reescreve as linhas que precisam.'
       }
     ],
+    painsNav: {
+      label: 'A real, um card por vez',
+      previous: 'Anterior',
+      next: 'Próximo',
+      goTo: 'Ir para o card {index}'
+    },
+
+    demo: {
+      eyebrow: 'Veja antes',
+      heading: 'Passeie pela ferramenta inteira antes de colar qualquer coisa.',
+      body: 'As mesmas telas que você recebe depois de uma análise: o diagnóstico, as correções priorizadas e a copy nova renderizada sobre uma página real.',
+      frameTitle: 'Demonstração interativa do produto'
+    },
 
     aiSearch: {
       eyebrow: 'Visibilidade em IA',
@@ -215,6 +229,13 @@ export const ptBR: Dictionary = {
       }
     ],
 
+    testimonials: {
+      eyebrow: 'O que dizem',
+      heading: 'De quem já rodou.',
+      // Vazio de propósito, e a seção não renderiza enquanto estiver assim. Ver en.ts.
+      items: [],
+    },
+
     leaderboard: {
       eyebrow: 'Medidos até agora',
       heading: 'Veja todas as páginas analisadas e a nota que cada uma recebeu.',
@@ -228,6 +249,37 @@ export const ptBR: Dictionary = {
       running: '{domain} está sendo analisado agora mesmo',
       done: '{domain} acabou de ser medido: {score}/100',
       dismiss: 'Fechar'
+    },
+
+    faq: {
+      eyebrow: 'Antes de perguntar',
+      heading: 'As perguntas que a gente recebe de verdade.',
+      items: [
+        {
+          question: 'A nota é gratuita mesmo?',
+          answer: 'É, e não pede conta. Você cola a URL, a gente abre a página e conta o que tem nela, e o diagnóstico inteiro é seu. Pagar é só pelas correções priorizadas e pela copy substituta.'
+        },
+        {
+          question: 'Vocês precisam de acesso ao meu site?',
+          answer: 'Não. Sem instalar nada, sem script, sem login, sem mexer em DNS. A gente abre a página pública do mesmo jeito que qualquer visitante abre, que é justamente por que isso funciona até numa página que não é sua.'
+        },
+        {
+          question: 'De onde sai a nota?',
+          answer: 'De contagem. Campos de formulário, CTAs acima da dobra, imagens sem alt text, tempos de carregamento, o que a sua head declara. Cada linha é um número que o nosso código leu na sua página, e todos eles são coisas que você confere sozinho em um clique.'
+        },
+        {
+          question: 'O que um crédito compra, na prática?',
+          answer: 'Uma análise completa de uma página: as correções de fluxo priorizadas, os achados de visibilidade em IA e as reescritas de copy com a linha substituta já escrita e renderizada sobre um screenshot da sua página real.'
+        },
+        {
+          question: 'Vocês guardam a minha página?',
+          answer: 'A gente guarda as medições e o screenshot por trás da sua análise, para o relatório continuar funcionando e para uma análise futura conseguir mostrar o que mudou. Os screenshots são apagados periodicamente.'
+        },
+        {
+          question: 'Por que vocês não dizem quanto isso aumenta a minha conversão?',
+          answer: 'Porque ninguém mediu isso. A gente consegue dizer que o seu maior elemento pinta em 4,2 segundos, porque cronometrou. Transformar isso numa porcentagem de cadastros perdidos seria um número inventado, e você descobriria que foi inventado no mês em que ele não se confirmasse.'
+        }
+      ]
     },
 
     finalCta: {
@@ -274,8 +326,25 @@ export const ptBR: Dictionary = {
     waitNote:
       'Isso costuma levar de 2 a 3 minutos. Mantenha esta aba aberta enquanto lemos a página, medimos e escrevemos a copy nova.',
     briefSummary: 'Adicionar detalhes do negócio (opcional)',
-    briefPlaceholder:
-      'Para quem é o produto, os números reais (usuários, duração do trial, preços) e o que o diferencia. É com isso que a copy volta pronta em vez de vir com placeholders.',
+    briefIntro: 'Quatro respostas curtas. São elas que transformam a copy reescrita de um modelo cheio de [placeholders] em linhas que dá para publicar.',
+    briefFields: {
+      audience: {
+        label: 'Para quem é',
+        placeholder: 'Fundadores solo lançando o primeiro produto pago'
+      },
+      offer: {
+        label: 'O que você vende',
+        placeholder: 'Diagnóstico de landing page, R$ 19 por página, sem assinatura'
+      },
+      action: {
+        label: 'O que o visitante deve fazer',
+        placeholder: 'Colar uma URL e ver a nota gratuita'
+      },
+      objection: {
+        label: 'O que trava a pessoa',
+        placeholder: 'Ela acha que é mais uma auditoria genérica feita por IA'
+      }
+    },
     errorInvalidUrl: 'Informe uma URL válida, incluindo https://',
     errorGeneric: 'Algo deu errado. Tente novamente.',
     errorLimitReached:

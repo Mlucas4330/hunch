@@ -27,6 +27,11 @@ const MERCADOPAGO = {
   ]
 }
 
+// The landing page's product tour. One host, framed only -- Supademo serves the player itself from
+// this origin and nothing else on the page talks to it, so it belongs in frame-src and nowhere else.
+// The section renders nothing until SUPADEMO_DEMO_ID is set, so this line is inert until then.
+const SUPADEMO_FRAME = 'https://app.supademo.com'
+
 const CSP = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' ${MERCADOPAGO.script.join(' ')}`,
@@ -34,7 +39,7 @@ const CSP = [
   `img-src 'self' data: blob: https://lh3.googleusercontent.com ${MERCADOPAGO.img.join(' ')}`,
   "font-src 'self' data:",
   `connect-src 'self' ${MERCADOPAGO.connect.join(' ')}`,
-  `frame-src ${MERCADOPAGO.frame.join(' ')}`,
+  `frame-src ${MERCADOPAGO.frame.join(' ')} ${SUPADEMO_FRAME}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

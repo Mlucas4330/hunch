@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/components/i18n-provider'
+import { composeBrief, parseBrief } from '@/lib/brief'
+import { BRIEF_FIELD } from '@/lib/enums'
 import {
   ANALYSIS_WAIT_MAX_MS,
   ANONYMOUS_ANALYSES_KEY,
@@ -63,9 +65,6 @@ async function waitForAnalysis(embedKey: string, owned: boolean): Promise<boolea
   return false
 }
 
-const textareaClass =
-  'flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50'
-
 export function UrlInputForm({
   defaultBrief = '',
   blocked = false
@@ -76,7 +75,9 @@ export function UrlInputForm({
   const { dictionary } = useI18n()
   const router = useRouter()
   const [url, setUrl] = useState('')
-  const [brief, setBrief] = useState(defaultBrief)
+  // Parsed once from the string the column holds, so a brief written before the form had fields
+  // opens in the form rather than disappearing behind it. See lib/brief.ts.
+  const [brief, setBrief] = useState(() => parseBrief(defaultBrief))
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [phase, setPhase] = useState(0)
@@ -107,7 +108,7 @@ export function UrlInputForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: parsed.toString(),
-          brief: brief.trim() || undefined
+          brief: composeBrief(brief) || undefined
         })
       })
 
@@ -177,15 +178,22 @@ export function UrlInputForm({
         <summary className="rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           {dictionary.urlForm.briefSummary}
         </summary>
-        <div className="pt-2">
-          <textarea
-            name="brief"
-            value={brief}
-            onChange={(e) => setBrief(e.target.value)}
-            disabled={pending}
-            placeholder={dictionary.urlForm.briefPlaceholder}
-            className={textareaClass}
-          />
+        <div className="space-y-3 pt-3">
+          <p className="text-xs text-muted-foreground">{dictionary.urlForm.briefIntro}</p>
+          {BRIEF_FIELD.map((field) => (
+            <label key={field} className="block space-y-1">
+              <span className="panel-label text-[0.7rem] text-muted-foreground">
+                {dictionary.urlForm.briefFields[field].label}
+              </span>
+              <Input
+                name={`brief-${field}`}
+                value={brief[field]}
+                onChange={(e) => setBrief((current) => ({ ...current, [field]: e.target.value }))}
+                disabled={pending}
+                placeholder={dictionary.urlForm.briefFields[field].placeholder}
+              />
+            </label>
+          ))}
         </div>
       </details>
 

@@ -305,6 +305,12 @@ export const FOCUSABLE_SELECTOR =
 // What the Payment Brick needs on the client, and what both halves compare a payment's status
 // against. Here rather than in lib/mercadopago.ts because that file reaches for node:crypto and the
 // Brick component is a client one. The SDK host is also in the CSP -- see next.config.ts.
+// The interactive product tour on the landing page, framed from Supademo. Empty until a demo is
+// published: the section renders nothing rather than an empty frame, so a missing id is a missing
+// section and never a broken one. The host is in the CSP -- see next.config.ts.
+export const SUPADEMO_DEMO_ID = process.env.NEXT_PUBLIC_SUPADEMO_DEMO_ID ?? ''
+export const SUPADEMO_EMBED_ORIGIN = 'https://app.supademo.com'
+
 export const MERCADOPAGO_SDK_URL = 'https://sdk.mercadopago.com/js/v2'
 export const MERCADOPAGO_BRICK_CONTAINER = 'mercadopago-brick'
 export const MERCADOPAGO_APPROVED = 'approved'
@@ -612,6 +618,10 @@ export const SECTION_DOT_CLASS: Record<Section, string> = {
   navigation: 'bg-neutral',
   other: 'bg-neutral'
 }
+
+// One channel per landing pain card, in the order dictionary.landing.pains lists them. Here rather
+// than beside the JSX because a colour class at a call site is the one thing CLAUDE.md rules out.
+export const PAIN_CHANNEL_CLASS = ['border-coral', 'border-purple', 'border-teal']
 
 // Hues repeat across the two families on purpose: they never render in the same list.
 export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {

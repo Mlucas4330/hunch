@@ -47,6 +47,20 @@ The locale is a cookie with no route segment, so `en` and `pt-BR` are genuinely 
 `alternates.languages` would be a lie to crawlers; the cookie-less render (`DEFAULT_LOCALE`) is what
 gets indexed. **Do not add hreflang without first giving the locales real URLs.**
 
+## The one piece of structured data — `FAQPage`
+
+`components/landing-faq.tsx` emits `FAQPage` JSON-LD on `/`, and it is **generated from
+`dictionary.landing.faq.items`**, the same array the visible rows render from. Written out by hand
+beside them it would drift the first time an answer was edited, and structured data that disagrees
+with the page it describes is worse than none.
+
+It follows the cookie locale like everything else here, so the indexed copy is the `DEFAULT_LOCALE`
+one, per the section above.
+
+The same rule the rest of the product runs on applies to the answers: a question may say what the
+product counts and what a credit buys, and may not answer with a lift, a benchmark or a conversion
+figure. The last item exists to say that out loud. See [invariants.md](invariants.md).
+
 ## Open Graph images
 
 - `app/opengraph-image.tsx` is the site-wide card; `app/(report)/r/[embedKey]/opengraph-image.tsx`

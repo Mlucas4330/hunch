@@ -45,9 +45,28 @@ page in one click, and the only thing here anyone shares unprompted.
   funnel has.
 - The three pains (`landing.pains`) are the page owner's, not an auditor's: not knowing which part is
   losing people, tools that disagree with each other, and an AI that writes advice about a page it
-  never opened. That last one names the real alternative the reader will have already tried.
+  never opened. That last one names the real alternative the reader will have already tried. They sit
+  in `components/swipe-track.tsx`, which is a snap-scrolling deck with dots under `sm` and the plain
+  stack it always was above it. Native scroll snap, not a drag handler: unlike the sphere, a
+  horizontal deck **is** a scroll container, so momentum, the trackpad, Tab and the screen reader all
+  come free. The dots read position from an `IntersectionObserver` so they are right whatever moved
+  the track. Channel colours come from `PAIN_CHANNEL_CLASS`.
+- `components/product-demo.tsx` frames the Supademo tour, and `components/testimonials.tsx` the
+  quotes. **Both render nothing until they have something real** — an unset `SUPADEMO_DEMO_ID` or an
+  empty `landing.testimonials.items` removes the section heading and all. Filling either one in is
+  the whole deploy; there is no flag. Testimonials ship empty on purpose: a quote nobody said is the
+  same invention as a number nobody counted, and `lib/i18n/dictionaries/testimonials.example.ts` is
+  the shape to copy, imported by nothing.
+- `components/landing-faq.tsx` renders `landing.faq` as `DisclosureCard` rows and emits the
+  `FAQPage` JSON-LD **from the same array**, so the answer a reader opens and the answer a crawler
+  quotes cannot drift. The last question is load-bearing: it is where the page says out loud that it
+  will not predict a lift, because nobody measured one.
 - The value cards (`landing.proof`) cover one benefit each: measured-not-guessed, finished copy, and
   seen-on-your-own-page.
+- `landing.ctaNote` sits under both CTA buttons and states the price of clicking: no signup, no card,
+  no install. It is a fact about the product, and it is the closest this page comes to urgency —
+  **there is no countdown, no scarcity count and no "N spots left"**, because none of those would be
+  something code counted.
 - **`pt-BR` argues a different case than `en`**, per
   [i18n.md](i18n.md#pt-br-is-a-rewrite-not-a-translation). The keys are identical either way; only
   the argument differs.
@@ -205,8 +224,11 @@ stranded with no route to it.
 
 - Single text input + submit, validating URL format client-side and disabling submit while an analysis
   is in progress.
-- A collapsible `<details>` "Add business details (optional)" textarea, prefilled from the user's most
-  recent analysis `brief`, sent as `brief` so copy comes back finished.
+- A collapsible `<details>` "Add business details (optional)" holding **four short inputs** over
+  `BRIEF_FIELD` — who it is for, what you sell, what a visitor should do, what stops them — prefilled
+  by `parseBrief` from the user's most recent analysis `brief` and folded back into one string by
+  `composeBrief` at submit. It was a single blank textarea, and a blank box asks the reader to guess
+  what is useful. The `<details>` stays shut by default: the fast path is still paste and go.
 
 ### Analysis loader
 

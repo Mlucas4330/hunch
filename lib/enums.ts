@@ -120,6 +120,13 @@ export const RATE_LIMIT_KIND = [
 ] as const
 export type RateLimitKind = (typeof RATE_LIMIT_KIND)[number]
 
+// The questions the brief asks, in the order the form shows them. `analyses.brief` is one free
+// text column and stays one: these are prompts composed into it rather than columns of their own,
+// so nothing here needs a migration and a brief written before them still reads back whole.
+// See lib/brief.ts.
+export const BRIEF_FIELD = ['audience', 'offer', 'action', 'objection'] as const
+export type BriefField = (typeof BRIEF_FIELD)[number]
+
 // What the landing page's live feed may say about a row, and the whole of it. Both states are read
 // off columns rather than stored: `running` is a row with no measurement yet, `done` is one with a
 // measurement. There is no `failed` because nothing here is entitled to guess why a row is empty --

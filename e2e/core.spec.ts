@@ -145,7 +145,9 @@ test.describe('core features', () => {
     ])
     await page.reload()
     await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR')
-    await expect(page.getByRole('link', { name: 'Ver a minha nota' }).first()).toBeVisible()
+    await expect(
+      page.getByRole('link', { name: 'Ver minha nota agora, de graça' }).first()
+    ).toBeVisible()
     await expect(page.getByText('Score my page')).toHaveCount(0)
 
     await context.close()

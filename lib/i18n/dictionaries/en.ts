@@ -1,5 +1,9 @@
 import { enBlog } from '@/lib/i18n/dictionaries/en.blog'
 
+// Named because `items` ships empty: without it `typeof en` infers never[] and the first real quote
+// fails typecheck. See components/testimonials.tsx.
+export type Testimonial = { quote: string; name: string; role: string; company: string }
+
 export const en = {
   metadata: {
     title: 'Hunch',
@@ -109,11 +113,12 @@ export const en = {
   },
 
   landing: {
-    eyebrow: 'Free landing page score',
+    eyebrow: 'Free. No account. Under a minute.',
     headlineTop: 'Find out your landing page score.',
     headlineBottom: 'Measured on your page, in under a minute.',
     lead: 'Paste your URL. We open the page the way a visitor does, count what is actually on it, and score it out of 100. Seeing the score costs nothing and needs no account.',
-    cta: 'Score my page',
+    cta: 'Score my page now, free',
+    ctaNote: 'No signup, no card, no install. Just your URL.',
     howItWorksLink: 'How it works',
 
     heroCard: {
@@ -151,6 +156,19 @@ export const en = {
         answer: 'We load your page for real, count what is on it, and rewrite the lines that need rewriting.'
       }
     ],
+    painsNav: {
+      label: 'The reality, one card at a time',
+      previous: 'Previous',
+      next: 'Next',
+      goTo: 'Go to card {index}'
+    },
+
+    demo: {
+      eyebrow: 'See it first',
+      heading: 'Click through the whole thing before you paste anything.',
+      body: 'The same screens you get after a run: the readout, the ranked fixes, and the new copy rendered onto a real page.',
+      frameTitle: 'Interactive product demo'
+    },
 
     aiSearch: {
       eyebrow: 'AI visibility',
@@ -212,6 +230,15 @@ export const en = {
       }
     ],
 
+    testimonials: {
+      eyebrow: 'What people say',
+      heading: 'From the people who ran it.',
+      // Empty on purpose, and the section renders nothing while it is. A quote nobody said is the
+      // same invention as a number nobody counted -- see docs/invariants.md. The shape to copy is in
+      // lib/i18n/dictionaries/testimonials.example.ts.
+      items: [] as Testimonial[]
+    },
+
     leaderboard: {
       eyebrow: 'Measured so far',
       heading: 'Every page this has opened, scored.',
@@ -225,6 +252,37 @@ export const en = {
       running: '{domain} is being analyzed right now',
       done: '{domain} was just measured: {score}/100',
       dismiss: 'Dismiss'
+    },
+
+    faq: {
+      eyebrow: 'Before you ask',
+      heading: 'The questions people actually send us.',
+      items: [
+        {
+          question: 'Is the score really free?',
+          answer: 'Yes, and it needs no account. You paste a URL, we open the page and count what is on it, and the whole readout is yours. Paying is only for the ranked fixes and the replacement copy.'
+        },
+        {
+          question: 'Do you need access to my site?',
+          answer: 'No. No install, no script, no login, no DNS change. We open the public page the same way any visitor does, which is why it works on a page you do not control either.'
+        },
+        {
+          question: 'Where does the score come from?',
+          answer: 'Counting. Form fields, calls to action above the fold, images with no alt text, load timings, what your head tag declares. Each row is a number our code read off your page, and every one of them is something you can check yourself in a click.'
+        },
+        {
+          question: 'What does a credit actually buy?',
+          answer: 'One full analysis of one page: the ranked flow fixes, the AI visibility findings, and the copy rewrites with the replacement line already written and rendered onto a screenshot of your real page.'
+        },
+        {
+          question: 'Do you store my page?',
+          answer: 'We keep the measurements and the screenshot behind your analysis so the report keeps working and a later run can show you what moved. Screenshots are pruned on a schedule.'
+        },
+        {
+          question: 'Why will you not tell me how much this lifts my conversion?',
+          answer: 'Because nobody measured it. We can tell you your largest content paints in 4.2 seconds, because we timed it. Turning that into a percentage of lost signups would be a number we made up, and you would find out it was made up the month it did not come true.'
+        }
+      ]
     },
 
     finalCta: {
@@ -270,7 +328,25 @@ export const en = {
     analyzing: 'Analyzing...',
     waitNote: 'This usually takes 2 to 3 minutes. Keep this tab open while we scrape the page, measure it, and write the new copy.',
     briefSummary: 'Add business details (optional)',
-    briefPlaceholder: "Who it's for, your real numbers (users, trial length, pricing), and what makes you different. We use these to write finished copy instead of placeholders.",
+    briefIntro: 'Four short answers. They are what turns the rewritten copy from a template with [placeholders] into lines you can ship.',
+    briefFields: {
+      audience: {
+        label: 'Who is it for',
+        placeholder: 'Solo founders shipping their first paid product'
+      },
+      offer: {
+        label: 'What are you selling',
+        placeholder: 'A landing page teardown, 19 reais per page, no subscription'
+      },
+      action: {
+        label: 'What should a visitor do',
+        placeholder: 'Paste a URL and start a free score'
+      },
+      objection: {
+        label: 'What stops them',
+        placeholder: 'They assume it is another generic AI audit'
+      }
+    },
     errorInvalidUrl: 'Enter a valid URL, including https://',
     errorGeneric: 'Something went wrong. Please try again.',
     errorLimitReached: 'You have reached the free plan limit. Talk to us to keep analyzing.',

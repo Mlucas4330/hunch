@@ -24,10 +24,19 @@ into a filtered view survives sign-in. The sign-in page revalidates it before us
 
 ## Auth — `auth.ts`
 
-Google OAuth is the only sign-in path. Microsoft Entra ID was an optional second one for corporate
-buyers, and went with the agency framing; the claim table below is what a second provider has to
-extend before it can be added back. The rest of this paragraph is history:
-company runs on Microsoft 365.
+Two OAuth providers sign people in: Google always, GitHub whenever `AUTH_GITHUB_ID` and
+`AUTH_GITHUB_SECRET` are both set (`githubLoginAllowed()`). An absent pair is not a broken config, it
+is the provider being off — `auth.config.ts` does not mount it and `app/(app)/auth/signin/page.tsx`
+does not draw its button. Microsoft Entra ID was a third, for corporate buyers, and went with the
+agency framing; the claim table below is what any further provider has to extend before it can be
+added back.
+
+**Registering the GitHub app.** Callback URL `https://<host>/api/auth/callback/github` — the default
+Auth.js route, since nothing here sets a `basePath`. Do not set the scope in GitHub's own UI:
+`GITHUB_SCOPE` is passed in `authConfig` because the default omits `user:email`, and without it the
+verification call answers 403 and refuses every GitHub login. In production leave `AUTH_URL` empty and
+set `AUTH_TRUST_HOST=true`; a set `AUTH_URL` rewrites the origin of every auth request and the
+provider then receives a `redirect_uri` pointing at localhost. See docs/deployment.md.
 
 ### Verification fails closed, and each provider declares how it verifies
 
@@ -267,6 +276,11 @@ card number, expiry and CVV fields, and it is first fetched and then framed, so 
 `connect-src` **and** `frame-src`. Allowing one masks the other: with only `connect-src` the fields
 sit as grey skeletons forever, and the `frame-src` refusal does not even appear in the violation
 reports until the fetch is permitted. Nothing else the Brick touches is blocked by this policy.
+
+`frame-src` also names `app.supademo.com`, the landing page's product tour. It is framed and nothing
+else: the player is served from that origin and no script on our page talks to it, so it appears in
+that one directive and in no other. The entry is inert while `NEXT_PUBLIC_SUPADEMO_DEMO_ID` is empty,
+because `components/product-demo.tsx` renders no iframe at all until an id is set.
 
 **`frame-src` is no longer `'none'`, and that is the product decision, not a header tweak:** the buyer
 now pays inside our page, in an iframe the provider serves. It is the cost of a checkout with no
