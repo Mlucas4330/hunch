@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/current-user'
+import { isAdmin } from '@/lib/auth-policy'
 import { AccountMenu, AccountPanel } from '@/components/account-menu'
 import { MobileMenu } from '@/components/mobile-menu'
 import { NavLinks } from '@/components/nav-links'
@@ -23,7 +24,7 @@ export async function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-5 md:flex">
-          <NavLinks signedIn={Boolean(user)} />
+          <NavLinks signedIn={Boolean(user)} admin={isAdmin(user)} />
           <LanguageToggle locale={locale} />
           {user ? (
             <AccountMenu user={user} />
@@ -36,7 +37,7 @@ export async function Navbar() {
 
         <MobileMenu label={t.nav.menuAria}>
           <div className="flex flex-col items-start gap-2">
-            <NavLinks signedIn={Boolean(user)} />
+            <NavLinks signedIn={Boolean(user)} admin={isAdmin(user)} />
           </div>
           <div className="flex">
             <LanguageToggle locale={locale} />

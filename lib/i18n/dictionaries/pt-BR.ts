@@ -27,6 +27,10 @@ export const ptBR: Dictionary = {
         description:
           'Todas as landing pages que você já pontuou e o relatório que cada uma gerou.'
       },
+      admin: {
+        title: 'Créditos',
+        description: 'Dar créditos na mão.'
+      },
       analysis: {
         title: 'O que mudar',
         description: 'Correções de texto priorizadas e o playbook de fluxo desta landing page.'
@@ -86,6 +90,7 @@ export const ptBR: Dictionary = {
     homeAria: 'Início do Hunch',
     blog: 'Blog',
     dashboard: 'Minhas páginas',
+    admin: 'Admin',
     signIn: 'Entrar',
     signOut: 'Sair',
     account: 'Conta',
@@ -295,6 +300,26 @@ export const ptBR: Dictionary = {
     password: 'Senha',
     invalidCredentials: 'Credenciais inválidas',
     adminSubmit: 'Entrar como admin'
+  },
+
+  admin: {
+    eyebrow: 'Operação',
+    credits: {
+      title: 'Dar créditos',
+      subtitle: 'Créditos entregues sem nenhum pagamento por trás, para cortesia ou para consertar um pagamento cujo webhook não chegou. Todo crédito dado vai para o extrato e aparece na lista abaixo.',
+      emailLabel: 'Conta',
+      emailPlaceholder: 'alguem@exemplo.com',
+      creditsLabel: 'Créditos',
+      submit: 'Dar',
+      result: {
+        granted: 'Creditado.',
+        invalid: 'Confira o endereço e a quantidade de créditos.',
+        forbidden: 'Você não é operador.',
+        failed: 'Nada foi creditado. Tente de novo.'
+      },
+      historyTitle: 'Créditos dados recentemente',
+      historyEmpty: 'Nenhum crédito foi dado na mão ainda.'
+    }
   },
 
   dashboard: {

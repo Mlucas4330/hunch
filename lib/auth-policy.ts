@@ -92,10 +92,34 @@ export function githubLoginAllowed(): boolean {
   return Boolean(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET)
 }
 
+// Case and surrounding space are not identity. The domain half is case insensitive by RFC and every
+// provider this app accepts treats the local half that way too, so `Ada@Example.com` and
+// `ada@example.com` are one mailbox -- and a dashboard that kept a trailing space on a pasted value
+// is not a different operator. It used to compare with `===`, which turned both into a promotion
+// that silently did nothing.
+//
+// This decides who is *granted* the role, never who owns the row: the address keying the row is still
+// the exact one the provider verified. See docs/invariants.md.
+function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase()
+}
+
 // Grants the role at sign-in. The gate below is what authorizes a request. See docs/invariants.md.
 export function isAdminEmail(email: string | null | undefined): boolean {
   const adminEmail = process.env.ADMIN_EMAIL
-  return Boolean(email && adminEmail && email === adminEmail)
+  if (!email || !adminEmail) return false
+
+  const matches = normalizeEmail(email) === normalizeEmail(adminEmail)
+
+  // **Said out loud, because the failure is otherwise perfectly silent.** Nothing in the app reads
+  // the role today, so a mismatch has no symptom at all: the operator sets the variable, signs in,
+  // and has no way to tell it did not take. The address is deliberately not logged -- what is useful
+  // here is that a sign-in happened and did not match, not who it was.
+  if (!matches) {
+    console.warn('[auth] ADMIN_EMAIL is set but the signed-in address did not match it')
+  }
+
+  return matches
 }
 
 export function isAdmin(user: Pick<User, 'role'> | null | undefined): boolean {

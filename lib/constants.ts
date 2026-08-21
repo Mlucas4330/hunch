@@ -15,7 +15,7 @@ import type { PaymentProvider } from '@/lib/enums'
 export const FALLBACK_APP_ORIGIN = 'http://localhost:3000'
 
 // Shared by middleware.ts and app/robots.ts so the two can never drift.
-export const PROTECTED_PREFIXES = ['/dashboard', '/analyses']
+export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/admin']
 
 export const POST_SIGNIN_REDIRECT = '/dashboard'
 
@@ -296,6 +296,27 @@ export type CreditPackId = (typeof CREDIT_PACKS)[number]['id']
 // than beside each adapter so a client component can name one without importing a server module.
 export const STRIPE_PROVIDER: PaymentProvider = 'stripe'
 export const MERCADOPAGO_PROVIDER: PaymentProvider = 'mercadopago'
+
+// The `provider` recorded against a hand grant. **Deliberately not a PaymentProvider**: nothing was
+// charged, and typing it as one would say a payment processor was involved. `credit_transactions.provider`
+// is a text column precisely so a non-payment source can be named honestly, which is the same reason
+// the e2e setup grants as 'e2e'.
+export const ADMIN_PROVIDER = 'admin'
+
+// The operator screen. Under PROTECTED_PREFIXES so middleware turns away anyone with no session, and
+// re-checked against the stored role by both the page and the action behind it -- middleware proves a
+// session, never a role. See docs/invariants.md.
+export const ADMIN_PATH = '/admin'
+export const ADMIN_CREDITS_PATH = `${ADMIN_PATH}/credits`
+
+// A ceiling on one hand grant. There is no inverse of grantCredits, so the cost of a fat finger here
+// is a balance that has to be unpicked in SQL. High enough for any real comp, low enough that an
+// extra digit is refused rather than honoured.
+export const ADMIN_GRANT_MAX = 100
+
+// How many recent hand grants the screen lists. It is an audit trail, not a report: enough to see
+// what was just done and what was done last week.
+export const ADMIN_GRANT_HISTORY = 20
 
 // What a focus trap counts as a stop. `[tabindex="-1"]` is deliberately absent: it marks something
 // focusable by script, not by Tab. See components/ui/dialog.tsx.

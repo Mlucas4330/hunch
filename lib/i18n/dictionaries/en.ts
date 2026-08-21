@@ -28,6 +28,10 @@ export const en = {
         title: 'Your pages',
         description: 'Every landing page you have scored, and the report each one produced.'
       },
+      admin: {
+        title: 'Credits',
+        description: 'Grant credits by hand.'
+      },
       analysis: {
         title: 'What to change',
         description: 'Ranked wording fixes and the flow playbook for this landing page.'
@@ -87,6 +91,7 @@ export const en = {
     homeAria: 'Hunch home',
     blog: 'Blog',
     dashboard: 'My pages',
+    admin: 'Admin',
     signIn: 'Sign in',
     signOut: 'Sign out',
     account: 'Account',
@@ -298,6 +303,26 @@ export const en = {
     password: 'Password',
     invalidCredentials: 'Invalid credentials',
     adminSubmit: 'Sign in as admin'
+  },
+
+  admin: {
+    eyebrow: 'Operator',
+    credits: {
+      title: 'Grant credits',
+      subtitle: 'Credits handed over with no payment behind them, for comping someone or repairing a payment whose webhook never landed. Every grant is written to the ledger and listed below.',
+      emailLabel: 'Account',
+      emailPlaceholder: 'someone@example.com',
+      creditsLabel: 'Credits',
+      submit: 'Grant',
+      result: {
+        granted: 'Granted.',
+        invalid: 'Check the address and the number of credits.',
+        forbidden: 'You are not an operator.',
+        failed: 'Nothing was granted. Try again.'
+      },
+      historyTitle: 'Recent grants',
+      historyEmpty: 'No credits have been granted by hand yet.'
+    }
   },
 
   dashboard: {

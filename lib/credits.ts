@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { creditTransactions, users } from '@/db/schema'
 import type { CreditReason } from '@/lib/enums'
@@ -23,6 +23,12 @@ export type Grant = {
   provider: string
   /** The provider's own id for this payment. The idempotency key, so it must be stable per payment. */
   providerRef: string
+  /**
+   * Why the balance moved. Defaults to `purchase` because every payment adapter means that and none
+   * of them should have to say so; an operator granting by hand passes `grant`, which is the only
+   * other way credits are created. See docs/invariants.md.
+   */
+  reason?: Extract<CreditReason, 'purchase' | 'grant'>
 }
 
 export type GrantResult = { granted: boolean; duplicate: boolean }
@@ -54,7 +60,7 @@ export async function grantCredits(grant: Grant): Promise<GrantResult> {
       .values({
         userId: user.id,
         delta: grant.credits,
-        reason: 'purchase' satisfies CreditReason,
+        reason: grant.reason ?? 'purchase',
         provider: grant.provider,
         providerRef: grant.providerRef
       })
@@ -136,4 +142,34 @@ export async function creditsFor(userId: string): Promise<number> {
   })
 
   return row?.credits ?? 0
+}
+
+export type GrantRecord = {
+  email: string
+  credits: number
+  at: Date
+}
+
+/**
+ * The hand grants, newest first, for the operator screen.
+ *
+ * Reads `reason = 'grant'` rather than `provider = ADMIN_PROVIDER`, because the reason is the thing
+ * that means "nobody paid for this" and the provider is only how it got here. It is the audit trail
+ * that justified giving the reason its own enum value at all -- a grant that nothing ever shows is a
+ * grant nobody reviews.
+ */
+export async function recentGrants(limit: number): Promise<GrantRecord[]> {
+  const rows = await db
+    .select({
+      email: users.email,
+      credits: creditTransactions.delta,
+      at: creditTransactions.createdAt
+    })
+    .from(creditTransactions)
+    .innerJoin(users, eq(users.id, creditTransactions.userId))
+    .where(eq(creditTransactions.reason, 'grant'))
+    .orderBy(desc(creditTransactions.createdAt))
+    .limit(limit)
+
+  return rows
 }

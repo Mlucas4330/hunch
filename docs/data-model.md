@@ -94,6 +94,15 @@ credit_transactions             <- every movement of the balance, both direction
                                       however many times a webhook is delivered
 - index(user_id, created_at)
 
+`grant` is the fourth `CREDIT_REASON` and the only one with no money behind it: an operator handing
+credits over from `/admin/credits`, to comp someone or to repair a payment whose webhook never landed.
+It is a reason of its own rather than a `purchase` with a distinctive `provider` because **the ledger's
+job is being auditable**, and a row claiming a purchase nobody made is the one lie that makes every
+other row worth less. `provider` is `ADMIN_PROVIDER` and `provider_ref` a fresh uuid, so a hand grant
+can never collide with a real payment's idempotency key. `recentGrants` in `lib/credits.ts` reads this
+value back to list them on the screen, which is what makes the grants reviewable rather than merely
+recorded.
+
 payment_events                  <- webhook idempotency, for every provider
 - provider         (text)
 - event_id         (text: the provider's own id for the delivery. For Mercado Pago it is

@@ -93,7 +93,12 @@ export type HypothesisTarget = (typeof HYPOTHESIS_TARGET)[number]
 
 // Why the balance moved. `purchase` and `refund` are the two directions a payment can push it;
 // `unlock` is the one thing that spends. See docs/data-model.md.
-export const CREDIT_REASON = ['purchase', 'unlock', 'refund'] as const
+// Why a balance moved. `grant` is an operator handing credits over with no payment behind them --
+// comping a customer, or repairing a payment whose webhook never landed. It is its own reason rather
+// than a `purchase` with a special provider **because the ledger's whole job is being auditable**,
+// and a row saying `purchase` for something nobody bought is the one lie that makes the rest of the
+// table worth less. See docs/data-model.md.
+export const CREDIT_REASON = ['purchase', 'unlock', 'refund', 'grant'] as const
 export type CreditReason = (typeof CREDIT_REASON)[number]
 
 // What a queued job is doing. `unavailable` is not an error state: it means the work can never

@@ -184,6 +184,14 @@ Four rules hold the money side together:
   `transaction_amount` against that map on the way back. An approved payment for an amount no pack
   charges buys nothing.
 
+**The operator screen is back, and it changed nothing about this rule.** `/admin/credits` grants
+credits with no payment behind them — comping someone, or repairing a payment whose webhook never
+landed — and it does it by calling `grantCredits` like every other source. It touches neither table.
+The one thing it added is a fourth `CREDIT_REASON`: a hand grant records `grant`, never `purchase`,
+because **the ledger's whole job is being auditable and a row claiming a purchase nobody made is the
+one lie that devalues the rest of the table**. It has no inverse, which is why `ADMIN_GRANT_MAX`
+bounds a single grant and why the screen lists what has been granted.
+
 The second provider has landed and the shape held: Mercado Pago verifies a payment, works out what it
 bought, and calls `grantCredits`. `lib/credits.ts` did not change to accommodate it, which is the
 whole return on writing it this way.
@@ -266,6 +274,22 @@ rather than an empty one.
 Sign-in promotes the row to `admin` when the email matches `ADMIN_EMAIL` (`isAdminEmail`); every request
 is then gated on the **stored** role (`isAdmin`), never on the variable. The two halves are separate
 functions in `lib/auth-policy.ts` precisely so no call site can confuse them.
+
+**It happens at sign-in, so setting the variable promotes nobody who is already signed in.** A session
+lives `SESSION_MAX_AGE_SECONDS`, and `isAdminEmail` is only consulted while the `signIn` callback
+runs — adding `ADMIN_EMAIL` to a deploy does nothing until that person signs out and back in. The
+match ignores case and surrounding whitespace, because neither is identity and both used to turn a
+correct-looking variable into a promotion that silently did nothing. A mismatch now logs.
+
+**`isAdmin` gates `/admin/credits`, and it is checked three times on purpose.** The nav hides the
+link, the page answers `notFound()`, and the server action behind the form re-checks before it grants.
+Only the last two are boundaries: hiding a link hides a link, and **a server action is a public POST
+endpoint that happens to live next to a component**, reachable by anyone who knows its id without ever
+loading the page that renders the form.
+
+The gate reads the **row**, so revoking with `update users set role = 'user'` takes effect on the next
+request rather than the next sign-in — covered by `e2e/admin-credits.spec.ts`, which demotes the row
+mid-session and expects the screen to answer 404 with the token untouched.
 
 The promotion is one-way. A sign-in never writes the role back down, which means **removing `ADMIN_EMAIL`
 revokes nothing** — revoking is `update users set role = 'user'`, and it takes effect on the next request
