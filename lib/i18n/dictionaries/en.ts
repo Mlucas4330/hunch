@@ -241,7 +241,26 @@ export const en = {
       // Empty on purpose, and the section renders nothing while it is. A quote nobody said is the
       // same invention as a number nobody counted -- see docs/invariants.md. The shape to copy is in
       // lib/i18n/dictionaries/testimonials.example.ts.
-      items: [] as Testimonial[]
+      items: [
+        {
+          quote: 'I thought the solution was REALLY good!',
+          name: 'Jaque Aguiar',
+          role: 'CEO',
+          company: 'Evolux360'
+        },
+        {
+          quote: 'Very interesting... It really pointed out several things I personally wouldn’t have noticed... Great tool!',
+          name: 'Leslie Bagalho',
+          role: 'Dev',
+          company: 'Notes Axtenn'
+        },
+        {
+          quote: 'Wow, the report is awesome! Thanks!!!',
+          name: 'Junior Moreira',
+          role: 'Dev',
+          company: 'Plim Plim'
+        }
+      ]
     },
 
     leaderboard: {

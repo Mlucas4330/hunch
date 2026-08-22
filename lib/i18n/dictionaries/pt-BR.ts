@@ -238,7 +238,26 @@ export const ptBR: Dictionary = {
       eyebrow: 'O que dizem',
       heading: 'De quem já rodou.',
       // Vazio de propósito, e a seção não renderiza enquanto estiver assim. Ver en.ts.
-      items: [],
+      items: [
+        {
+          quote: 'Achei MUITO boa a solução!',
+          name: 'Jaque Aguiar',
+          role: 'CEO',
+          company: 'Evolux360'
+        },
+        {
+          quote: 'Muito interessante... E realmente apontou várias coias que eu particularmente nem teria sacado... Top a ferramenta.',
+          name: 'Leslie Bagalho',
+          role: 'Dev',
+          company: 'Notes Axtenn'
+        },
+        {
+          quote: 'Caraca, show demais o relatório, valeu!!!',
+          name: 'Junior Moreira',
+          role: 'Dev',
+          company: 'Plim Plim'
+        }
+      ],
     },
 
     leaderboard: {
