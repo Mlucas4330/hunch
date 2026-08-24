@@ -16,7 +16,7 @@ deprecated and `railway.json` must never name it again.
 | `browser` | `railway.browser.json` (*Config as code*, set by hand) | **no variables, no public domain** |
 | `Postgres` | Railway plugin | |
 | `Redis` | Railway plugin | rate limit counters only |
-| `cron-prune` | `railway.cron-prune.json` (*Config as code*, set by hand) | calls `/api/cron/prune-screenshots`; own hour so the two never hit `app` together |
+| `cron-prune` | `railway.cron-prune.json` (*Config as code*, set by hand) | calls `/api/cron/prune-screenshots`; the only cron |
 
 Every service but the plugins is the **same repo** pointed at a different config file. The schedules
 live in `deploy.cronSchedule` in those files rather than in the dashboard, so a changed cron time
@@ -66,11 +66,12 @@ and that image reinstalls Chromium from apt each time.
 `APP_URL` is a per-environment origin under the same rule as step 2, which is exactly why it is a
 variable instead of a literal in the committed start command.
 
-The crons are **two services rather than one command hitting both URLs**: `curl` exits 0 on a non-2xx,
-so `curl A && curl B` is really `A; B`, and adding `-f` to fix that would let a failed finalize silently
-skip the prune. Separate services also keep the schedules independent, which is the point of the
-staggered hour — and they are what makes `--fail-with-body` in `scripts/cron-call.sh` safe, so a `401`
-or a `500` surfaces as a failed run instead of a green one.
+There used to be two crons, and they were **two services rather than one command hitting both URLs**:
+`curl` exits 0 on a non-2xx, so `curl A && curl B` is really `A; B`, and adding `-f` to fix that would
+have let a failed first call silently skip the prune. The second cron is gone, but keep the shape if
+one is ever added — one route per service is what makes `--fail-with-body` in `scripts/cron-call.sh`
+safe, so a `401` or a `500` surfaces as a failed run instead of a green one, and it keeps the
+schedules independent so two jobs never hit `app` together.
 
 ## The browser image
 
@@ -113,12 +114,19 @@ The call is a **script rather than an inline start command**, because Railway ru
 command for a Dockerfile service **in exec form, without a shell**. `curl -H "Authorization: Bearer
 $CRON_SECRET"` written straight into `startCommand` sends curl those fourteen literal characters and
 gets a `401` — indistinguishable, in the logs, from a secret that is actually wrong. The script takes
-the route as `$1`, so both services share it and differ only in `startCommand` and `cronSchedule`.
+the route as `$1`, so a second cron service would reuse it unchanged and differ only in
+`startCommand` and `cronSchedule`.
 
-`restartPolicyType` is **`NEVER`** on both. A cron container is expected to exit; `ON_FAILURE` would
-turn one failed call into a restart loop against `app`. Railway also **skips** a scheduled run whose
-predecessor is still going, and guarantees no better than a few minutes' accuracy, which is why these
-are daily jobs and not a substitute for anything time-sensitive.
+`restartPolicyType` is **`NEVER`**. A cron container is expected to exit; `ON_FAILURE` would turn one
+failed call into a restart loop against `app`. Railway also **skips** a scheduled run whose
+predecessor is still going, and guarantees no better than a few minutes' accuracy, which is why this
+is a daily job and not a substitute for anything time-sensitive.
+
+**Deleting a cron route means deleting its Railway service by hand.** Nothing in the repo can remove a
+service, so a route that goes away leaves the service firing at a config path that no longer exists:
+Railway falls back to auto-detection, builds the whole Next app instead of this image, and loses the
+`startCommand` and `restartPolicyType` that lived in the deleted file. `cron-remeasure` failed this
+way for exactly that reason after the pivot removed `/api/cron/remeasure`.
 
 ## Mercado Pago
 

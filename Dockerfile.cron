@@ -1,5 +1,5 @@
-# curl, alone. Both cron services build this same image and differ only in the path their
-# startCommand passes to the script -- see railway.cron-prune.json and railway.cron-remeasure.json.
+# curl, alone. A cron service builds this image and passes the route its startCommand calls to the
+# script -- see railway.cron-prune.json.
 #
 # The tag is pinned rather than `latest` for the reason engines.node is pinned: an unpinned base is
 # how a deploy starts failing on a commit that changed nothing.

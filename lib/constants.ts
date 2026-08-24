@@ -522,14 +522,6 @@ export const TREND_SCORE_MAX = 100
 // which is longer than any conversation about it.
 export const SNAPSHOT_HISTORY_MAX = 12
 
-// Analyses re-measured per cron run. Each one opens a real browser against a customer's page, so
-// this is a cost ceiling, not a page size.
-export const REMEASURE_BATCH_MAX = 20
-
-// A page measured more recently than this is left alone, so a manual re-measure is never
-// immediately followed by the cron taking another one.
-export const REMEASURE_MIN_AGE_MS = 6 * 24 * 60 * 60 * 1000
-
 // Named so the schema's fallback is not a bare literal. See docs/ai-pipeline.md.
 export const SECTION_FALLBACK: Section = 'other'
 
