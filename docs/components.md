@@ -92,6 +92,19 @@ There is deliberately no `loading.tsx` at the `app/(app)` group root: it would c
 
 ## Layout
 
+**A flex or grid item defaults to `min-width: auto` and will not shrink below its content.** That is
+what broke the readout on a phone twice over, and both breaks looked like a styling accident rather
+than a rule: `ReadoutScore`'s bar rows pushed 85px past a 360px viewport because a `flex-1` label sat
+beside a fixed-width bar with no `min-w-0` in the chain, and the analysis header let a long URL run off
+the screen because its parent is `items-start` in column direction, which sizes a child to its own
+content so `truncate` had nothing to truncate against. **`truncate` only works if an ancestor actually
+constrains the width** — pair it with `min-w-0` on every flex or grid ancestor, and `w-full` under
+`items-start`.
+
+The way to check is to measure, not to look: set a 360px viewport and compare
+`document.documentElement.scrollWidth` against `clientWidth`. Anything above zero is a page that
+scrolls sideways on a phone. `e2e/free-analysis.spec.ts` asserts it for the report.
+
 ### One container — `CONTAINER_CLASS`
 
 `mx-auto w-full max-w-5xl px-4` in `lib/constants.ts`, read by the navbar, `app/(app)/layout.tsx`,

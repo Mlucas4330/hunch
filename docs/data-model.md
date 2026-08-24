@@ -134,7 +134,7 @@ generation and thrown away from the moment the scrape existed. They are persiste
 state **measured** facts with no model in the loop — see [readout.md](readout.md).
 
 An analysis created before these columns holds null and renders no readout section, exactly as an
-empty playbook renders no playbook. **Nothing is regenerated**, and no sweep touches a free plan.
+empty playbook renders no playbook. **Nothing is regenerated**, and nothing sweeps them.
 `POST /api/analyses/[id]/measure` re-measures one analysis at a time on the owner's click, and
 There is no sweep any more: the cron that did it only ever touched paid plans, and without plans a
 sweep is browser time nobody asked for.

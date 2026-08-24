@@ -40,6 +40,20 @@ test('a signed in reader with no credits still gets the measured half', async ({
     const wall = page.getByTestId('unlock-wall')
     await expect(wall).toBeVisible()
     await expect(wall.getByRole('link', { name: 'Buy a credit to unlock' })).toBeVisible()
+
+    // **It must not read as "nothing to improve".** The cover used to fill its count sentence with
+    // zeroes and the strip above the readout printed "Changes recommended: 0" -- a page scored 47
+    // being told it was perfect. Incomplete and clean are opposite claims.
+    await expect(page.getByText('have not been written for this page yet')).toBeVisible()
+    await expect(page.getByText('Changes recommended')).toHaveCount(0)
+    await expect(page.getByText('found 0 changes worth making')).toHaveCount(0)
+
+    // And it fits a phone.
+    await page.setViewportSize({ width: 360, height: 780 })
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    )
+    expect(overflow).toBeLessThanOrEqual(0)
   })
 
   // Zero tokens: the row stayed ownerless, which is what makes the free half free.

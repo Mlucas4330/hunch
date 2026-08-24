@@ -430,7 +430,8 @@ export const en = {
     },
     errorInvalidUrl: 'Enter a valid URL, including https://',
     errorGeneric: 'Something went wrong. Please try again.',
-    errorLimitReached: 'You have reached the free plan limit. Talk to us to keep analyzing.',
+    errorLimitReached: 'You have run several analyses in a short time. Give it an hour and try again.',
+    errorBusy: 'We could not start the analysis just now. Nothing was charged. Try again in a moment.',
     errorUnsupportedUrl: 'That URL is not valid or supported.',
     errorScrapeFailed: 'We could not load that page. Check the URL and try again.',
     errorAnalyzeFailed: 'Something went wrong while analyzing. Please try again.'
@@ -696,6 +697,8 @@ export const en = {
     dated: 'Reviewed on {date}',
     summaryBody:
       'We went through this page line by line and found {changes} changes worth making. {ready} of them are wording changes, and the new wording is already written below. The other {structural} change how the page is put together.',
+    summaryMeasured:
+      'Everything below was counted on this page when we opened it. The ranked fixes and the replacement copy are the half a model has to write, and they have not been written for this page yet.',
     changesFound: 'Changes recommended',
     copyWritten: 'Copy already written',
     testThisFirst: 'Start here',

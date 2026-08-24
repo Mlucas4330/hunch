@@ -100,13 +100,18 @@ export default async function PublicReportPage({
         t={t}
         url={analysis.url}
         generated={formatDate(analysis.createdAt, locale)}
-        counts={counts}
+        counts={generated ? counts : null}
       />
 
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
-        <SummaryCell label={t.report.changesFound} value={String(counts.changes)} />
-        <SummaryCell label={t.report.copyWritten} value={String(counts.ready)} />
-      </div>
+      {/* Both cells count generated work, so on a measured-only report both would read 0 -- a page
+          scored 47 sitting under "Changes recommended: 0". The strip is left out entirely rather
+          than shown empty; the score and the readout below are the whole of what was measured. */}
+      {generated && (
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
+          <SummaryCell label={t.report.changesFound} value={String(counts.changes)} />
+          <SummaryCell label={t.report.copyWritten} value={String(counts.ready)} />
+        </div>
+      )}
 
       <MeasuredReadout input={readoutFor(analysis)} />
 

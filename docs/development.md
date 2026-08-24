@@ -136,11 +136,22 @@ the routine to `el.textContent = copy` turns four of the eight red.
 
 ### What the fixture user can and cannot prove
 
-The credentials hatch forces that user to `pro` (`auth.ts`), so the suite can assert that **a paying
-customer is never shown an upsell** and that the **unbranded, unwalled paid report** renders correctly.
+The credentials hatch forces that user to `admin` (`auth.ts`), which is the only role there is besides
+`user` — there are no plans and no `pro`. `auth.setup.ts` then buys the run `E2E_CREDITS` through
+`grantCredits`, never by updating `users.credits`, so the suite exercises the path that actually
+charges. **An analysis spends a credit for everyone, admin included**, and there is no exemption by
+role.
 
-It cannot reach the free, walled shape of either surface — that needs a genuinely free account and is
-**checked by hand**. Anything that must hold for the free shape is verified manually.
+**The free, walled shape is no longer checked by hand.** `e2e/free-analysis.spec.ts` drains the
+balance to zero, runs an analysis, and asserts the three things that define the free half: the reader
+lands on `/r/<embedKey>` rather than being refused, the row came back with `user_id` null and
+`structure` populated (so no model was called), and the report shows the unlock wall without claiming
+zero changes. It restores whatever balance it took, because the rest of the suite needs it.
+
+What still cannot be reached from here is a **second, non-admin account**: every signed-in path the
+suite drives is the same row. The role gate is covered from the other direction instead —
+`e2e/admin-credits.spec.ts` demotes that row mid-session and expects the operator screen to answer
+404 with the token untouched.
 
 ## `preview:screenshot`
 

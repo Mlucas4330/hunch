@@ -17,7 +17,7 @@ export function ReportCover({
   t: Dictionary
   url: string
   generated: string
-  counts: ReportCoverCounts
+  counts: ReportCoverCounts | null
 }) {
   const host = displayHost(url)
 
@@ -31,8 +31,12 @@ export function ReportCover({
         <p className="break-all font-mono text-sm text-muted-foreground">{url}</p>
       </div>
 
+      {/* **A report with nothing generated must not print zeroes.** `summaryBody` filled with
+          counts of 0 reads as "we looked and there is nothing worth changing", which is the opposite
+          of what happened: nobody has written the fixes yet. The count sentence is only true once
+          there is something to count. */}
       <p className="max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground">
-        {fill(t.report.summaryBody, counts)}
+        {counts ? fill(t.report.summaryBody, counts) : t.report.summaryMeasured}
       </p>
 
       <p className="panel-label text-[0.65rem] text-muted-foreground">

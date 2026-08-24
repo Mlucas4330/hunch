@@ -429,7 +429,9 @@ export const ptBR: Dictionary = {
     errorInvalidUrl: 'Informe uma URL válida, incluindo https://',
     errorGeneric: 'Algo deu errado. Tente novamente.',
     errorLimitReached:
-      'Você chegou ao limite do plano gratuito. Fale com a gente para continuar analisando.',
+      'Você rodou várias análises em pouco tempo. Espere uma hora e tente de novo.',
+    errorBusy:
+      'Não deu para começar a análise agora. Nada foi cobrado. Tente de novo em instantes.',
     errorUnsupportedUrl: 'Essa URL não é válida ou não é suportada.',
     errorScrapeFailed: 'Não conseguimos carregar essa página. Confira a URL e tente novamente.',
     errorAnalyzeFailed: 'Algo deu errado durante a análise. Tente novamente.'
@@ -696,6 +698,8 @@ export const ptBR: Dictionary = {
     dated: 'Revisado em {date}',
     summaryBody:
       'Passamos por esta página linha a linha e encontramos {changes} mudanças que valem a pena. {ready} delas são mudanças de texto, e o texto novo já está escrito aqui embaixo. As outras {structural} mudam como a página está montada.',
+    summaryMeasured:
+      'Tudo aqui embaixo foi contado nesta página no momento em que a abrimos. As correções priorizadas e a copy substituta são a metade que um modelo precisa escrever, e ela ainda não foi escrita para esta página.',
     changesFound: 'Mudanças recomendadas',
     copyWritten: 'Texto já escrito',
     testThisFirst: 'Comece por aqui',

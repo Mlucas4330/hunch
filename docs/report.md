@@ -8,14 +8,27 @@ because the landing page sold "hand the printed version to your client", and whi
 because the reader was an agency. Neither reader exists now, so the PDF, the brand resolver
 (`lib/report.ts`), `ReportBrandMark`, `/settings` and the three brand columns are gone.
 
-**What the surface is now:** the page the owner shares, and — once anonymous analysis lands — the
-page someone sees before they have an account. That second job is why it survived the deletion at
+**What the surface is now:** the page the owner shares, and the page someone sees before they have an
+account. Anonymous analysis has landed, and so has its wider case: a signed-in reader with an empty
+balance gets an ownerless analysis too, so this page is where **every** unpaid run ends up. That second job is why it survived the deletion at
 all: an anonymous analysis has no `userId`, so it cannot live on `/analyses/[id]`, which authorizes
 by owner.
 
 `loadReport` moved to `lib/analyses.ts` when `lib/report.ts` went. That file existed to resolve a
 brand; the lookup it also held did not deserve to die with it, and it belongs beside the other
 analysis queries anyway.
+
+## A measured-only report says so, and never prints zeroes
+
+`generated` is `hypotheses.length > 0`, and when it is false the report is a readout plus the unlock
+wall. Two things must stay off that page: the cover's count sentence, and the "Changes recommended /
+Copy already written" strip. Both are filled from counts of generated work, so on a free run they read
+`0` — and **"we found 0 changes worth making" is the opposite of "nobody has written them yet"**. A
+page scored 47 sitting under a zero reads as a clean bill of health, which is the one thing the report
+must never claim by accident.
+
+`ReportCover` takes `counts: ReportCoverCounts | null` for exactly this: no counts, no count
+sentence, `report.summaryMeasured` instead. Covered by `e2e/free-analysis.spec.ts`.
 
 ## Public report — `app/(report)/r/[embedKey]/page.tsx`
 

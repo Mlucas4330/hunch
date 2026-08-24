@@ -62,7 +62,11 @@ export default async function AnalysisDetailPage({
   return (
     <div className="animate-fade-up space-y-6">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
-        <div className="min-w-0 space-y-1">
+        {/* w-full because the parent is `items-start` in column direction, which sizes a child to its
+            own content -- so `truncate` on the URL below had nothing to truncate against and a long
+            one pushed the whole page sideways on a phone. `sm:flex-1` does the same job once the
+            parent turns into a row. */}
+        <div className="w-full min-w-0 space-y-1 sm:flex-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">{t.analysis.eyebrow}</p>
           <div className="flex items-center gap-2">
             <h1 className="font-display text-2xl font-bold tracking-tight">{t.analysis.title}</h1>

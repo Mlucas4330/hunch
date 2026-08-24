@@ -35,16 +35,20 @@ export function ReadoutScore({ findings }: { findings: MeasuredFinding[] }) {
         <p className="mt-3 text-sm leading-snug text-muted-foreground">{copy.scale}</p>
       </div>
 
-      <div className="flex-1 space-y-4">
-        <div className="grid gap-3">
+      {/* min-w-0 all the way down: a flex or grid item defaults to min-width:auto, which refuses to
+          shrink below its content and is what pushed these rows past the viewport on a phone. */}
+      <div className="min-w-0 flex-1 space-y-4">
+        <div className="grid min-w-0 gap-3">
           {READOUT_GROUP.map((group) => {
             const value = score.groups[group]
             if (value === null) return null
 
             return (
-              <div key={group} className="flex items-center gap-3">
-                <p className="flex-1 truncate text-sm text-muted-foreground">{groups[group]}</p>
-                <div className="h-2.5 w-28 overflow-hidden rounded-full bg-muted sm:w-40">
+              <div key={group} className="flex min-w-0 items-center gap-3">
+                <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                  {groups[group]}
+                </p>
+                <div className="h-2.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:w-40">
                   <div
                     className={cn(
                       'h-full rounded-full',
@@ -53,7 +57,7 @@ export function ReadoutScore({ findings }: { findings: MeasuredFinding[] }) {
                     style={{ width: `${value}%` }}
                   />
                 </div>
-                <p className="w-9 text-right font-mono text-sm font-semibold tabular-nums">
+                <p className="w-9 shrink-0 text-right font-mono text-sm font-semibold tabular-nums">
                   {value}
                 </p>
               </div>

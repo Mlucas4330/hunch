@@ -42,7 +42,7 @@ what was counted, and no surface says what a change will produce — see
 | Layer      | Choice                                                            |
 | ---------- | ----------------------------------------------------------------- |
 | Framework  | Next.js App Router + TypeScript                                   |
-| Auth       | NextAuth + Google OAuth                                            |
+| Auth       | NextAuth + Google, optionally GitHub                               |
 | Scraping   | Puppeteer (self-hosted)                                           |
 | Styles     | Shadcn                                                            |
 | AI         | Claude API + Vercel AI SDK structured outputs                     |
@@ -84,7 +84,7 @@ what was counted, and no surface says what a change will produce — see
 
 **Account**
 
-- Sign up, log in, log out via Google OAuth
+- Sign up, log in, log out via Google, or GitHub when it is configured
 - Switch language between English and Brazilian Portuguese
 - Track past pages as a grid on the dashboard, one card per analyzed landing page
 

@@ -7,10 +7,11 @@
 | `/` | Landing page | Self-serve funnel for the page's own owner: the score, one track of three steps |
 | `/blog` | Blog index | Three posts, the destination for paid traffic -- see [seo.md](seo.md#indexability) |
 | `/blog/[slug]` | Blog post | One post, closing on the same CTA |
-| `/auth/signin` | Auth | Google OAuth via NextAuth; returns to `callbackUrl` |
+| `/auth/signin` | Auth | Google, and GitHub when `AUTH_GITHUB_ID`/`SECRET` are set; returns to `callbackUrl` |
 | `/dashboard` | My pages | Grid of past analyses, one card per page, above the new-analysis form |
 | `/analyses/[id]` | What to change | The report link, then four tabs: structure, copy, SEO, AI |
 | `/r/[embedKey]` | Public report | No session, authorized by the opaque key — see [report.md](report.md) |
+| `/admin/credits` | Grant credits | Operator only. `notFound()` for anyone whose stored role is not `admin` — see [invariants.md](invariants.md) |
 
 The app routes live under the `(app)` route group (`app/(app)/analyses/...`); the public report has its
 own group, `app/(report)/r/[embedKey]/`.

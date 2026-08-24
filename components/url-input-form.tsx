@@ -204,10 +204,16 @@ function formatElapsed(seconds: number): string {
   return `${minutes}:${String(rest).padStart(2, '0')}`
 }
 
+// The statuses this route actually answers with, which is not what this used to check. It mapped
+// `403` and a `limit_reached` code, and `enforceRateLimit` has always answered **429** with
+// `rate_limited` -- so the one error a reader is most likely to see, having run a few analyses in a
+// row, reached them as "something went wrong while analyzing". See lib/rate-limit.ts.
 function messageFor(dictionary: Dictionary, status: number, code?: string): string {
   const { urlForm } = dictionary
-  if (status === 403 || code === 'limit_reached') return urlForm.errorLimitReached
+  if (status === 429) return urlForm.errorLimitReached
   if (status === 422) return urlForm.errorUnsupportedUrl
   if (status === 502) return urlForm.errorScrapeFailed
+  // Redis is down, so there is no queue: the work was never started rather than started and lost.
+  if (status === 503 || code === 'queue_unavailable') return urlForm.errorBusy
   return urlForm.errorAnalyzeFailed
 }
