@@ -281,6 +281,10 @@ export const ptBR: Dictionary = {
           answer: 'É, e não pede conta. Você cola a URL, a gente abre a página e conta o que tem nela, e o diagnóstico inteiro é seu. Pagar é só pelas correções priorizadas e pela copy substituta.'
         },
         {
+          question: 'O que acontece se eu ficar sem créditos?',
+          answer: 'Você continua com a metade gratuita. Cole uma URL com saldo zerado e ainda recebe a nota e todas as linhas que formaram ela, igual a quem não tem conta. O que o crédito compra são as correções priorizadas e a copy substituta, então essas ficam esperando você ter um.'
+        },
+        {
           question: 'Vocês precisam de acesso ao meu site?',
           answer: 'Não. Sem instalar nada, sem script, sem login, sem mexer em DNS. A gente abre a página pública do mesmo jeito que qualquer visitante abre, que é justamente por que isso funciona até numa página que não é sua.'
         },
@@ -623,6 +627,8 @@ export const ptBR: Dictionary = {
     balance: 'Você tem {count} créditos',
     balanceOne: 'Você tem 1 crédito',
     balanceNone: 'Você não tem créditos',
+    freeHalf:
+      'Você ainda consegue rodar uma página. A nota e todas as linhas por trás dela são de graça; as correções priorizadas e a copy reescrita é que precisam de um crédito.',
     credits: { one: '{count} análise', other: '{count} análises' },
     buy: 'Comprar',
     opening: 'Abrindo o checkout...',

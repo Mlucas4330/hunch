@@ -31,6 +31,21 @@ self-serve funnel: paste a URL, get a score, unlock the fixes. All copy comes fr
 because it is the half that costs no model tokens, the half the reader can check against their own
 page in one click, and the only thing here anyone shares unprompted.
 
+- **The hero carries the form, not a link to a sign in screen.** `POST /api/analyses` has always
+  served an ownerless run — measured, zero tokens, landing on `/r/<embedKey>` — but every CTA pointed
+  at `/auth/signin` and `UrlInputForm` rendered only on the protected dashboard, so **the page
+  promised a score with no account and offered no way to get one**. Four strings said it
+  (`landing.eyebrow`, `lead`, `ctaNote`, `how.intro`) and all four were false. The closing CTA and the
+  blog CTA now scroll to `#top` rather than sending a stranger to sign in.
+  `e2e/anon-hero.spec.ts` drops the storage state and walks it.
+- The hero form passes `showBrief={false}`: the brief only reaches a prompt on a run that generates,
+  and an ownerless one never does, so asking four questions there is asking for answers nothing will
+  read. It carries `submitLabel={d.landing.cta}` so the button keeps the page's own wording instead of
+  the neutral "Analyze".
+- **An empty balance is said out loud.** `CreditBalance` renders `credits.freeHalf` at zero only —
+  "You have no credits" beside a Buy button otherwise reads as a dead end, when the whole measured
+  readout is still available. The FAQ answers the same question directly. At one credit the line is
+  noise, so it is not shown.
 - Hero: the reader's own page, scored. The hero card is a **static mock of a readout**: a score and a
   few finding rows on the placeholder domain in `landing.heroCard.domain`.
 - **What the hero card may never show is a miracle number** — a lift, a conversion rate, a revenue

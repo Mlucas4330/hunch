@@ -284,6 +284,10 @@ export const en = {
           answer: 'Yes, and it needs no account. You paste a URL, we open the page and count what is on it, and the whole readout is yours. Paying is only for the ranked fixes and the replacement copy.'
         },
         {
+          question: 'What happens if I run out of credits?',
+          answer: 'You keep the free half. Paste a URL with an empty balance and you still get the score and every row that made it, exactly as someone with no account does. What a credit buys is the ranked fixes and the replacement copy, so those wait until you have one.'
+        },
+        {
           question: 'Do you need access to my site?',
           answer: 'No. No install, no script, no login, no DNS change. We open the public page the same way any visitor does, which is why it works on a page you do not control either.'
         },
@@ -622,6 +626,8 @@ export const en = {
     balance: 'You have {count} credits',
     balanceOne: 'You have 1 credit',
     balanceNone: 'You have no credits',
+    freeHalf:
+      'You can still run a page. The score and every row behind it are free; the ranked fixes and the rewritten copy are what a credit buys.',
     credits: { one: '{count} analysis', other: '{count} analyses' },
     buy: 'Buy',
     opening: 'Opening checkout...',

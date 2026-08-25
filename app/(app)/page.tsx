@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { AnalysisPulse } from '@/components/analysis-pulse'
 import { CreditPacks } from '@/components/credit-packs'
+import { UrlInputForm } from '@/components/url-input-form'
 import { LandingFaq } from '@/components/landing-faq'
 import { ProductDemo } from '@/components/product-demo'
 import { SwipeTrack } from '@/components/swipe-track'
@@ -38,7 +39,6 @@ export default async function LandingPage() {
   const session = await auth()
   const locale = await getLocale()
   const d = dictionaryFor(locale)
-  const ctaHref = session?.user ? '/dashboard' : '/auth/signin'
 
   // Rendered here so the board is in the HTML rather than appearing a poll later. Below
   // PULSE_MIN_ENTRIES there is no board, only a couple of rows dressed as one, so the whole section
@@ -48,7 +48,7 @@ export default async function LandingPage() {
 
   return (
     <div className="animate-fade-up space-y-24 pb-12">
-      <section className="grid items-center gap-10 pt-6 lg:grid-cols-[1fr_1.15fr]">
+      <section id="top" className="grid items-center gap-10 scroll-mt-20 pt-6 lg:grid-cols-[1fr_1.15fr]">
         <div className="space-y-6">
           <p className="panel-label text-[0.7rem] text-muted-foreground">{d.landing.eyebrow}</p>
           <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
@@ -56,18 +56,21 @@ export default async function LandingPage() {
             <span className="block text-muted-foreground">{d.landing.headlineBottom}</span>
           </h1>
           <p className="max-w-md text-base text-muted-foreground">{d.landing.lead}</p>
-          <div className="flex flex-wrap items-center gap-4 pt-1">
-            <Button asChild size="lg">
-              <Link href={ctaHref}>{d.landing.cta}</Link>
-            </Button>
-            <Link
-              href="#how"
-              className="panel-label text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {d.landing.howItWorksLink}
-            </Link>
+          {/* **The form, not a link to a sign in screen.** The page promises a score with no account and
+              `POST /api/analyses` has always delivered one -- an ownerless run is measured, costs zero
+              tokens and lands on `/r/<embedKey>`. What was missing was any way to reach it: every CTA
+              pointed at `/auth/signin`, so the promise was false in the only place it mattered. */}
+          <div className="space-y-3 pt-1">
+            <UrlInputForm submitLabel={d.landing.cta} showBrief={false} />
+            <p className="text-sm text-muted-foreground">{d.landing.ctaNote}</p>
           </div>
-          <p className="text-sm text-muted-foreground">{d.landing.ctaNote}</p>
+
+          <Link
+            href="#how"
+            className="panel-label inline-block text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {d.landing.howItWorksLink}
+          </Link>
         </div>
 
         <HeroReadout dictionary={d} />
@@ -221,7 +224,7 @@ export default async function LandingPage() {
               {d.landing.finalCta.heading}
             </h2>
             <Button asChild size="lg">
-              <Link href={ctaHref}>{d.landing.cta}</Link>
+              <Link href="#top">{d.landing.cta}</Link>
             </Button>
             <p className="text-sm text-muted-foreground">{d.landing.ctaNote}</p>
           </CardContent>

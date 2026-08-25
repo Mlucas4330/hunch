@@ -19,7 +19,9 @@ export async function BlogCta() {
           <p className="max-w-xl text-sm text-muted-foreground">{blog.cta.body}</p>
         </div>
         <Button asChild size="lg">
-          <Link href={user ? POST_SIGNIN_REDIRECT : '/auth/signin'}>{blog.cta.button}</Link>
+          {/* Signed out goes to the form on the landing page, not to a sign in screen: the score
+              needs no account and this button used to say otherwise. */}
+          <Link href={user ? POST_SIGNIN_REDIRECT : '/#top'}>{blog.cta.button}</Link>
         </Button>
       </CardContent>
     </Card>

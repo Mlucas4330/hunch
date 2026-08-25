@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { CREDITS_ANCHOR } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { getDictionary } from '@/lib/i18n'
 import { t as fill } from '@/lib/i18n/format'
@@ -20,13 +21,21 @@ export async function CreditBalance({ credits }: { credits: number }) {
 
   return (
     <div
-      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3"
+      className="space-y-2 rounded-lg border bg-card px-4 py-3"
       data-testid="credit-balance"
     >
-      <p className="text-sm">{label}</p>
-      <Button asChild size="sm" variant={credits === 0 ? 'default' : 'outline'}>
-        <Link href="/#credits">{copy.buy}</Link>
-      </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm">{label}</p>
+        <Button asChild size="sm" variant={credits === 0 ? 'default' : 'outline'}>
+          <Link href={CREDITS_ANCHOR}>{copy.buy}</Link>
+        </Button>
+      </div>
+
+      {/* **An empty balance is not a dead end, and this is the only place that says so.** A reader
+          seeing "You have no credits" next to a Buy button reasonably concludes they cannot do
+          anything, when in fact the whole measured readout is still theirs -- see
+          docs/invariants.md. Said only at zero, because at one credit it is noise. */}
+      {credits === 0 && <p className="text-xs text-muted-foreground">{copy.freeHalf}</p>}
     </div>
   )
 }

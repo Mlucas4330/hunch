@@ -67,10 +67,20 @@ async function waitForAnalysis(embedKey: string, owned: boolean): Promise<boolea
 
 export function UrlInputForm({
   defaultBrief = '',
-  blocked = false
+  blocked = false,
+  submitLabel,
+  showBrief = true
 }: {
   defaultBrief?: string
   blocked?: boolean
+  /** The landing hero carries the page's own CTA wording; everywhere else uses the neutral one. */
+  submitLabel?: string
+  /**
+   * The brief only reaches a prompt on a run that generates, and an ownerless run never does — so on
+   * the landing page it would be four questions asked of someone whose answers nothing will read.
+   * Shown where a credit is actually spent.
+   */
+  showBrief?: boolean
 }) {
   const { dictionary } = useI18n()
   const router = useRouter()
@@ -156,7 +166,7 @@ export function UrlInputForm({
           required
         />
         <Button type="submit" disabled={pending || blocked} className="shrink-0">
-          {pending ? dictionary.urlForm.analyzing : dictionary.urlForm.analyze}
+          {pending ? dictionary.urlForm.analyzing : (submitLabel ?? dictionary.urlForm.analyze)}
         </Button>
       </div>
 
@@ -174,20 +184,22 @@ export function UrlInputForm({
         </div>
       )}
 
-      <details className="rounded-md border border-border px-3 py-2">
-        <summary className="rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          {dictionary.urlForm.briefSummary}
-        </summary>
-        <div className="space-y-3 pt-3">
-          <p className="text-xs text-muted-foreground">{dictionary.urlForm.briefIntro}</p>
-          <BriefWizard
-            value={brief}
-            onChange={setBrief}
-            disabled={pending}
-            copy={dictionary.urlForm}
-          />
-        </div>
-      </details>
+      {showBrief && (
+        <details className="rounded-md border border-border px-3 py-2">
+          <summary className="rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {dictionary.urlForm.briefSummary}
+          </summary>
+          <div className="space-y-3 pt-3">
+            <p className="text-xs text-muted-foreground">{dictionary.urlForm.briefIntro}</p>
+            <BriefWizard
+              value={brief}
+              onChange={setBrief}
+              disabled={pending}
+              copy={dictionary.urlForm}
+            />
+          </div>
+        </details>
+      )}
 
       {error && (
         <p className={cn('text-sm text-destructive')} role="alert">
