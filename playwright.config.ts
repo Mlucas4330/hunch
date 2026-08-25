@@ -52,7 +52,12 @@ export default defineConfig({
       E2E_FIXTURES: '1',
       AUTH_URL: baseURL,
       ALLOW_CREDENTIALS_LOGIN: '1',
-      CRON_SECRET: E2E_CRON_SECRET
+      CRON_SECRET: E2E_CRON_SECRET,
+      // Both halves, because `mercadoPagoEnabled()` needs both to pick the Brick over Stripe
+      // checkout, and e2e/checkout-brick.spec.ts covers the Brick. Neither is ever sent anywhere:
+      // the spec stubs the SDK at its own URL and no test submits the form.
+      MERCADOPAGO_ACCESS_TOKEN: 'e2e-only-not-a-real-token',
+      NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: 'e2e-only-not-a-real-key'
     }
   }
 })

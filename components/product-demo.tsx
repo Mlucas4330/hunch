@@ -1,3 +1,7 @@
+'use client'
+
+import { useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { SUPADEMO_ASPECT, SUPADEMO_DEMO_ID, SUPADEMO_EMBED_ORIGIN } from '@/lib/constants'
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 
@@ -15,8 +19,15 @@ import type { Dictionary } from '@/lib/i18n/dictionaries/en'
  * `loading="lazy"` matters more here than anywhere else on the page -- this is the one third party
  * the landing page frames, and it sits above the fold's fold on mobile. The host is allowed in the
  * CSP's frame-src; see next.config.ts.
+ *
+ * **It is a client component for one reason.** A lazy third party frame is blank for however long
+ * someone else's app takes to boot, and the pinned ratio makes that blankness a hole the exact size
+ * of the demo. The skeleton fills the same box until the frame's own load fires, so the section
+ * reads as loading rather than as broken.
  */
 export function ProductDemo({ copy }: { copy: Dictionary['landing']['demo'] }) {
+  const [loaded, setLoaded] = useState(false)
+
   if (!SUPADEMO_DEMO_ID) return null
 
   return (
@@ -24,15 +35,18 @@ export function ProductDemo({ copy }: { copy: Dictionary['landing']['demo'] }) {
       {/* **No border, no fill, no shadow.** Supademo's player draws its own frame and letterboxes
           whatever it cannot fill, so a card behind it read as a second, larger frame around the
           first -- the padding became visible chrome instead of nothing. The ratio is still pinned
-          because the box has to be given a height, but nothing here paints. */}
-      <div className="w-full overflow-hidden" style={{ aspectRatio: SUPADEMO_ASPECT }}>
+          because the box has to be given a height, and nothing here paints once the frame is up:
+          the skeleton is the one thing that ever does, and only while the frame is still blank. */}
+      <div className="relative w-full overflow-hidden" style={{ aspectRatio: SUPADEMO_ASPECT }}>
+        {!loaded && <Skeleton className="absolute inset-0 h-full w-full" />}
         <iframe
           src={`${SUPADEMO_EMBED_ORIGIN}/embed/${SUPADEMO_DEMO_ID}?embed_v=2`}
           title={copy.frameTitle}
           loading="lazy"
           allow="clipboard-write"
           allowFullScreen
-          className="h-full w-full border-0"
+          onLoad={() => setLoaded(true)}
+          className={`h-full w-full border-0 transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         />
       </div>
       <figcaption className="text-sm text-muted-foreground">{copy.body}</figcaption>

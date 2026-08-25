@@ -331,6 +331,14 @@ is display only — the route charges what `CREDIT_PACKS` says, because the brow
 form. Pix settles after the reader has left the form, so the copy says the credits land when the
 payment is confirmed and never that the purchase is done. See [api.md](api.md#post-apibillingmercadopago).
 
+**Whether the SDK is on the page is the question, never whether it just loaded.** `next/script` fires
+`onLoad` once per src for the whole page — its `LoadCache` returns early for every later mount — and
+the dialog unmounts the Brick when it closes, so a component gated on that callback renders nothing
+from the second open onwards and leaves the reader on `credits.mercadopago.loading` until a full
+reload. It checks `window.MercadoPago` on mount instead, and `<Script>` carries an `onError` so an SDK
+that never arrives at all reads as `credits.mercadopago.failed` rather than as loading forever. Both
+are covered by `e2e/checkout-brick.spec.ts`, which stubs the SDK at its own URL.
+
 ## Credit packs — `components/credit-packs.tsx`
 
 The three cards under `#credits`, from `CREDIT_PACKS`, with `FEATURED_CREDIT_PACK` deciding which one

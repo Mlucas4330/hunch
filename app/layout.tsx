@@ -38,7 +38,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale()
 
   return (
-    <html lang={locale} className={`${geist.variable} ${spaceGrotesk.variable} ${plexMono.variable}`}>
+    <html
+      lang={locale}
+      className={`scroll-smooth ${geist.variable} ${spaceGrotesk.variable} ${plexMono.variable}`}
+    >
       <body className="flex min-h-screen flex-col font-sans antialiased">{children}</body>
     </html>
   )

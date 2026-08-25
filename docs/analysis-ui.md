@@ -80,7 +80,17 @@ page in one click, and the only thing here anyone shares unprompted.
   screen's aspect and pads whatever box it is given — so a container that does not match shows as
   bars rather than as a bigger demo. Re-recording at a different window size means changing that
   constant with it; measure it by screenshotting the iframe and dividing its width by the height of
-  the part that is not padding.
+  the part that is not padding. **It is a client component for one reason:** a lazy third party frame
+  is blank for however long someone else's app takes to boot, and the pinned ratio makes that
+  blankness a hole the exact size of the demo. A `Skeleton` fills the same box until the iframe's own
+  `load` fires and the frame fades in over it, so the section reads as loading rather than as broken.
+  Nothing there paints once the frame is up, which is what keeps the no-border rule above intact.
+- **In-page links scroll rather than jump.** `scroll-smooth` sits on `<html>` in `app/layout.tsx`, so
+  every anchor on the page -- `howItWorksLink` to `#how`, the closing CTAs to `#top`, the FAQ -- eases
+  to its target instead of teleporting, and the reader keeps track of where the page went. Each
+  target section carries `scroll-mt-20` so the sticky header does not land on its heading.
+  `prefers-reduced-motion: reduce` puts `scroll-behavior` back to `auto` in `app/globals.css`,
+  alongside the other animations it stops.
 - `components/landing-faq.tsx` renders `landing.faq` as `DisclosureCard` rows and emits the
   `FAQPage` JSON-LD **from the same array**, so the answer a reader opens and the answer a crawler
   quotes cannot drift. The last question is load-bearing: it is where the page says out loud that it

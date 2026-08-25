@@ -59,6 +59,18 @@ export function MercadoPagoBrick({ pack, amount }: { pack: CreditPackId; amount:
   const [failed, setFailed] = useState(false)
   const controller = useRef<BrickController | null>(null)
 
+  // **`onLoad` fires once per src for the whole page, not once per mount.** `next/script` keeps a
+  // module level LoadCache and returns early for every later component that asks for a script it has
+  // already loaded, so the second time this dialog is opened nothing calls back and the effect below
+  // would wait for a load that happened minutes ago. The reader sits on `copy.loading` forever, and
+  // only a full reload clears it.
+  //
+  // So the question asked here is whether the SDK is on the page, which is true on every mount after
+  // the first, rather than whether it just arrived.
+  useEffect(() => {
+    if (window.MercadoPago) setLoaded(true)
+  }, [])
+
   useEffect(() => {
     if (!loaded || !window.MercadoPago || controller.current) return
 
@@ -149,7 +161,11 @@ export function MercadoPagoBrick({ pack, amount }: { pack: CreditPackId; amount:
 
   return (
     <div className="space-y-3">
-      <Script src={MERCADOPAGO_SDK_URL} onLoad={() => setLoaded(true)} />
+      <Script
+        src={MERCADOPAGO_SDK_URL}
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+      />
       <div id={MERCADOPAGO_BRICK_CONTAINER} />
       {!ready && !failed && <p className="text-sm text-muted-foreground">{copy.loading}</p>}
       {failed && <p className="text-sm text-coral">{copy.failed}</p>}

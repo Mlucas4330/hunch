@@ -266,6 +266,10 @@ details[open]::details-content {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   .animate-fade-up,
   .animate-pop-in,
   .animate-shimmer,

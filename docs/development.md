@@ -128,6 +128,11 @@ first; a suite that only passes on a populated one is a suite that will fail on 
 
 **`chromium`** is the product suite: it signs in through the credentials hatch and drives real routes.
 
+**The e2e server is pointed at Mercado Pago on purpose.** `playwright.config.ts` sets both halves of
+the credential pair to dummies, so `mercadoPagoEnabled()` picks the Brick over Stripe checkout and
+`e2e/checkout-brick.spec.ts` has something to open. Nothing reaches Mercado Pago: the spec stubs the
+SDK at its own URL and no test submits the form.
+
 **`dom`** (`e2e/dom/`) drives a browser function against synthetic markup — no session, no request to
 the app, no row in the database — and **deliberately does not depend on the auth setup**, so a broken
 local database or an expired credentials hatch cannot hide a regression in the DOM routines, which are
