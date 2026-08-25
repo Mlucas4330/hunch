@@ -336,6 +336,15 @@ export const FOCUSABLE_SELECTOR =
 export const SUPADEMO_DEMO_ID = process.env.NEXT_PUBLIC_SUPADEMO_DEMO_ID ?? ''
 export const SUPADEMO_EMBED_ORIGIN = 'https://app.supademo.com'
 
+// The recording's own shape, and the container has to match it. Supademo letterboxes: it preserves
+// the aspect of the screen that was captured and pads whatever box it is given, so a container that
+// does not match shows as bars rather than as a bigger demo. This one is a wide desktop capture at
+// roughly 2:1; a re-recording at a different window size needs this number changed with it.
+//
+// To measure: load the page, screenshot the iframe, and divide its width by the height of the part
+// that is not padding.
+export const SUPADEMO_ASPECT = '2 / 1'
+
 export const MERCADOPAGO_SDK_URL = 'https://sdk.mercadopago.com/js/v2'
 export const MERCADOPAGO_BRICK_CONTAINER = 'mercadopago-brick'
 export const MERCADOPAGO_APPROVED = 'approved'
@@ -604,7 +613,7 @@ export const SECTION_BADGE_CLASS: Record<Section, string> = {
   headline: 'bg-purple/15 text-purple',
   subheadline: 'bg-purple/10 text-purple-soft',
   cta: 'bg-coral/15 text-coral',
-  social_proof: 'bg-teal/15 text-teal',
+  social_proof: 'bg-green/15 text-green',
   pricing: 'bg-amber/15 text-amber',
   features: 'bg-blue/15 text-blue',
   hero_image: 'bg-neutral/15 text-neutral',
@@ -616,7 +625,7 @@ export const SECTION_SELECTED_CLASS: Record<Section, string> = {
   headline: 'border-purple bg-purple/15 ring-2 ring-purple',
   subheadline: 'border-purple-soft bg-purple/10 ring-2 ring-purple-soft',
   cta: 'border-coral bg-coral/15 ring-2 ring-coral',
-  social_proof: 'border-teal bg-teal/15 ring-2 ring-teal',
+  social_proof: 'border-green bg-green/15 ring-2 ring-green',
   pricing: 'border-amber bg-amber/15 ring-2 ring-amber',
   features: 'border-blue bg-blue/15 ring-2 ring-blue',
   hero_image: 'border-neutral bg-neutral/15 ring-2 ring-neutral',
@@ -628,7 +637,7 @@ export const SECTION_DOT_CLASS: Record<Section, string> = {
   headline: 'bg-purple',
   subheadline: 'bg-purple-soft',
   cta: 'bg-coral',
-  social_proof: 'bg-teal',
+  social_proof: 'bg-green',
   pricing: 'bg-amber',
   features: 'bg-blue',
   hero_image: 'bg-neutral',
@@ -638,21 +647,21 @@ export const SECTION_DOT_CLASS: Record<Section, string> = {
 
 // One channel per landing pain card, in the order dictionary.landing.pains lists them. Here rather
 // than beside the JSX because a colour class at a call site is the one thing CLAUDE.md rules out.
-export const PAIN_CHANNEL_CLASS = ['border-coral', 'border-purple', 'border-teal']
+export const PAIN_CHANNEL_CLASS = ['border-coral', 'border-purple', 'border-blue']
 
 // Hues repeat across the two families on purpose: they never render in the same list.
 export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
   signup_friction: 'bg-coral/15 text-coral',
   cta_placement: 'bg-purple/15 text-purple',
   decision_load: 'bg-blue/15 text-blue',
-  objections: 'bg-teal/15 text-teal',
+  objections: 'bg-purple-soft/15 text-purple-soft',
   trust: 'bg-green/15 text-green',
   pricing_clarity: 'bg-amber/15 text-amber',
   page_structure: 'bg-neutral/15 text-neutral',
   indexability: 'bg-coral/15 text-coral',
   metadata: 'bg-purple/15 text-purple',
   structured_data: 'bg-blue/15 text-blue',
-  ai_answerability: 'bg-teal/15 text-teal'
+  ai_answerability: 'bg-green/15 text-green'
 }
 
 // Green is load-bearing: a report that is all coral reads as a sales pitch.

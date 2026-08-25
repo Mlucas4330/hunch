@@ -4,7 +4,6 @@ import { isAdmin } from '@/lib/auth-policy'
 import { AccountMenu, AccountPanel } from '@/components/account-menu'
 import { MobileMenu } from '@/components/mobile-menu'
 import { NavLinks } from '@/components/nav-links'
-import { LanguageToggle } from '@/components/language-toggle'
 import { Wordmark } from '@/components/wordmark'
 import { Button } from '@/components/ui/button'
 import { CONTAINER_CLASS } from '@/lib/constants'
@@ -25,7 +24,6 @@ export async function Navbar() {
 
         <div className="hidden items-center gap-5 md:flex">
           <NavLinks signedIn={Boolean(user)} admin={isAdmin(user)} />
-          <LanguageToggle locale={locale} />
           {user ? (
             <AccountMenu user={user} />
           ) : (
@@ -38,9 +36,6 @@ export async function Navbar() {
         <MobileMenu label={t.nav.menuAria}>
           <div className="flex flex-col items-start gap-2">
             <NavLinks signedIn={Boolean(user)} admin={isAdmin(user)} />
-          </div>
-          <div className="flex">
-            <LanguageToggle locale={locale} />
           </div>
           {user ? (
             <div className="border-t pt-3">

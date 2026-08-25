@@ -23,6 +23,14 @@ export function DisclosureCard({
   testId?: string
   children: ReactNode
 }) {
+  // **Whether the title has to share its row decides how it behaves, and nothing else should.**
+  // `group-open:order-last group-open:basis-full` exists so a title squeezed between a rank, a badge
+  // and score chips gets a full row once the card is open. On a summary holding only a title and the
+  // +/- marker there is nothing to make room from, and the reflow instead pushed the question onto a
+  // second line with the marker stranded alone above it -- which is what the FAQ was doing. Derived
+  // rather than a prop: the condition is the layout, so no call site can get it wrong.
+  const crowded = rank !== undefined || Boolean(badge) || Boolean(scores) || Boolean(openScores)
+
   return (
     <Card className={cn('break-inside-avoid transition-colors focus-within:border-foreground/20', className)} data-testid={testId}>
       <details open={defaultOpen} className="group">
@@ -33,7 +41,15 @@ export function DisclosureCard({
             </span>
           )}
           {badge}
-          <h3 className="min-w-0 flex-1 truncate font-display text-sm font-medium leading-snug group-open:order-last group-open:basis-full group-open:overflow-visible group-open:whitespace-normal group-open:text-base group-open:font-semibold">
+          <h3
+            className={cn(
+              'min-w-0 flex-1 font-display leading-snug',
+              crowded
+                ? 'truncate text-sm font-medium group-open:order-last group-open:basis-full group-open:overflow-visible group-open:whitespace-normal group-open:text-base group-open:font-semibold'
+                : // Free to wrap in place, closed or open: it already owns the row.
+                  'text-base font-medium text-pretty group-open:font-semibold'
+            )}
+          >
             {title}
           </h3>
           {scores && (
@@ -44,7 +60,10 @@ export function DisclosureCard({
           {openScores && (
             <span className="hidden shrink-0 items-center gap-2 group-open:flex">{openScores}</span>
           )}
-          <span className="font-mono text-xs text-muted-foreground group-hover:text-foreground" aria-hidden>
+          <span
+            className="shrink-0 self-start pt-0.5 font-mono text-xs text-muted-foreground transition-colors group-hover:text-foreground"
+            aria-hidden
+          >
             <span className="group-open:hidden">+</span>
             <span className="hidden group-open:inline">-</span>
           </span>

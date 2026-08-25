@@ -130,7 +130,7 @@ function HypothesisBody({ hypothesis }: { hypothesis: HypothesisWithVariants }) 
         <p>{hypothesis.rationale}</p>
         {recommended?.evidence && (
           <p>
-            <span className="panel-label text-[0.6rem] text-teal">{copy.evidenceMechanism}</span>{' '}
+            <span className="panel-label text-[0.6rem] text-purple-soft">{copy.evidenceMechanism}</span>{' '}
             {recommended.evidence}
           </p>
         )}

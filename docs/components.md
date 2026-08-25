@@ -8,6 +8,12 @@ Never use hardcoded hex values or raw Tailwind color classes; every colour below
 
 ## Interaction feedback
 
+**There is no teal.** It was a channel (`--teal`), it was what `social_proof`, `objections` and
+`ai_answerability` painted, and it is gone from `app/globals.css` as well as from every map — the
+owner ruled it out of the palette. The channels are purple, purple-soft, coral, amber, blue, green,
+red and neutral, and **a colour that is not one of those does not get added at a call site**; it gets
+added to `globals.css` first or not at all.
+
 Three rules hold across every clickable thing here, and they are set once rather than per component.
 
 **The pointer cursor is a reset, not a class.** Tailwind v4's preflight dropped v3's
@@ -166,6 +172,24 @@ header** — that surface has no navbar and is read signed-out by someone who ma
 
 ## Disclosure card — `components/disclosure-card.tsx`
 
+**The title reflow is conditional, and the condition is derived rather than passed.**
+`group-open:order-last group-open:basis-full` gives the title a full row once the card is open, which
+is right when it is squeezed between a rank, a badge and score chips — and wrong when it is alone. On
+the landing FAQ it pushed the question onto a second line and stranded the `+`/`-` marker by itself
+on the line above, which read as broken. `crowded` is computed from whether `rank`, `badge`, `scores`
+or `openScores` were given, so no call site can get it wrong; an uncrowded title wraps in place
+instead of truncating, which is what a question wants. The marker is `shrink-0 self-start` so it stays
+on the first line of a question that wraps.
+
+**`<details>` does not animate on its own** — the browser flips the content's display and the card
+jumps straight to its new height. `app/globals.css` gives it movement in two **independent** rules,
+and the split is the point: `details[open] > *:not(summary)` runs a fade-and-rise on the content and
+works in every browser, while the `::details-content` `block-size` transition (which needs
+`interpolate-size: allow-keywords` to animate to `auto`) is progressive enhancement for the height
+itself. Where the second is unsupported the panel snaps to full height and the content still fades, so
+nothing is gated on support. Both are switched off under `prefers-reduced-motion`, like every other
+animation here.
+
 **Every** ranked row, on every surface: hypotheses and fixes alike. A native `<details>` wrapping a
 `Card`, **not React state** — it costs no client JS and renders identically inside the server-rendered
 public report and the client-rendered analysis list, so one component covers both. The `+` / `-`
@@ -221,7 +245,7 @@ Body-sized foreground text in a tinted panel. **Do not quiet it back down.**
 
 A coloured pill per `SECTIONS` value, used inside hypothesis cards:
 
-`headline` -> purple · `subheadline` -> purple (lighter) · `cta` -> coral · `social_proof` -> teal ·
+`headline` -> purple · `subheadline` -> purple (lighter) · `cta` -> coral · `social_proof` -> green ·
 `pricing` -> amber · `features` -> blue · `hero_image` -> gray · `navigation` -> gray · `other` -> gray
 
 ### Flow category badge — `components/flow-category-badge.tsx`
@@ -229,10 +253,10 @@ A coloured pill per `SECTIONS` value, used inside hypothesis cards:
 Mirrors `section-badge.tsx` exactly, over `FLOW_CATEGORY_BADGE_CLASS` + `dictionary.labels.flowCategory`.
 
 Flow: `signup_friction` -> coral · `cta_placement` -> purple · `decision_load` -> blue · `objections`
--> teal · `trust` -> green · `pricing_clarity` -> amber · `page_structure` -> gray
+-> purple (lighter) · `trust` -> green · `pricing_clarity` -> amber · `page_structure` -> gray
 
 Visibility: `indexability` -> coral · `metadata` -> purple · `structured_data` -> blue ·
-`ai_answerability` -> teal
+`ai_answerability` -> green
 
 **Hues repeat across the two families on purpose** — they never render in the same list, so a colour
 only has to separate the categories it sits beside.

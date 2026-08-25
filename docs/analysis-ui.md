@@ -52,12 +52,25 @@ page in one click, and the only thing here anyone shares unprompted.
   horizontal deck **is** a scroll container, so momentum, the trackpad, Tab and the screen reader all
   come free. The dots read position from an `IntersectionObserver` so they are right whatever moved
   the track. Channel colours come from `PAIN_CHANNEL_CLASS`.
-- `components/product-demo.tsx` frames the Supademo tour, and `components/testimonials.tsx` the
-  quotes. **Both render nothing until they have something real** — an unset `SUPADEMO_DEMO_ID` or an
-  empty `landing.testimonials.items` removes the section heading and all. Filling either one in is
-  the whole deploy; there is no flag. Testimonials ship empty on purpose: a quote nobody said is the
-  same invention as a number nobody counted, and `lib/i18n/dictionaries/testimonials.example.ts` is
-  the shape to copy, imported by nothing.
+- **Sections were merged because the page read as a stack of unrelated blocks.** It had eleven of
+  them, each with its own eyebrow and heading, and two seams did most of the damage. The three pains
+  and the AI block are now **one** section under `#ai`: the third pain is "asking an AI gets you
+  generic advice", and the AI block is what that means, so it sits under the same heading behind a
+  rule. Its three points are **list items rather than Cards** — the page carried five different card
+  treatments and cutting one was worth more than another bordered box.
+- `components/product-demo.tsx` frames the Supademo tour and **carries no heading of its own**: it is
+  a `<figure>` inside `#how`, directly under the three steps it is a picture of. It renders nothing
+  while `SUPADEMO_DEMO_ID` is unset, so a missing id is a missing figure and never a broken frame.
+  **`SUPADEMO_ASPECT` has to match the recording.** Supademo letterboxes — it preserves the captured
+  screen's aspect and pads whatever box it is given — so a container that does not match shows as
+  bars rather than as a bigger demo. Re-recording at a different window size means changing that
+  constant with it; measure it by screenshotting the iframe and dividing its width by the height of
+  the part that is not padding.
+- `components/testimonials.tsx` renders nothing while `landing.testimonials.items` is empty, and that
+  is the state to return it to rather than filling it with plausible quotes. All three cards share
+  **one channel** rather than rotating like the pain deck: this is the section that has to read as a
+  set, and three hues would make it three unrelated boxes again. The quote mark is a Lucide
+  icon, not a typographic one — CLAUDE.md rules out unicode symbols.
 - `components/landing-faq.tsx` renders `landing.faq` as `DisclosureCard` rows and emits the
   `FAQPage` JSON-LD **from the same array**, so the answer a reader opens and the answer a crawler
   quotes cannot drift. The last question is load-bearing: it is where the page says out loud that it
@@ -327,7 +340,7 @@ finished with row 1 had no way to fold it away.
 - That block holds **two different things**, and they are marked apart on purpose: `rationale` argues
   why the challenger wins, while the variant's `evidence` names the CRO mechanism the rewrite uses —
   what the current line leaves the visitor to infer, and what the replacement states outright. The
-  evidence paragraph carries a teal `panel-label` prefix (`hypothesisList.evidenceMechanism`), the same
+  evidence paragraph carries a `panel-label` prefix (`hypothesisList.evidenceMechanism`), the same
   idiom the landing hero mock uses. Unprefixed, the two read as one undifferentiated paragraph and the
   argument for the change lands as generic reasoning. Marking it is the whole fix: **nothing new is
   generated there**, and what is generated obeys

@@ -169,14 +169,11 @@ export const en = {
     },
 
     demo: {
-      eyebrow: 'See it first',
-      heading: 'Click through the whole thing before you paste anything.',
       body: 'The same screens you get after a run: the readout, the ranked fixes, and the new copy rendered onto a real page.',
       frameTitle: 'Interactive product demo'
     },
 
     aiSearch: {
-      eyebrow: 'AI visibility',
       heading: 'AI is the new Google, and it never opens your page in a browser.',
       body: 'More and more people ask an assistant instead of searching. The crawler behind it downloads your text, reads it, and moves on. Your analysis has a tab for exactly that.',
       points: [
@@ -238,9 +235,9 @@ export const en = {
     testimonials: {
       eyebrow: 'What people say',
       heading: 'From the people who ran it.',
-      // Empty on purpose, and the section renders nothing while it is. A quote nobody said is the
-      // same invention as a number nobody counted -- see docs/invariants.md. The shape to copy is in
-      // lib/i18n/dictionaries/testimonials.example.ts.
+      // Real quotes from real people. The section renders nothing while this is empty, and that is the
+      // state to return it to rather than filling it with plausible ones: a quote nobody said is the
+      // same invention as a number nobody counted. See docs/invariants.md.
       items: [
         {
           quote: 'I thought the solution was REALLY good!',

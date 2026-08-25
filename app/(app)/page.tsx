@@ -73,7 +73,13 @@ export default async function LandingPage() {
         <HeroReadout dictionary={d} />
       </section>
 
-      <section className="space-y-10">
+      {/* **The reality, and the reader's own experience of it, in one section.** The three pains and the
+          AI block used to be two blocks with two headings and a demo wedged between them, which is
+          what made the page read as a stack of unrelated parts. They belong together: the third pain
+          is "asking an AI gets you generic advice", and everything under the rule below is what that
+          actually means. The points are list items rather than Cards on purpose -- the page had five
+          different card treatments, and cutting one is worth more here than another bordered box. */}
+      <section id="ai" className="space-y-10 scroll-mt-20">
         <header className="space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">
             {d.landing.reality.eyebrow}
@@ -82,6 +88,7 @@ export default async function LandingPage() {
             {d.landing.reality.heading}
           </h2>
         </header>
+
         <SwipeTrack label={d.landing.painsNav.label} copy={d.landing.painsNav}>
           {d.landing.pains.map((pain, i) => (
             <Card key={i} className={cn('h-full border-l-2', PAIN_CHANNEL_CLASS[i])}>
@@ -99,48 +106,44 @@ export default async function LandingPage() {
             </Card>
           ))}
         </SwipeTrack>
-      </section>
 
-      <ProductDemo copy={d.landing.demo} />
+        <div className="space-y-6 border-t pt-8">
+          <div className="space-y-1">
+            <h3 className="font-display text-lg font-semibold tracking-tight">
+              {d.landing.aiSearch.heading}
+            </h3>
+            <p className="max-w-2xl text-sm text-muted-foreground">{d.landing.aiSearch.body}</p>
+          </div>
 
-      <section id="ai" className="space-y-10 scroll-mt-20">
-        <header className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">
-            {d.landing.aiSearch.eyebrow}
-          </p>
-          <h2 className="font-display text-2xl font-bold tracking-tight">
-            {d.landing.aiSearch.heading}
-          </h2>
-          <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.aiSearch.body}</p>
-        </header>
-        <div className="grid gap-6 sm:grid-cols-3">
-          {d.landing.aiSearch.points.map((point, i) => (
-            <Card key={i} className="border-l-2 border-teal">
-              <CardContent className="space-y-2 p-5">
-                <h3 className="font-display text-base font-semibold tracking-tight">
+          <ul className="grid gap-6 sm:grid-cols-3">
+            {d.landing.aiSearch.points.map((point, i) => (
+              <li key={i} className="space-y-1.5 border-l-2 border-purple-soft pl-4">
+                <h4 className="font-display text-base font-semibold tracking-tight">
                   {point.title}
-                </h3>
+                </h4>
                 <p className="text-sm text-muted-foreground">{point.body}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <div className="flex border-t pt-4">
+              </li>
+            ))}
+          </ul>
+
           <Link
             href={`${BLOG_PATH}/${AI_POST_SLUG}`}
-            className="panel-label text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground"
+            className="panel-label inline-block text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground"
           >
             {d.landing.aiSearch.link}
           </Link>
         </div>
       </section>
 
+      {/* The demo is the picture of the three steps above it, so it lives under the same heading
+          rather than as a block of its own between other blocks. */}
       <section id="how" className="space-y-10 scroll-mt-20">
         <header className="space-y-1">
           <p className="panel-label text-[0.7rem] text-muted-foreground">{d.landing.how.eyebrow}</p>
           <h2 className="font-display text-2xl font-bold tracking-tight">{d.landing.how.heading}</h2>
           <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.how.intro}</p>
         </header>
+
         <ol className="grid gap-6 sm:grid-cols-3">
           {d.landing.steps.map((step, i) => (
             <li key={i} className="space-y-3">
@@ -153,6 +156,8 @@ export default async function LandingPage() {
             </li>
           ))}
         </ol>
+
+        <ProductDemo copy={d.landing.demo} />
       </section>
 
       <section className="space-y-10">

@@ -168,14 +168,11 @@ export const ptBR: Dictionary = {
     },
 
     demo: {
-      eyebrow: 'Veja antes',
-      heading: 'Passeie pela ferramenta inteira antes de colar qualquer coisa.',
       body: 'As mesmas telas que você recebe depois de uma análise: o diagnóstico, as correções priorizadas e a copy nova renderizada sobre uma página real.',
       frameTitle: 'Demonstração interativa do produto'
     },
 
     aiSearch: {
-      eyebrow: 'Visibilidade em IA',
       heading: 'A IA é o novo Google, e ela nunca abre a sua página num navegador.',
       body: 'Cada vez mais gente pergunta para um assistente em vez de buscar. O crawler por trás dele baixa o seu texto, lê e segue. A sua análise tem uma aba só para isso.',
       points: [

@@ -14,7 +14,6 @@ import { loadReport, readoutFor, splitFixes, splitVisibility } from '@/lib/analy
 import { PLAYBOOK_EXPANDED_COUNT } from '@/lib/constants'
 import type { FlowFix } from '@/db/schema'
 import type { PlaybookSection } from '@/lib/enums'
-import { LanguageToggle } from '@/components/language-toggle'
 import { dictionaryFor, getDictionary, getLocale, type Dictionary } from '@/lib/i18n'
 import { formatDate, t as fill } from '@/lib/i18n/format'
 import { displayHost } from '@/lib/host'
@@ -88,7 +87,6 @@ export default async function PublicReportPage({
       <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-4">
         <Wordmark />
         <div className="flex items-end gap-4">
-          <LanguageToggle locale={locale} />
           <div className="text-right">
             <p className="panel-label text-[0.65rem] text-muted-foreground">{t.report.teardown}</p>
             <p className="font-display text-sm font-medium">{t.report.plan}</p>

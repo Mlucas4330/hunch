@@ -27,7 +27,6 @@
   --purple: oklch(0.55 0.2 295);
   --purple-soft: oklch(0.68 0.13 295);
   --coral: oklch(0.66 0.19 25);
-  --teal: oklch(0.6 0.11 195);
   --amber: oklch(0.72 0.16 75);
   --blue: oklch(0.6 0.18 255);
   --neutral: oklch(0.55 0.02 264);
@@ -65,7 +64,6 @@
   --color-purple: var(--purple);
   --color-purple-soft: var(--purple-soft);
   --color-coral: var(--coral);
-  --color-teal: var(--teal);
   --color-amber: var(--amber);
   --color-blue: var(--blue);
   --color-neutral: var(--neutral);
@@ -157,6 +155,47 @@ body {
   animation: pop-in 0.25s ease-out;
 }
 
+/* Opening a <details> is a jump by default: the browser flips the content's display and the card
+   snaps to its new height with nothing in between. Two rules give it a movement, and they are
+   deliberately independent so the useful half lands everywhere.
+
+   The fade runs on the content and works in every browser: whatever the height does, the answer
+   arrives rather than appearing. The height transition below it is progressive enhancement --
+   ::details-content and interpolate-size are recent, and where they are missing the panel simply
+   snaps to full height while the content still fades. Nothing is conditional on support. */
+@keyframes disclosure-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+details[open] > *:not(summary) {
+  animation: disclosure-in 0.2s ease-out;
+}
+
+/* `auto` is not an animatable length without this. Scoped to :root because it is inherited, and
+   restricted to the property below by only transitioning that one. */
+:root {
+  interpolate-size: allow-keywords;
+}
+
+details::details-content {
+  block-size: 0;
+  overflow: hidden;
+  transition:
+    block-size 0.2s ease-out,
+    content-visibility 0.2s allow-discrete;
+}
+
+details[open]::details-content {
+  block-size: auto;
+}
+
 /* Skeletons sweep rather than blink: a route that is still fetching reads as work in progress. */
 @keyframes shimmer {
   100% {
@@ -230,8 +269,13 @@ body {
   .animate-fade-up,
   .animate-pop-in,
   .animate-shimmer,
-  .animate-hero-shine::after {
+  .animate-hero-shine::after,
+  details[open] > *:not(summary) {
     animation: none;
+  }
+
+  details::details-content {
+    transition: none;
   }
 
   *,
