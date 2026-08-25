@@ -4,9 +4,9 @@ import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 /**
  * The interactive tour, framed from Supademo.
  *
- * Renders nothing while SUPADEMO_DEMO_ID is empty, like components/testimonials.tsx: an unset id is a
- * missing figure rather than a broken frame, so the landing page is deployable before the demo is
- * recorded and gains it without a code change.
+ * Renders nothing while SUPADEMO_DEMO_ID is empty: an unset id is a missing figure rather than a
+ * broken frame, so the landing page is deployable before the demo is recorded and gains it without a
+ * code change.
  *
  * **It carries no heading of its own.** It sits inside the "how it works" section as the picture of
  * the three steps written above it, and a second heading there was one of the seams that made the

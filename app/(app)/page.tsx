@@ -8,7 +8,6 @@ import { UrlInputForm } from '@/components/url-input-form'
 import { LandingFaq } from '@/components/landing-faq'
 import { ProductDemo } from '@/components/product-demo'
 import { SwipeTrack } from '@/components/swipe-track'
-import { Testimonials } from '@/components/testimonials'
 import {
   analysisPulse,
   publicLeaderboard,
@@ -162,29 +161,6 @@ export default async function LandingPage() {
 
         <ProductDemo copy={d.landing.demo} />
       </section>
-
-      <section className="space-y-10">
-        <header className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">
-            {d.landing.value.eyebrow}
-          </p>
-          <h2 className="font-display text-2xl font-bold tracking-tight">
-            {d.landing.value.heading}
-          </h2>
-        </header>
-        <div className="grid gap-6 sm:grid-cols-3">
-          {d.landing.proof.map((item, i) => (
-            <Card key={i}>
-              <CardContent className="space-y-2 p-5">
-                <h3 className="font-display text-lg font-semibold tracking-tight">{item.title}</h3>
-                <p className="text-sm text-muted-foreground">{item.body}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <Testimonials copy={d.landing.testimonials} />
 
       {showPulse && (
         <section className="space-y-10">

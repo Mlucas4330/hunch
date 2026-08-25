@@ -1,9 +1,5 @@
 import { enBlog } from '@/lib/i18n/dictionaries/en.blog'
 
-// Named because `items` ships empty: without it `typeof en` infers never[] and the first real quote
-// fails typecheck. See components/testimonials.tsx.
-export type Testimonial = { quote: string; name: string; role: string; company: string }
-
 export const en = {
   metadata: {
     title: 'Hunch',
@@ -212,53 +208,6 @@ export const en = {
         body: 'Ranked changes with the replacement copy already written, and a preview of it on your real page.'
       }
     ],
-
-    value: {
-      eyebrow: 'What you get',
-      heading: 'Numbers you can check, copy you can paste.'
-    },
-    proof: [
-      {
-        title: 'Measured, not guessed',
-        body: 'Every number is counted on your page at the moment we open it. Nothing is averaged from a benchmark, estimated, or filled in by a model.'
-      },
-      {
-        title: 'Finished copy, not prompts',
-        body: 'Each ranked fix carries the replacement line and the reasoning behind it. Add your business details and it comes back with your real numbers already in it.'
-      },
-      {
-        title: 'Seen on your own page',
-        body: 'The new copy is rendered onto a screenshot of your real page, so you see how it lands before you ship it.'
-      }
-    ],
-
-    testimonials: {
-      eyebrow: 'What people say',
-      heading: 'From the people who ran it.',
-      // Real quotes from real people. The section renders nothing while this is empty, and that is the
-      // state to return it to rather than filling it with plausible ones: a quote nobody said is the
-      // same invention as a number nobody counted. See docs/invariants.md.
-      items: [
-        {
-          quote: 'I thought the solution was REALLY good!',
-          name: 'Jaque Aguiar',
-          role: 'CEO',
-          company: 'Evolux360'
-        },
-        {
-          quote: 'Very interesting... It really pointed out several things I personally wouldn’t have noticed... Great tool!',
-          name: 'Leslie Bagalho',
-          role: 'Dev',
-          company: 'Notes Axtenn'
-        },
-        {
-          quote: 'Wow, the report is awesome! Thanks!!!',
-          name: 'Junior Moreira',
-          role: 'Dev',
-          company: 'Plim Plim'
-        }
-      ]
-    },
 
     leaderboard: {
       eyebrow: 'Measured so far',

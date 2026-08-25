@@ -81,17 +81,10 @@ page in one click, and the only thing here anyone shares unprompted.
   bars rather than as a bigger demo. Re-recording at a different window size means changing that
   constant with it; measure it by screenshotting the iframe and dividing its width by the height of
   the part that is not padding.
-- `components/testimonials.tsx` renders nothing while `landing.testimonials.items` is empty, and that
-  is the state to return it to rather than filling it with plausible quotes. All three cards share
-  **one channel** rather than rotating like the pain deck: this is the section that has to read as a
-  set, and three hues would make it three unrelated boxes again. The quote mark is a Lucide
-  icon, not a typographic one — CLAUDE.md rules out unicode symbols.
 - `components/landing-faq.tsx` renders `landing.faq` as `DisclosureCard` rows and emits the
   `FAQPage` JSON-LD **from the same array**, so the answer a reader opens and the answer a crawler
   quotes cannot drift. The last question is load-bearing: it is where the page says out loud that it
   will not predict a lift, because nobody measured one.
-- The value cards (`landing.proof`) cover one benefit each: measured-not-guessed, finished copy, and
-  seen-on-your-own-page.
 - `landing.ctaNote` sits under both CTA buttons and states the price of clicking: no signup, no card,
   no install. It is a fact about the product, and it is the closest this page comes to urgency —
   **there is no countdown, no scarcity count and no "N spots left"**, because none of those would be

@@ -212,51 +212,6 @@ export const ptBR: Dictionary = {
       }
     ],
 
-    value: {
-      eyebrow: 'O que você recebe',
-      heading: 'Números que dá para conferir, copy que dá para colar.'
-    },
-    proof: [
-      {
-        title: 'Medido, não chutado',
-        body: 'Todo número é contado na sua página no momento em que a abrimos. Nada vem de média de benchmark, nem é estimado, nem preenchido por um modelo.'
-      },
-      {
-        title: 'Copy pronta, não prompt',
-        body: 'Cada correção priorizada traz a linha substituta e o raciocínio por trás dela. Adicione os detalhes do seu negócio e ela volta com os seus números reais já dentro.'
-      },
-      {
-        title: 'Visto na sua própria página',
-        body: 'A copy nova é renderizada sobre um screenshot da sua página real, então você vê como ela fica antes de publicar.'
-      }
-    ],
-
-    testimonials: {
-      eyebrow: 'O que dizem',
-      heading: 'De quem já rodou.',
-      // Vazio de propósito, e a seção não renderiza enquanto estiver assim. Ver en.ts.
-      items: [
-        {
-          quote: 'Achei MUITO boa a solução!',
-          name: 'Jaque Aguiar',
-          role: 'CEO',
-          company: 'Evolux360'
-        },
-        {
-          quote: 'Muito interessante... E realmente apontou várias coias que eu particularmente nem teria sacado... Top a ferramenta.',
-          name: 'Leslie Bagalho',
-          role: 'Dev',
-          company: 'Notes Axtenn'
-        },
-        {
-          quote: 'Caraca, show demais o relatório, valeu!!!',
-          name: 'Junior Moreira',
-          role: 'Dev',
-          company: 'Plim Plim'
-        }
-      ],
-    },
-
     leaderboard: {
       eyebrow: 'Medidos até agora',
       heading: 'Veja todas as páginas analisadas e a nota que cada uma recebeu.',
