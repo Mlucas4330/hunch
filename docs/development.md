@@ -117,6 +117,13 @@ which is what the remaining five assert.
 `auth.setup.ts` pays the same cost deliberately and once, outside any test's timeout, for the three
 routes that creating an analysis crosses.
 
+**CI runs against an empty database, and a laptop almost never does.** The dashboard is shorter with no
+history behind it, which is enough to change what is above the fold and what an animation moves.
+`e2e/brief-wizard.spec.ts` failed on CI for two runs while passing locally for exactly that reason, and
+it now waits for the disclosure's height transition to settle before it measures anything. Reproduce a
+CI-only failure by pointing `DATABASE_URL` at a fresh database and running `npm run db:migrate` into it
+first; a suite that only passes on a populated one is a suite that will fail on the next push.
+
 ### Two projects
 
 **`chromium`** is the product suite: it signs in through the credentials hatch and drives real routes.
