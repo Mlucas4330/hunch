@@ -4,7 +4,8 @@ import { loadEnvConfig } from '@next/env'
 loadEnvConfig(process.cwd())
 
 const PORT = Number(process.env.E2E_PORT) || 3100
-const baseURL = `http://localhost:${PORT}`
+export const E2E_BASE_URL = `http://localhost:${PORT}`
+const baseURL = E2E_BASE_URL
 
 export const E2E_CRON_SECRET = 'e2e-cron-secret'
 

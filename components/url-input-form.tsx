@@ -152,8 +152,13 @@ export function UrlInputForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row">
+    // **The row is decided by the form's own width, not the viewport's.** This renders both in the
+    // dashboard, where it has the whole column, and in the landing hero, where it has a grid track of
+    // about 450px next to the readout card -- and a viewport breakpoint cannot tell those apart, so
+    // `sm:flex-row` put a full length CTA beside the URL field and left the field at 200px on every
+    // desktop from 1024 to 1920. A container query asks the question that actually matters.
+    <form onSubmit={onSubmit} className="@container space-y-3">
+      <div className="flex flex-col gap-2 @md:flex-row">
         <Input
           name="url"
           type="url"

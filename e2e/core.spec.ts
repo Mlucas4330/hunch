@@ -1,4 +1,5 @@
 ﻿import { test, expect, type Page } from '@playwright/test'
+import { pinEnglish } from './locale'
 
 async function openCopyTab(page: Page) {
   await page.getByRole('tab', { name: 'Copy' }).click()
@@ -7,6 +8,7 @@ async function openCopyTab(page: Page) {
 test.describe('core features', () => {
   test('protects the dashboard from unauthenticated users', async ({ browser }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    await pinEnglish(context)
     const page = await context.newPage()
 
     await page.goto('/dashboard')
@@ -19,6 +21,7 @@ test.describe('core features', () => {
     browser
   }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    await pinEnglish(context)
     const page = await context.newPage()
 
     // `/analyses` is a protected prefix with no page of its own, so it renders not-found once the
@@ -38,6 +41,7 @@ test.describe('core features', () => {
 
   test('refuses an off-site callbackUrl and falls back to the dashboard', async ({ browser }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    await pinEnglish(context)
     const page = await context.newPage()
 
     await page.goto('/auth/signin?callbackUrl=%2F%2Fexample.com')
@@ -53,6 +57,7 @@ test.describe('core features', () => {
 
   test('renders the marketing landing publicly at the index route', async ({ browser }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    await pinEnglish(context)
     const page = await context.newPage()
 
     await page.goto('/')
@@ -91,6 +96,7 @@ test.describe('core features', () => {
     browser
   }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    await pinEnglish(context)
     const page = await context.newPage()
 
     await page.goto('/')
@@ -113,6 +119,7 @@ test.describe('core features', () => {
   // existe para falhar no dia em que alguem alargar a query. Ver docs/security.md.
   test('exposes only a domain and a score on the public pulse route', async ({ browser }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    await pinEnglish(context)
     const page = await context.newPage()
 
     const res = await page.request.get('/api/pulse')
@@ -135,20 +142,50 @@ test.describe('core features', () => {
     await context.close()
   })
 
-  test('renders the landing in pt-BR when the locale cookie is set', async ({ browser }) => {
+  // The hero gives this form a grid track next to the readout card, and a CTA long enough to take
+  // most of it. What keeps the field usable is a container query rather than a viewport breakpoint:
+  // the button drops below it instead of sharing a row it does not fit in. See
+  // components/url-input-form.tsx.
+  test('keeps the hero URL field the width of its column, with the CTA below it', async ({
+    browser
+  }) => {
+    const context = await browser.newContext({
+      storageState: { cookies: [], origins: [] },
+      viewport: { width: 1440, height: 900 }
+    })
+    await pinEnglish(context)
+    const page = await context.newPage()
+
+    await page.goto('/')
+    const form = page.locator('form').filter({ has: page.locator('input[name="url"]') }).first()
+    const field = (await form.locator('input[name="url"]').boundingBox())!
+    const submit = (await form.locator('button[type="submit"]').boundingBox())!
+
+    expect(field.width).toBeGreaterThan(400)
+    expect(submit.y).toBeGreaterThan(field.y)
+
+    await context.close()
+  })
+
+  // **The one context in this file that is not pinned to English**, because what a reader with no
+  // cookie gets is the thing being asserted. `DEFAULT_LOCALE` is pt-BR, and the switch back is the
+  // same cookie the toggle writes. See e2e/locale.ts.
+  test('lands in pt-BR with no cookie, and in English with one', async ({ browser }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
     const page = await context.newPage()
 
     await page.goto('/')
-    await context.addCookies([
-      { name: 'locale', value: 'pt-BR', url: new URL(page.url()).origin }
-    ])
-    await page.reload()
     await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR')
     await expect(
       page.getByRole('link', { name: 'Ver minha nota agora, de graça' }).first()
     ).toBeVisible()
     await expect(page.getByText('Score my page')).toHaveCount(0)
+
+    await pinEnglish(context)
+    await page.reload()
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+    await expect(page.getByRole('link', { name: 'Score my page' }).first()).toBeVisible()
+    await expect(page.getByText('Ver minha nota agora, de graça')).toHaveCount(0)
 
     await context.close()
   })
@@ -291,6 +328,7 @@ test.describe('core features', () => {
     const { analysis } = await detail.json()
 
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    await pinEnglish(context)
     const anon = await context.newPage()
     await anon.goto(`/r/${analysis.embedKey}`)
     await expect(anon.getByTestId('flow-playbook').getByTestId('flow-fix')).toHaveCount(4)

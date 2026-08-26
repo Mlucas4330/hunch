@@ -262,6 +262,12 @@ stranded with no route to it.
 
 - Single text input + submit, validating URL format client-side and disabling submit while an analysis
   is in progress.
+- **Input and button share a row only when the form's own box can hold both**, which is a
+  `@container` query rather than a viewport breakpoint. The same component renders in the dashboard,
+  where it owns the column, and in the landing hero, where it has a ~450px grid track beside the
+  readout card — a viewport breakpoint cannot tell those apart, and `sm:flex-row` left the field at
+  200px on every desktop from 1024 to 1920 with the CTA taking the rest. Below the threshold the
+  button drops under the field, which is the mobile shape. Covered by `e2e/core.spec.ts`.
 - A collapsible `<details>` "Add business details (optional)" holding `components/brief-wizard.tsx`:
   four questions, one screen each, answered by **tapping an option**. Who lands here, what you sell
   them, what they should do, what stops them. Selecting advances on its own, a segmented bar shows

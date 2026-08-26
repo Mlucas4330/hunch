@@ -99,8 +99,14 @@ Runs on a dedicated port (3100, overridable via `E2E_PORT`) so it never collides
 running `npm run dev`, which would not have `E2E_FIXTURES` set.
 
 `E2E_FIXTURES=1` swaps generation for the fixtures in `lib/ai/fixtures.ts`, which exist per locale and
-are picked by the same locale the real pipeline uses. The suite sets no locale cookie, so it runs in
-`DEFAULT_LOCALE` and asserts against the English fixture.
+are picked by the same locale the real pipeline uses.
+
+**`DEFAULT_LOCALE` is pt-BR, and the suite pins itself to English anyway.** `e2e/locale.ts` writes the
+locale cookie into `auth.setup.ts`'s saved state and into every anonymous context, so the assertions
+stay in one language and keep covering behaviour rather than which dictionary rendered it — both are
+complete and typechecked against each other. The single exception is the locale test in
+`e2e/core.spec.ts`, which is the only place that asserts what a reader with no cookie gets, and it
+would assert nothing if it were pinned.
 
 `retries` stays **0** so a flaky test is never silently absorbed. That is why `trace` is
 `retain-on-failure` and not `on-first-retry`: with no retries there is no first retry, and that setting

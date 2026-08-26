@@ -1,5 +1,6 @@
 import { test as setup, expect } from '@playwright/test'
 import { grantCredits } from '@/lib/credits'
+import { pinEnglish } from './locale'
 import { E2E_CREDITS } from '../playwright.config'
 
 const authFile = 'e2e/.auth/admin.json'
@@ -19,6 +20,10 @@ setup('authenticate as admin', async ({ page }) => {
   if (!email || !password) {
     throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD must be set to run e2e tests')
   }
+
+  // Before the first navigation, so the state this saves carries it and every signed in test
+  // inherits English without asking. See e2e/locale.ts.
+  await pinEnglish(page.context())
 
   await page.goto('/auth/signin')
   await page.fill('input[name="email"]', email)

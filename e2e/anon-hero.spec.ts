@@ -2,11 +2,16 @@ import { expect, test } from '@playwright/test'
 import { like } from 'drizzle-orm'
 import { db } from '@/db'
 import { analyses } from '@/db/schema'
+import { pinEnglish } from './locale'
 
 // A genuine stranger: the storage state is dropped rather than using the `dom` project, which by
 // contract makes no request to the app and writes no row.
 test.describe('the hero form, signed out', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
+
+  test.beforeEach(async ({ context }) => {
+    await pinEnglish(context)
+  })
 
   test.afterAll(async () => {
     await db.delete(analyses).where(like(analyses.url, '%anon-hero%'))

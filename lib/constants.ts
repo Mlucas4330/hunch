@@ -68,7 +68,13 @@ export const LINKEDIN_URL = 'https://www.linkedin.com/in/lucas-medeiros-dev'
 export const WHATSAPP_NUMBER = '5551989431913'
 export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`
 
-export const DEFAULT_LOCALE: Locale = 'en'
+// What a reader with no cookie gets, which is every first visit: the product sells to Brazilian
+// founders, takes BRL through Mercado Pago, and pt-BR is a rewrite rather than a translation of the
+// English -- see docs/i18n.md. English is still complete and one cookie away.
+//
+// It is also the locale generation falls back to and the one the OG images are written in, because a
+// tab title and an unfurl are read by the same person the page is for.
+export const DEFAULT_LOCALE: Locale = 'pt-BR'
 
 export const LOCALE_COOKIE = 'locale'
 

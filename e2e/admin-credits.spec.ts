@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { creditTransactions, users } from '@/db/schema'
 import { ADMIN_CREDITS_PATH } from '@/lib/constants'
+import { pinEnglish } from './locale'
 
 const TARGET = 'grant-target@example.com'
 
@@ -90,6 +91,10 @@ test.describe('a demoted operator', () => {
 
 test.describe('admin credits, signed out', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
+
+  test.beforeEach(async ({ context }) => {
+    await pinEnglish(context)
+  })
 
   test('is not reachable without a session', async ({ page }) => {
     await page.goto(ADMIN_CREDITS_PATH)
