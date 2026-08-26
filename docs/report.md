@@ -131,6 +131,22 @@ only thing that differs between them is the copy that was swapped. Loading the p
 carousel advance or an ad slot fill differently, and the wipe would read as the whole page twitching
 rather than as one line changing.
 
+Two things have to happen **before either shot**, and both were learned by getting them wrong:
+
+- **The scroll.** `scrollIntoView` used to live inside `applyVariantCopy`, which runs *between* the
+  two shots — so the "before" framed the top of the page and the "after" framed the element, and the
+  wipe compared two different parts of the page. `scrollToTarget` now runs once, ahead of both, and
+  never again: replacing the text can make the element taller, and re-centring on the new height
+  would slide the page under the wipe.
+- **The motion.** `freezeMotion` injects `animation-play-state: paused` and kills transitions. A
+  marquee or a looping hero advances in the milliseconds between the two captures, and the wipe shows
+  it jumping. Paused rather than `animation: none`, which would drop an element back to its
+  unanimated rule — invisible, for the common fade-in-from-zero.
+
+Measured on a real page with an animated ticker: the rows above the swapped element differ by **0.0%**
+and the first difference appears on the row the element starts on. Everything below it differs
+legitimately, because longer copy really does push the rest of the card down.
+
 The rewrite sits on top of the current page and is revealed by `clip-path`, never by a width: clipping
 shows the right-hand slice of an image still laid out at full size, so the two stay registered.
 Resizing it would slide the content sideways under the wipe and nothing would line up.

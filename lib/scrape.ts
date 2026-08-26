@@ -413,6 +413,13 @@ export async function screenshotVariant(
       // that was swapped. Loading the page twice would let a carousel advance, an animation land
       // somewhere else, or an ad slot fill differently, and the wipe would read as the whole page
       // twitching rather than as one line changing.
+      //
+      // **Scrolling comes first, before either shot.** The element being rewritten is usually below
+      // the fold, so a shot taken at the top of the page is a picture of something the change does
+      // not touch. Scrolling once here and never again is what keeps the pair registered: doing it
+      // after the swap, which is where it used to live, framed the two shots at different offsets.
+      await page.evaluate(freezeMotion)
+      if (selector) await page.evaluate(scrollToTarget, selector)
       await awaitPaint(page)
       const before = await page.screenshot({ type: 'png' })
 
@@ -616,9 +623,42 @@ export function applyVariantCopy(options: {
     return 'overflow'
   }
 
-  const outcome = fitToBox(el as HTMLElement)
-  el.scrollIntoView({ block: 'center', inline: 'nearest' })
-  return outcome
+  // **The scroll is deliberately not here.** It used to be, and it had to move out the moment the
+  // preview became a pair: this function runs between the two shots, so scrolling inside it framed
+  // the "before" at the top of the page and the "after" centred on the element, and the wipe
+  // compared two different parts of the page. `scrollToTarget` now runs before either shot, so both
+  // share one offset. See docs/scraping.md.
+  return fitToBox(el as HTMLElement)
+}
+
+/**
+ * Stops the page moving on its own, so the only difference between the two shots is the copy.
+ *
+ * A marquee, a carousel or a looping hero animation advances in the milliseconds between the two
+ * screenshots, and the wipe then shows it jumping -- which reads as the whole page twitching rather
+ * than as one line changing. Pausing rather than removing: `animation: none` would drop an element
+ * back to whatever its unanimated rule says, and for the common fade-in-from-zero that is invisible.
+ * Paused freezes each animation where it already is, which after `settlePage` is its finished state.
+ */
+function freezeMotion(): void {
+  const style = document.createElement('style')
+  style.textContent = `*, *::before, *::after {
+    animation-play-state: paused !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }`
+  document.head.appendChild(style)
+}
+
+/**
+ * Puts the element the variant targets in the middle of the viewport, before anything is swapped.
+ *
+ * Without it the shot frames the top of the page and the change is somewhere below the fold, which
+ * is a picture of nothing. Run once, and never again after the swap: replacing the text can make the
+ * element taller, and re-centring on the new height would slide the page under the wipe.
+ */
+function scrollToTarget(selector: string): void {
+  document.querySelector(selector)?.scrollIntoView({ block: 'center', inline: 'nearest' })
 }
 
 async function awaitPaint(page: Page): Promise<void> {

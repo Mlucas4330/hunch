@@ -31,6 +31,10 @@ invent hypotheses about it — which surfaces as `AnalysisOutputSchema`'s `min(5
 **after** a full Sonnet call, i.e. an opaque `500`. `screenshotVariant` shares the wait for the same
 reason: a selector looked up before paint reads as stale and costs the report its preview.
 
+**The preview freezes motion and scrolls before it shoots.** Both belong to the pair rather than to the
+scrape: a measurement should see the page as it is, so `scrapePage` does neither. See
+[report.md](report.md#the-beforeafter-wipe).
+
 **`awaitPaint` is the screenshot's version and is not interchangeable.** `settlePage` answers "has the
 text stopped changing", which is right for reading copy and wrong for taking a picture: a page whose
 text is final can still be painting webfonts and lazy images, and a fallback face reads as a broken
