@@ -28,6 +28,12 @@ export type Job<T = unknown> = {
 }
 
 const QUEUE_KEY = 'queue:jobs'
+
+// Where a job lives while it is being run. Its whole purpose is to survive a restart: an id popped
+// straight off QUEUE_KEY is gone the instant the process dies, and the analysis it names has already
+// spent a credit. See `reap`.
+const PROCESSING_KEY = 'queue:processing'
+
 const jobKey = (id: string) => `job:${id}`
 
 // Every job runner the worker knows how to run, registered by the route that owns the work. The
@@ -118,14 +124,62 @@ export async function enqueue(id: string): Promise<Job | null> {
 }
 
 /**
+ * Puts back whatever a previous process was holding when it died.
+ *
+ * **This version is correct only because there is exactly one process.** `railway.json` pins
+ * `numReplicas: 1` and the screenshot volume is what pins it, so anything sitting in PROCESSING_KEY
+ * at startup was orphaned by definition and can be requeued on sight. The day a second replica
+ * exists this becomes a bug of the worst kind — it would requeue a job another replica is running
+ * right now — and the fix then is a per-entry timestamp and a reaper that only takes what has been
+ * held longer than any job can legitimately take. See docs/scraping.md.
+ *
+ * Orphans go back to the FRONT of the queue: they were accepted before anything now waiting.
+ *
+ * **It runs from `drain`, not at module load, and that ordering is deliberate.** `registerRunner` is
+ * called at the module scope of the route that owns the work, and that route is what imports this
+ * file — so at import time the runner map is still empty and a reaped job would be answered
+ * `unavailable` by a worker that simply had not learned its handler yet. By the time anything calls
+ * `drain` the registration has happened. The cost is that an orphan waits for the next enqueue, and
+ * on this workload the next enqueue is somebody clicking Analyze.
+ *
+ * **It runs at the top of every drain rather than once per process, and that is safe rather than
+ * wasteful.** `drain` is serial behind `queueDraining` and its `finally` releases every id it took,
+ * so at the moment a drain begins this process holds nothing in the processing list — anything there
+ * still belongs to a dead one. Doing it once behind a flag would have meant a single transient Redis
+ * error stranded an orphan until the next deploy; on a healthy queue this costs one LMOVE that
+ * answers nil.
+ */
+async function reap(): Promise<void> {
+  const client = redis()
+  if (!client) return
+
+  try {
+    let requeued = 0
+    while (await client.lmove(PROCESSING_KEY, QUEUE_KEY, 'LEFT', 'LEFT')) requeued++
+    if (requeued > 0) console.warn('[queue] requeued jobs orphaned by a restart', requeued)
+  } catch (error) {
+    console.error('[queue] reap failed', error)
+  }
+}
+
+/**
  * Drains the queue one job at a time. Serial on purpose: `withBrowserSlot` already caps how many
  * pages exist at once, and a second limiter here would either fight it or hide it.
  *
- * **A job in flight when the process restarts is lost.** It was popped off the list before it ran,
- * so nothing picks it up: the client polls a `running` job until its TTL lapses, then reads
- * `unavailable` and can ask again. That is deliberate for this workload — the work is idempotent and
- * cheap to redo, and the alternative (a processing list plus a reaper) is machinery for a guarantee
- * a screenshot does not need. It stops being acceptable the moment a job spends a credit.
+ * **A job in flight when the process restarts is picked back up.** It used to be lost: the id was
+ * popped off the list before it ran, so nothing was left holding it, and the client polled a
+ * `running` job until its TTL lapsed. That was a defensible trade while the work was a screenshot —
+ * idempotent, cheap, free to redo. It stopped being defensible the moment a job spent a credit, and
+ * `POST /api/analyses` now spends one before it enqueues: a restart mid-drain lost the analysis
+ * **and** the money, because `refundCredit` only runs when the generation throws, never when the
+ * process dies under it.
+ *
+ * So the id moves to PROCESSING_KEY instead of vanishing, comes off it in a `finally` so success and
+ * failure clean up identically, and `reap` puts back whatever a dead process left behind.
+ *
+ * A requeued job runs its handler a second time, which is why `runAnalysis` returns early on a row
+ * that already has its results — see lib/run-analysis.ts. The credit is not at risk either way: it
+ * is spent by the route, not by the job.
  */
 export async function drain(): Promise<void> {
   const client = redis()
@@ -134,31 +188,39 @@ export async function drain(): Promise<void> {
   globalForQueue.queueDraining = true
 
   try {
+    await reap()
+
     for (;;) {
-      const id = await client.lpop(QUEUE_KEY)
+      const id = await client.lmove(QUEUE_KEY, PROCESSING_KEY, 'LEFT', 'RIGHT')
       if (!id) break
 
-      const { kind } = split(id)
-      const run = globalForQueue.queueRunners!.get(kind)
-
-      if (!run) {
-        // A kind nobody registered is a deploy that lost its handler, not a retryable failure.
-        console.error('[queue] no runner for kind', kind)
-        await writeJob(id, { status: 'unavailable' })
-        continue
-      }
-
-      await writeJob(id, { status: 'running' })
-
       try {
-        const outcome = await run(id)
-        await writeJob(
-          id,
-          outcome.ok ? { status: 'ready', result: outcome.result } : { status: 'unavailable' }
-        )
-      } catch (error) {
-        console.error('[queue] job failed', id, error)
-        await writeJob(id, { status: 'unavailable' })
+        const { kind } = split(id)
+        const run = globalForQueue.queueRunners!.get(kind)
+
+        if (!run) {
+          // A kind nobody registered is a deploy that lost its handler, not a retryable failure.
+          console.error('[queue] no runner for kind', kind)
+          await writeJob(id, { status: 'unavailable' })
+          continue
+        }
+
+        await writeJob(id, { status: 'running' })
+
+        try {
+          const outcome = await run(id)
+          await writeJob(
+            id,
+            outcome.ok ? { status: 'ready', result: outcome.result } : { status: 'unavailable' }
+          )
+        } catch (error) {
+          console.error('[queue] job failed', id, error)
+          await writeJob(id, { status: 'unavailable' })
+        }
+      } finally {
+        // Both outcomes above are terminal answers the client can read, so the claim is released
+        // either way. Only a process that dies before reaching here leaves the entry for `reap`.
+        await client.lrem(PROCESSING_KEY, 1, id)
       }
     }
   } finally {

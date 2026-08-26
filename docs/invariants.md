@@ -15,7 +15,13 @@ This is the one line separating the measured readout from every other claim the 
 text, LCP, transferred bytes — and emits `{ id, group, severity, value, unit }` with **no prose**. The
 sentence lives in `dictionary.readout.findings[id]` and the value is interpolated into it.
 
-Nothing measured is ever put into a prompt, and nothing generated is ever presented as a measurement.
+**Nothing generated is ever presented as a measurement.** That is the whole of the rule, and the
+direction it runs in matters: measurements *do* go into prompts, and always have —
+`generatePlaybook` serializes `PageStructure` whole, `generateVisibility` gets `PageSeo`,
+`CrawlerAccess` and the keyword terms. This line used to claim the opposite, which was never true of
+the code and made the real rule easy to misread as a ban on grounding a prompt in what was counted.
+
+What a model may then *say* about those numbers is a separate rule, one section down.
 
 *Governs:* [readout.md](readout.md), [ai-pipeline.md](ai-pipeline.md), [analysis-ui.md](analysis-ui.md)
 
@@ -31,21 +37,38 @@ so they are a **floor** a real visitor never beats, and `transferredBytes` rende
 
 *Governs:* [readout.md](readout.md), [scraping.md](scraping.md)
 
-### A generated `evidence` never carries a number
+### A generated `evidence` carries a number only from a page this code measured
 
-No percentage, no lift figure, no count of what other companies do, no "studies show". The only
-measurement any generation call has is the readout of the one page in front of it, so a number in
-`evidence` is invented by construction. The prompts require the CRO mechanism instead.
+No percentage, no lift figure, no count of what other companies do, no "studies show". The default is
+that a generation call has exactly one measurement — the readout of the page in front of it — so a
+number in `evidence` is invented by construction. The prompts require the CRO mechanism instead.
 
-**It governs all three `evidence` fields**: the flow fix, the visibility fix, and the variant. The
-variant's used to be the exception — it named a competitor pattern the rewrite borrowed — and that
-field now argues the same mechanism as the other two: what the current line leaves the visitor to
-infer, and what the replacement states outright. Competitor research is gone (see
-[product.md](product.md)), so there is no longer any source a borrowed pattern could come from, and a
-named company in `evidence` would be invented exactly like a number.
+**It governs all three `evidence` fields**: the flow fix, the visibility fix, and the variant.
 
-Unconditional. It used to have an escape hatch for when corpus evidence was supplied, and that hatch
-is exactly what would have to come back with a corpus.
+**The one exception is a page the reader named**, and its shape is the whole reason it is safe. When
+a competitor URL is supplied, `measureCompetitor` scrapes that page and `lib/readout.ts` counts the
+same facts off it. The argument that makes a number "invented by construction" — that no such
+measurement exists — stops being true for that page and for no other. So `evidence` may cite a figure
+from **that readout**, and:
+
+- **never a number that is not in it.** Not about a third page, not about "companies in this space",
+  not a figure about the named page that the readout does not carry.
+- **never a company name.** The readout carries a hostname the reader typed, and the prompts refer to
+  the page by that hostname alone. A brand name would be inferred from the page's contents, and an
+  inferred name is an invented one.
+- **never a claim that the other page performs better.** Nobody measured either page's conversion,
+  traffic or ranking. Two pages differing is not one page winning, and closing a gap is not a result —
+  that is the delta rule below, applied across pages instead of across time.
+
+This is narrower than what was here before the pivot, and deliberately inverted. The old competitor
+research had a model *recall* what competitors do, which is why removing it removed the exception
+with it. What came back is the opposite direction: the reader points, this code measures, and the
+number is a measurement rather than a recollection. The rules live in `competitorRules` in
+`lib/ai/prompt.ts`, shared by every prompt that receives a competitor for the same reason
+`marketRules` is — the risk is identical in all of them and must not drift into three wordings.
+
+The corpus escape hatch is still gone, and re-adding one would need this same test: does this code
+measure the thing the number describes?
 
 This is a different rule from the two above and they never share a sentence: this governs what a
 model may **assert**, those govern what a measurement may **state**.

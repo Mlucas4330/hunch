@@ -24,10 +24,32 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
 
   const analysis = await db.query.analyses.findFirst({
     where: eq(analyses.id, analysisId),
-    columns: { id: true, url: true, userId: true, brief: true, locale: true }
+    columns: {
+      id: true,
+      url: true,
+      userId: true,
+      brief: true,
+      locale: true,
+      market: true,
+      structure: true,
+      competitorUrl: true
+    },
+    with: { hypotheses: { columns: { id: true }, limit: 1 } }
   })
 
   if (!analysis) return { ok: false }
+
+  // A job the queue put back after a restart runs its handler a second time, so the handler has to
+  // be able to say "already done". Without this a requeued analysis inserts a second set of
+  // hypotheses, variants and fixes alongside the first, and the reader gets every idea twice.
+  //
+  // The two halves are checked separately because they are two different finish lines: an ownerless
+  // run is complete once the page was measured, an owned one only once the generation landed. An
+  // owned row that was measured but never generated is a crash between the two, and redoing it is
+  // exactly right. The credit is not at stake either way -- it is spent by the route, not here.
+  if (analysis.structure !== null && (!analysis.userId || analysis.hypotheses.length > 0)) {
+    return { ok: true }
+  }
 
   if (!analysis.userId) {
     const measurement = await measurePage(analysis.url)
@@ -40,11 +62,14 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
           seo: measurement.seo,
           performance: measurement.performance,
           crawlerAccess: measurement.crawlerAccess,
-          keywords: measurement.keywords
+          keywords: measurement.keywords,
+          mobile: measurement.mobile
         })
         .where(eq(analyses.id, analysis.id))
 
-      await tx.insert(pageSnapshots).values(snapshotValues(analysis.id, measurement))
+      await tx
+        .insert(pageSnapshots)
+        .values(snapshotValues(analysis.id, measurement, analysis.market))
     })
 
     return { ok: true }
@@ -57,7 +82,11 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
   try {
     output = await analyzeLandingPage(analysis.url, {
       brief: analysis.brief ?? undefined,
-      locale: analysis.locale
+      locale: analysis.locale,
+      // Only the owned branch measures it. The ownerless branch above is what makes an anonymous run
+      // cost one browser slot and zero tokens, and a second page would double the slot half of that
+      // for traffic where most visitors never convert. See docs/invariants.md.
+      competitorUrl: analysis.competitorUrl
     })
   } catch (error) {
     await refundCredit(analysis.userId, analysis.id)
@@ -75,11 +104,15 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
         performance: output.performance,
         crawlerAccess: output.crawlerAccess,
         keywords: output.keywords,
+        mobile: output.mobile,
+        competitor: output.competitor,
         market: output.market
       })
       .where(eq(analyses.id, analysis.id))
 
-    await tx.insert(pageSnapshots).values(snapshotValues(analysis.id, output))
+    // `output.market` rather than the row's: this branch has just re-detected it from the page's
+    // `lang`, which is a stronger signal than the URL alone the route had at creation.
+    await tx.insert(pageSnapshots).values(snapshotValues(analysis.id, output, output.market))
 
     const rows = await tx
       .insert(hypotheses)

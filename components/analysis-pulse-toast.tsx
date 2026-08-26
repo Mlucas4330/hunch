@@ -58,10 +58,15 @@ export function AnalysisPulseToast({
   if (silenced || entries.length === 0 || !shown) return null
 
   const entry = entries[index % entries.length]
-  const line =
-    entry.state === 'running' || entry.score === null
-      ? t(copy.running, { domain: entry.domain })
-      : t(copy.done, { domain: entry.domain, score: entry.score })
+  // **The domain is its own element, not a token inside the sentence.** Interpolated, the whole line
+  // was one run of text in a chip narrow enough that `truncate` ate the end of it -- and the end is
+  // where the score lives. Split, the domain gets the emphasis it deserves and the sentence gets its
+  // own line to wrap onto.
+  //
+  // A row with no score reads as running whatever its state says, and every part of the toast has to
+  // agree on that: the sentence, the dot and the rule down the side are one claim shown three ways.
+  const status = entry.score === null ? copy.running : t(copy.done, { score: entry.score })
+  const running = entry.state === 'running' || entry.score === null
 
   function dismiss() {
     window.sessionStorage.setItem(PULSE_TOAST_DISMISSED_KEY, '1')
@@ -77,21 +82,54 @@ export function AnalysisPulseToast({
       role="status"
       aria-live="polite"
       data-testid="pulse-toast"
-      className="animate-fade-up fixed bottom-4 left-4 z-40 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-lg border bg-card px-3 py-2 shadow-sm"
+      className={cn(
+        // **A bar on a phone, a chip on a desktop.** Pinning only `left` gave it the width of its
+        // content, which on a 375px screen is a box with no room for the sentence inside it. Pinning
+        // both edges below `sm` lets it use the screen; above `sm` it goes back to sitting in the
+        // corner out of the way.
+        'animate-fade-up fixed bottom-4 left-4 right-4 z-40 flex items-start gap-3 overflow-hidden rounded-lg border bg-card py-2.5 pl-4 pr-2 shadow-lg',
+        'sm:right-auto sm:max-w-sm'
+      )}
     >
+      {/* The state, as a rule down the edge. **An element rather than `border-l-4` plus a colour
+          class**: `cn` runs tailwind-merge, which reads `border-l-4` and `border-l-green` as one
+          group and drops one of them -- the toast rendered a four pixel rule in the default grey. A
+          child cannot be merged away, and it keeps the card's own border on all four sides. */}
       <span
         className={cn(
-          'size-1.5 shrink-0 rounded-full',
-          entry.state === 'running' ? 'bg-purple' : 'bg-green'
+          'absolute inset-y-0 left-0 w-1',
+          running ? 'bg-purple' : 'bg-green'
         )}
         aria-hidden
       />
-      <p className="truncate text-sm">{line}</p>
+
+      <span className="relative mt-1.5 flex size-2 shrink-0" aria-hidden>
+        {/* The running state is the one worth catching an eye: it says the tool is working on
+            somebody's page at this moment. A measured one has already happened and sits still. */}
+        {running && (
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-purple opacity-70" />
+        )}
+        <span
+          className={cn(
+            'relative inline-flex size-2 rounded-full',
+            running ? 'bg-purple' : 'bg-green'
+          )}
+        />
+      </span>
+
+      {/* `min-w-0` so the domain's truncation happens inside this column rather than pushing the
+          close button off the edge. The domain is the one thing allowed to truncate: it is a
+          hostname, and its start identifies it. */}
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-mono text-sm font-medium">{entry.domain}</p>
+        <p className="text-xs text-muted-foreground">{status}</p>
+      </div>
+
       <button
         type="button"
         onClick={dismiss}
         aria-label={copy.dismiss}
-        className="text-muted-foreground transition-colors hover:text-foreground"
+        className="-m-1 shrink-0 p-1 text-muted-foreground transition-colors hover:text-foreground"
       >
         <X className="size-3.5" aria-hidden />
       </button>

@@ -21,6 +21,7 @@ import { AI_OUTPUT_LANGUAGE, DEFAULT_LOCALE, MARKET_NAME } from '@/lib/constants
 import {
   FIXTURE_CRAWLER_ACCESS,
   FIXTURE_KEYWORDS,
+  FIXTURE_MOBILE,
   FIXTURE_PERFORMANCE,
   FIXTURE_SEO,
   FIXTURE_STRUCTURE,
@@ -29,11 +30,14 @@ import {
   fixturePlaybook,
   fixtureVisibility
 } from '@/lib/ai/fixtures'
+import type { CompetitorMeasurement } from '@/lib/competitor'
+import { displayHost } from '@/lib/host'
 import { detectMarket } from '@/lib/market'
 import { fetchCrawlerAccess, type CrawlerAccess } from '@/lib/robots'
 import { extractKeywords, type PageKeywords } from '@/lib/keywords'
 import {
   type PageElement,
+  type PageMobile,
   type PagePerformance,
   type PageSeo,
   type PageStructure,
@@ -62,12 +66,15 @@ export type AnalysisResult = {
   performance: PagePerformance
   crawlerAccess: CrawlerAccess
   keywords: PageKeywords
+  mobile: PageMobile
   market: Market
+  competitor: CompetitorMeasurement | null
 }
 
 export type AnalyzeOptions = {
   brief?: string
   locale?: Locale
+  competitorUrl?: string | null
 }
 
 export type PageMeasurement = {
@@ -76,6 +83,7 @@ export type PageMeasurement = {
   performance: PagePerformance
   crawlerAccess: CrawlerAccess
   keywords: PageKeywords
+  mobile: PageMobile
 }
 
 // The page's own words, counted the same way from both entry points.
@@ -88,6 +96,20 @@ function keywordsFor(html: string, seo: PageSeo): PageKeywords {
   })
 }
 
+/**
+ * The second page, measured by the same code as the first.
+ *
+ * **It lives here rather than in lib/competitor.ts because it touches the browser.** That module is
+ * imported by MeasuredReadout, a client component, so a value import of `scrapePage` there would pull
+ * puppeteer into the browser bundle. Everything pure about a competitor stays there; the scrape stays
+ * on this side of the line.
+ */
+export async function measureCompetitor(url: string): Promise<CompetitorMeasurement> {
+  const { html, structure, seo, performance, mobile } = await scrapePage(url)
+
+  return { url, structure, seo, performance, mobile, keywords: keywordsFor(html, seo) }
+}
+
 export async function measurePage(url: string): Promise<PageMeasurement> {
   if (process.env.E2E_FIXTURES === '1') {
     return {
@@ -95,16 +117,17 @@ export async function measurePage(url: string): Promise<PageMeasurement> {
       seo: FIXTURE_SEO,
       performance: FIXTURE_PERFORMANCE,
       crawlerAccess: FIXTURE_CRAWLER_ACCESS,
-      keywords: FIXTURE_KEYWORDS
+      keywords: FIXTURE_KEYWORDS,
+      mobile: FIXTURE_MOBILE
     }
   }
 
-  const [{ html, structure, seo, performance }, crawlerAccess] = await Promise.all([
+  const [{ html, structure, seo, performance, mobile }, crawlerAccess] = await Promise.all([
     scrapePage(url),
     fetchCrawlerAccess(url)
   ])
 
-  return { structure, seo, performance, crawlerAccess, keywords: keywordsFor(html, seo) }
+  return { structure, seo, performance, crawlerAccess, mobile, keywords: keywordsFor(html, seo) }
 }
 
 export async function analyzeLandingPage(
@@ -140,19 +163,41 @@ export async function analyzeLandingPage(
       performance: FIXTURE_PERFORMANCE,
       crawlerAccess: FIXTURE_CRAWLER_ACCESS,
       keywords: FIXTURE_KEYWORDS,
-      market: fixtureMarket
+      mobile: FIXTURE_MOBILE,
+      market: fixtureMarket,
+      competitor: null
     })
   }
 
   const startedAt = Date.now()
-  const { html, elements, structure, seo, performance } = await scrapePage(url)
+
+  // **Three independent waits, taken together.** `fetchCrawlerAccess` used to run after the scrape
+  // and depended on nothing in it, so it spent its whole budget in series for no reason. The
+  // competitor scrape joins them: `scrapePage` waits for its own browser slot, and the drain is
+  // serial, so an analysis holds at most two of SCRAPE_MAX_CONCURRENT_PAGES.
+  const [
+    { html, elements, structure, seo, performance, mobile },
+    crawlerAccess,
+    competitor
+  ] = await Promise.all([
+    scrapePage(url),
+    fetchCrawlerAccess(url),
+    options.competitorUrl ? measureCompetitor(options.competitorUrl) : Promise.resolve(null)
+  ])
+
   const content = preprocessHtml(html)
   const market = detectMarket({ url, lang: seo.lang })
   const keywords = keywordsFor(html, seo)
-  const scrapedAt = Date.now()
+  const measuredAt = Date.now()
 
-  const crawlerAccess = await fetchCrawlerAccess(url)
-  const crawlerCheckedAt = Date.now()
+  const competitorHost = competitor ? displayHost(competitor.url) : null
+  const competitorSection = competitor
+    ? `\n\nReadout of ${competitorHost}, a second page the reader pointed at, counted by this same code (JSON). Every number in it is a measurement of that one page and of nothing else:\n${JSON.stringify(
+        { structure: competitor.structure, seo: competitor.seo, performance: competitor.performance },
+        null,
+        2
+      )}`
+    : ''
 
   const briefSection = options.brief
     ? `\n\nBusiness details from the founder (use these real facts to write finished copy):\n\n${options.brief}`
@@ -174,14 +219,15 @@ export async function analyzeLandingPage(
       model: anthropic(MODEL),
       schema: AnalysisOutputSchema,
       maxTokens: 16000,
-      system: systemPrompt(AI_OUTPUT_LANGUAGE[locale], MARKET_NAME[market]),
-      prompt: `Landing page copy:\n\n${content}${elementsSection}${briefSection}`
+      system: systemPrompt(AI_OUTPUT_LANGUAGE[locale], MARKET_NAME[market], competitorHost),
+      prompt: `Landing page copy:\n\n${content}${elementsSection}${briefSection}${competitorSection}`
     }),
     generatePlaybook({
       structure,
       founderBrief: options.brief ?? null,
       locale,
-      market
+      market,
+      competitor
     }),
     generateVisibility({
       seo,
@@ -195,12 +241,12 @@ export async function analyzeLandingPage(
   ])
 
   console.info('[analyze] timings (ms)', {
-    scrape: scrapedAt - startedAt,
-    robotsCheck: crawlerCheckedAt - scrapedAt,
-    generation: Date.now() - crawlerCheckedAt,
+    measure: measuredAt - startedAt,
+    generation: Date.now() - measuredAt,
     total: Date.now() - startedAt,
     market,
     robots: crawlerAccess.status,
+    competitor: competitorHost,
     playbookFixes: playbook.length,
     visibilityFixes: visibility.length
   })
@@ -215,7 +261,9 @@ export async function analyzeLandingPage(
     performance,
     crawlerAccess,
     keywords,
-    market
+    mobile,
+    market,
+    competitor
   })
 }
 
@@ -224,6 +272,7 @@ export type PlaybookInput = {
   founderBrief: string | null
   locale: Locale
   market: Market
+  competitor?: CompetitorMeasurement | null
 }
 
 export async function generatePlaybook(input: PlaybookInput): Promise<FlowFixOutput[]> {
@@ -235,6 +284,17 @@ export async function generatePlaybook(input: PlaybookInput): Promise<FlowFixOut
     `Structural readout of the page (JSON):\n${JSON.stringify(input.structure, null, 2)}`
   ]
 
+  const competitorHost = input.competitor ? displayHost(input.competitor.url) : null
+  if (input.competitor) {
+    sections.push(
+      `Structural readout of ${competitorHost}, a second page the reader pointed at, counted by this same code (JSON). Every number in it is a measurement of that one page and of nothing else:\n${JSON.stringify(
+        input.competitor.structure,
+        null,
+        2
+      )}`
+    )
+  }
+
   if (input.founderBrief) {
     sections.push(`Business details from the founder:\n${input.founderBrief}`)
   }
@@ -244,7 +304,11 @@ export async function generatePlaybook(input: PlaybookInput): Promise<FlowFixOut
       model: anthropic(MODEL),
       schema: PlaybookOutputSchema,
       maxTokens: 3000,
-      system: playbookPrompt(AI_OUTPUT_LANGUAGE[input.locale], MARKET_NAME[input.market]),
+      system: playbookPrompt(
+        AI_OUTPUT_LANGUAGE[input.locale],
+        MARKET_NAME[input.market],
+        competitorHost
+      ),
       prompt: sections.join('\n\n')
     })
     return object.fixes
@@ -377,7 +441,9 @@ function resolveTargets(input: {
   performance: PagePerformance
   crawlerAccess: CrawlerAccess
   keywords: PageKeywords
+  mobile: PageMobile
   market: Market
+  competitor: CompetitorMeasurement | null
 }): AnalysisResult {
   const {
     output,
@@ -389,7 +455,9 @@ function resolveTargets(input: {
     performance,
     crawlerAccess,
     keywords,
-    market
+    mobile,
+    market,
+    competitor
   } = input
   return {
     playbook,
@@ -399,7 +467,9 @@ function resolveTargets(input: {
     performance,
     crawlerAccess,
     keywords,
+    mobile,
     market,
+    competitor,
     hypotheses: output.hypotheses.map((h) => {
       const resolved = resolveTarget(h.current_copy, elements)
       h.variants.forEach((v) => warnOverLength(h.section, resolved.text ?? h.current_copy, v.copy))

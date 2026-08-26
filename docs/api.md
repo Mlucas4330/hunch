@@ -6,7 +6,7 @@ performance detail, not the security boundary — see [security.md](security.md)
 | Route | Auth | Notes |
 | ----- | ---- | ----- |
 | `GET\|POST /api/auth/[...nextauth]` | — | NextAuth catch-all |
-| `POST /api/analyses` | **session optional** | queues the pipeline; anything unpaid gets the measured half only |
+| `POST /api/analyses` | **session optional** | queues the pipeline; anything unpaid gets the measured half only; takes an optional `competitorUrl` |
 | `GET /api/analyses` | session, or embed key for `?embedKey=` | history, or one analysis' progress |
 | `GET /api/analyses/[id]` | session + ownership | |
 | `POST /api/analyses/[id]/measure` | session + ownership | measures the page again, appending a snapshot |
@@ -30,15 +30,34 @@ without plans a sweep is browser time nobody asked for — re-measuring is the o
 
 ### `POST /api/analyses`
 
-Chain: rate limit -> Puppeteer scrape -> preprocess HTML -> detect market -> robots.txt -> Claude
-(hypotheses + playbook + visibility audit in parallel) -> persist.
+Chain: rate limit -> guard both URLs -> (Puppeteer scrape ‖ robots.txt ‖ competitor scrape) ->
+preprocess HTML -> detect market -> Claude (hypotheses + playbook + visibility audit in parallel) ->
+persist.
 
 ```json
-{ "url": "https://example.com", "brief": "optional business details" }
+{
+  "url": "https://example.com",
+  "brief": "optional business details",
+  "competitorUrl": "https://optional-second-page.com"
+}
 ```
 
 `brief` (optional) is stored on the analysis and passed into generation so variants come back as
 finished copy instead of `[placeholders]`.
+
+`competitorUrl` (optional) is a page the caller names and nothing infers. It is measured by the same
+code, shown as a second column in the readout, and handed to the prompts — the one case where a
+generated `evidence` may carry a number, bounded in
+[invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured).
+
+Two things about it are load bearing:
+
+- **It goes through `assertPublicUrl` exactly like `url` does**, before anything is written. A
+  competitor field that skipped the guard would be a second front door onto the same SSRF: it is a URL
+  this deploy points a real browser at. See [security.md](security.md).
+- **Only the owned branch measures it.** An ownerless run is what makes an anonymous analysis cost one
+  browser slot and zero tokens, and a second page would double the slot half of that for traffic where
+  most visitors never convert. It costs no extra credit — one analysis, one credit, two pages measured.
 
 **There is no `no_credits` refusal.** A signed in caller with an empty balance is answered `202` like
 everyone else, with `owned: false` and an ownerless analysis behind it: the measured half only, zero

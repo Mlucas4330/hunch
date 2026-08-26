@@ -2,9 +2,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { hasReadout, measuredFindings, readout } from './readout'
 import { READOUT_THRESHOLDS } from './constants'
-import type { PagePerformance, PageSeo, PageStructure } from './scrape'
+import type { PageMobile, PagePerformance, PageSeo, PageStructure } from './scrape'
 import type { CrawlerAccess } from './robots'
 import type { PageKeywords } from './keywords'
+import type { Market } from './enums'
 
 const STRUCTURE: PageStructure = {
   hasOauth: false,
@@ -72,13 +73,19 @@ function findingsFor(overrides: {
   performance?: Partial<PagePerformance>
   crawler?: Partial<CrawlerAccess>
   keywords?: PageKeywords | null
+  mobile?: PageMobile | null
+  market?: Market | null
 }) {
   return measuredFindings({
     structure: { ...STRUCTURE, ...overrides.structure },
     seo: { ...SEO, ...overrides.seo },
     performance: { ...PERFORMANCE, ...overrides.performance },
     crawler: { ...CRAWLER, ...overrides.crawler },
-    keywords: overrides.keywords === undefined ? KEYWORDS : overrides.keywords
+    keywords: overrides.keywords === undefined ? KEYWORDS : overrides.keywords,
+    // Both default to absent, so every test written before these existed still describes a page
+    // measured without them -- which is exactly the row shape the guards have to handle.
+    mobile: overrides.mobile ?? null,
+    market: overrides.market ?? null
   })
 }
 
@@ -266,10 +273,133 @@ test('a null readout produces nothing at all', () => {
     seo: null,
     performance: null,
     crawler: null,
-    keywords: null
+    keywords: null,
+    mobile: null,
+    market: null
   })
 
   assert.deepEqual(empty.findings, [])
   assert.equal(hasReadout(empty), false)
 })
 
+
+// The whole point of the optional fields on PageStructure. `analyses.structure` is a jsonb written
+// since long before the form and trust passes existed, so a row measured last month carries the
+// object and none of these keys -- and a finding of `0` there would report never-measured as wrong.
+// See docs/invariants.md.
+test('a structure measured before the form pass existed reports no form findings', () => {
+  const old = findingsFor({})
+
+  for (const id of ['required_fields', 'fields_without_label', 'form_steps', 'no_submit', 'dead_ctas'] as const) {
+    assert.equal(find(old, id), undefined, `${id} was reported for a page nobody counted it on`)
+  }
+})
+
+test('a structure measured before the trust pass existed reports no trust findings', () => {
+  const old = findingsFor({ market: 'br' })
+
+  assert.equal(old.some((finding) => finding.group === 'trust'), false)
+})
+
+test('the form findings appear once the page was actually counted', () => {
+  const counted = findingsFor({
+    structure: {
+      requiredFieldCount: 8,
+      fieldsWithoutLabel: 0,
+      formSteps: 1,
+      hasSubmit: false,
+      deadCtaCount: 4
+    }
+  })
+
+  assert.equal(find(counted, 'required_fields')?.severity, 'alert')
+  assert.equal(find(counted, 'fields_without_label')?.severity, 'ok')
+  assert.equal(find(counted, 'form_steps')?.value, 1)
+  assert.equal(find(counted, 'no_submit')?.severity, 'alert', 'a form with no send button is broken')
+  assert.equal(find(counted, 'dead_ctas')?.severity, 'alert')
+})
+
+test('a page with no form reports nothing about one, but still reports dead links', () => {
+  const noForm = findingsFor({
+    structure: { formCount: 0, requiredFieldCount: 0, hasSubmit: false, deadCtaCount: 2 }
+  })
+
+  assert.equal(find(noForm, 'required_fields'), undefined)
+  assert.equal(find(noForm, 'no_submit'), undefined, 'no form is not a broken form')
+  assert.equal(find(noForm, 'dead_ctas')?.value, 2)
+})
+
+// The market rules a sentence out, it never supplies a fact about buyers -- see docs/invariants.md.
+test('the CNPJ finding is asked only where it is a convention', () => {
+  const counted = { trustBadgeCount: 0, hasCnpj: false }
+
+  assert.equal(find(findingsFor({ structure: counted, market: 'br' }), 'no_cnpj')?.severity, 'warn')
+  assert.equal(find(findingsFor({ structure: counted, market: 'us' }), 'no_cnpj'), undefined)
+  assert.equal(find(findingsFor({ structure: counted, market: null }), 'no_cnpj'), undefined)
+})
+
+test('testimonial attribution is only asked of a page that has testimonials', () => {
+  const withQuotes = findingsFor({
+    structure: { hasTestimonials: true, trustBadgeCount: 0, testimonialWithAttributionCount: 0 }
+  })
+  const without = findingsFor({
+    structure: { hasTestimonials: false, trustBadgeCount: 0, testimonialWithAttributionCount: 0 }
+  })
+
+  assert.equal(find(withQuotes, 'testimonial_attribution')?.severity, 'warn')
+  assert.equal(
+    find(without, 'testimonial_attribution'),
+    undefined,
+    'no_testimonials already said it; saying it twice is one absence dressed as two'
+  )
+})
+
+test('one reachable channel is enough to answer the contact finding', () => {
+  const base = { trustBadgeCount: 0, hasPhone: false, hasPhysicalAddress: false }
+
+  assert.equal(find(findingsFor({ structure: base }), 'no_contact_channel')?.severity, 'warn')
+  assert.equal(
+    find(findingsFor({ structure: { ...base, hasPhone: true } }), 'no_contact_channel')?.severity,
+    'ok'
+  )
+})
+
+// Same shape as the robots.txt guard: not measured is skipped whole, never reported as clean.
+test('a page nobody opened on a phone reports no mobile findings', () => {
+  assert.equal(findingsFor({}).some((finding) => finding.group === 'mobile'), false)
+})
+
+const MOBILE: PageMobile = {
+  horizontalOverflow: true,
+  smallTapTargetCount: 12,
+  tinyTextCount: 0,
+  aboveFoldCtaCount: 0,
+  hasViewportMeta: false
+}
+
+test('the mobile group reports what the phone pass counted', () => {
+  const phone = findingsFor({ mobile: MOBILE })
+
+  assert.equal(find(phone, 'mobile_overflow')?.severity, 'alert')
+  assert.equal(find(phone, 'no_viewport_meta')?.severity, 'alert')
+  assert.equal(
+    find(phone, 'mobile_tap_targets')?.severity,
+    'warn',
+    'twelve small controls is a page with a carousel and a row of icons, not a broken one'
+  )
+  assert.equal(
+    find(findingsFor({ mobile: { ...MOBILE, smallTapTargetCount: 25 } }), 'mobile_tap_targets')
+      ?.severity,
+    'alert'
+  )
+  assert.equal(find(phone, 'mobile_tiny_text')?.severity, 'ok')
+  assert.equal(find(phone, 'mobile_above_fold_ctas')?.severity, 'alert', 'nothing to tap above the fold')
+
+  // The phone pass is a reload on a connection the desktop pass already opened, so it has no load
+  // numbers of its own to report -- see PageMobile. The `load` group stays the only place a timing
+  // is printed, measured once.
+  assert.equal(
+    phone.some((finding) => finding.group === 'mobile' && finding.unit === 'seconds'),
+    false
+  )
+})

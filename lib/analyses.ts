@@ -12,7 +12,8 @@ import {
   SNAPSHOT_HISTORY_MAX
 } from '@/lib/constants'
 import { displayHost } from '@/lib/host'
-import { AI_FIX_CATEGORY, type FixKind, type PulseState } from '@/lib/enums'
+import { AI_FIX_CATEGORY, type FixKind, type Market, type PulseState } from '@/lib/enums'
+import { competitorInput } from '@/lib/competitor'
 import { EMPTY_HISTORY, snapshotInput, type ReadoutHistory } from '@/lib/snapshots'
 import { isUuid } from '@/lib/uuid'
 import type { ReadoutInput } from '@/lib/readout'
@@ -69,7 +70,7 @@ export function splitVisibility(fixes: FlowFix[]): { seo: FlowFix[]; ai: FlowFix
 export function readoutFor(
   analysis: Pick<
     Analysis,
-    'structure' | 'seo' | 'performance' | 'crawlerAccess' | 'keywords'
+    'structure' | 'seo' | 'performance' | 'crawlerAccess' | 'keywords' | 'mobile' | 'market'
   >
 ): ReadoutInput {
   return {
@@ -77,11 +78,36 @@ export function readoutFor(
     seo: analysis.seo,
     performance: analysis.performance,
     crawler: analysis.crawlerAccess,
-    keywords: analysis.keywords
+    keywords: analysis.keywords,
+    mobile: analysis.mobile,
+    market: analysis.market
   }
 }
 
-export async function readoutHistory(analysisId: string): Promise<ReadoutHistory> {
+/**
+ * The competitor half of the readout, or nulls when the analysis named none.
+ *
+ * Beside `readoutFor` rather than inside it: the two are different pages and the component takes
+ * them as different props, precisely so the report can never render "they have 3 more" in the cell
+ * that means "you improved by 3".
+ */
+export function competitorFor(
+  analysis: Pick<Analysis, 'competitor' | 'competitorUrl' | 'market'>
+): { competitor: ReadoutInput | null; competitorHost: string | null } {
+  if (!analysis.competitor) return { competitor: null, competitorHost: null }
+
+  return {
+    competitor: competitorInput(analysis.competitor, analysis.market),
+    // The hostname, never the path: a competitor's URL is as likely to be an unlisted campaign page
+    // as the reader's own, and the board already reduces one for the same reason.
+    competitorHost: displayHost(analysis.competitorUrl ?? analysis.competitor.url)
+  }
+}
+
+export async function readoutHistory(
+  analysisId: string,
+  market: Market
+): Promise<ReadoutHistory> {
   const rows = await db
     .select()
     .from(pageSnapshots)
@@ -94,7 +120,7 @@ export async function readoutHistory(analysisId: string): Promise<ReadoutHistory
   if (rows.length < 2) return EMPTY_HISTORY
 
   return {
-    previous: snapshotInput(rows[1]),
+    previous: snapshotInput(rows[1], market),
     scores: rows
       .filter((row) => row.score !== null)
       .map((row) => ({ score: row.score as number, capturedAt: row.capturedAt }))

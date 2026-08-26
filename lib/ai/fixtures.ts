@@ -5,7 +5,7 @@ import type {
   VisibilityFixOutput
 } from '@/lib/ai/schema'
 import type { Locale } from '@/lib/enums'
-import type { PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
+import type { PageMobile, PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
 
@@ -24,7 +24,24 @@ export const FIXTURE_STRUCTURE: PageStructure = {
   navLinkCount: 8,
   headingCount: 14,
   sectionCount: 9,
-  wordCount: 720
+  wordCount: 720,
+
+  requiredFieldCount: 5,
+  fieldsWithoutLabel: 2,
+  formSteps: 1,
+  hasSubmit: true,
+  hasClientValidation: true,
+  deadCtaCount: 1,
+
+  hasCnpj: false,
+  testimonialWithAttributionCount: 0,
+  clientLogoCount: 4,
+  trustBadgeCount: 0,
+  hasPrivacyPolicy: true,
+  hasTerms: true,
+  hasPhysicalAddress: false,
+  hasPhone: false,
+  hasSocialLinks: true
 }
 
 export const FIXTURE_SEO: PageSeo = {
@@ -53,6 +70,17 @@ export const FIXTURE_PERFORMANCE: PagePerformance = {
   transferredBytes: 3_400_000,
   requestCount: 84,
   domNodeCount: 1450
+}
+
+// Deliberately a page with mobile problems: the e2e run is the only place these cells are rendered
+// without a real browser behind them, so a clean fixture would mean nothing ever exercises the
+// warn and alert branches.
+export const FIXTURE_MOBILE: PageMobile = {
+  horizontalOverflow: true,
+  smallTapTargetCount: 6,
+  tinyTextCount: 11,
+  aboveFoldCtaCount: 1,
+  hasViewportMeta: true
 }
 
 export const FIXTURE_CRAWLER_ACCESS: CrawlerAccess = {

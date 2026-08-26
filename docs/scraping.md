@@ -41,23 +41,75 @@ preview. It awaits `document.fonts.ready` plus every pending `document.images` e
 and `aboveFoldCtaCount` are measured against it, so it cannot be left at Puppeteer's 800x600 default
 without calling a normal hero "below the fold".
 
+**"Above the fold" needs both bounds.** `top < innerHeight` is also true of everything *above* the
+viewport, and an off-canvas menu parks its whole contents at a negative `top` — so a page with a
+closed drawer used to report a dozen calls to action nobody can see. Both passes require
+`top >= 0 && top < innerHeight`.
+
+## The phone pass
+
+`scrapePage` measures the page twice, and the second pass costs **a page load, not a browser slot**.
+After the desktop capture it sets `MOBILE_USER_AGENT`, switches to `SCRAPE_VIEWPORT_MOBILE`
+(390x844, `isMobile`, `deviceScaleFactor: 3`) and reloads inside the same `withBrowserSlot`. A second
+slot would double an analysis's claim on `SCRAPE_MAX_CONCURRENT_PAGES` for a measurement that needs
+no second page.
+
+The reload is not decoration. A bare `setViewport` re-lays the page out, but does not re-run a
+user-agent branch or re-request images at phone sizes, so the layout measured would be a layout no
+phone receives.
+
+**`PageMobile` carries geometry and no load numbers, and that is a rule rather than an omission.**
+The reload runs on a connection the desktop pass already opened, so its TTFB skips DNS and the TLS
+handshake and every timing after it inherits the head start. Measured that way a page reports
+painting *faster* on a phone than on a laptop — not a floor with a caveat on it, simply backwards.
+Timings stay in the `load` group, measured once, with the caveat they already carry. See
+[invariants.md](invariants.md#the-readout-says-what-was-counted-never-what-it-will-produce).
+
+`captureMobile`'s visibility test is stricter than the desktop one, and has to be: a phone layout
+routinely keeps its whole navigation in the DOM translated off to one side, where `display` and
+`visibility` say nothing about it. It also requires the element to intersect the viewport
+horizontally and to have non-zero opacity. Tap targets additionally exclude `display: inline`, because
+a link inside a sentence is prose rather than something anyone aims a thumb at.
+
 ## `PageStructure` — what the page does
 
 A flat record: `hasOauth`, `formFieldCount`, `hasFaq`, `hasPricing`, `hasTestimonials`, `hasVideo`,
-`hasStickyCta`, `bodyLinkCount`, `aboveFoldCtaCount`, `navLinkCount`, `sectionCount`, `wordCount`.
+`hasStickyCta`, `bodyLinkCount`, `aboveFoldCtaCount`, `navLinkCount`, `sectionCount`, `wordCount`,
+plus what the form asks for (`requiredFieldCount`, `fieldsWithoutLabel`, `formSteps`, `hasSubmit`,
+`hasClientValidation`, `deadCtaCount`) and what the page offers as a reason to believe it (`hasCnpj`,
+`testimonialWithAttributionCount`, `clientLogoCount`, `trustBadgeCount`, `hasPrivacyPolicy`,
+`hasTerms`, `hasPhysicalAddress`, `hasPhone`, `hasSocialLinks`).
+
+**Everything after `wordCount` is optional on the type, and that is load bearing.** The column is a
+`jsonb` written since before those fields existed, so a row measured last month carries the object
+and none of the keys. `undefined` there means *not measured*, which is a different fact from `0`, and
+`measuredFindings` guards every one of them with `!== undefined` rather than a truthiness check —
+zero is a real and common answer for most of them. Reporting a finding of zero for a page nobody
+counted it on reports unknown as negative, which
+[invariants.md](invariants.md#unknown-is-never-reported-as-negative) forbids outright.
+
+**The form is read, never operated.** Steps, required fields and missing labels all come off the DOM.
+Nothing clicks, types or submits: sending a stranger's form would write a fake lead into their CRM
+every time somebody ran an analysis, fire their automations, and on a checkout page start a charge.
 
 Every signal is **deliberately conservative**: a false negative costs one redundant suggestion, a
-false positive silently drops a real fix. Two rules follow from how it is measured:
+false positive silently drops a real fix. Three rules follow from how it is measured:
 
 - **A provider name alone is never social sign in.** A dev tool links to GitHub in its nav. The same
   control must also read as an auth action, matched against `STRUCTURE_PATTERNS.auth`.
 - **`bodyLinkCount` is named for what it counts.** It is every short clickable outside
   nav/header/footer, including a feature card's "Learn more", so it must never be presented to the
   model as a CTA count.
+- **A pattern crossing `page.evaluate` is a string, never a `RegExp`.** A RegExp does not survive that
+  serialization; it arrives as an empty object and every test against it answers `false`, which reads
+  as "this page has no trust signals" rather than as a bug. `TRUST_PATTERNS` declares them with
+  `String.raw` so the escaping is the regex's own — a quoted `'\d'` is an unknown escape that
+  collapses to the letter, and that is exactly how the CNPJ check once answered false on a page
+  printing one.
 
 This readout is serialized straight into the playbook prompt and is that prompt's **only** ground
 truth, which is what bounds what the playbook may claim — see
-[invariants.md](invariants.md#a-generated-evidence-never-carries-a-number).
+[invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured).
 
 There was once a `reference_pages` corpus behind an extra quantitative evidence block. It was removed
 along with its hand-curated ingest, and re-adding one means re-adding the honesty contracts too: a
@@ -210,6 +262,38 @@ resolving with a null url; only `unavailable` offers a retry.
 `<kind>:<ref>`, and for a screenshot the ref is the `variantId`. Two readers opening the same preview
 therefore share one job rather than racing to render the same variant twice and orphaning a file —
 the duplicate render [report.md](report.md) describes is closed by construction rather than by luck.
+
+### A job in flight survives a restart
+
+It did not, once, and the trade was written down as acceptable: an id was popped off the list before
+it ran, so a process dying under it left nothing holding the work, and the client polled a `running`
+job until its TTL lapsed and then read `unavailable`. That was fine while the only job was a
+screenshot — idempotent, cheap, free to ask for again.
+
+**It stopped being fine the moment a job spent a credit.** `POST /api/analyses` charges before it
+enqueues, and `refundCredit` only fires when the generation throws, never when the process dies under
+it — so a restart mid-drain lost the analysis *and* the money, with nothing left to say it had
+happened.
+
+So `drain` moves the id to `queue:processing` with `LMOVE` instead of popping it, removes it in a
+`finally` (both terminal answers are answers the client can read, so both release the claim), and
+`reap` puts back whatever a dead process left behind.
+
+**`reap` is correct only because there is exactly one process.** `railway.json` pins
+`numReplicas: 1`, and the screenshot volume is what pins it, so anything sitting in the processing
+list at startup was orphaned by definition. The day a second replica exists this becomes a bug of the
+worst kind — it would requeue a job another replica is running right now — and the fix then is a
+per-entry timestamp and a reaper that only takes entries held longer than any job can legitimately
+take.
+
+It runs from `drain`, not at module load, and that ordering matters: `registerRunner` is called at the
+module scope of the route that owns the work, and that route is what imports `lib/queue.ts`. At import
+time the runner map is empty and a reaped job would be answered `unavailable` by a worker that had
+simply not learned its handler yet. The cost is that an orphan waits for the next enqueue.
+
+A requeued job runs its handler a second time, so **the handler has to be able to say "already
+done"** — `runAnalysis` returns early on a row that already holds its results, or the reader gets
+every hypothesis twice. The credit is not at risk either way: it is spent by the route, not the job.
 
 ### Three rules that hold it together
 

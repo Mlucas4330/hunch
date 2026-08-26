@@ -13,7 +13,12 @@ import { t } from '@/lib/i18n/format'
 import type { JobStatus } from '@/lib/enums'
 import Image from 'next/image'
 
-type Response = { status: JobStatus; url: string | null; overflow?: boolean }
+type Response = {
+  status: JobStatus
+  url: string | null
+  beforeUrl?: string | null
+  overflow?: boolean
+}
 
 // Four states, and the split between the last two is the whole point of the queue. `waiting` means
 // the work is queued or running and will arrive; `error` means it never can. Both used to reach the
@@ -25,17 +30,23 @@ export function VariantPreview({
   embedKey,
   hypothesisId,
   initialUrl,
+  initialBeforeUrl = null,
   initialOverflow = false
 }: {
   embedKey: string
   hypothesisId: string
   initialUrl: string | null
+  initialBeforeUrl?: string | null
   initialOverflow?: boolean
 }) {
   const { dictionary } = useI18n()
   const [url, setUrl] = useState<string | null>(initialUrl)
+  const [beforeUrl, setBeforeUrl] = useState<string | null>(initialBeforeUrl)
   const [overflow, setOverflow] = useState(initialOverflow)
   const [state, setState] = useState<State>(initialUrl ? 'ready' : 'idle')
+  // Where the wipe sits, as a percentage from the left. Starts just past halfway so both images are
+  // visible at rest: at 0 or 100 the control looks like a plain screenshot with a stray slider.
+  const [wipe, setWipe] = useState(55)
   const polling = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // A poll left running after the card unmounts keeps hitting the route for a preview nobody is
@@ -49,6 +60,7 @@ export function VariantPreview({
   function settle(data: Response) {
     if (data.status === 'ready' && data.url) {
       setUrl(data.url)
+      setBeforeUrl(data.beforeUrl ?? null)
       setOverflow(data.overflow ?? false)
       setState('ready')
       return true
@@ -108,7 +120,10 @@ export function VariantPreview({
         {dictionary.report.appliedToYourPage}
       </p>
 
-      {state === 'ready' && url ? (
+      {/* **A variant rendered before the pair existed shows its one image, and that is not a
+          degraded rendering** -- one image is all that was ever captured for that row. The slider
+          appears only when there is genuinely something to slide between. */}
+      {state === 'ready' && url && !beforeUrl ? (
         <div className="overflow-hidden rounded-md border bg-muted">
           <Image
             src={url}
@@ -121,6 +136,76 @@ export function VariantPreview({
               setState('idle')
             }}
           />
+        </div>
+      ) : null}
+
+      {state === 'ready' && url && beforeUrl ? (
+        <div className="space-y-2" data-testid="variant-compare">
+          <div className="relative overflow-hidden rounded-md border bg-muted">
+            {/* The page as it is now, in the normal flow: it gives the box its height, so the two
+                images cannot disagree about how tall the frame is. */}
+            <Image
+              src={beforeUrl}
+              alt={dictionary.report.previewBeforeAlt}
+              width={SCRAPE_VIEWPORT.width}
+              height={SCRAPE_VIEWPORT.height}
+              className="h-auto w-full"
+              onError={() => setBeforeUrl(null)}
+            />
+
+            {/* The rewrite on top, revealed by a clip rather than by a width: clipping shows the
+                right-hand slice of an image that is still laid out at full size, so the two stay
+                registered pixel for pixel. Resizing it would slide the content sideways under the
+                wipe and nothing would line up. */}
+            <div
+              className="absolute inset-0"
+              style={{ clipPath: `inset(0 0 0 ${wipe}%)` }}
+              aria-hidden="true"
+            >
+              <Image
+                src={url}
+                alt=""
+                width={SCRAPE_VIEWPORT.width}
+                height={SCRAPE_VIEWPORT.height}
+                className="h-auto w-full"
+                onError={() => {
+                  setUrl(null)
+                  setState('idle')
+                }}
+              />
+            </div>
+
+            <div
+              className="pointer-events-none absolute inset-y-0 w-px bg-primary"
+              style={{ left: `${wipe}%` }}
+              aria-hidden="true"
+            />
+          </div>
+
+          {/* **A range input, not a drag handle.** It is the reason this works with a keyboard and
+              with a screen reader at all: arrows move the wipe, the value is announced, and none of
+              that would exist behind a pointerdown listener. */}
+          <label className="block">
+            <span className="sr-only">{dictionary.report.compareLabel}</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={wipe}
+              onChange={(event) => setWipe(Number(event.target.value))}
+              className="w-full accent-primary"
+              aria-valuetext={t(dictionary.report.compareValue, { percent: wipe })}
+            />
+          </label>
+
+          <div className="flex justify-between">
+            <p className="panel-label text-[0.6rem] text-muted-foreground">
+              {dictionary.report.compareBefore}
+            </p>
+            <p className="panel-label text-[0.6rem] text-muted-foreground">
+              {dictionary.report.compareAfter}
+            </p>
+          </div>
         </div>
       ) : null}
 

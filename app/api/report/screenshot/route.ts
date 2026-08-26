@@ -23,11 +23,18 @@ export function OPTIONS() {
   return preflight()
 }
 
-type Shot = { url: string; overflow: boolean }
+// `beforeUrl` is nullable rather than required: a variant rendered before the slider existed has one
+// image and only ever had one, and the client shows it on its own.
+type Shot = { url: string; beforeUrl: string | null; overflow: boolean }
 
 function json(status: JobStatus, result?: Shot) {
   return NextResponse.json(
-    { status, url: result?.url ?? null, overflow: result?.overflow ?? false },
+    {
+      status,
+      url: result?.url ?? null,
+      beforeUrl: result?.beforeUrl ?? null,
+      overflow: result?.overflow ?? false
+    },
     { headers: CORS_HEADERS }
   )
 }
@@ -48,7 +55,7 @@ async function renderVariant(id: string): Promise<RunOutcome<Shot>> {
   const { hypothesis } = variant
   if (hypothesis.target !== 'auto' || !hypothesis.selector) return { ok: false }
 
-  const { buffer, overflow } = await screenshotVariant(
+  const { before, after, overflow } = await screenshotVariant(
     hypothesis.analysis.url,
     hypothesis.selector,
     variant.copy,
@@ -56,14 +63,19 @@ async function renderVariant(id: string): Promise<RunOutcome<Shot>> {
     variant.emphasis
   )
 
-  const url = await saveScreenshot(variant.id, buffer)
+  // Two files under SCREENSHOT_DIR, which is also two files the prune cron already deletes at
+  // SCREENSHOT_RETENTION_DAYS -- anything written there inherits it. See docs/deployment.md.
+  const [beforeUrl, url] = await Promise.all([
+    saveScreenshot(variant.id, before),
+    saveScreenshot(variant.id, after)
+  ])
 
   await db
     .update(variants)
-    .set({ screenshotUrl: url, screenshotOverflow: overflow })
+    .set({ screenshotUrl: url, screenshotBeforeUrl: beforeUrl, screenshotOverflow: overflow })
     .where(eq(variants.id, variant.id))
 
-  return { ok: true, result: { url, overflow } }
+  return { ok: true, result: { url, beforeUrl, overflow } }
 }
 
 registerRunner(KIND, renderVariant)
@@ -99,7 +111,11 @@ export async function POST(request: Request) {
     if (!variant) return json('unavailable')
 
     if (variant.screenshotUrl) {
-      return json('ready', { url: variant.screenshotUrl, overflow: variant.screenshotOverflow })
+      return json('ready', {
+        url: variant.screenshotUrl,
+        beforeUrl: variant.screenshotBeforeUrl,
+        overflow: variant.screenshotOverflow
+      })
     }
     if (process.env.E2E_FIXTURES === '1') return json('unavailable')
 
@@ -147,7 +163,11 @@ export async function GET(request: Request) {
     // Postgres is the durable answer and Redis is only the in-flight one, so the row wins: a job
     // whose TTL lapsed after the render succeeded must still read as ready.
     if (variant.screenshotUrl) {
-      return json('ready', { url: variant.screenshotUrl, overflow: variant.screenshotOverflow })
+      return json('ready', {
+        url: variant.screenshotUrl,
+        beforeUrl: variant.screenshotBeforeUrl,
+        overflow: variant.screenshotOverflow
+      })
     }
 
     const job = await readJob<Shot>(jobId(KIND, variant.id))

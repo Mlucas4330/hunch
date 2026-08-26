@@ -32,8 +32,9 @@ testimonials, headings. A reader looking at *Depoimentos de clientes* under a he
 argument is that the numbers are careful.
 
 It now reads *"A experiência de quem chega na página"* / *"What a visitor runs into on the page"* —
-neutral about the direction, true of all eight. **When a finding is added to a group, re-read that
-group's label before shipping it.**
+neutral about the direction, true of all of them. **When a finding is added to a group, re-read that
+group's label before shipping it.** The form findings that landed later pass the same test: a
+mandatory field, an unlabelled one and a button that links nowhere are all things a visitor runs into.
 
 ## The `visibility` group
 
@@ -47,6 +48,62 @@ citation count: nobody publishes that number, so producing one would mean invent
 than three loose findings — a failed fetch has to take all three out at once, or the page ends up
 credited with an open robots.txt we never read. `absent` is the opposite case and does render: no
 robots.txt is a measured answer, and it means nothing is blocked and no sitemap is declared.
+
+## A group is skipped whole, never rendered as zeroes
+
+`visibility` was the first, and `trust` and `mobile` follow it exactly. All three answer the same
+question: what does the readout do when a pass never ran?
+
+- `visibility` is gated on `crawler.status !== 'unknown'`.
+- `mobile` is gated on `mobile !== null` — the column is null on every row measured before the phone
+  pass existed.
+- `trust` is gated on **one field**, `structure.trustBadgeCount !== undefined`, rather than on
+  `structure` itself. The object being present says nothing about whether anybody counted a trust
+  signal on it, because the fields were added to a `jsonb` that already had rows.
+
+The individual form findings inside `structure` are gated the same way, one by one, because they sit
+in a group that does render for old rows. Each guard is `!== undefined` and never a truthiness check:
+zero required fields and zero dead links are real, common, and good answers.
+
+**A finding of zero for a page nobody counted it on reports unknown as negative**, which is the rule
+in [invariants.md](invariants.md#unknown-is-never-reported-as-negative). Adding a field to
+`PageStructure` therefore means adding a guard, and the test that pins it is *"a structure measured
+before the form pass existed reports no form findings"* in `lib/readout.test.ts`.
+
+## The `trust` group
+
+What the page offers a visitor as a reason to believe it: a company registration number, a security
+or reputation badge, testimonials that name who said them, a linked privacy policy, and a way to
+reach the company. Counted off the DOM against `TRUST_PATTERNS`, which is bilingual because the
+page's language is not known until the scrape has run.
+
+Two findings are narrower than the rest on purpose:
+
+- **`no_cnpj` is asked only where `market === 'br'`.** It is the only finding that reads the market,
+  and it reads it to stay quiet: a CNPJ in the footer is a Brazilian convention, and its absence on a
+  US page is noise rather than a gap. This is the market ruling a sentence out, never supplying a
+  fact about buyers — see
+  [invariants.md](invariants.md#the-market-is-a-filter-on-what-may-be-recommended-never-a-fact-the-model-knows).
+- **`testimonial_attribution` is asked only of a page that has testimonials.** `no_testimonials` in
+  the `structure` group already reports the absence, and following it with "0 of them carry a name"
+  is one absence dressed as two.
+
+`no_contact_channel` answers on *any* of phone, address or social links. Which channel a company
+offers is its own choice; having none is the finding.
+
+## The `mobile` group
+
+Five geometric facts measured in a phone viewport: whether the page overflows sideways, how many
+controls fall under `MOBILE_TAP_TARGET_MIN_PX`, how much text falls under `MOBILE_MIN_FONT_PX`, how
+many calls to action sit above the phone fold, and whether a viewport meta tag is declared.
+
+**No load numbers, deliberately** — see [scraping.md](scraping.md#the-phone-pass) for why a reload's
+timings would say the page is faster on a phone than on a laptop.
+
+`tapTargetsWarn`/`tapTargetsAlert` are calibrated against real pages rather than against the 44px rule
+in the abstract. A carousel's dots, a row of social icons and an icon-only close button put a well
+built page in the high teens on their own, so the original alert at ten called almost every site
+broken. The finding is "hard to use with a thumb", not "one control is two pixels short".
 
 ## Rules the numbers obey
 

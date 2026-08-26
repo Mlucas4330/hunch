@@ -76,15 +76,20 @@ export function UrlInputForm({
   /** The landing hero carries the page's own CTA wording; everywhere else uses the neutral one. */
   submitLabel?: string
   /**
+   * Whether this form runs where a credit is actually spent.
+   *
    * The brief only reaches a prompt on a run that generates, and an ownerless run never does — so on
    * the landing page it would be four questions asked of someone whose answers nothing will read.
-   * Shown where a credit is actually spent.
+   * The competitor field is gated on exactly the same fact for exactly the same reason: only the
+   * owned branch of `runAnalysis` measures a second page, so offering the field to the hero would
+   * take a URL and quietly ignore it.
    */
   showBrief?: boolean
 }) {
   const { dictionary } = useI18n()
   const router = useRouter()
   const [url, setUrl] = useState('')
+  const [competitorUrl, setCompetitorUrl] = useState('')
   // Parsed once from the string the column holds, so a brief written before the form had fields
   // opens in the form rather than disappearing behind it. See lib/brief.ts.
   const [brief, setBrief] = useState(() => parseBrief(defaultBrief))
@@ -105,6 +110,18 @@ export function UrlInputForm({
       return
     }
 
+    // Parsed here so a typo in an optional field is a message under that field rather than a 422
+    // from the route after the reader has already committed to the run.
+    let competitor: URL | null = null
+    if (showBrief && competitorUrl.trim()) {
+      try {
+        competitor = new URL(competitorUrl.trim())
+      } catch {
+        setError(dictionary.urlForm.errorInvalidCompetitor)
+        return
+      }
+    }
+
     setPending(true)
     setPhase(0)
     setElapsed(0)
@@ -118,7 +135,8 @@ export function UrlInputForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: parsed.toString(),
-          brief: composeBrief(brief) || undefined
+          brief: composeBrief(brief) || undefined,
+          competitorUrl: competitor?.toString()
         })
       })
 
@@ -174,6 +192,28 @@ export function UrlInputForm({
           {pending ? dictionary.urlForm.analyzing : (submitLabel ?? dictionary.urlForm.analyze)}
         </Button>
       </div>
+
+      {showBrief && (
+        <div className="space-y-1">
+          <label
+            htmlFor="competitorUrl"
+            className="panel-label text-[0.6rem] text-muted-foreground"
+          >
+            {dictionary.urlForm.competitorLabel}
+          </label>
+          <Input
+            id="competitorUrl"
+            name="competitorUrl"
+            type="url"
+            placeholder={dictionary.urlForm.competitorPlaceholder}
+            value={competitorUrl}
+            onChange={(e) => setCompetitorUrl(e.target.value)}
+            disabled={pending || blocked}
+            className="font-mono"
+          />
+          <p className="text-xs text-muted-foreground">{dictionary.urlForm.competitorHint}</p>
+        </div>
+      )}
 
       {pending && (
         <div className="space-y-2" role="status" aria-live="polite">

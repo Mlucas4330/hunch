@@ -6,6 +6,7 @@ import { ReadoutScore } from '@/components/readout-score'
 import { ReadoutTrend } from '@/components/readout-trend'
 import { RichText } from '@/components/rich-text'
 import { useI18n } from '@/components/i18n-provider'
+import { competitorValues } from '@/lib/competitor'
 import { BYTES_PER_MEGABYTE, MS_PER_SECOND, READOUT_SEVERITY_CLASS } from '@/lib/constants'
 import { READOUT_GROUP } from '@/lib/enums'
 import { formatDecimal, formatNumber, t } from '@/lib/i18n/format'
@@ -22,11 +23,23 @@ import { cn } from '@/lib/utils'
 export function MeasuredReadout({
   input,
   previous = null,
+  competitor = null,
+  competitorHost = null,
   scores = [],
   className
 }: {
   input: ReadoutInput
   previous?: ReadoutInput | null
+  /**
+   * A second page the reader named, measured by the same code.
+   *
+   * **It is a separate axis from `previous` and must never be shown as the same one.** `previous` is
+   * this page last time and its difference renders as a signed delta; this is a different page right
+   * now, and it renders as its own labelled value. Collapsing them into one cell would leave the
+   * reader unable to tell "you improved by 3" from "they have 3 more".
+   */
+  competitor?: ReadoutInput | null
+  competitorHost?: string | null
   scores?: ScorePoint[]
   className?: string
 }) {
@@ -34,6 +47,7 @@ export function MeasuredReadout({
   const copy = dictionary.readout
   const measured = readout(input)
   const moved = deltas(input, previous)
+  const theirs = competitor ? competitorValues(competitor, measured.findings) : null
 
   if (!hasReadout(measured)) return null
 
@@ -83,6 +97,18 @@ export function MeasuredReadout({
                       </span>
                     )}
                   </div>
+
+                  {/* The other page's own number, labelled with its hostname. Not a delta and not a
+                      verdict: two pages differ, and nothing here says the difference causes
+                      anything. See docs/invariants.md. */}
+                  {theirs?.has(finding.id) && (
+                    <p className="truncate font-mono text-[0.7rem] tabular-nums text-muted-foreground">
+                      {competitorHost}{' '}
+                      <span className="text-foreground">
+                        {renderValue(theirs.get(finding.id)!, copy, locale)}
+                      </span>
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

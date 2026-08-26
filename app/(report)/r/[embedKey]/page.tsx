@@ -10,7 +10,7 @@ import { AnalysisTabs } from '@/components/analysis-tabs'
 import { WhyBlock } from '@/components/why-block'
 import { hasPlaceholders } from '@/lib/utils'
 import { MeasuredReadout } from '@/components/measured-readout'
-import { loadReport, readoutFor, splitFixes, splitVisibility } from '@/lib/analyses'
+import { competitorFor, loadReport, readoutFor, splitFixes, splitVisibility } from '@/lib/analyses'
 import { PLAYBOOK_EXPANDED_COUNT } from '@/lib/constants'
 import type { FlowFix } from '@/db/schema'
 import type { PlaybookSection } from '@/lib/enums'
@@ -111,7 +111,7 @@ export default async function PublicReportPage({
         </div>
       )}
 
-      <MeasuredReadout input={readoutFor(analysis)} />
+      <MeasuredReadout input={readoutFor(analysis)} {...competitorFor(analysis)} />
 
       {generated ? (
         <AnalysisTabs
@@ -169,6 +169,7 @@ export default async function PublicReportPage({
                           embedKey={analysis.embedKey}
                           hypothesisId={hypothesis.id}
                           initialUrl={recommended?.screenshotUrl ?? null}
+                          initialBeforeUrl={recommended?.screenshotBeforeUrl ?? null}
                           initialOverflow={recommended?.screenshotOverflow ?? false}
                         />
                       ) : (

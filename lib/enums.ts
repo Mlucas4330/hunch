@@ -160,8 +160,13 @@ export type PulseState = (typeof PULSE_STATE)[number]
 // this list, and every id has a sentence in dictionary.readout. See docs/readout.md.
 export const READOUT_FINDING = [
   'form_fields',
+  'required_fields',
+  'fields_without_label',
+  'form_steps',
+  'no_submit',
   'no_social_signin',
   'above_fold_ctas',
+  'dead_ctas',
   'nav_links',
   'no_faq',
   'no_testimonials',
@@ -186,7 +191,17 @@ export const READOUT_FINDING = [
   'fcp',
   'lcp',
   'page_weight',
-  'request_count'
+  'request_count',
+  'no_cnpj',
+  'no_trust_badge',
+  'testimonial_attribution',
+  'no_privacy_policy',
+  'no_contact_channel',
+  'mobile_overflow',
+  'no_viewport_meta',
+  'mobile_tap_targets',
+  'mobile_tiny_text',
+  'mobile_above_fold_ctas'
 ] as const
 export type ReadoutFinding = (typeof READOUT_FINDING)[number]
 
@@ -196,7 +211,18 @@ export type ReadoutSeverity = (typeof READOUT_SEVERITY)[number]
 
 // Also the render order. `visibility` is skipped whole when robots.txt could not be read, because
 // "we could not check" is not "they block AI crawlers". See docs/invariants.md.
-export const READOUT_GROUP = ['structure', 'metadata', 'visibility', 'load'] as const
+//
+// `trust` and `mobile` are skipped the same way and for the same reason: a row measured before those
+// passes existed carries no value for them, and a group of zeroes would report never-measured as
+// wrong. Every group here is all or nothing.
+export const READOUT_GROUP = [
+  'structure',
+  'trust',
+  'mobile',
+  'metadata',
+  'visibility',
+  'load'
+] as const
 export type ReadoutGroup = (typeof READOUT_GROUP)[number]
 
 export const READOUT_UNIT = ['count', 'seconds', 'megabytes', 'presence'] as const

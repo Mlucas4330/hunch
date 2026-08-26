@@ -38,14 +38,25 @@ page in one click, and the only thing here anyone shares unprompted.
   (`landing.eyebrow`, `lead`, `ctaNote`, `how.intro`) and all four were false. The closing CTA and the
   blog CTA now scroll to `#top` rather than sending a stranger to sign in.
   `e2e/anon-hero.spec.ts` drops the storage state and walks it.
-- The hero form passes `showBrief={false}`: the brief only reaches a prompt on a run that generates,
-  and an ownerless one never does, so asking four questions there is asking for answers nothing will
-  read. It carries `submitLabel={d.landing.cta}` so the button keeps the page's own wording instead of
-  the neutral "Analyze".
+- The hero form passes `showBrief={false}`, and that one flag now gates two fields. The brief only
+  reaches a prompt on a run that generates, and an ownerless one never does, so asking four questions
+  there is asking for answers nothing will read. **The competitor URL is gated on the identical fact
+  for the identical reason**: only the owned branch of `runAnalysis` measures a second page, so
+  offering the field in the hero would take a URL and quietly ignore it. It carries
+  `submitLabel={d.landing.cta}` so the button keeps the page's own wording instead of the neutral
+  "Analyze".
 - **An empty balance is said out loud.** `CreditBalance` renders `credits.freeHalf` at zero only —
   "You have no credits" beside a Buy button otherwise reads as a dead end, when the whole measured
   readout is still available. The FAQ answers the same question directly. At one credit the line is
   noise, so it is not shown.
+- **The balance lives in the account menu, not on the dashboard.** It used to sit above the form that
+  spends it, which meant it existed on exactly one screen; in `AccountPanel` it is on every screen and
+  in the mobile menu for free, because the navbar already renders that panel in both. It is still read
+  off the user row on every render — `getCurrentUser()` returns the row, so `user.credits` costs no
+  extra query and is never the stale number a JWT would carry. `CreditBalance` takes a `variant`: the
+  `menu` one drops its border, since the panel around it already is a card. The two variants carry
+  different `data-testid`s because the admin screen renders the card one while the navbar renders the
+  menu one, and a shared id would be two matches for one selector.
 - Hero: the reader's own page, scored. The hero card is a **static mock of a readout**: a score and a
   few finding rows on the placeholder domain in `landing.heroCard.domain`.
 - **What the hero card may never show is a miracle number** — a lift, a conversion rate, a revenue
@@ -85,6 +96,18 @@ page in one click, and the only thing here anyone shares unprompted.
   blankness a hole the exact size of the demo. A `Skeleton` fills the same box until the iframe's own
   `load` fires and the frame fades in over it, so the section reads as loading rather than as broken.
   Nothing there paints once the frame is up, which is what keeps the no-border rule above intact.
+- **On a phone the frame is full bleed, and 375px of width is the ceiling.** A negative margin
+  cancels the container's own padding, which is the only lever there is: the frame's height is its
+  width divided by `SUPADEMO_ASPECT`, so a 2:1 desktop capture in a 375px column is 187px tall
+  however it is presented. That was measured rather than assumed — an expanded modal came out at
+  373x187 against the inline 375x188, which is why there is no "enlarge" button. **Turning the phone
+  is the one thing that helps**, and the same inline frame then measures 780x390, so a portrait phone
+  gets one line of copy saying so and nothing else. The line is two nested elements rather than one
+  class list, because "below `sm`" and "in portrait" are different media queries and their order in
+  the generated stylesheet is not something to rely on.
+- **There is deliberately no link out to the tour's own page.** It would have given the demo the whole
+  viewport by handing a visitor who is halfway down the landing page to somebody else's domain.
+  Traffic that arrived here does not leave here for a bigger picture.
 - **In-page links scroll rather than jump.** `scroll-smooth` sits on `<html>` in `app/layout.tsx`, so
   every anchor on the page -- `howItWorksLink` to `#how`, the closing CTAs to `#top`, the FAQ -- eases
   to its target instead of teleporting, and the reader keeps track of where the page went. Each
@@ -177,6 +200,22 @@ readout's, and a pricing table is where it is easiest to break.
   now, or one just measured. **It is portalled to the body**, because the landing wrapper's
   `animate-fade-up` leaves a transform behind and a transformed ancestor captures `position: fixed`.
   Closing it silences the toast for the tab.
+- **The domain is its own element, not a token inside the sentence.** Interpolated into
+  `pulse.running` / `pulse.done` it was one run of text in a chip narrow enough that `truncate` ate
+  the end of it, and the end is where the score lives. Split across two lines the domain gets the
+  emphasis it deserves in mono, the sentence gets its own line, and neither is cut at 375px. Only the
+  domain may truncate: it is a hostname and its start identifies it.
+- **A bar on a phone, a chip on a desktop.** Pinning only `left` gave the toast the width of its
+  content, which on a 375px screen is a box with no room for the sentence inside it. Both edges are
+  pinned below `sm`; above it the toast goes back to the corner.
+- **The state rule down the left edge is a child element, never `border-l-4` plus a colour class.**
+  `cn` runs tailwind-merge, which reads `border-l-4` and `border-l-green` as one group and drops one
+  of them — the toast shipped a four pixel rule in the default grey until this was measured. A child
+  cannot be merged away, and it leaves the card its own border on all four sides. The running state
+  additionally carries an `animate-ping` halo: it is the one that says the tool is working on
+  somebody's page at this moment, and a measured row has already happened and sits still.
+- A row with no score reads as running whatever its `state` says, and the sentence, the dot and the
+  rule all read the same flag — one claim shown three ways cannot be allowed to disagree with itself.
 
 ## The blog
 
@@ -190,7 +229,7 @@ other two titles and `components/blog-cta.tsx` -- see [components.md](components
 - **A post is subject to the same rule as every other surface: no invented number.** No "X% of
   searches", no lift figure, no "studies show". A post argues the mechanism, exactly as a generated
   `evidence` must -- see
-  [invariants.md](invariants.md#a-generated-evidence-never-carries-a-number). A blog is where that
+  [invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured). A blog is where that
   rule is easiest to break and most expensive to break, because it is the first thing the reader ever
   sees us say.
 - The AI post additionally states what nobody can know: whether an assistant mentions the reader
@@ -343,8 +382,22 @@ any **number**, and that rule is untouched.
   computes emptiness itself. This is the normal case for analyses generated before the visibility audit
   existed: their rows are all `flow`, so SEO and AI are genuinely empty.
 - `seo` and `ai` are the same rows cut by category — see [data-model.md](data-model.md).
+- **Each panel is wrapped in a `<div>` of its own, and that is a React key fix rather than layout.** A
+  panel is built by the page that owns the tabs and handed over as a prop, so it is created in a
+  server component and reconciled by a client one — which costs it the marking that says it is a
+  statically placed child. Dropped in beside the panel heading it becomes the second entry of a
+  children array with no key, and dev warns, naming `AnalysisTabs` (where the array is) and the page
+  (where the element came from). The old fix was a `key` on every panel at every call site, which
+  worked on `/analyses/[id]` and was never done on the public report, so that surface warned on every
+  load. The wrapper makes the panel an only child instead of an array member, and no call site has to
+  know any of this.
 
 ### The ranked hypothesis list — `components/hypothesis-list.tsx`
+
+**It renders the variant preview, and for a while it did not.** The before/after picture existed only
+on `/r/<embedKey>`, which put it in front of everyone the reader shared the link with and nowhere in
+front of the reader who paid for it. It takes `embedKey` for that reason alone: the preview route
+authenticates on the key rather than on a session, so the key is what has to reach the card.
 
 Impact descending. **Every row is a `HypothesisCard`**, the shared header the public report renders
 too — see [components.md](components.md) — over one `DisclosureCard` shape, no tiers. The first
@@ -368,7 +421,7 @@ finished with row 1 had no way to fold it away.
   idiom the landing hero mock uses. Unprefixed, the two read as one undifferentiated paragraph and the
   argument for the change lands as generic reasoning. Marking it is the whole fix: **nothing new is
   generated there**, and what is generated obeys
-  [invariants.md](invariants.md#a-generated-evidence-never-carries-a-number) like every other
+  [invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured) like every other
   `evidence` field.
 - **Two alternate options, written on demand.** Only the recommendation exists when the screen loads.
   `Other options` fires `POST /api/hypotheses/[id]/variants`, shows a "Writing other options..."

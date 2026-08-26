@@ -86,7 +86,7 @@ visibility* instead of *Flow / Copy / SEO / Found by AI*. Only the **labels** mo
 copy the product already wrote, how many are structural — interpolated into a dictionary string, the
 same mechanism as `dictionary.readout.findings[id]` in [readout.md](readout.md). It is deliberately
 **not** a generation call: a model writing this paragraph would be writing prose around numbers, which
-is the failure [invariants.md](invariants.md#a-generated-evidence-never-carries-a-number) exists to
+is the failure [invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured) exists to
 prevent.
 
 The two summary cells are `report.changesFound` and `report.copyWritten`, both counts of what is in
@@ -95,6 +95,10 @@ the document. `topImpact` came out: `7/10` is our internal score and means nothi
 [invariants.md](invariants.md#the-readout-says-what-was-counted-never-what-it-will-produce).
 
 ### Variant preview — `components/variant-preview.tsx`
+
+Rendered on both surfaces: the public report and the owner's own analysis screen. It was on the report
+alone for a while, which meant the picture reached everyone the link was shared with and never the
+person who paid for it -- see [analysis-ui.md](analysis-ui.md).
 
 Renders the landing page with the recommended copy swapped in, **on request only**. Each preview boots a
 browser against the customer's real page, so it POSTs to `/api/report/screenshot` from a click and never
@@ -118,6 +122,28 @@ and which no retry fixes. It reads as a caption on a real image rather than a fa
 A cached `screenshot_url` arrives as `initialUrl` and renders straight to `ready` with no button and no
 request; `variants.screenshot_overflow` rides along as `initialOverflow` so a cached preview carries the
 same caption a fresh one does. `manual` hypotheses never mount it at all and show a dashed "apply by hand" note instead.
+
+### The before/after wipe
+
+A render produces two images, and **both come out of one page load**. Same navigation, same viewport,
+same scroll offset, same lazy images already settled — so the pair lines up pixel for pixel and the
+only thing that differs between them is the copy that was swapped. Loading the page twice would let a
+carousel advance or an ad slot fill differently, and the wipe would read as the whole page twitching
+rather than as one line changing.
+
+The rewrite sits on top of the current page and is revealed by `clip-path`, never by a width: clipping
+shows the right-hand slice of an image still laid out at full size, so the two stay registered.
+Resizing it would slide the content sideways under the wipe and nothing would line up.
+
+The handle is an `<input type="range">`. That is the reason it works with a keyboard and a screen
+reader at all — arrows move the wipe and the value is announced, none of which exists behind a
+`pointerdown` listener.
+
+`overflow` describes the `after` image alone: nothing was changed in `before` to overflow anything.
+
+**A variant rendered before the pair existed shows its one image, and that is not a degraded
+rendering** — one image is all that was ever captured for that row. `screenshot_before_url` is null
+there and the slider simply does not appear.
 
 The `POST` is bounded by `PREVIEW_REQUEST_TIMEOUT_MS` — derived from the server's real budget, never
 written down. **That deadline is for one path only**: normally the POST returns the moment the job is

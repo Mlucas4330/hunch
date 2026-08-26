@@ -2,11 +2,9 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/current-user'
 import { listAnalysesForUser, parsePaging } from '@/lib/analyses'
-import { creditsFor } from '@/lib/credits'
 import { UrlInputForm } from '@/components/url-input-form'
 import { AnalysisHistory } from '@/components/analysis-history'
 import { ClaimAnalyses } from '@/components/claim-analyses'
-import { CreditBalance } from '@/components/credit-balance'
 import { InfoHint } from '@/components/info-hint'
 import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
@@ -38,10 +36,9 @@ export default async function DashboardPage({
   // The page lives in the URL rather than in client state: it survives a reload, the back button
   // works, and the grid stays server rendered with no JavaScript behind it.
   const { page } = await searchParams
-  const [{ rows, pages, page: current }, credits] = await Promise.all([
-    listAnalysesForUser(user, { page: parsePaging(page) }),
-    creditsFor(user.id)
-  ])
+  const { rows, pages, page: current } = await listAnalysesForUser(user, {
+    page: parsePaging(page)
+  })
   const defaultBrief = rows.find((row) => row.brief)?.brief ?? ''
 
   return (
@@ -58,7 +55,6 @@ export default async function DashboardPage({
         <p className="text-sm text-muted-foreground">{t.dashboard.subtitle}</p>
       </div>
 
-      <CreditBalance credits={credits} />
 
       <UrlInputForm defaultBrief={defaultBrief} />
 

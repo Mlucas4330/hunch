@@ -85,6 +85,8 @@ export const en = {
 
   nav: {
     homeAria: 'Hunch home',
+    how: 'How it works',
+    pricing: 'Pricing',
     blog: 'Blog',
     dashboard: 'My pages',
     admin: 'Admin',
@@ -166,7 +168,8 @@ export const en = {
 
     demo: {
       body: 'The same screens you get after a run: the readout, the ranked fixes, and the new copy rendered onto a real page.',
-      frameTitle: 'Interactive product demo'
+      frameTitle: 'Interactive product demo',
+      rotateHint: 'Turn your phone sideways to see the demo twice as big.'
     },
 
     aiSearch: {
@@ -219,8 +222,8 @@ export const en = {
     },
 
     pulse: {
-      running: '{domain} is being analyzed right now',
-      done: '{domain} was just measured: {score}/100',
+      running: 'being analyzed right now',
+      done: 'just measured: {score}/100',
       dismiss: 'Dismiss'
     },
 
@@ -379,6 +382,11 @@ export const en = {
       }
     },
     errorInvalidUrl: 'Enter a valid URL, including https://',
+    errorInvalidCompetitor: 'The page to compare against needs a valid URL, including https://',
+    competitorLabel: 'Compare against another page (optional)',
+    competitorPlaceholder: 'https://another-landing-page.com',
+    competitorHint:
+      'We measure that page with the same checks and show both columns side by side. Same credit, no extra charge.',
     errorGeneric: 'Something went wrong. Please try again.',
     errorLimitReached: 'You have run several analyses in a short time. Give it an hour and try again.',
     errorBusy: 'We could not start the analysis just now. Nothing was charged. Try again in a moment.',
@@ -471,6 +479,8 @@ export const en = {
     hint: 'Everything here was *counted on your page* when we loaded it - nothing is estimated, averaged, or taken from a benchmark. Load times are measured from a data center on a clean connection, so treat them as *the best case*: a visitor on mobile sees slower than this, never faster.',
     groups: {
       structure: 'What a visitor runs into on the page',
+      trust: 'What the page offers as a reason to believe it',
+      mobile: 'What the page does on a phone',
       metadata: 'What the page tells a machine',
       visibility: 'What an AI crawler is allowed to read',
       load: 'What the page costs to open'
@@ -482,8 +492,13 @@ export const en = {
     },
     findings: {
       form_fields: 'Signup form fields',
+      required_fields: 'Fields the form makes mandatory',
+      fields_without_label: 'Fields with no label',
+      form_steps: 'Steps before the form can be sent',
+      no_submit: 'Form has a button that sends it',
       no_social_signin: 'Sign in with Google or GitHub',
       above_fold_ctas: 'Calls to action above the fold',
+      dead_ctas: 'Buttons that link nowhere',
       nav_links: 'Navigation links out of the page',
       no_faq: 'Questions answered on the page',
       no_testimonials: 'Customer proof on the page',
@@ -508,7 +523,17 @@ export const en = {
       fcp: 'First content painted',
       lcp: 'Largest content painted',
       page_weight: 'Downloaded to open the page',
-      request_count: 'Network requests'
+      request_count: 'Network requests',
+      no_cnpj: 'Company registration in the footer',
+      no_trust_badge: 'Security or review badge on the page',
+      testimonial_attribution: 'Testimonials naming who said them',
+      no_privacy_policy: 'Privacy policy linked',
+      no_contact_channel: 'A way to reach the company',
+      mobile_overflow: 'Page fits the screen sideways',
+      no_viewport_meta: 'Page declares a mobile viewport',
+      mobile_tap_targets: 'Buttons too small to tap',
+      mobile_tiny_text: 'Text too small to read on a phone',
+      mobile_above_fold_ctas: 'Calls to action above the fold on a phone'
     },
     presence: {
       yes: 'Yes',
@@ -664,6 +689,11 @@ export const en = {
     manualSetupBody: 'This change touches a section that is not a single-line text swap, so an in-context preview is not available. Apply the recommended copy by hand.',
     appliedToYourPage: 'Applied to your page',
     previewAlt: 'Variant applied to the landing page',
+    previewBeforeAlt: 'The landing page as it is today',
+    compareLabel: 'Drag to compare the page before and after the change',
+    compareValue: '{percent}% of the rewritten page shown',
+    compareBefore: 'Now',
+    compareAfter: 'Rewritten',
     previewCta: 'See how this looks on your page',
     previewHint: 'We load your real page with this copy swapped in. Takes about {seconds} seconds.',
     previewLoading: 'Rendering your page...',

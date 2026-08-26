@@ -15,7 +15,7 @@ import { getDictionary } from '@/lib/i18n'
 import { MeasuredReadout } from '@/components/measured-readout'
 import { MeasurePage } from '@/components/measure-page'
 import { UnlockWall } from '@/components/unlock-wall'
-import { readoutFor, readoutHistory, splitFixes, splitVisibility } from '@/lib/analyses'
+import { competitorFor, readoutFor, readoutHistory, splitFixes, splitVisibility } from '@/lib/analyses'
 import { hasReadout, readout } from '@/lib/readout'
 import { PLAYBOOK_EXPANDED_COUNT } from '@/lib/constants'
 import { pageMetadata } from '@/lib/seo'
@@ -57,7 +57,9 @@ export default async function AnalysisDetailPage({
   // empty panels and no way to read what had happened, so the same wall the public report uses stands
   // here instead. See docs/invariants.md.
   const generated = analysis.hypotheses.length > 0 || analysis.flowFixes.length > 0
-  const history = measured ? await readoutHistory(analysis.id) : { previous: null, scores: [] }
+  const history = measured
+    ? await readoutHistory(analysis.id, analysis.market)
+    : { previous: null, scores: [] }
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -93,6 +95,7 @@ export default async function AnalysisDetailPage({
           <MeasuredReadout
             input={readoutFor(analysis)}
             previous={history.previous}
+            {...competitorFor(analysis)}
             scores={history.scores}
           />
           <MeasurePage analysisId={analysis.id} variant="again" />
@@ -109,16 +112,19 @@ export default async function AnalysisDetailPage({
             seo: visibility.seo.length,
             ai: visibility.ai.length
           }}
-          // Each panel carries a `key` even though none of them is in an array here. They are created
-          // in a server component and rendered by a client one, and crossing that boundary costs them
-          // the marking that tells React these are statically placed children -- so on the client side
-          // they look like an unkeyed list and dev warns about every one. See docs/analysis-ui.md.
+          // The panels used to carry a `key` apiece to dodge a dev warning: created in a server
+          // component and rendered by a client one, they lose the marking that says they are
+          // statically placed children, so React reconciles them as an unkeyed list. Keying them
+          // here worked and had to be remembered at every call site -- the public report never was,
+          // and warned. `AnalysisTabs` now gives each panel a wrapper of its own, which makes it an
+          // only child instead of an array member, so no call site has to know any of this.
           panels={{
-            flow: <FlowPlaybook key="flow" fixes={fixes.flow} expandFrom={PLAYBOOK_EXPANDED_COUNT} />,
-            copy: <HypothesisList key="copy" hypotheses={analysis.hypotheses} />,
+            flow: <FlowPlaybook fixes={fixes.flow} expandFrom={PLAYBOOK_EXPANDED_COUNT} />,
+            copy: (
+              <HypothesisList hypotheses={analysis.hypotheses} embedKey={analysis.embedKey} />
+            ),
             seo: (
               <FlowPlaybook
-                key="seo"
                 fixes={visibility.seo}
                 section="seo"
                 expandFrom={PLAYBOOK_EXPANDED_COUNT}
@@ -126,7 +132,6 @@ export default async function AnalysisDetailPage({
             ),
             ai: (
               <FlowPlaybook
-                key="ai"
                 fixes={visibility.ai}
                 section="ai"
                 expandFrom={PLAYBOOK_EXPANDED_COUNT}

@@ -1,0 +1,1 @@
+ALTER TABLE "variants" ADD COLUMN "screenshot_before_url" text;

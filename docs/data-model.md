@@ -30,6 +30,7 @@ analyses
 - performance     (jsonb, nullable: PagePerformance, what the page cost to load)
 - crawler_access  (jsonb, nullable: CrawlerAccess, what the site's robots.txt allows an AI crawler)
 - keywords        (jsonb, nullable: PageKeywords, the terms the page repeats and where they appear)
+- mobile          (jsonb, nullable: PageMobile, the same page's geometry in a phone viewport)
 - embed_key       (uuid, unique: public opaque key the report URL uses; never expose analyses.id)
 - locale          (enum: LOCALE, default: en)
 - market          (enum: MARKET, default: us)
@@ -38,7 +39,7 @@ analyses
 page_snapshots                  <- the history behind the analyses columns above
 - id             (uuid, PK)
 - analysis_id    (FK -> analyses.id, cascade)
-- structure / seo / performance / crawler_access / keywords (jsonb: the same five measured facts)
+- structure / seo / performance / crawler_access / keywords / mobile (jsonb: the same measured facts)
 - score          (int, nullable: readoutScore overall, FROZEN at capture so a threshold change
                   never rewrites what a reader was already shown)
 - captured_at    (timestamp)
@@ -129,9 +130,20 @@ hypotheses  1 -> N  variants
 
 ### The readout columns on `analyses` are nullable by contract
 
-`structure`, `seo`, `performance`, `crawler_access` and `keywords` were captured for
+`structure`, `seo`, `performance`, `crawler_access`, `keywords` and `mobile` were captured for
 generation and thrown away from the moment the scrape existed. They are persisted so the report can
 state **measured** facts with no model in the loop — see [readout.md](readout.md).
+
+**Null is not the only "not measured" here, and the other one is inside the jsonb.** `structure` grew
+fields after rows already existed, so a row can hold the object with none of them. The type marks
+those fields optional and the readout guards each with `!== undefined`; see
+[readout.md](readout.md#a-group-is-skipped-whole-never-rendered-as-zeroes). Widening one of these
+records is therefore never a migration and always a guard.
+
+**`market` is not stored on `page_snapshots`.** It is pinned to `analyses.market` at creation and
+never moves, so a snapshot carrying its own copy would be a second source of truth for one fact.
+`snapshotInput` and `snapshotValues` take it as an argument instead — one finding reads it, and reads
+it to stay quiet outside Brazil.
 
 An analysis created before these columns holds null and renders no readout section, exactly as an
 empty playbook renders no playbook. **Nothing is regenerated**, and nothing sweeps them.

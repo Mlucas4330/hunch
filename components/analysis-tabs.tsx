@@ -95,7 +95,15 @@ export function AnalysisTabs({
           <h2 className="text-balance font-display text-xl font-bold tracking-tight">
             {dictionary.analysis.tabQuestions[tab]}
           </h2>
-          {panels[tab]}
+
+          {/* **The panel gets a wrapper so it is an only child, and that is a key warning rather
+              than a layout choice.** A panel is built by the page that owns the tabs and handed over
+              as a prop, so React never saw it created inside an array and never marked it validated.
+              Dropped straight in beside the heading it becomes the second entry of a children array
+              with no key of its own, and reconciliation warns -- naming this component, because this
+              is where the array is, and naming the page, because that is where the element came
+              from. As an only child it is not an array member at all. */}
+          <div className="space-y-6">{panels[tab]}</div>
         </div>
       ))}
     </div>

@@ -26,6 +26,10 @@ export const BLOG_PATH = '/blog'
 // unlock wall, the balance and the report cannot drift to three different links.
 export const CREDITS_ANCHOR = '/#credits'
 
+// The other landing section the nav links into. Same reason as CREDITS_ANCHOR: the hero's own link
+// and the nav must not drift to two different anchors for the same section.
+export const HOW_ANCHOR = '/#how'
+
 // Publication dates, in ISO. They reach the reader through formatDate and the sitemap's
 // lastModified, so they are the real date a post was written and nothing infers them.
 export const BLOG_POST_DATE: Record<BlogSlug, string> = {
@@ -155,6 +159,29 @@ export const HOST_RESOLUTION_CACHE_TTL_MS = 60 * 1000
 // A real desktop fold. captureElements, aboveFoldCtaCount and the preview image all measure
 // against it, so it cannot be left at Puppeteer's 800x600 default.
 export const SCRAPE_VIEWPORT = { width: 1280, height: 800 }
+
+// The phone the mobile pass emulates. A mid-size modern handset, chosen because the fold it implies
+// is the one most visitors actually have -- the point of the pass is what is above 844px, not what a
+// 2016 device did.
+//
+// **It runs in the same browser slot as the desktop pass, on a reload.** A second `withBrowserSlot`
+// would double an analysis's claim on SCRAPE_MAX_CONCURRENT_PAGES for a measurement that needs no
+// second page; the reload is what makes it a page load rather than a slot. The navigation is not
+// optional either: capturePerformance reads a PerformanceObserver, which only reports for a
+// navigation that happened after the viewport changed.
+export const SCRAPE_VIEWPORT_MOBILE = {
+  width: 390,
+  height: 844,
+  deviceScaleFactor: 3,
+  isMobile: true,
+  hasTouch: true
+}
+
+// Sent with the mobile pass, because a page that branches on the user agent rather than on a media
+// query would otherwise serve its desktop build into a phone viewport and every finding would
+// describe a page no phone receives.
+export const MOBILE_USER_AGENT =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
 
 export const SCRAPE_NAVIGATION_TIMEOUT_MS = 30_000
 
@@ -351,6 +378,7 @@ export const SUPADEMO_EMBED_ORIGIN = 'https://app.supademo.com'
 // that is not padding.
 export const SUPADEMO_ASPECT = '2 / 1'
 
+
 export const MERCADOPAGO_SDK_URL = 'https://sdk.mercadopago.com/js/v2'
 export const MERCADOPAGO_BRICK_CONTAINER = 'mercadopago-brick'
 export const MERCADOPAGO_APPROVED = 'approved'
@@ -503,6 +531,19 @@ export const READOUT_THRESHOLDS = {
   // Email + password is 2, so 4 already asks for things a landing page does not need.
   formFieldsWarn: 4,
   formFieldsAlert: 7,
+  // Read by rankBelow on a form that exists: asking for nothing mandatory is not the problem, so
+  // only the upper side has thresholds. Two required fields is an email and a password.
+  requiredFieldsWarn: 4,
+  requiredFieldsAlert: 7,
+  // A single unlabelled field is a field somebody has to guess at, so the warn is at one.
+  fieldsWithoutLabelWarn: 1,
+  fieldsWithoutLabelAlert: 3,
+  // One step is a plain form. Three is a wizard on a landing page.
+  formStepsWarn: 2,
+  formStepsAlert: 4,
+  // One dead link on a landing page is one path a visitor can take that goes nowhere.
+  deadCtasWarn: 1,
+  deadCtasAlert: 3,
   // Past four, the "primary" action is whichever one they happen to see first.
   aboveFoldCtasWarn: 5,
   navLinksWarn: 8,
@@ -524,7 +565,18 @@ export const READOUT_THRESHOLDS = {
   pageWeightWarnBytes: 2 * BYTES_PER_MEGABYTE,
   pageWeightAlertBytes: 5 * BYTES_PER_MEGABYTE,
   requestCountWarn: 75,
-  requestCountAlert: 150
+  requestCountAlert: 150,
+  // Read by rankBelow, and only on a page that has testimonials at all: a quote with nobody behind
+  // it is the form of proof that proves least. One attributed quote is already the good side.
+  testimonialAttributionWarn: 0,
+  // Mobile. Calibrated against real pages rather than against the 44px rule in the abstract: a
+  // carousel's dots, a row of social icons and an icon-only close button put a well built page in
+  // the high teens on their own, so an alert at ten would have called almost every site broken. The
+  // finding is "hard to use with a thumb", not "one control is two pixels short".
+  tapTargetsWarn: 8,
+  tapTargetsAlert: 20,
+  tinyTextWarn: 5,
+  tinyTextAlert: 20
 } as const
 
 // The sparkline's own coordinate space, scaled by the viewBox. Padding leaves room for the end dot
@@ -593,6 +645,63 @@ export const STRUCTURE_PATTERNS = {
   testimonials: ['testimonial', 'customers say', 'loved by', 'what our', 'reviews', 'depoimentos'],
   videoHosts: ['youtube.com', 'youtu.be', 'vimeo.com', 'loom.com', 'wistia', 'mux.com']
 }
+
+// What a page offers a visitor as a reason to believe it, counted rather than judged. Bilingual for
+// the same reason STRUCTURE_PATTERNS is: the page's language is not known until the scrape has run.
+//
+// **The patterns are strings, not RegExp, because they cross into `page.evaluate`.** A RegExp does
+// not survive that serialization; it arrives as an empty object and every test against it answers
+// false, which would read as "this page has no trust signals" rather than as a bug.
+export const TRUST_PATTERNS = {
+  // Brazil's company registry number, in the only format it is ever printed in.
+  cnpj: String.raw`\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}`,
+  cnpjLabel: ['cnpj'],
+  // The Brazilian postcode. The one address token unambiguous enough to match in free body text:
+  // a street name is not distinguishable from any other line of copy.
+  postcode: String.raw`\d{5}-\d{3}`,
+  phone: String.raw`\(?\d{2}\)?[\s.-]\d{4,5}[\s.-]\d{4}`,
+  badges: [
+    'ssl',
+    'site blindado',
+    'reclame aqui',
+    'ebit',
+    'norton',
+    'mcafee',
+    'pci',
+    'lgpd',
+    'gdpr',
+    'compra segura',
+    'secure checkout',
+    'selo',
+    'verified',
+    'verificado'
+  ],
+  privacy: ['privacy', 'privacidade'],
+  terms: ['terms', 'termos', 'condicoes', 'condições'],
+  socialHosts: [
+    'instagram.com',
+    'facebook.com',
+    'linkedin.com',
+    'twitter.com',
+    'x.com',
+    'youtube.com',
+    'tiktok.com',
+    'wa.me',
+    'whatsapp.com'
+  ]
+}
+
+// An href that goes nowhere. `#` alone and an empty href are the two a template leaves behind when a
+// section was copied and never wired up; `javascript:` covers the handler that was never attached.
+export const DEAD_HREFS = ['', '#', 'javascript:void(0)', 'javascript:void(0);', 'javascript:;']
+
+// The floor a tap target has to clear. 44 CSS pixels is the size both mobile platforms publish as
+// the minimum a finger can hit reliably, and it is the number every mobile audit uses.
+export const MOBILE_TAP_TARGET_MIN_PX = 44
+
+// Below this, body copy on a phone is read by zooming. 12px is where both platforms' own guidance
+// stops calling text legible at arm's length.
+export const MOBILE_MIN_FONT_PX = 12
 
 // Satori parses neither oklch() nor a CSS variable, so these mirror the tokens in globals.css as
 // sRGB hex -- the only place a hex value is legitimate. Keep them in step.

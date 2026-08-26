@@ -1,9 +1,9 @@
 import { measuredFindings, type MeasuredFinding, type ReadoutInput } from '@/lib/readout'
 import { readoutScore } from '@/lib/score'
-import type { ReadoutFinding } from '@/lib/enums'
+import type { Market, ReadoutFinding } from '@/lib/enums'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
-import type { PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
+import type { PageMobile, PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
 
 // Pure by necessity as much as by taste: `deltas` runs inside MeasuredReadout, a client component,
 // so nothing here may reach for the database or the browser. The queries live in lib/analyses.ts.
@@ -17,13 +17,14 @@ export type ReadoutHistory = {
 
 export const EMPTY_HISTORY: ReadoutHistory = { previous: null, scores: [] }
 
-// The five measured facts, in the shape both `analyses` and `page_snapshots` hold them.
+// The measured facts, in the shape both `analyses` and `page_snapshots` hold them.
 export type MeasuredColumns = {
   structure: PageStructure
   seo: PageSeo
   performance: PagePerformance
   crawlerAccess: CrawlerAccess
   keywords: PageKeywords
+  mobile: PageMobile
 }
 
 type SnapshotColumns = {
@@ -32,20 +33,31 @@ type SnapshotColumns = {
   performance: PagePerformance | null
   crawlerAccess: CrawlerAccess | null
   keywords: PageKeywords | null
+  mobile: PageMobile | null
 }
 
 // A snapshot holds the same measured facts as the analysis row, so it reads as one too.
-export function snapshotInput(snapshot: SnapshotColumns): ReadoutInput {
+//
+// **`market` is passed in rather than stored on the snapshot.** It is pinned to `analyses.market` at
+// creation and never moves, so a snapshot carrying its own copy would be a second source of truth
+// for one fact. One finding reads it, and it reads it to stay quiet outside Brazil.
+export function snapshotInput(snapshot: SnapshotColumns, market: Market | null): ReadoutInput {
   return {
     structure: snapshot.structure,
     seo: snapshot.seo,
     performance: snapshot.performance,
     crawler: snapshot.crawlerAccess,
-    keywords: snapshot.keywords
+    keywords: snapshot.keywords,
+    mobile: snapshot.mobile,
+    market
   }
 }
 
-export function snapshotValues(analysisId: string, measurement: MeasuredColumns) {
+export function snapshotValues(
+  analysisId: string,
+  measurement: MeasuredColumns,
+  market: Market
+) {
   return {
     analysisId,
     structure: measurement.structure,
@@ -53,8 +65,9 @@ export function snapshotValues(analysisId: string, measurement: MeasuredColumns)
     performance: measurement.performance,
     crawlerAccess: measurement.crawlerAccess,
     keywords: measurement.keywords,
+    mobile: measurement.mobile,
     // Frozen here so a later threshold change never rewrites what the trend already showed.
-    score: readoutScore(measuredFindings(snapshotInput(measurement))).overall
+    score: readoutScore(measuredFindings(snapshotInput(measurement, market))).overall
   }
 }
 

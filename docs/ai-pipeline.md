@@ -2,11 +2,18 @@
 
 Three `generateObject` calls in one `Promise.all` — hypotheses, playbook, visibility audit. `lib/ai/`.
 
-**There is no web-search step and no competitor research.** It used to run a Haiku call with the
-`web_search` tool before generation, and it was roughly half the cost of an analysis: search is
+**There is still no web-search step, and there never will be one.** It used to run a Haiku call with
+the `web_search` tool before generation, and it was roughly half the cost of an analysis: search is
 agentic, so each of its three rounds resent the conversation plus the content of the results. Removing
-it took a run from about $0.17 to about $0.09. Nothing replaced it — the prompts argue from the one
-page in front of them, which is the only thing they ever measured.
+it took a run from about $0.17 to about $0.09. Cost is why it went; it is not why it stays gone. What
+it produced was a model's recollection of what competitors do, presented beside numbers this code had
+counted, and the two were indistinguishable to a reader.
+
+**Comparison against a competitor exists again, and it is the inverse of that.** The reader supplies
+a URL, `measureCompetitor` scrapes it, and `lib/readout.ts` counts the same facts off it — so the
+prompts still argue only from pages this code measured, and now there can be two of them. Nothing
+infers a competitor and nothing searches for one: no URL, no comparison. See
+[invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured).
 
 The prompts are the core IP and iterate carefully. Everything they may **not** say is in
 [invariants.md](invariants.md#generation).
@@ -197,9 +204,17 @@ Load-bearing prompt rules:
 - Every `steps` entry is one concrete action on the founder's own site — never advice, never
   replacement copy.
 - `evidence` carries no quantitative claim of any kind. See
-  [invariants.md](invariants.md#a-generated-evidence-never-carries-a-number).
+  [invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured).
 
 `playbookPrompt` is the other half of the core IP and iterates just as carefully as `systemPrompt`.
+
+**The trust signals arrived for free, and that is the point of serializing the whole record.**
+`generatePlaybook` passes `JSON.stringify(input.structure)`, so the fields the trust pass added reach
+the model the moment they exist on the object — no new prompt input, no second call. What did need
+saying is two sentences: that a field *absent* from the readout was not measured rather than absent
+from the page, and that the `trust` category argues from what was counted on this page and never from
+what people in any country expect. The existing "never recommend adding something the readout says
+the page already has" then covers the new fields unchanged.
 
 ## 5. Visibility audit — `generateVisibility`
 

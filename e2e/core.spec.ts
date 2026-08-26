@@ -90,6 +90,43 @@ test.describe('core features', () => {
     await context.close()
   })
 
+  // Um <details> fecha no proprio summary e em mais nada, entao o painel ficava por cima do que o
+  // leitor tinha acabado de tentar tocar. Os dois menus da nav usam o mesmo Dropdown, entao os dois
+  // sao verificados aqui -- a versao anterior do bug existia em um e nao no outro.
+  test('the nav menus close on a click outside and on Escape', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/admin.json' })
+
+    const desktop = await context.newPage()
+    await desktop.setViewportSize({ width: 1280, height: 800 })
+    await desktop.goto('/dashboard')
+
+    const account = desktop.getByTestId('account-menu')
+    await account.locator('summary').click()
+    await expect(account).toHaveJSProperty('open', true)
+
+    // Longe do painel, que fica ancorado no canto superior direito.
+    await desktop.mouse.click(120, 600)
+    await expect(account).toHaveJSProperty('open', false)
+
+    const phone = await context.newPage()
+    await phone.setViewportSize({ width: 375, height: 812 })
+    await phone.goto('/dashboard')
+
+    const menu = phone.getByTestId('mobile-menu')
+    await menu.locator('summary').click()
+    await expect(menu).toHaveJSProperty('open', true)
+
+    await phone.mouse.click(120, 600)
+    await expect(menu).toHaveJSProperty('open', false)
+
+    await menu.locator('summary').click()
+    await expect(menu).toHaveJSProperty('open', true)
+    await phone.keyboard.press('Escape')
+    await expect(menu).toHaveJSProperty('open', false)
+
+    await context.close()
+  })
+
   // A inversao que o teste anterior prometia: os pacotes chegaram, entao o preco TEM de estar la,
   // com o selo dizendo qual deles a maioria leva. O formulario de contato segue sem existir.
   test('prices the three packs on the landing and marks the one most buyers take', async ({
@@ -237,6 +274,12 @@ test.describe('core features', () => {
 
     const card = page.getByTestId('hypothesis-card').first()
     await expect(card.getByTestId('alternate-variants')).toHaveCount(0)
+
+    // A previa vive nas duas telas. Ficou so no relatorio publico por um tempo, o que colocava a
+    // imagem na frente de todo mundo com quem o link foi compartilhado e de ninguem que pagou por
+    // ela. Sob E2E_FIXTURES o render responde `unavailable`, entao o que se verifica aqui e que o
+    // controle esta montado, nao que a imagem chegou.
+    await expect(card.getByTestId('variant-preview')).toBeVisible()
 
     // Synchronized on the response rather than the default expect timeout: this is the only test
     // that hits the route, so it always pays `next dev`'s cold compile for it.

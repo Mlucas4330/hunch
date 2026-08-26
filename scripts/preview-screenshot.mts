@@ -8,16 +8,10 @@ const outDir = resolve(process.argv[4] ?? 'screenshot-preview')
 
 const VARIANT_COPY = 'This headline was rewritten by Hunch'
 
-async function shoot(label: string, copy: string | null, file: string) {
-  console.log(`Capturing ${label} ...`)
-  const { buffer, overflow } = await screenshotVariant(
-    url,
-    copy === null ? null : selector,
-    copy ?? ''
-  )
+async function write(label: string, png: Buffer, file: string) {
   const path = resolve(outDir, file)
-  await writeFile(path, buffer)
-  console.log(`  -> ${path} (${buffer.length} bytes)${overflow ? ' OVERFLOW: still clipped' : ''}`)
+  await writeFile(path, png)
+  console.log(`  ${label} -> ${path} (${png.length} bytes)`)
 }
 
 async function main() {
@@ -26,8 +20,15 @@ async function main() {
   console.log(`Selector : ${selector}`)
   console.log(`Variant  : ${VARIANT_COPY}\n`)
 
-  await shoot('control (untouched page)', null, 'before.png')
-  await shoot('variant (swapped copy)', VARIANT_COPY, 'after.png')
+  // One call, one page load, both images. This used to load the page twice and diff two navigations,
+  // which is precisely the thing the slider cannot tolerate: a carousel advancing or an ad slot
+  // filling differently between the two shots reads as the whole page twitching.
+  console.log('Capturing both shots from one load ...')
+  const { before, after, overflow } = await screenshotVariant(url, selector, VARIANT_COPY)
+
+  await write('control', before, 'before.png')
+  await write('variant', after, 'after.png')
+  if (overflow) console.log('  OVERFLOW: the variant is still clipped at the smallest size')
 
   console.log('\nDone. Compare before.png and after.png: only the words may differ.\n')
 }

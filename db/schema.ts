@@ -28,12 +28,14 @@ import {
   DEFAULT_USER_ROLE
 } from '@/lib/constants'
 import type {
+  PageMobile,
   PagePerformance,
   PageSeo,
   PageStructure
 } from '@/lib/scrape'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
+import type { CompetitorMeasurement } from '@/lib/competitor'
 
 export const sectionEnum = pgEnum('section', SECTIONS)
 export const hypothesisTargetEnum = pgEnum('hypothesis_target', HYPOTHESIS_TARGET)
@@ -72,6 +74,14 @@ export const analyses = pgTable('analyses', {
   performance: jsonb('performance').$type<PagePerformance>(),
   crawlerAccess: jsonb('crawler_access').$type<CrawlerAccess>(),
   keywords: jsonb('keywords').$type<PageKeywords>(),
+  // The same page measured in a phone viewport. Null on every row measured before the mobile pass
+  // existed, and the readout reads that null as "not measured" rather than as "nothing wrong".
+  mobile: jsonb('mobile').$type<PageMobile>(),
+  // A page the reader named, optional and supplied by hand: nothing here infers a competitor. The
+  // URL is kept beside the measurement because the report labels the column with its hostname and
+  // the prompts refer to the page by it. Both null on every analysis that named none.
+  competitorUrl: text('competitor_url'),
+  competitor: jsonb('competitor').$type<CompetitorMeasurement>(),
   locale: localeEnum('locale').notNull().default(DEFAULT_LOCALE),
   market: marketEnum('market').notNull().default(DEFAULT_MARKET),
   embedKey: uuid('embed_key').notNull().defaultRandom().unique(),
@@ -92,6 +102,7 @@ export const pageSnapshots = pgTable(
     performance: jsonb('performance').$type<PagePerformance>(),
     crawlerAccess: jsonb('crawler_access').$type<CrawlerAccess>(),
     keywords: jsonb('keywords').$type<PageKeywords>(),
+    mobile: jsonb('mobile').$type<PageMobile>(),
     // Frozen at capture so a later threshold change never rewrites history.
     score: integer('score'),
     capturedAt: timestamp('captured_at').notNull().defaultNow()
@@ -124,6 +135,11 @@ export const variants = pgTable('variants', {
   // A substring of `copy` that belongs in the element's existing styled fragment. See ai-pipeline.md.
   emphasis: text('emphasis'),
   position: integer('position').notNull().default(0),
+  // The page as it is today. Null on every variant rendered before the slider existed, and the
+  // preview falls back to showing the `after` image alone -- which is not a degraded rendering, it
+  // is the only thing that was ever captured for that row.
+  screenshotBeforeUrl: text('screenshot_before_url'),
+  // The page with the variant applied. Named without a suffix because it predates the pair.
   screenshotUrl: text('screenshot_url'),
   screenshotOverflow: boolean('screenshot_overflow').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow()

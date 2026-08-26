@@ -24,7 +24,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   const analysis = await db.query.analyses.findFirst({
     where: and(eq(analyses.id, id), eq(analyses.userId, user.id)),
-    columns: { id: true, url: true }
+    // `market` is pinned at creation and read here only so the frozen snapshot score is computed on
+    // the same footing as every other one. A re-measure never re-detects it -- see docs/invariants.md.
+    columns: { id: true, url: true, market: true }
   })
 
   if (!analysis) return NextResponse.json({ error: 'not_found' }, { status: 404 })
@@ -53,11 +55,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         seo: measurement.seo,
         performance: measurement.performance,
         crawlerAccess: measurement.crawlerAccess,
-        keywords: measurement.keywords
+        keywords: measurement.keywords,
+        mobile: measurement.mobile
       })
       .where(eq(analyses.id, analysis.id))
 
-    await tx.insert(pageSnapshots).values(snapshotValues(analysis.id, measurement))
+    await tx
+      .insert(pageSnapshots)
+      .values(snapshotValues(analysis.id, measurement, analysis.market))
   })
 
   return NextResponse.json({ measured: true })

@@ -17,7 +17,10 @@ registerRunner(ANALYSIS_JOB_KIND, runAnalysis)
 
 const BodySchema = z.object({
   url: z.string().url(),
-  brief: z.string().trim().max(2000).optional()
+  brief: z.string().trim().max(2000).optional(),
+  // Optional, and supplied by hand. Nothing in the product infers a competitor: the comparison is
+  // only honest because the reader named the page and this code then measured it.
+  competitorUrl: z.string().url().optional()
 })
 
 export async function POST(request: Request) {
@@ -37,8 +40,13 @@ export async function POST(request: Request) {
 
   // Checked before anything is written, so a refused URL never leaves a row behind. The scrape
   // re-applies it per request anyway -- see docs/security.md.
+  //
+  // **Both URLs, and the second one is not an afterthought.** A competitor field that skipped this
+  // would be a second front door onto the same SSRF: it is a URL this deploy points a real browser
+  // at, so it gets the identical guard. See docs/invariants.md.
   try {
     await assertPublicUrl(parsed.data.url)
+    if (parsed.data.competitorUrl) await assertPublicUrl(parsed.data.competitorUrl)
   } catch (error) {
     if (error instanceof UnsafeUrlError) {
       return NextResponse.json({ error: 'invalid_url' }, { status: 422 })
@@ -47,6 +55,7 @@ export async function POST(request: Request) {
   }
 
   const brief = parsed.data.brief || undefined
+  const competitorUrl = parsed.data.competitorUrl || null
   const locale = await getLocale()
 
   try {
@@ -64,6 +73,7 @@ export async function POST(request: Request) {
         userId: null,
         url: parsed.data.url,
         brief: brief ?? null,
+        competitorUrl,
         locale,
         market: detectMarket({ url: parsed.data.url, lang: null })
       })

@@ -9,6 +9,31 @@ const marketRules = (market: string) => `- This product sells in ${market}. Ever
   prefer, trust, or do, and never cite a local statistic, adoption rate, or norm. Argue from what this
   page shows, exactly as you would for any other market.`
 
+/**
+ * The rules that come with a competitor page, shared by every prompt that receives one.
+ *
+ * Shared for the same reason `marketRules` is: the risk is identical in all of them and must not end
+ * up phrased three ways that drift. This is also the ONE place in the product where a generated
+ * `evidence` may carry a number, and the exception is narrow by construction -- the reader typed
+ * that URL and this code measured that page, so the figure is a measurement rather than a
+ * recollection. Everything the model does not have stays forbidden. See docs/invariants.md.
+ */
+export const competitorRules = (host: string) => `- The reader also pointed at a second page,
+  ${host}, and you have been given a readout of it counted by the same code that counted theirs. It
+  is the ONLY other page you know anything about.
+- You may cite a number from that readout, and only from that readout. Never a number about any
+  other page, never a number about ${host} that is not in what you were given, and never an
+  aggregate over "companies in this space" -- you were shown two pages and nothing else.
+- Refer to it as ${host} and nothing else. Never name a company, a brand, or a product: the readout
+  carries a hostname, so any name you used would be one you inferred, and an inferred name is an
+  invented one.
+- Never say the other page converts better, ranks higher, or performs better. Nobody measured either
+  page's conversion, its traffic, or its ranking, and a page being different is not a page winning.
+- A difference is a difference. State what each page does and what that leaves its visitor to do.
+  Never state that closing the gap will produce a result.
+- ${host} is a comparison, never an authority. A thing being on that page is not a reason to do it,
+  and if the readout of the reader's own page does not support the fix, do not make it.`
+
 const writingRules = (language: string) => `- Write every field you author in ${language}. Write it as a native speaker of that language would,
   using its natural idiom, its correct spelling, and its accented characters. Do not translate word
   for word from English, and do not leave English phrases in the output.
@@ -65,9 +90,12 @@ ${writingRules(language)}
 - The language rule covers problem, rationale, copy, and evidence. The ONE exception is current_copy,
   which must quote the page's exact characters in whatever language the page itself is written in.`
 
+// `competitorHost` is null on every analysis that named none, and then the block simply is not
+// there -- the rules only exist because a second measured page does.
 export const systemPrompt = (
   language: string,
-  market: string
+  market: string,
+  competitorHost: string | null = null
 ) => `You are a senior conversion rate optimization (CRO) strategist for SaaS landing pages.
 
 You are given the extracted copy of a landing page. Produce 5-8 high-leverage A/B test hypotheses,
@@ -112,16 +140,23 @@ Rules:
   shows.
 - The ${language} and no-dash rules above apply to problem and rationale too. The only exception is
   current_copy, which must quote the page's exact characters.
-${marketRules(market)}`
+${marketRules(market)}${competitorHost ? `\n${competitorRules(competitorHost)}` : ''}`
 
 export const playbookPrompt = (
   language: string,
-  market: string
+  market: string,
+  competitorHost: string | null = null
 ) => `You are a senior conversion rate optimization (CRO) strategist for SaaS landing pages.
 
 You are given a structural readout of one landing page: what it already contains, how many form
-fields it asks for, whether it offers social sign in, whether it answers objections, and so on. You
-may also be given business details written by the founder.
+fields it asks for, how many of those are mandatory, how many carry no label, how many steps stand
+between the visitor and sending it, whether it offers social sign in, whether any call to action
+links nowhere, whether it answers objections, and which signals of credibility it carries (a company
+registration number, security or review badges, testimonials that name who said them, a privacy
+policy, a way to reach the company). You may also be given business details written by the founder.
+
+Every one of those was counted on this page by code. A field absent from the readout was not
+measured, which is not the same as being absent from the page: say nothing about it either way.
 
 Produce ${PLAYBOOK_MIN} to ${PLAYBOOK_MAX} flow fixes: changes to the page's STRUCTURE and its path
 to signup, ranked by impact_score descending. These are not copy tests. A separate set of copy
@@ -149,6 +184,10 @@ Rules:
   cta_placement for where and how often the action appears, decision_load for too many choices or
   steps, objections for unanswered questions and guarantees, trust for proof and credibility,
   pricing_clarity for what things cost, page_structure for order and what is above the fold.
+- The trust category is the one the credibility signals feed. Argue it from what the readout counted
+  on THIS page and from nothing else: a quote with no name attached asks the visitor to take an
+  anonymous stranger's word for it, and that is an argument about this page. What people in any
+  country expect, trust, or look for is not, and you were given no data about any of it.
 - evidence is ONE sentence explaining the CRO reasoning behind the fix, grounded in what the
   structural readout of THIS page shows. It must carry NO quantitative claim of any kind: no
   percentage, no conversion lift figure, no count of other companies, no "studies show", no named
@@ -158,7 +197,7 @@ Rules:
 - Treat any business details from the founder as ground truth and make the steps fit their real
   product. Never invent facts about the product, its pricing, or its customers.
 - impact_score is an integer from 1 to 10.
-${marketRules(market)}
+${marketRules(market)}${competitorHost ? `\n${competitorRules(competitorHost)}` : ''}
 
 ${writingRules(language)}`
 

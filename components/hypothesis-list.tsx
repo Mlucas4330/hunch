@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { HypothesisCard } from '@/components/hypothesis-card'
+import { VariantPreview } from '@/components/variant-preview'
 import { WhyBlock } from '@/components/why-block'
 import { HYPOTHESIS_EXPANDED_COUNT } from '@/lib/constants'
 import { useI18n } from '@/components/i18n-provider'
@@ -11,7 +12,21 @@ import { hasPlaceholders } from '@/lib/utils'
 
 export type HypothesisWithVariants = Hypothesis & { variants: Variant[] }
 
-export function HypothesisList({ hypotheses }: { hypotheses: HypothesisWithVariants[] }) {
+/**
+ * The copy ideas on the owner's own screen.
+ *
+ * **`embedKey` is here so the owner can see the preview too.** This list rendered no preview at all
+ * while `/r/<embedKey>` did, which put the before/after picture in front of everyone the reader
+ * shared the link with and nowhere in front of the reader who paid for it. The preview route
+ * authenticates on the embed key rather than on a session, so the key is what has to be passed down.
+ */
+export function HypothesisList({
+  hypotheses,
+  embedKey
+}: {
+  hypotheses: HypothesisWithVariants[]
+  embedKey: string
+}) {
   const ranked = useMemo(
     () => [...hypotheses].sort((a, b) => b.impactScore - a.impactScore),
     [hypotheses]
@@ -23,6 +38,7 @@ export function HypothesisList({ hypotheses }: { hypotheses: HypothesisWithVaria
         <HypothesisRow
           key={hypothesis.id}
           hypothesis={hypothesis}
+          embedKey={embedKey}
           rank={index + 1}
           isTop={index === 0}
           defaultOpen={index < HYPOTHESIS_EXPANDED_COUNT}
@@ -34,11 +50,13 @@ export function HypothesisList({ hypotheses }: { hypotheses: HypothesisWithVaria
 
 function HypothesisRow({
   hypothesis,
+  embedKey,
   rank,
   isTop,
   defaultOpen
 }: {
   hypothesis: HypothesisWithVariants
+  embedKey: string
   rank: number
   isTop: boolean
   defaultOpen: boolean
@@ -51,12 +69,18 @@ function HypothesisRow({
       defaultOpen={defaultOpen}
       showManualBadge
     >
-      <HypothesisBody hypothesis={hypothesis} />
+      <HypothesisBody hypothesis={hypothesis} embedKey={embedKey} />
     </HypothesisCard>
   )
 }
 
-function HypothesisBody({ hypothesis }: { hypothesis: HypothesisWithVariants }) {
+function HypothesisBody({
+  hypothesis,
+  embedKey
+}: {
+  hypothesis: HypothesisWithVariants
+  embedKey: string
+}) {
   const { dictionary } = useI18n()
   const copy = dictionary.hypothesisList
   const [variants, setVariants] = useState(hypothesis.variants)
@@ -124,6 +148,18 @@ function HypothesisBody({ hypothesis }: { hypothesis: HypothesisWithVariants }) 
             )
           )}
         </div>
+      )}
+
+      {/* Only for an auto target. A manual one has no selector to swap, so there is nothing to
+          photograph -- the card already carries the manual badge that says so. */}
+      {hypothesis.target === 'auto' && (
+        <VariantPreview
+          embedKey={embedKey}
+          hypothesisId={hypothesis.id}
+          initialUrl={recommended?.screenshotUrl ?? null}
+          initialBeforeUrl={recommended?.screenshotBeforeUrl ?? null}
+          initialOverflow={recommended?.screenshotOverflow ?? false}
+        />
       )}
 
       <WhyBlock label={dictionary.report.whyThisWorks}>

@@ -2,10 +2,14 @@ import { lookup } from 'node:dns/promises'
 import puppeteer, { type Browser, type Page } from 'puppeteer'
 import {
   BROWSER_CONNECT_RETRY_DELAY_MS,
+  DEAD_HREFS,
   FIT_MIN_SCALE,
   FIT_STEP_RATIO,
   FIT_TOLERANCE_PX,
   GOAL_CANDIDATE_MAX_WORDS,
+  MOBILE_MIN_FONT_PX,
+  MOBILE_TAP_TARGET_MIN_PX,
+  MOBILE_USER_AGENT,
   NORMAL_LINE_HEIGHT_RATIO,
   OAUTH_PROVIDER_PATTERNS,
   STRUCTURE_PATTERNS,
@@ -23,9 +27,11 @@ import {
   SCRAPE_SETTLE_TEXT_TOLERANCE,
   SCRAPE_SETTLE_TIMEOUT_MS,
   SCRAPE_VIEWPORT,
+  SCRAPE_VIEWPORT_MOBILE,
   SEO_HEADING_MAX_CHARS,
   SEO_HEADINGS_MAX,
   TARGET_MATCH_MAX_WORD_RATIO,
+  TRUST_PATTERNS,
   VARIANT_GROWTH_LINES
 } from '@/lib/constants'
 import { assertPublicUrl, isPublicUrl } from '@/lib/url-guard'
@@ -42,6 +48,16 @@ export interface PageElement {
   emphasized: boolean
 }
 
+/**
+ * What one page contains, counted off the DOM.
+ *
+ * **Everything below `wordCount` is optional, and that is load bearing.** These columns live in a
+ * `jsonb` that has been written since before they existed, so a row measured last month has none of
+ * them. `undefined` there means "not measured", which is a different fact from `0`, and the readout
+ * is required to tell them apart: emitting a finding of zero for a page nobody counted reports
+ * unknown as negative, which is the one thing docs/invariants.md forbids outright. A new field
+ * arrives here optional and stays optional.
+ */
 export interface PageStructure {
   hasOauth: boolean
   oauthProviders: string[]
@@ -58,6 +74,26 @@ export interface PageStructure {
   headingCount: number
   sectionCount: number
   wordCount: number
+
+  // What the form actually asks for, read from the DOM and never by filling it in. Submitting a
+  // stranger's form would write a fake lead into their CRM on every analysis -- see docs/scraping.md.
+  requiredFieldCount?: number
+  fieldsWithoutLabel?: number
+  formSteps?: number
+  hasSubmit?: boolean
+  hasClientValidation?: boolean
+  deadCtaCount?: number
+
+  // Why a visitor should believe the page.
+  hasCnpj?: boolean
+  testimonialWithAttributionCount?: number
+  clientLogoCount?: number
+  trustBadgeCount?: number
+  hasPrivacyPolicy?: boolean
+  hasTerms?: boolean
+  hasPhysicalAddress?: boolean
+  hasPhone?: boolean
+  hasSocialLinks?: boolean
 }
 
 export interface PageSeo {
@@ -75,6 +111,32 @@ export interface PageSeo {
   hasOgImage: boolean
   jsonLdTypes: string[]
   headings: string[]
+}
+
+/**
+ * The same page seen through a phone. Optional on `ScrapedPage` for the same reason the fields above
+ * are optional on `PageStructure`: nothing measured before this existed has it, and `null` there
+ * means "not measured" rather than "nothing wrong". The readout skips the whole group instead of
+ * reporting zeroes -- the same shape as the robots.txt guard.
+ */
+/**
+ * **Geometry only, and deliberately no load numbers.** The phone pass is a reload on a connection the
+ * desktop pass already opened, so its TTFB skips DNS and the TLS handshake and every timing after it
+ * inherits the head start. Measured that way a page reports painting faster on a phone than on a
+ * laptop, which is not a floor with a caveat on it -- it is backwards. Load times stay in the `load`
+ * group, measured once, with the caveat they already carry.
+ *
+ * What is left is unaffected by any of that: how wide the page is, how big its controls are, how
+ * small its text is, and what sits above the fold. Those are facts about layout, and the reload
+ * exists to get them right -- a bare `setViewport` re-lays the page out, but does not re-run the
+ * user agent branch or re-request images at phone sizes.
+ */
+export interface PageMobile {
+  horizontalOverflow: boolean
+  smallTapTargetCount: number
+  tinyTextCount: number
+  aboveFoldCtaCount: number
+  hasViewportMeta: boolean
 }
 
 export interface PagePerformance {
@@ -103,6 +165,7 @@ export interface ScrapedPage {
   structure: PageStructure
   seo: PageSeo
   performance: PagePerformance
+  mobile: PageMobile
 }
 
 export class ScrapeError extends Error {
@@ -270,6 +333,8 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
       const structure = await page.evaluate(captureStructure, {
         oauthProviders: OAUTH_PROVIDER_PATTERNS,
         patterns: STRUCTURE_PATTERNS,
+        trust: TRUST_PATTERNS,
+        deadHrefs: DEAD_HREFS,
         ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
       })
       const seo = await page.evaluate(captureSeo, {
@@ -279,7 +344,28 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
       const performance = await page.evaluate(capturePerformance, {
         lcpFlushMs: SCRAPE_LCP_FLUSH_MS
       })
-      return { url, html, elements, structure, seo, performance }
+
+      // The second pass, in the same slot. Everything above was measured at SCRAPE_VIEWPORT; from
+      // here the page is a phone. Nothing after this reads the desktop DOM, so the reload is safe to
+      // do in place rather than on a second page.
+      await page.setUserAgent(MOBILE_USER_AGENT)
+      await page.setViewport(SCRAPE_VIEWPORT_MOBILE)
+      // **The cache has to go before the reload.** A warm reload serves most of the page from memory
+      // and reports an LCP faster than the desktop pass measured, which would tell the reader their
+      // page is quicker on a phone than on a laptop. That is not a floor with a caveat on it, it is
+      // a wrong number -- and the load figures only survive because they are honest about being a
+      // best case. See docs/invariants.md.
+      await page.setCacheEnabled(false)
+      await page.reload({ waitUntil: 'networkidle2', timeout: SCRAPE_NAVIGATION_TIMEOUT_MS })
+      await settlePage(page)
+
+      const mobile = await page.evaluate(captureMobile, {
+        tapTargetMinPx: MOBILE_TAP_TARGET_MIN_PX,
+        minFontPx: MOBILE_MIN_FONT_PX,
+        ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
+      })
+
+      return { url, html, elements, structure, seo, performance, mobile }
     } catch (error) {
       throw new ScrapeError(`Failed to scrape ${url}`, { cause: error })
     } finally {
@@ -289,9 +375,13 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
 }
 
 export type VariantShot = {
-  buffer: Buffer
+  // The page as it is today, photographed before the swap.
+  before: Buffer
+  // The same page with the variant applied.
+  after: Buffer
   // The copy still did not fit its box at the smallest size the fit is willing to use, so the image
   // shows the reader clipped text. Surfaced rather than swallowed -- see docs/report.md.
+  // It describes the `after` shot only: nothing was changed in `before` to overflow anything.
   overflow: boolean
 }
 
@@ -317,6 +407,15 @@ export async function screenshotVariant(
       })
       await settlePage(page)
 
+      // **Both shots come from one page load, and that is what makes the slider work.** Same
+      // navigation, same viewport, same scroll offset, same lazy images already settled -- so the
+      // two images line up pixel for pixel and the only thing that differs between them is the copy
+      // that was swapped. Loading the page twice would let a carousel advance, an animation land
+      // somewhere else, or an ad slot fill differently, and the wipe would read as the whole page
+      // twitching rather than as one line changing.
+      await awaitPaint(page)
+      const before = await page.screenshot({ type: 'png' })
+
       let overflow = false
 
       if (selector) {
@@ -336,10 +435,12 @@ export async function screenshotVariant(
         overflow = outcome === 'overflow'
       }
 
+      // Again after the swap: replacing the text can pull a webfont weight that was not on the page
+      // before, and the fit loop may have resized the type.
       await awaitPaint(page)
+      const after = await page.screenshot({ type: 'png' })
 
-      const shot = await page.screenshot({ type: 'png' })
-      return { buffer: Buffer.from(shot), overflow }
+      return { before: Buffer.from(before), after: Buffer.from(after), overflow }
     } catch (error) {
       if (error instanceof ScrapeError) throw error
       throw new ScrapeError(`Failed to screenshot ${url}`, { cause: error })
@@ -669,9 +770,11 @@ function captureElements(options: {
 function captureStructure(options: {
   oauthProviders: Record<string, string[]>
   patterns: typeof STRUCTURE_PATTERNS
+  trust: typeof TRUST_PATTERNS
+  deadHrefs: string[]
   ctaMaxWords: number
 }): PageStructure {
-  const { oauthProviders, patterns, ctaMaxWords } = options
+  const { oauthProviders, patterns, trust, deadHrefs, ctaMaxWords } = options
 
   function isVisible(el: Element): boolean {
     const rect = el.getBoundingClientRect()
@@ -743,6 +846,67 @@ function captureStructure(options: {
 
   const main = document.querySelector('main') ?? document.body
 
+  // ---- What the form asks for. Read only: nothing here clicks, types, or submits. ----
+
+  function labelled(field: HTMLElement): boolean {
+    if (field.getAttribute('aria-label') || field.getAttribute('aria-labelledby')) return true
+    if (field.closest('label')) return true
+    const id = field.getAttribute('id')
+    // A placeholder is deliberately not a label: it disappears the moment the visitor types, so the
+    // field they are halfway through filling has nothing next to it saying what it wanted.
+    return Boolean(id && document.querySelector(`label[for="${CSS.escape(id)}"]`))
+  }
+
+  const requiredFieldCount = fields.filter(
+    (field) => field.hasAttribute('required') || field.getAttribute('aria-required') === 'true'
+  ).length
+
+  const stepContainers = forms.flatMap((form) =>
+    Array.from(form.querySelectorAll('fieldset, [role="group"], [data-step], [class*="step"]'))
+  ).filter(isVisible)
+
+  const hasSubmit = forms.some(
+    (form) =>
+      form.querySelector('button[type="submit"], input[type="submit"], button:not([type])') !== null
+  )
+
+  const hasClientValidation = fields.some((field) => {
+    if (field.hasAttribute('required') || field.hasAttribute('pattern')) return true
+    const type = field.getAttribute('type')
+    return type !== null && ['email', 'tel', 'url', 'number'].includes(type)
+  })
+
+  const deadCtaCount = ctas.filter((el) => {
+    if (el.tagName !== 'A') return false
+    const href = el.getAttribute('href')
+    return href === null || deadHrefs.includes(href.trim().toLowerCase())
+  }).length
+
+  // ---- Why a visitor should believe it. ----
+
+  const bodyLower = bodyText.toLowerCase()
+  const anchors = Array.from(document.querySelectorAll('a')).filter(isVisible)
+
+  function anchorMatches(needles: string[]): boolean {
+    return anchors.some((el) => {
+      const href = (el.getAttribute('href') || '').toLowerCase()
+      return matchesAny(label(el), needles) || matchesAny(href, needles)
+    })
+  }
+
+  const quotes = Array.from(
+    document.querySelectorAll('blockquote, [class*="testimonial"], [class*="depoimento"]')
+  ).filter(isVisible)
+
+  const trustBadgeCount = Array.from(document.querySelectorAll('img')).filter((img) => {
+    const source = (
+      (img.getAttribute('alt') || '') +
+      ' ' +
+      (img.getAttribute('src') || '')
+    ).toLowerCase()
+    return matchesAny(source, trust.badges)
+  }).length
+
   return {
     hasOauth: providers.size > 0,
     oauthProviders: Array.from(providers),
@@ -760,12 +924,121 @@ function captureStructure(options: {
     hasVideo,
     hasStickyCta,
     bodyLinkCount: ctas.length,
-    aboveFoldCtaCount: ctas.filter((el) => el.getBoundingClientRect().top < window.innerHeight)
-      .length,
+    // Both bounds, not just the upper one. `top < innerHeight` alone is also true of everything
+    // ABOVE the viewport, and an off canvas menu parks its whole contents at a negative top -- so a
+    // page with a closed drawer counted a dozen calls to action nobody can see.
+    aboveFoldCtaCount: ctas.filter((el) => {
+      const top = el.getBoundingClientRect().top
+      return top >= 0 && top < window.innerHeight
+    }).length,
     navLinkCount: Array.from(document.querySelectorAll('nav a, header a')).filter(isVisible).length,
     headingCount: headings.length,
     sectionCount: Array.from(main.children).filter(isVisible).length,
-    wordCount: words(bodyText)
+    wordCount: words(bodyText),
+
+    requiredFieldCount,
+    fieldsWithoutLabel: fields.filter((field) => !labelled(field)).length,
+    // A flat form is one step, not zero. Zero is reserved for a page with no form at all, which is
+    // the value the readout uses to stay quiet rather than to report a form of length nothing.
+    formSteps: forms.length === 0 ? 0 : Math.max(1, stepContainers.length),
+    hasSubmit,
+    hasClientValidation,
+    deadCtaCount,
+
+    hasCnpj: new RegExp(trust.cnpj).test(bodyText) || matchesAny(bodyLower, trust.cnpjLabel),
+    testimonialWithAttributionCount: quotes.filter(
+      (quote) =>
+        quote.querySelector('cite, footer, img, [class*="author"], [class*="name"]') !== null
+    ).length,
+    clientLogoCount: Array.from(
+      document.querySelectorAll('[class*="logo"] img, [class*="client"] img, [class*="brand"] img')
+    ).filter(isVisible).length,
+    trustBadgeCount,
+    hasPrivacyPolicy: anchorMatches(trust.privacy),
+    hasTerms: anchorMatches(trust.terms),
+    hasPhysicalAddress:
+      document.querySelector('address') !== null || new RegExp(trust.postcode).test(bodyText),
+    hasPhone:
+      document.querySelector('a[href^="tel:"]') !== null || new RegExp(trust.phone).test(bodyText),
+    hasSocialLinks: anchors.some((el) =>
+      matchesAny((el.getAttribute('href') || '').toLowerCase(), trust.socialHosts)
+    )
+  }
+}
+
+/**
+ * What the page does to a thumb. Runs in the mobile viewport, after the reload, and measures only
+ * the things that differ from the desktop pass: a meta description reads the same on both, so
+ * repeating it here would be noise dressed as a second opinion.
+ *
+ */
+function captureMobile(options: {
+  tapTargetMinPx: number
+  minFontPx: number
+  ctaMaxWords: number
+}): PageMobile {
+  const { tapTargetMinPx, minFontPx, ctaMaxWords } = options
+
+  // Stricter than the desktop pass's, and it has to be. A phone layout routinely keeps its whole
+  // navigation in the DOM translated off to one side, and `display`/`visibility` say nothing about
+  // that -- so the closed menu's twenty links arrive as twenty visible controls, every one of them
+  // "too small to tap". Requiring the element to actually intersect the viewport horizontally is
+  // what stops the audit accusing a well built page of a menu the visitor never sees.
+  function isVisible(el: Element): boolean {
+    const rect = el.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) return false
+    if (rect.right <= 0 || rect.left >= window.innerWidth) return false
+    const style = getComputedStyle(el)
+    if (style.visibility === 'hidden' || style.display === 'none') return false
+    return parseFloat(style.opacity) > 0
+  }
+
+  function label(el: Element): string {
+    const text = (el.textContent || '') + ' ' + (el.getAttribute('aria-label') || '')
+    return text.replace(/\s+/g, ' ').trim().toLowerCase()
+  }
+
+  const interactive = Array.from(
+    document.querySelectorAll('a, button, input, select, textarea, [role="button"]')
+  ).filter(isVisible)
+
+  // A link inside a sentence is prose, not a tap target, and a paragraph full of them is not a page
+  // that fails to be usable with a thumb. Every real control -- a button, a field, a nav item, a
+  // card -- lays itself out as something other than `inline`, so that is the line.
+  const tapTargets = interactive.filter((el) => getComputedStyle(el).display !== 'inline')
+
+  const ctas = interactive.filter((el) => {
+    if (el.closest('nav, header, footer')) return false
+    const text = label(el)
+    return text.length > 0 && text.split(/\s+/).filter(Boolean).length <= ctaMaxWords
+  })
+
+  // Counted on elements that carry their own words, so a wrapper inheriting a small size from a
+  // child it does not render is not counted twice.
+  const tinyTextCount = Array.from(document.querySelectorAll('p, span, li, a, td, label, small'))
+    .filter(isVisible)
+    .filter((el) => {
+      const own = Array.from(el.childNodes).some(
+        (node) => node.nodeType === Node.TEXT_NODE && (node.textContent || '').trim().length > 0
+      )
+      if (!own) return false
+      return parseFloat(getComputedStyle(el).fontSize) < minFontPx
+    }).length
+
+  return {
+    // The one finding a visitor feels before reading anything: the page slides sideways.
+    horizontalOverflow:
+      document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    smallTapTargetCount: tapTargets.filter((el) => {
+      const rect = el.getBoundingClientRect()
+      return rect.width < tapTargetMinPx || rect.height < tapTargetMinPx
+    }).length,
+    tinyTextCount,
+    aboveFoldCtaCount: ctas.filter((el) => {
+      const top = el.getBoundingClientRect().top
+      return top >= 0 && top < window.innerHeight
+    }).length,
+    hasViewportMeta: document.querySelector('meta[name="viewport"]') !== null
   }
 }
 

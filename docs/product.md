@@ -120,3 +120,8 @@ The reasoning worth keeping:
 - **No causal claim on any surface.** Nothing states what a change will produce, because nothing here
   controlled for anything — see
   [invariants.md](invariants.md#a-delta-is-arithmetic-between-two-measurements-never-a-result-attributed-to-a-change)
+- **No competitor is ever inferred, and none is ever searched for.** The product can compare against a
+  second page, and only against one the reader typed into the form: it is then scraped and counted by
+  the same code as the first. The version that had a model recall what competitors do is gone and is
+  not coming back — see
+  [invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured)

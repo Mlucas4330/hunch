@@ -88,6 +88,8 @@ export const ptBR: Dictionary = {
 
   nav: {
     homeAria: 'Início do Hunch',
+    how: 'Como funciona',
+    pricing: 'Preços',
     blog: 'Blog',
     dashboard: 'Minhas páginas',
     admin: 'Admin',
@@ -169,7 +171,8 @@ export const ptBR: Dictionary = {
 
     demo: {
       body: 'As mesmas telas que você recebe depois de uma análise: o diagnóstico, as correções priorizadas e a copy nova renderizada sobre uma página real.',
-      frameTitle: 'Demonstração interativa do produto'
+      frameTitle: 'Demonstração interativa do produto',
+      rotateHint: 'Vire o celular na horizontal para ver a demonstração no dobro do tamanho.'
     },
 
     aiSearch: {
@@ -222,8 +225,8 @@ export const ptBR: Dictionary = {
     },
 
     pulse: {
-      running: '{domain} está sendo analisado agora mesmo',
-      done: '{domain} acabou de ser medido: {score}/100',
+      running: 'sendo analisado agora mesmo',
+      done: 'acabou de ser medido: {score}/100',
       dismiss: 'Fechar'
     },
 
@@ -383,6 +386,11 @@ export const ptBR: Dictionary = {
       }
     },
     errorInvalidUrl: 'Informe uma URL válida, incluindo https://',
+    errorInvalidCompetitor: 'A página de comparação precisa de uma URL válida, incluindo https://',
+    competitorLabel: 'Comparar com outra página (opcional)',
+    competitorPlaceholder: 'https://outra-landing-page.com',
+    competitorHint:
+      'A gente mede essa página com as mesmas verificações e mostra as duas colunas lado a lado. Mesmo crédito, sem cobrança extra.',
     errorGeneric: 'Algo deu errado. Tente novamente.',
     errorLimitReached:
       'Você rodou várias análises em pouco tempo. Espere uma hora e tente de novo.',
@@ -477,6 +485,8 @@ export const ptBR: Dictionary = {
     hint: 'Tudo aqui foi *contado na própria página* na hora em que a carregamos - nada é estimativa, média de mercado ou benchmark. Os tempos vêm de um data center com conexão boa, então são *o melhor cenário*: no celular o visitante espera mais que isso, nunca menos.',
     groups: {
       structure: 'A experiência de quem chega na página',
+      trust: 'O que a página oferece como motivo para confiar',
+      mobile: 'O que a página faz no celular',
       metadata: 'O que a IA precisa está aqui?',
       visibility: 'O que um crawler de IA tem permissão de ler',
       load: 'A página está otimizada?'
@@ -488,8 +498,13 @@ export const ptBR: Dictionary = {
     },
     findings: {
       form_fields: 'Campos no formulário de cadastro',
+      required_fields: 'Campos obrigatórios no formulário',
+      fields_without_label: 'Campos sem label',
+      form_steps: 'Etapas até conseguir enviar o formulário',
+      no_submit: 'Formulário tem botão que envia',
       no_social_signin: 'Login com Google ou GitHub',
       above_fold_ctas: 'CTAs acima da dobra',
+      dead_ctas: 'Botões que não levam a lugar nenhum',
       nav_links: 'Links do menu que tiram o visitante da página',
       no_faq: 'Dúvidas respondidas na página',
       no_testimonials: 'Depoimentos de clientes',
@@ -514,7 +529,17 @@ export const ptBR: Dictionary = {
       fcp: 'FCP (primeiro conteúdo a aparecer)',
       lcp: 'LCP (maior elemento a aparecer)',
       page_weight: 'Peso da página',
-      request_count: 'Requisições de rede'
+      request_count: 'Requisições de rede',
+      no_cnpj: 'CNPJ no rodapé',
+      no_trust_badge: 'Selo de segurança ou de reputação',
+      testimonial_attribution: 'Depoimentos que dizem quem falou',
+      no_privacy_policy: 'Política de privacidade linkada',
+      no_contact_channel: 'Um jeito de falar com a empresa',
+      mobile_overflow: 'A página cabe na largura da tela',
+      no_viewport_meta: 'A página declara viewport de celular',
+      mobile_tap_targets: 'Botões pequenos demais para o dedo',
+      mobile_tiny_text: 'Texto pequeno demais para ler no celular',
+      mobile_above_fold_ctas: 'CTAs acima da dobra no celular'
     },
     presence: {
       yes: 'Sim',
@@ -673,6 +698,11 @@ export const ptBR: Dictionary = {
       'Esta mudança toca uma seção que não é uma troca de texto de linha única, então a prévia no contexto não está disponível. Aplique o texto recomendado manualmente.',
     appliedToYourPage: 'Aplicado à sua página',
     previewAlt: 'Variante aplicada à landing page',
+    previewBeforeAlt: 'A landing page como ela está hoje',
+    compareLabel: 'Arraste para comparar a página antes e depois da mudança',
+    compareValue: '{percent}% da página reescrita à mostra',
+    compareBefore: 'Agora',
+    compareAfter: 'Reescrita',
     previewCta: 'Veja como fica na sua página',
     previewHint:
       'Carregamos sua página real com este texto no lugar. Leva cerca de {seconds} segundos.',

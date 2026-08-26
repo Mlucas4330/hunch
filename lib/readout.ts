@@ -5,7 +5,8 @@ import type {
   ReadoutSeverity,
   ReadoutUnit
 } from '@/lib/enums'
-import type { PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
+import type { Market } from '@/lib/enums'
+import type { PageMobile, PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
 
@@ -23,6 +24,12 @@ export type ReadoutInput = {
   performance: PagePerformance | null
   crawler: CrawlerAccess | null
   keywords: PageKeywords | null
+  mobile: PageMobile | null
+  // Only one finding reads it, and it reads it to stay silent: a CNPJ in the footer is a Brazilian
+  // convention, so its absence is a finding in Brazil and noise anywhere else. Same rule as
+  // everywhere else -- the market filters what may be said, it is never a fact about buyers. See
+  // docs/invariants.md.
+  market: Market | null
 }
 
 export type Readout = {
@@ -59,7 +66,7 @@ function presence(
 }
 
 export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
-  const { structure, seo, performance, crawler, keywords } = input
+  const { structure, seo, performance, crawler, keywords, mobile, market } = input
   const out: MeasuredFinding[] = []
 
   if (structure) {
@@ -77,6 +84,86 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
         )
       )
       out.push(presence('no_social_signin', 'structure', structure.hasOauth))
+
+      // Read from the DOM, never by filling the form in: submitting a stranger's form would write a
+      // fake lead into their CRM every time somebody ran an analysis. See docs/scraping.md.
+      //
+      // Each guard is `!== undefined` rather than a truthiness check, because zero is a real and
+      // common answer for all four -- and the value these rows carry when nobody measured them is
+      // absent, not zero.
+      if (structure.requiredFieldCount !== undefined) {
+        out.push(
+          count(
+            'required_fields',
+            'structure',
+            structure.requiredFieldCount,
+            rank(
+              structure.requiredFieldCount,
+              READOUT_THRESHOLDS.requiredFieldsWarn,
+              READOUT_THRESHOLDS.requiredFieldsAlert
+            )
+          )
+        )
+      }
+
+      if (structure.fieldsWithoutLabel !== undefined) {
+        out.push(
+          count(
+            'fields_without_label',
+            'structure',
+            structure.fieldsWithoutLabel,
+            rank(
+              structure.fieldsWithoutLabel,
+              READOUT_THRESHOLDS.fieldsWithoutLabelWarn,
+              READOUT_THRESHOLDS.fieldsWithoutLabelAlert
+            )
+          )
+        )
+      }
+
+      if (structure.formSteps !== undefined) {
+        out.push(
+          count(
+            'form_steps',
+            'structure',
+            structure.formSteps,
+            rank(
+              structure.formSteps,
+              READOUT_THRESHOLDS.formStepsWarn,
+              READOUT_THRESHOLDS.formStepsAlert
+            )
+          )
+        )
+      }
+
+      // A form with nothing to submit it is broken rather than merely costly, so it is an alert on
+      // its own scale rather than a count with thresholds.
+      if (structure.hasSubmit !== undefined) {
+        out.push({
+          id: 'no_submit',
+          group: 'structure',
+          severity: structure.hasSubmit ? 'ok' : 'alert',
+          value: structure.hasSubmit ? 1 : 0,
+          unit: 'presence'
+        })
+      }
+    }
+
+    // Outside the form guard: a dead call to action is a dead link whether or not the page collects
+    // anything.
+    if (structure.deadCtaCount !== undefined) {
+      out.push(
+        count(
+          'dead_ctas',
+          'structure',
+          structure.deadCtaCount,
+          rank(
+            structure.deadCtaCount,
+            READOUT_THRESHOLDS.deadCtasWarn,
+            READOUT_THRESHOLDS.deadCtasAlert
+          )
+        )
+      )
     }
 
     out.push(
@@ -125,6 +212,109 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
         'structure',
         structure.headingCount,
         rankBelow(structure.headingCount, READOUT_THRESHOLDS.headingCountWarn)
+      )
+    )
+  }
+
+  // Trust. Gated on one field rather than on `structure`, because a row measured before this pass
+  // existed has the object but none of these keys: `structure` being present says nothing about
+  // whether anybody counted a trust signal on it.
+  if (structure && structure.trustBadgeCount !== undefined) {
+    // Only in Brazil, and this is the whole of what the market decides here. A CNPJ in the footer is
+    // a convention there; on a US page its absence is not a finding, it is noise. The market rules
+    // out a sentence, it never supplies a fact about buyers -- see docs/invariants.md.
+    if (market === 'br' && structure.hasCnpj !== undefined) {
+      out.push(presence('no_cnpj', 'trust', structure.hasCnpj))
+    }
+
+    out.push(presence('no_trust_badge', 'trust', structure.trustBadgeCount > 0))
+
+    // Only for a page that has testimonials at all. `no_testimonials` above already says when there
+    // are none, and following it with "0 of them carry a name" is the same absence said twice.
+    if (structure.hasTestimonials && structure.testimonialWithAttributionCount !== undefined) {
+      out.push(
+        count(
+          'testimonial_attribution',
+          'trust',
+          structure.testimonialWithAttributionCount,
+          rankBelow(
+            structure.testimonialWithAttributionCount,
+            READOUT_THRESHOLDS.testimonialAttributionWarn
+          )
+        )
+      )
+    }
+
+    if (structure.hasPrivacyPolicy !== undefined) {
+      out.push(presence('no_privacy_policy', 'trust', structure.hasPrivacyPolicy))
+    }
+
+    // One reachable channel is the finding, not which one. A page with a phone number and no address
+    // is contactable, and saying otherwise would be an accusation about a choice rather than a gap.
+    if (structure.hasPhone !== undefined && structure.hasPhysicalAddress !== undefined) {
+      out.push(
+        presence(
+          'no_contact_channel',
+          'trust',
+          structure.hasPhone || structure.hasPhysicalAddress || Boolean(structure.hasSocialLinks)
+        )
+      )
+    }
+  }
+
+  // Mobile. `null` is a page nobody measured on a phone, and the whole group is skipped rather than
+  // reported as a page with no problems -- the same rule as the robots.txt guard below.
+  if (mobile) {
+    out.push({
+      id: 'mobile_overflow',
+      group: 'mobile',
+      severity: mobile.horizontalOverflow ? 'alert' : 'ok',
+      value: mobile.horizontalOverflow ? 0 : 1,
+      unit: 'presence'
+    })
+
+    out.push({
+      id: 'no_viewport_meta',
+      group: 'mobile',
+      severity: mobile.hasViewportMeta ? 'ok' : 'alert',
+      value: mobile.hasViewportMeta ? 1 : 0,
+      unit: 'presence'
+    })
+
+    out.push(
+      count(
+        'mobile_tap_targets',
+        'mobile',
+        mobile.smallTapTargetCount,
+        rank(
+          mobile.smallTapTargetCount,
+          READOUT_THRESHOLDS.tapTargetsWarn,
+          READOUT_THRESHOLDS.tapTargetsAlert
+        )
+      )
+    )
+
+    out.push(
+      count(
+        'mobile_tiny_text',
+        'mobile',
+        mobile.tinyTextCount,
+        rank(
+          mobile.tinyTextCount,
+          READOUT_THRESHOLDS.tinyTextWarn,
+          READOUT_THRESHOLDS.tinyTextAlert
+        )
+      )
+    )
+
+    out.push(
+      count(
+        'mobile_above_fold_ctas',
+        'mobile',
+        mobile.aboveFoldCtaCount,
+        mobile.aboveFoldCtaCount === 0
+          ? 'alert'
+          : rank(mobile.aboveFoldCtaCount, READOUT_THRESHOLDS.aboveFoldCtasWarn)
       )
     )
   }

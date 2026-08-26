@@ -15,7 +15,7 @@ deprecated and `railway.json` must never name it again.
 | `app` | `railway.json` (auto-detected on import), Railpack | public domain, volume mounted at `/data/screenshots` |
 | `browser` | `railway.browser.json` (*Config as code*, set by hand) | **no variables, no public domain** |
 | `Postgres` | Railway plugin | |
-| `Redis` | Railway plugin | rate limit counters only |
+| `Redis` | Railway plugin | rate limit counters and the job queue |
 | `cron-prune` | `railway.cron-prune.json` (*Config as code*, set by hand) | calls `/api/cron/prune-screenshots`; the only cron |
 
 Every service but the plugins is the **same repo** pointed at a different config file. The schedules
@@ -40,6 +40,10 @@ Railway creates exactly one service per import, so:
    would have deleted itself weeks later. White-label is gone, so `BRAND_DIR` is gone with it — but
    the reason is worth keeping in view: **anything else ever written under `SCREENSHOT_DIR` inherits
    the prune.**
+
+   **A rendered preview is two files, not one.** The before/after slider stores the page as it is
+   alongside the page with the rewrite applied, so the volume fills at roughly twice the old rate.
+   Both inherit the prune with no extra code, which is the upside of the rule above.
 4. Add a second service from the same repo, set *Config as code* to `railway.browser.json`, give it
    **no variables and no domain**, then set `BROWSER_URL` on `app` to
    `http://${{browser.RAILWAY_PRIVATE_DOMAIN}}:9222` — as a reference, and with both the `http://`

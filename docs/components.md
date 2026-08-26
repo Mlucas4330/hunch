@@ -126,7 +126,19 @@ sets no width of its own; it inherits the app container.
   session. The navbar renders it in both branches rather than only for a signed-in user, which is what
   it used to do -- a blog nobody logged out can reach is a blog the ad traffic never sees.
 - **Account menu**: a native `<details>` dropdown with the avatar/name as the summary; the panel shows
-  name, email, and a `Sign out` button (a server action calling `signOut`).
+  name, email, the **credit balance**, and a `Sign out` button (a server action calling `signOut`).
+- **`NavLinks` also carries two anchors**, `/#how` and `/#credits`, which are sections of the landing
+  page rather than routes. They are flagged `anchor: true` so the active-state check skips them: that
+  check compares against `pathname`, which never carries a hash, so it would answer false for a
+  reason that has nothing to do with where the reader is.
+- **Both menus are `components/ui/dropdown.tsx`, and the reason is dismissal.** A bare `<details>`
+  closes on its own summary and on nothing else, so a click on the page behind it left the panel
+  covering whatever the reader had just tried to tap. The element still gives the toggle, the
+  keyboard and the closed-by-default markup; what it does not give is a way out, so `Dropdown` adds
+  three — a click outside, Escape, and a route change. One component rather than one per menu because
+  the nav has two of these, and a dismissal that worked in the hamburger and not in the account panel
+  is exactly the bug it replaces. It listens on `pointerdown` rather than `click`, which fires before
+  focus moves, so pressing the summary of an already-open menu does not close and reopen it.
 - **It used to carry a plan badge and the operator's links.** Both went with what they pointed at. The
   rule the admin links followed is worth keeping for whenever one comes back: gate the menu entry on
   `isAdmin(user)` over the **stored** role, the same gate the pages use, so the menu can never offer a
