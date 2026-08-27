@@ -422,6 +422,16 @@ export const SCREENSHOT_FILENAME_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9
 // volume is not dependable. See docs/deployment.md.
 export const SCREENSHOT_RETENTION_DAYS = 30
 
+// How many filenames the prune sends Postgres at a time.
+//
+// `inArray` binds one parameter per entry and a statement takes at most 65535, so a single `IN` over
+// everything expired is a query that works until the day it does not. The day it does not is the
+// first successful run after the cron was broken for a while -- exactly when the backlog is largest
+// and a failure is least likely to be noticed, since the symptom is the same 401-shaped "cron run
+// failed" as everything else. Well under the ceiling on purpose: the cost of a few extra statements
+// once a day is nothing, and the point is to never be near it.
+export const PRUNE_BATCH_SIZE = 500
+
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 
 // How many hypotheses the public report shows in full before the wall.

@@ -43,7 +43,10 @@ Railway creates exactly one service per import, so:
 
    **A rendered preview is two files, not one.** The before/after slider stores the page as it is
    alongside the page with the rewrite applied, so the volume fills at roughly twice the old rate.
-   Both inherit the prune with no extra code, which is the upside of the rule above.
+   Both inherit the prune on disk with no extra code, which is the upside of the rule above — but
+   **the row pointing at them does not**: `prune-screenshots` clears `screenshot_url` and
+   `screenshot_before_url` in two separate statements, because a single update matching either column
+   would null both, and a column whose file still exists has to keep it.
 4. Add a second service from the same repo, set *Config as code* to `railway.browser.json`, give it
    **no variables and no domain**, then set `BROWSER_URL` on `app` to
    `http://${{browser.RAILWAY_PRIVATE_DOMAIN}}:9222` — as a reference, and with both the `http://`
@@ -67,6 +70,13 @@ and that image reinstalls Chromium from apt each time.
 
 **Reference the two cron variables, never retype them.** A hand-copied `CRON_SECRET` that drifts from
 `app`'s is the likeliest way this breaks, and it fails as a `401` that looks like a broken route.
+
+**An unset `CRON_SECRET` on `app` fails the same way**, and that is deliberate: `secretsMatch` returns
+false when either side is missing, so a service with no secret refuses every call rather than
+accepting all of them. Three different mistakes therefore produce one identical symptom — a `401` in
+the cron's log — and none of them is a wrong secret: the variable missing on `app`, the variable
+missing on `cron-prune`, and the shell never interpolating it. `e2e/cron-prune.spec.ts` covers the
+boundary, including the shape where the `Bearer ` prefix is lost.
 `APP_URL` is a per-environment origin under the same rule as step 2, which is exactly why it is a
 variable instead of a literal in the committed start command.
 
