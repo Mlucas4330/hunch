@@ -68,10 +68,14 @@ page in one click, and the only thing here anyone shares unprompted.
   shown on a domain nobody mistakes for a real measurement, the same way a screenshot of an interface
   works on any sales page. The rule is therefore narrow and absolute: **no invented outcome, ever,
   and no number presented as measured from anyone's real page.**
-- `#how` renders `landing.steps`, **one** track of three, numbered from 01: paste the URL, get the
-  score, unlock the fixes. It used to be two tracks side by side (`lg:grid-cols-2`), the second one
-  being "make the report yours" — that half went with white-label, and one path is what a self-serve
-  funnel has.
+- **`#how` sits directly under the hero**, and its position is the argument. It renders
+  `landing.steps` — **one** track of three, numbered from 01: paste the URL, get the score, unlock
+  the fixes — then the demo. Someone who has read the headline and not yet pasted a URL wants to know
+  what they are about to get, and this is the only section that shows it. It used to sit below the
+  pains, which meant the page argued at the reader for a full scroll before showing them anything.
+
+  The steps used to be two tracks side by side (`lg:grid-cols-2`), the second being "make the report
+  yours" — that half went with white-label, and one path is what a self-serve funnel has.
 - The three pains (`landing.pains`) are the page owner's, not an auditor's: not knowing which part is
   losing people, tools that disagree with each other, and an AI that writes advice about a page it
   never opened. That last one names the real alternative the reader will have already tried. They sit
@@ -87,7 +91,9 @@ page in one click, and the only thing here anyone shares unprompted.
   rule. Its three points are **list items rather than Cards** — the page carried five different card
   treatments and cutting one was worth more than another bordered box.
 - `components/product-demo.tsx` frames the Supademo tour and **carries no heading of its own**: it is
-  a `<figure>` inside `#how`, directly under the three steps it is a picture of. It renders nothing
+  a `<figure>` inside `#how`, directly under the three steps it is a picture of, and it moved up the
+  page with that section rather than separately. Keeping it inside `#how` is the point — a demo
+  floating between blocks is what the merges below were undoing. It renders nothing
   while `SUPADEMO_DEMO_ID` is unset, so a missing id is a missing figure and never a broken frame.
   **`SUPADEMO_ASPECT` has to match the recording.** Supademo letterboxes — it preserves the captured
   screen's aspect and pads whatever box it is given — so a container that does not match shows as
@@ -130,7 +136,7 @@ page in one click, and the only thing here anyone shares unprompted.
 
 ### The AI section
 
-`#ai`, between the pains and `#how`, from `landing.aiSearch`. It is the one place on the page that
+`#ai`, below `#how`, from `landing.aiSearch`. It holds the pains and the AI block together. It is the one place on the page that
 names a capability rather than the score: the analysis has an **AI** tab, and nothing on the landing
 said so.
 

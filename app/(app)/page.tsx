@@ -75,6 +75,38 @@ export default async function LandingPage() {
         <HeroReadout dictionary={d} />
       </section>
 
+      {/* **Directly under the hero, because it answers the question the hero just raised.** Someone
+          who has read the headline and not yet pasted a URL wants to know what they are about to
+          get, and this is the only section that shows it: three steps and then a recording of the
+          real screens. It used to sit below the pains, so the page argued at the reader for a full
+          scroll before showing them anything.
+
+          The demo stays inside this section rather than becoming a block of its own -- it is the
+          picture of the three steps above it, and a page of unrelated blocks is what this ordering
+          is getting away from. */}
+      <section id="how" className="space-y-10 scroll-mt-20">
+        <header className="space-y-1">
+          <p className="panel-label text-[0.7rem] text-muted-foreground">{d.landing.how.eyebrow}</p>
+          <h2 className="font-display text-2xl font-bold tracking-tight">{d.landing.how.heading}</h2>
+          <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.how.intro}</p>
+        </header>
+
+        <ol className="grid gap-6 sm:grid-cols-3">
+          {d.landing.steps.map((step, i) => (
+            <li key={i} className="space-y-3">
+              <span className="panel-label text-sm text-muted-foreground">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <div className="h-px bg-border" />
+              <h3 className="font-display text-base font-semibold tracking-tight">{step.label}</h3>
+              <p className="text-sm text-muted-foreground">{step.body}</p>
+            </li>
+          ))}
+        </ol>
+
+        <ProductDemo copy={d.landing.demo} />
+      </section>
+
       {/* **The reality, and the reader's own experience of it, in one section.** The three pains and the
           AI block used to be two blocks with two headings and a demo wedged between them, which is
           what made the page read as a stack of unrelated parts. They belong together: the third pain
@@ -135,31 +167,6 @@ export default async function LandingPage() {
             {d.landing.aiSearch.link}
           </Link>
         </div>
-      </section>
-
-      {/* The demo is the picture of the three steps above it, so it lives under the same heading
-          rather than as a block of its own between other blocks. */}
-      <section id="how" className="space-y-10 scroll-mt-20">
-        <header className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">{d.landing.how.eyebrow}</p>
-          <h2 className="font-display text-2xl font-bold tracking-tight">{d.landing.how.heading}</h2>
-          <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.how.intro}</p>
-        </header>
-
-        <ol className="grid gap-6 sm:grid-cols-3">
-          {d.landing.steps.map((step, i) => (
-            <li key={i} className="space-y-3">
-              <span className="panel-label text-sm text-muted-foreground">
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <div className="h-px bg-border" />
-              <h3 className="font-display text-base font-semibold tracking-tight">{step.label}</h3>
-              <p className="text-sm text-muted-foreground">{step.body}</p>
-            </li>
-          ))}
-        </ol>
-
-        <ProductDemo copy={d.landing.demo} />
       </section>
 
       {showPulse && (
