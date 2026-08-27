@@ -52,5 +52,5 @@ setup('authenticate as admin', async ({ page }) => {
   // whenever the suite was reordered. Paying it here, once, outside any test's timeout.
   await page.fill('input[name="url"]', `https://example.com/?t=${Date.now()}-warmup`)
   await page.getByRole('button', { name: 'Analyze' }).click()
-  await page.waitForURL(/\/analyses\/[0-9a-f-]+$/, { timeout: 120_000 })
+  await page.waitForURL(/\/r\/[0-9a-f-]+$/, { timeout: 120_000 })
 })

@@ -1,52 +1,98 @@
 # The report surface
 
-One document comes out of an analysis: the **public report** at `/r/<embedKey>`, opened with no
-session and authorized by the opaque key alone.
+**One document comes out of an analysis, and now it has one route.** `/r/<embedKey>` is opened with
+no session and authorized by the opaque key alone, and it is the same page for everybody -- the
+reader who paid for it, the colleague they sent it to, and the visitor who ran a free score before
+they had an account.
 
-**It used to be two, and both used to carry the reader's own brand.** The print report existed
-because the landing page sold "hand the printed version to your client", and white-label existed
-because the reader was an agency. Neither reader exists now, so the PDF, the brand resolver
-(`lib/report.ts`), `ReportBrandMark`, `/settings` and the three brand columns are gone.
+**It used to be two routes**, and that is the change worth reading this file for. `/analyses/[id]`
+authorized by owner and carried the app chrome, the readout trend, the re-measure button and the
+share card; this one authorized by key and carried the cover. They rendered the same four tabs off
+the same components, and predictably they drifted: the copy panel was written twice in two shapes,
+the `generated` predicate said `hypotheses || flowFixes` on one and `hypotheses` on the other, and
+they disagreed about which cards start open. `/analyses/[id]` is now a redirect and nothing else.
 
-**What the surface is now:** the page the owner shares, and the page someone sees before they have an
-account. Anonymous analysis has landed, and so has its wider case: a signed-in reader with an empty
-balance gets an ownerless analysis too, so this page is where **every** unpaid run ends up. That second job is why it survived the deletion at
-all: an anonymous analysis has no `userId`, so it cannot live on `/analyses/[id]`, which authorizes
-by owner.
+**`embedKey` is the surviving key because it is the only one that addresses every row.** An analysis
+nobody has claimed has no `user_id` -- see the free/paid split in [invariants.md](invariants.md) --
+so it could never have been addressed by owner. Anonymous analysis has landed and so has its wider
+case: a signed-in reader with an empty balance gets an ownerless analysis too, so this page is where
+**every** unpaid run ends up.
 
-`loadReport` moved to `lib/analyses.ts` when `lib/report.ts` went. That file existed to resolve a
-brand; the lookup it also held did not deserve to die with it, and it belongs beside the other
-analysis queries anyway.
+## One axis through the document: `isOwner`
+
+The page computes `isOwner = user !== null && analysis.userId === user.id`, and that flag decides
+**what the reader may do**, never **what the document says**. Everything measured and everything
+generated renders identically for both; what turns on is only the set of controls that spend
+something or expose something:
+
+| Owner-only | Why |
+| ---------- | --- |
+| `CopyReportLink` | The link it copies *is* the embed key. A reader who was handed the link already has it; a reader who was not must not be given it. |
+| `readoutHistory`, so `previous` and `scores` on `MeasuredReadout` | The trend is the owner's record of their own page. |
+| `MeasurePage` (both variants) | Every press opens a real browser against three shared slots. A prospect must not be able to spend the owner's. **Do not "fix" the missing button here** -- see [readout.md](readout.md). |
+| The alternates drawer | `POST /api/hypotheses/[id]/variants` is authenticated, so for anyone else the button would answer 401. |
+| "Back to dashboard" | There is no dashboard to go back to without an account. |
+| `MeasurePage` in place of `MeasuringNotice` on an unmeasured row | Same reason: the owner can act on it, the reader can only wait. |
+
+**The chrome follows the session, not ownership**, and that is deliberately the weaker test.
+`app/(report)/layout.tsx` calls `getCurrentUser` (`cache()`d, so the page asking again costs
+nothing) and mounts `Navbar` + `SiteFooter` for anyone signed in -- including someone reading a
+colleague's report, who should still be able to reach their own dashboard. A signed-out reader gets
+no app chrome at all and the page prints its own `Wordmark` header instead, because that reader has
+no account and app navigation is noise to them.
+
+`loadReport` in `lib/analyses.ts` is the one query, `cache()`d because the page and its
+`opengraph-image` both call it. It selects the whole row, `user_id` included, so `isOwner` costs no
+second query.
+
+## The old route is a redirect, and it checks ownership
+
+`app/(app)/analyses/[id]/page.tsx` looks the id up scoped to the signed-in user and redirects to
+`/r/<embedKey>`. **The owner check is not ceremony.** The embed key is the report's only credential,
+so a redirect that resolved any id into one would turn a leaked id into a leaked report. With the
+check in place `/analyses` stays in `PROTECTED_PREFIXES` and `app/robots.ts` needs no change.
+
+`components/analysis-history.tsx` and `components/url-input-form.tsx` both link straight at
+`/r/<embedKey>` now, so the redirect exists for links already in the wild rather than for anything
+the app itself emits.
+
+**Both surfaces used to carry the reader's own brand.** The print report existed because the landing
+page sold "hand the printed version to your client", and white-label existed because the reader was
+an agency. Neither reader exists now, so the PDF, the brand resolver (`lib/report.ts`),
+`ReportBrandMark`, `/settings` and the three brand columns are gone.
 
 ## A measured-only report says so, and never prints zeroes
 
-`generated` is `hypotheses.length > 0`, and when it is false the report is a readout plus the unlock
-wall. Two things must stay off that page: the cover's count sentence, and the "Changes recommended /
-Copy already written" strip. Both are filled from counts of generated work, so on a free run they read
-`0` — and **"we found 0 changes worth making" is the opposite of "nobody has written them yet"**. A
-page scored 47 sitting under a zero reads as a clean bill of health, which is the one thing the report
-must never claim by accident.
+`generated` is `hypotheses.length > 0 || flowFixes.length > 0`, and when it is false the report is a
+readout plus the unlock wall. **The `||` is the point**: the two routes used to disagree here, one
+counting both lists and one counting hypotheses alone, so an analysis with structural fixes and no
+copy ideas showed four tabs on one screen and a paywall on the other. One predicate now, on one page.
+
+When it is false, two things must stay off that page: the cover's count sentence, and the "Changes
+recommended / Copy already written" strip. Both are filled from counts of generated work, so on a
+free run they read `0` — and **"we found 0 changes worth making" is the opposite of "nobody has
+written them yet"**. A page scored 47 sitting under a zero reads as a clean bill of health, which is
+the one thing the report must never claim by accident.
 
 `ReportCover` takes `counts: ReportCoverCounts | null` for exactly this: no counts, no count
 sentence, `report.summaryMeasured` instead. Covered by `e2e/free-analysis.spec.ts`.
 
-## Public report — `app/(report)/r/[embedKey]/page.tsx`
+## The page — `app/(report)/r/[embedKey]/page.tsx`
 
-No session, no navbar, its own layout. Read by someone who may never have opened the app, so nothing
-here may 404 loudly or leak whether an unknown key exists. Authorization is the opaque `embedKey`
-alone.
+Read by someone who may never have opened the app, so nothing here may 404 loudly or leak whether an
+unknown key exists. Authorization is the opaque `embedKey` alone; `isOwner` is layered on top of it
+and never decides whether the row is readable.
 
 **It has one shape.** It used to have two, decided by the owner's plan: a free lead magnet with our
 `Wordmark` and an email wall per tab, and a paid deliverable with no mark of ours and nothing
 blurred. Plans are gone, so `reportIsWhiteLabelled`, `canWhiteLabel` and the `gate()` helper went
 with them.
 
-`app/(report)/layout.tsx` deliberately mounts no site chrome — no navbar and **no site footer**. That
-began as a white-label constraint (the layout sits above the `[embedKey]` segment, so it could not
-know whose report it was) and it survives on its own merit: this page is shared outward, and app
-chrome on it is noise for a reader with no account. What the layout does set is the shared
-`CONTAINER_CLASS`, the same measure the app pages use, so the report is not a different width from
-the screen the owner sent it from.
+What the layout sets for everybody is the shared `CONTAINER_CLASS`, the same measure the app pages
+use, so the report is not a different width from the screen the owner sent it from. The navbar and
+site footer above it are session-gated, for the reason in the `isOwner` section above — for a long
+time this layout mounted no chrome at all, which was right while this was a second route and is
+wrong now that it is the only one.
 
 The `Wordmark` is still wrapped in `data-testid="report-brand"`. Its **presence** is now the thing
 worth asserting, which is the opposite of what the wrapper was added for.
@@ -55,26 +101,39 @@ worth asserting, which is the opposite of what the wrapper was added for.
 
 - Header, `ReportCover`, the two summary cells and `MeasuredReadout` stay **above** the tabs — the
   readout ungated, for the reason in [readout.md](readout.md).
-- Then the same shell as the analysis screen (`AnalysisTabs`) — the same **four tabs**,
-  with nothing held out. This surface used to pass `tests: 0` to keep a fifth tab away from a reader;
-  running a test is now its own screen, so there is no longer a tab to exclude. See
-  [analysis-ui.md](analysis-ui.md).
-- **Nothing is gated today.** The wall was an email capture for an agency's lead magnet, and it went
-  with the waitlist. The wall that replaces it is a different wall — log in, buy credits — and it
-  arrives with anonymous analysis. `gate()`, `Gated` and `BlurredRow` were removed rather than left
-  behind as a pass-through with a misleading name.
-- Copy-tab rows are the same `HypothesisCard` the owner's list renders ([components.md](components.md)),
-  with this surface's own body, and they all **start open**, unlike the owner's screen — a reader who
-  has to click to see anything sees nothing. Auto-targetable ideas are ordered first so the previews on
-  top are real ones.
-- The **"Why this works"** block is open on each shown idea, not folded into a `<details>` summary: it is
-  the argument for the change the reader is being asked to believe.
+- **There is no footer.** It read "Want a score like this for your own page? / Generated by Hunch",
+  which was a house ad on a document the reader is being asked to trust — and on the owner's own
+  screen it was the product advertising itself to the person who had already paid for it.
+- The cover carries the `InfoHint` that used to sit beside the old screen's `What to change`
+  heading. `ReportCover` takes it as a `hint` slot rather than building it: `InfoHint` is a client
+  component and the page is not, so the page composes it and hands it down already built.
+- Then `AnalysisTabs` — the same **four tabs**, with nothing held out. This surface used to pass
+  `tests: 0` to keep a fifth tab away from a reader; running a test is now its own screen, so there
+  is no longer a tab to exclude. See [analysis-ui.md](analysis-ui.md).
+- **Nothing is gated by plan today.** The wall was an email capture for an agency's lead magnet, and
+  it went with the waitlist. What replaces it is `UnlockWall` — log in, buy credits — shown when
+  `generated` is false. `gate()`, `Gated` and `BlurredRow` were removed rather than left behind as a
+  pass-through with a misleading name.
+- Copy-tab rows are `HypothesisList`, the same component on the same page for everyone. It used to
+  be that component on one route and eighty-five lines of inline JSX on the other; the inline copy
+  is gone. `HYPOTHESIS_EXPANDED_COUNT` rows start open here as everywhere, which is a change for
+  this route — it opened every card, on the argument that a reader who has to click sees nothing.
+  The cards got much shorter (see the drawers in [components.md](components.md)), so the counted
+  rule is enough and a reader is no longer handed six full-height cards at once.
+- **Hypotheses are ranked by impact and by nothing else.** This route used to float auto-targetable
+  ideas to the top so the previews on top were real ones. That is gone: the first row wears "Start
+  here", and a second sort key quietly hands that label to a lesser idea for being easier to
+  photograph.
 
 ### The cover — `components/report-cover.tsx`
 
-Shared by both surfaces. It opens with the accent rule, `report.preparedBy` (or the generic eyebrow
-when no name is set), the **host** as the `<h1>`, the full URL beneath it, a plain-language summary,
-and the date.
+It opens with the accent rule, `report.preparedBy` (or the generic eyebrow when no name is set), the
+**host** as the `<h1>` with the analysis `InfoHint` beside it, the full URL beneath it, a
+plain-language summary, and the date.
+
+**This cover won.** The owner's screen had its own header -- an eyebrow, `What to change`, the hint
+and the raw URL -- and when the two routes merged one of them had to go. This one names the page
+being read rather than the tool reading it, and it already handled `counts: null`.
 
 **The reader is the client's business owner, not a developer.** That is why the heading is the host
 rather than `{count} tests to lift your conversion`, why the URL lost its purple monospace treatment,
@@ -96,9 +155,11 @@ the document. `topImpact` came out: `7/10` is our internal score and means nothi
 
 ### Variant preview — `components/variant-preview.tsx`
 
-Rendered on both surfaces: the public report and the owner's own analysis screen. It was on the report
+Rendered for everyone, behind the copy card's **On your page** drawer. It was on the public route
 alone for a while, which meant the picture reached everyone the link was shared with and never the
-person who paid for it -- see [analysis-ui.md](analysis-ui.md).
+person who paid for it; with one route that whole class of mistake is gone. It is a drawer rather
+than a stacked panel for the reason in [components.md](components.md) -- and it is still a click to
+render, so a drawer nobody opens costs no browser.
 
 Renders the landing page with the recommended copy swapped in, **on request only**. Each preview boots a
 browser against the customer's real page, so it POSTs to `/api/report/screenshot` from a click and never
@@ -212,28 +273,29 @@ only place that catches it.
 readers asking for the same preview share one job instead of starting two renders and orphaning a
 file. That used to be an accepted cost bounded by `RATE_LIMITS.screenshot`.
 
-## Report deliverables — `components/report-deliverables.tsx`
+## Copy report link — `components/copy-report-link.tsx`
 
-**One named destination, not an unlabelled button.** The analysis produces the public report, and it
-used to have no name anywhere in the product: the header carried a bare `Copy report link` button. A
-reader who had never seen `/r/` had no reason to press a control that silently writes a URL to the
-clipboard.
+**A control needs a name, and `aria-label` on an icon button is not one.** That is the rule this
+component was written for and the one part of it that survived every rewrite.
 
-What renders on `/analyses/[id]` above `MeasuredReadout`: one card under the eyebrow
-**Deliverables**, with a name, a line on who it is for, `Open` (new tab) and `Copy link`.
+What renders in the header, **for the owner only**: one `Copy link` button beside `Back to
+dashboard`. Owner-gated because the link it copies *is* the embed key, and the report's only
+credential must not be handed to a reader who was merely sent it.
 
-**This used to be two cards, and the doc used to argue for exactly that** — "two named documents, not
-three unlabelled controls" — because there was a PDF to tell apart from the link. With one document
-the naming is the card's own heading and nothing else. The rule that survives is the one that was
-actually right: a control needs a name, and `aria-label` on an icon button is not one.
+**It used to be a named card with an `Open` button**, and the card made sense while the owner read
+this document on a *different* route: it named the thing the link pointed at. With one route the
+card described the page it was sitting on, and `Open` opened the current URL in a new tab. What
+survives is the only part that still does something.
 
-- **`variant="compact"`** renders the same destination as a small labelled ghost button in each
-  `/dashboard` card, so the report is discoverable before an analysis is opened. It carries
-  `relative z-10` to escape the card's `absolute inset-0` overlay link, the same escape the delete
-  cluster uses — see [analysis-ui.md](analysis-ui.md).
-- **The label stays a word, never an icon alone.** Unlabelled controls are the problem this component
-  was written to solve, so shrinking the words is allowed and dropping them is not. The row is
-  `flex-wrap` so the long transient `copyFailed` string wraps instead of overflowing.
+**It used to be two cards, then one, now none** — the doc once argued for "two named documents, not
+three unlabelled controls", because there was a PDF to tell apart from the link. The PDF went, then
+the second route went, and with it the last reason to name a destination at all.
+
+- **One component, two mounts**: the report header and each `/dashboard` card. The dashboard one
+  passes `relative z-10` to escape the card's `absolute inset-0` overlay link, the same escape the
+  delete cluster uses — see [analysis-ui.md](analysis-ui.md).
+- **The label stays a word, never an icon alone.** Shrinking the words is allowed and dropping them
+  is not. It is `flex-wrap` so the long transient `copyFailed` string wraps instead of overflowing.
 - The copy button keeps its explicit failure state and `document.execCommand` fallback, because
   `navigator.clipboard` is undefined outside a secure context: on plain http the promise rejected
   unhandled and the button was simply dead.

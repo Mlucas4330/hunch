@@ -355,6 +355,12 @@ export const ADMIN_GRANT_MAX = 100
 // what was just done and what was done last week.
 export const ADMIN_GRANT_HISTORY = 20
 
+// How close a tooltip may come to the edge of the viewport before it slides itself back in. It is
+// the gap that keeps the panel from looking welded to the screen edge, and the reason the number is
+// here rather than in the component is that it is a spacing decision, not a mechanism. See
+// components/info-hint.tsx.
+export const TOOLTIP_VIEWPORT_MARGIN_PX = 12
+
 // What a focus trap counts as a stop. `[tabindex="-1"]` is deliberately absent: it marks something
 // focusable by script, not by Tab. See components/ui/dialog.tsx.
 export const FOCUSABLE_SELECTOR =
@@ -824,10 +830,12 @@ export function impactScoreBadgeClass(score: number): string {
   return 'bg-neutral/15 text-neutral'
 }
 
-export function impactScoreFillClass(score: number): string {
-  if (score >= 8) return 'bg-coral'
-  if (score >= 5) return 'bg-amber'
-  return 'bg-neutral'
+// The score rail down the left edge of a ranked card. Same three bands as the chip above, as a
+// tinted ground with a matching foreground -- see components/score-indicator.tsx.
+export function impactScoreRailClass(score: number): string {
+  if (score >= 8) return 'bg-coral/10 text-coral'
+  if (score >= 5) return 'bg-amber/10 text-amber'
+  return 'bg-neutral/10 text-neutral'
 }
 
 // A default, never a state the reader is stuck in -- every row can still be closed.

@@ -238,8 +238,9 @@ has actually been taken** — so the branch `runAnalysis` reads is still ownersh
 and a run nobody paid for still costs zero tokens.
 
 The consequence to hold onto: **an owned analysis can contain nothing generated.** Claiming a free run
-after signing in hands over the row without the paid half ever having been bought, so
-`/analyses/[id]` renders the unlock wall rather than four empty tabs, exactly as `/r/<embedKey>` does.
+after signing in hands over the row without the paid half ever having been bought, so the analysis
+surface renders the unlock wall rather than four empty tabs. There is one surface to say that of now
+— it was two, and they disagreed about the predicate — see [report.md](report.md).
 Buying credits does not retroactively generate anything — the reader runs the URL again with a credit
 in hand.
 

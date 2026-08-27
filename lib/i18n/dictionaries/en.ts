@@ -28,10 +28,6 @@ export const en = {
         title: 'Credits',
         description: 'Grant credits by hand.'
       },
-      analysis: {
-        title: 'What to change',
-        description: 'Ranked wording fixes and the flow playbook for this landing page.'
-      },
       report: {
         title: 'Conversion teardown for {host}',
         description:
@@ -110,6 +106,11 @@ export const en = {
   score: {
     impact: 'Impact',
     aria: '{label} {score} of 10',
+    hintLabel: 'What the impact number means',
+    // **It ranks, it does not predict.** Saying a 9 is "worth more signups" would be stating what a
+    // number will produce, which nothing here may do -- see docs/invariants.md. Saying it was
+    // measured would be worse: the score is written by the model that wrote the fix.
+    hint: 'How much this change matters *next to the others in this analysis*, from 1 to 10. It orders the list: start at the top. Written by a model, not counted, and it does not forecast what the change will do.',
     short: {
       impact: 'I'
     }
@@ -405,18 +406,10 @@ export const en = {
     eyebrow: 'What to change',
     title: 'What to change on this page',
     hintLabel: 'How to use this screen',
-    hint: 'Each tab is one kind of fix, ranked by likely impact. *Flow* and *SEO* are changes you ship by hand; *Copy* is the wording, and every idea there comes with the replacement already written. Every number in the readout above was counted on the page itself, so nothing here is estimated.',
+    hint: 'Each tab is one kind of fix. *Structure* and *SEO* ship by hand; *Copy* comes with the replacement already written. Every number in the readout above was counted on your page.',
     backToDashboard: 'Back to clients',
     copyFailed: 'Could not copy',
-    deliverables: {
-      eyebrow: 'Deliverables',
-      hintLabel: 'Who to send it to',
-      hint: 'The report is *a link*, and whoever opens it needs no account. Send it to the person who actually edits the page, whether that is a developer, a designer or whoever ships the change: they get the ranked fixes and the replacement copy without you pasting any of it into a message. Each copy change can be previewed on your real page, inside the report itself.',
-      interactiveTitle: 'Interactive report',
-      interactiveBody: 'A web page anyone opens with the link. Each copy change can be previewed on your real page.',
-      open: 'Open',
-      copyLink: 'Copy link'
-    },
+    copyLink: 'Copy link',
     tabs: {
       flow: 'Structure',
       copy: 'Copy',
@@ -436,7 +429,7 @@ export const en = {
     eyebrow: 'Fix the flow',
     title: 'Before you touch the words',
     hintLabel: 'Why these are shipped by hand',
-    hint: 'These change the *structure* of your page, not one line of text, so they are shipped by hand rather than as a wording swap. They usually pay off more than any wording change.',
+    hint: 'These change the *structure* of your page, not one line of text, so they ship by hand.',
     stepsLabel: 'How to ship it',
     evidenceLabel: 'Why',
     count: {
@@ -449,7 +442,7 @@ export const en = {
     eyebrow: 'Get found',
     title: 'Can a search engine and an AI read this page',
     hintLabel: 'What this section checked',
-    hint: 'These come from what your page *declares about itself* - its title, description, structured data, and what its robots.txt allows. We checked the page, *not* your search ranking: nothing here tells you where you rank or whether an AI mentions you today, only whether your page gives them what they need to find and quote you.',
+    hint: 'From what your page *declares about itself*: title, description, structured data, robots.txt. We checked the page, *not* the index - nothing here says where you rank or whether an AI mentions you.',
     stepsLabel: 'How to ship it',
     evidenceLabel: 'Why'
   },
@@ -458,7 +451,7 @@ export const en = {
     eyebrow: 'Get found',
     title: 'What a search engine can read here',
     hintLabel: 'What this section checked',
-    hint: 'These come from what your page *declares about itself* - its title, description, canonical, structured data, and what its robots.txt allows. We checked the page, *not* your search ranking: nothing here tells you where you rank or how much traffic you get, only whether your page gives a crawler what it needs to reach and read you.',
+    hint: 'From what your page *declares about itself*: title, description, canonical, structured data, robots.txt. We checked the page, *not* the index - nothing here says where you rank or what traffic you get.',
     stepsLabel: 'How to ship it',
     evidenceLabel: 'Why'
   },
@@ -467,7 +460,7 @@ export const en = {
     eyebrow: 'Found by AI',
     title: 'Can a language model quote this page',
     hintLabel: 'What this section checked',
-    hint: 'An assistant answering a question about your category has to *read an answer off your page* to cite it. These are the things that make one findable: facts stated in text rather than locked inside an image, and questions answered where a model can see them. We checked the page, *not* what any model says today - nothing here tells you whether an AI mentions you right now.',
+    hint: 'To cite you, an assistant has to *read an answer off your page*: facts in text rather than locked inside an image. We checked the page, *not* what any model says today.',
     stepsLabel: 'How to ship it',
     evidenceLabel: 'Why'
   },
@@ -476,7 +469,7 @@ export const en = {
     eyebrow: 'Measured on your page',
     title: 'What we counted',
     hintLabel: 'Where these numbers come from',
-    hint: 'Everything here was *counted on your page* when we loaded it - nothing is estimated, averaged, or taken from a benchmark. Load times are measured from a data center on a clean connection, so treat them as *the best case*: a visitor on mobile sees slower than this, never faster.',
+    hint: 'Everything here was *counted on your page* when we loaded it - nothing estimated, nothing benchmarked. Load times come from a data center, so they are *the best case*: a real visitor never beats them.',
     groups: {
       structure: 'What a visitor runs into on the page',
       trust: 'What the page offers as a reason to believe it',
@@ -580,13 +573,18 @@ export const en = {
   },
 
   hypothesisList: {
+    eyebrow: 'Rewrite the words',
+    title: 'The lines worth swapping',
+    hintLabel: 'How to use these',
+    hint: 'Each one names the line as it stands today and the replacement, *already written*. Where the line is a single element we can point at, you get a preview of it on your real page.',
     manualSetup: 'Manual setup',
     testThisFirst: 'Start here',
-    recommendedChallenger: 'Recommended challenger',
     evidenceMechanism: 'The mechanism',
     placeholderWarning: 'Has [placeholders] - replace them with the real details before you hand this over.',
+    previewLabel: 'On your page',
     otherOptions: 'Other options',
     writingOptions: 'Writing other options...',
+    optionsUnavailable: 'We could not write more options just now. The recommendation above still stands.',
     backlog: {
       one: '{count} more idea',
       other: '{count} more ideas'
@@ -680,13 +678,10 @@ export const en = {
     copyWritten: 'Copy already written',
     testThisFirst: 'Start here',
     problem: 'Problem',
-    recommendation: 'Recommendation',
     current: 'Current',
     changeTo: 'Change to',
-    placeholderNote: 'Contains [placeholders]. Swap in the real details before you hand this over.',
     whyThisWorks: 'Why this works',
-    manualSetup: 'Manual setup',
-    manualSetupBody: 'This change touches a section that is not a single-line text swap, so an in-context preview is not available. Apply the recommended copy by hand.',
+    manualSetupBody: 'Not a single-line swap, so there is no preview for it. Apply this copy by hand.',
     appliedToYourPage: 'Applied to your page',
     previewAlt: 'Variant applied to the landing page',
     previewBeforeAlt: 'The landing page as it is today',
@@ -701,9 +696,7 @@ export const en = {
       'We could not render your page just now. The recommended copy above still stands.',
     previewRetry: 'Try again',
     previewOverflow:
-      'This copy does not fit the space your page gives that element, so the preview shows it cut off. Shorten it, or give the element more room before you ship it.',
-    footerQuestion: 'Want a score like this for your own page?',
-    generatedBy: 'Generated by Hunch'
+      'This copy does not fit the space your page gives that element, so the preview shows it cut off. Shorten it, or give the element more room before you ship it.'
   },
 
   blog: enBlog

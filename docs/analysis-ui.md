@@ -9,12 +9,14 @@
 | `/blog/[slug]` | Blog post | One post, closing on the same CTA |
 | `/auth/signin` | Auth | Google, and GitHub when `AUTH_GITHUB_ID`/`SECRET` are set; returns to `callbackUrl` |
 | `/dashboard` | My pages | Grid of past analyses, one card per page, above the new-analysis form |
-| `/analyses/[id]` | What to change | The report link, then four tabs: structure, copy, SEO, AI |
-| `/r/[embedKey]` | Public report | No session, authorized by the opaque key — see [report.md](report.md) |
+| `/analyses/[id]` | Redirect | Owner-checked, then `redirect('/r/<embedKey>')`. Nothing renders — see [report.md](report.md) |
+| `/r/[embedKey]` | The analysis | The one analysis surface: cover, readout, then four tabs — structure, copy, SEO, AI. Public, authorized by the opaque key, with owner-only controls layered on `isOwner` — see [report.md](report.md) |
 | `/admin/credits` | Grant credits | Operator only. `notFound()` for anyone whose stored role is not `admin` — see [invariants.md](invariants.md) |
 
-The app routes live under the `(app)` route group (`app/(app)/analyses/...`); the public report has its
-own group, `app/(report)/r/[embedKey]/`.
+The app routes live under the `(app)` route group; the analysis itself lives in its own,
+`app/(report)/r/[embedKey]/`. **There is one analysis screen, not two.** `/analyses/[id]` was a
+second render of the same document, authorized by owner instead of by key, and the two drifted three
+separate ways before they were merged — the whole story is in [report.md](report.md).
 
 **There is no `/admin` and no `/settings`.** The three operator screens went with the features they
 read (plans, waitlist leads, report opens) and the settings page existed only for white-label. The
@@ -287,14 +289,14 @@ stranded with no route to it.
 - **Delete is an icon** (`Trash2`), and confirm/cancel are icons too (`Check` / `X`). The two-step
   inline confirm stays even though `components/ui/dialog.tsx` now exists: a modal to confirm one
   reversible row is heavier than the action it guards. Also unchanged is the rule from
-  `report-deliverables.tsx`: the accessible name is `aria-label` on the button, the icon is
+  `copy-report-link.tsx`: the accessible name is `aria-label` on the button, the icon is
   `aria-hidden`. No new dictionary keys; `common.delete` / `common.deleting` / `common.cancel` are the
   labels.
 - The whole card is a link via an `absolute inset-0` overlay, so the action cluster escapes it with
   `relative z-10`.
-- The footer also carries `ReportDeliverables variant="compact"` — the copy-link action in labelled
-  form, so the report is discoverable before an analysis is opened. It escapes the overlay the same
-  way. See [report.md](report.md#report-deliverables--componentsreport-deliverablestsx).
+- The footer also carries `CopyReportLink` — the same component the report header mounts, so the
+  link is reachable before an analysis is opened. It escapes the overlay the same way. See
+  [report.md](report.md#copy-report-link--componentscopy-report-linktsx).
 - **Empty state**: shown when the user has no pages yet. Single CTA — paste a landing page URL above.
 
 ### URL input form
@@ -336,21 +338,24 @@ The monthly free allowance is gone with plans: no `usage-banner.tsx`, no `lib/us
 prop on the URL form. What replaces it is credits, and until they land nothing on this screen counts
 anything.
 
-## The analysis screen (`app/(app)/analyses/[id]/page.tsx`)
+## The analysis screen (`app/(report)/r/[embedKey]/page.tsx`)
 
 **The analysis is the whole product, and it needs nothing but the URL** — see
 [product.md](product.md). There is no manual "pick a winner" circuit: the AI recommends one
 replacement line (`variants[0]`, the only variant written during the analysis) and the reader can ask
 for two alternates beside it.
 
-- **The deliverables block** (`components/report-deliverables.tsx`) sits above the readout: the one
-  document this analysis produces, named and described rather than left as an unlabelled button. It is
-  out of the header row on purpose — a control small enough to sit beside `Back` is a control a
-  first-time reader never presses. See
-  [report.md](report.md#report-deliverables--componentsreport-deliverablestsx).
-- `MeasuredReadout` above the tabs, with the score, the trend, the findings and the
-  keyword table — plus `MeasurePage variant="again"` beneath it. An analysis with nothing measured shows
-  `MeasurePage` alone instead. Both are owner-only; the reports render `MeasuredReadout` by itself. See
+**There is one of this screen.** It used to be two routes rendering the same tabs — see
+[report.md](report.md) for why `embedKey` is the surviving key and what `isOwner` does and does not
+decide.
+
+- **`CopyReportLink`** sits in the header beside `Back to dashboard`, **for the owner only**. It was
+  a named "Deliverables" card above the readout while there were two routes to tell apart; there is
+  one now, so the card described the page it sat on. See
+  [report.md](report.md#copy-report-link--componentscopy-report-linktsx).
+- `MeasuredReadout` above the tabs, with the score, the findings and the keyword table for everyone —
+  plus the trend and `MeasurePage variant="again"` for the owner. An analysis with nothing measured
+  shows `MeasurePage` alone to the owner and a read-only `MeasuringNotice` to everyone else. See
   [readout.md](readout.md).
 
 ### Four tabs — `components/analysis-tabs.tsx`, over the `ANALYSIS_TAB` enum
@@ -375,7 +380,6 @@ any **number**, and that rule is untouched.
 
 **Only the labels changed**; the enum values are persisted in Postgres.
 
-- The analysis screen and the public report render the same shell.
 - **Every panel stays mounted and inactive ones are `hidden`**, so switching tabs never remounts an
   already-rendered preview.
 - **An empty tab is not rendered.** `FlowPlaybook` returns `null` for an empty list, so the shell
@@ -388,48 +392,81 @@ any **number**, and that rule is untouched.
   statically placed child. Dropped in beside the panel heading it becomes the second entry of a
   children array with no key, and dev warns, naming `AnalysisTabs` (where the array is) and the page
   (where the element came from). The old fix was a `key` on every panel at every call site, which
-  worked on `/analyses/[id]` and was never done on the public report, so that surface warned on every
-  load. The wrapper makes the panel an only child instead of an array member, and no call site has to
-  know any of this.
+  worked on `/analyses/[id]` and was never done on the public report — a fair illustration of what
+  two routes rendering one document cost, and one of the reasons there is now one. The wrapper makes
+  the panel an only child instead of an array member, and no call site has to know any of this.
+
+### The header over a ranked list — `components/ranked-list-header.tsx`
+
+Eyebrow, title, the section's own `InfoHint`, and the impact legend. It sits **below** the tab's
+question (`analysis.tabQuestions`, rendered by `AnalysisTabs`): the question frames the tab, this
+names the list and states what the section checked.
+
+**It is a component because there are two lists and they had already drifted.** `FlowPlaybook` built
+this markup inline for its three sections and `HypothesisList` had none at all, so the copy tab was
+the only one of the four opening straight onto cards. Written twice it drifts again the first time
+either is touched — the same failure this whole surface was merged to stop, one level down.
+
+**The copy tab's strings live in `hypothesisList`, not in a `copy` subtree beside `flow`/`seo`/`ai`.**
+Those four are `PLAYBOOK_SECTION` values reached through `dictionary[section]` and must mirror each
+other key for key; a `copy` sitting next to them would look like a fifth member of a union it can
+never join, and would need `stepsLabel` and `evidenceLabel` for cards that have no steps. `copy` is
+an `ANALYSIS_TAB` value, and the two enums overlap in name only — `copy` is in one, `visibility` in
+the other.
 
 ### The ranked hypothesis list — `components/hypothesis-list.tsx`
 
-**It renders the variant preview, and for a while it did not.** The before/after picture existed only
-on `/r/<embedKey>`, which put it in front of everyone the reader shared the link with and nowhere in
-front of the reader who paid for it. It takes `embedKey` for that reason alone: the preview route
-authenticates on the key rather than on a session, so the key is what has to reach the card.
+**It is the only copy panel there is.** The public route used to render eighty-five lines of inline
+JSX doing the same job in slightly different chrome, which is exactly the drift merging the routes
+was meant to end — see [report.md](report.md). This component now renders for everyone, and takes
+`isOwner` for one reason: the alternates call is authenticated.
 
-Impact descending. **Every row is a `HypothesisCard`**, the shared header the public report renders
-too — see [components.md](components.md) — over one `DisclosureCard` shape, no tiers. The first
-`HYPOTHESIS_EXPANDED_COUNT` (3) merely start open; being open is always a default, never a state the
-reader is stuck in. There used to be a separate always-open card component, and a reader who had
-finished with row 1 had no way to fold it away.
+It takes `embedKey` because the preview route authenticates on the key rather than on a session, so
+the key is what has to reach the card.
 
-- The body carries **`current_copy` struck through, then the recommended challenger copy**
-  (`variants[0]`), and the **"Why this works"** block. The top row carries a coral ring and the "Test
-  this first" flag.
-- **The control line is not decoration.** The list showed only the challenger for a long time, which
+Impact descending, and **by nothing else**. The public route used to float auto-targetable ideas to
+the top so its previews were real ones; that is gone, because the first row wears "Start here" and a
+second sort key hands that label to a lesser idea for being easier to photograph.
+
+**Every row is a `HypothesisCard`** — see [components.md](components.md) — over one `DisclosureCard`
+shape, no tiers. The first `HYPOTHESIS_EXPANDED_COUNT` (3) merely start open; being open is always a
+default, never a state the reader is stuck in.
+
+**An open card is the decision and nothing else.** The body is `current_copy` struck through, the
+recommended challenger copy (`variants[0]`) below it, and a row of drawer toggles. Everything that
+argues for the change sits behind one of those — see the drawers in [components.md](components.md).
+
+- **The struck line is not decoration.** The list showed only the challenger for a long time, which
   reads as a suggestion floating free of the page: a reader who cannot see the line being replaced
   cannot judge whether replacing it is an improvement, and the section badge alone does not locate it
-  on a page with four headings. The report always showed both; this is the
-  screen catching up, and it reuses their `report.current` keys rather than minting a second wording
-  for the same idea.
-- That block holds **two different things**, and they are marked apart on purpose: `rationale` argues
-  why the challenger wins, while the variant's `evidence` names the CRO mechanism the rewrite uses —
-  what the current line leaves the visitor to infer, and what the replacement states outright. The
-  evidence paragraph carries a `panel-label` prefix (`hypothesisList.evidenceMechanism`), the same
-  idiom the landing hero mock uses. Unprefixed, the two read as one undifferentiated paragraph and the
-  argument for the change lands as generic reasoning. Marking it is the whole fix: **nothing new is
-  generated there**, and what is generated obeys
+  on a page with four headings.
+- **The two lines carry no visible labels.** They used to sit under `Current` / `Recommended
+  challenger` panel-labels inside a tinted panel, which put four 0.6rem eyebrows above the one
+  sentence the reader came for. The strikethrough is the label — it is the diff convention every
+  reader already has. `report.current` and `report.changeTo` survive as `sr-only` text, because a
+  screen reader has no strikethrough to read.
+- **The impact number is explained once, in the list header** (`components/impact-legend.tsx`), not
+  on each card: an `InfoHint` is a button, and a button inside a `<summary>` toggles the card. What it
+  says is bounded — the score ranks the fixes against each other, was written by a model rather than
+  counted, and forecasts nothing. See [invariants.md](invariants.md).
+- **Why this works** is a drawer holding **two different things**, marked apart on purpose:
+  `rationale` argues why the challenger wins, while the variant's `evidence` names the CRO mechanism
+  the rewrite uses — what the current line leaves the visitor to infer, and what the replacement
+  states outright. The evidence paragraph keeps its `panel-label` prefix
+  (`hypothesisList.evidenceMechanism`). Unprefixed, the two read as one undifferentiated paragraph and
+  the argument for the change lands as generic reasoning. **Nothing new is generated there**, and what
+  is generated obeys
   [invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured) like every other
   `evidence` field.
-- **Two alternate options, written on demand.** Only the recommendation exists when the screen loads.
-  `Other options` fires `POST /api/hypotheses/[id]/variants`, shows a "Writing other options..."
-  label, and renders the two alternates under the recommendation when they land. **Fail-quiet by
-  design**: the recommendation is already usable, so a failed generation leaves the card as it was
-  rather than showing an error the reader cannot act on. Once a hypothesis has its alternates they
-  render on load and the button is gone. For an agency handing over finished copy, three options for a
-  headline are worth having on their own.
+- **On your page** is the variant preview drawer, and only for an `auto` target. A manual one has no
+  selector to swap, so there is nothing to photograph — a line under the copy
+  (`report.manualSetupBody`) says so, and the drawer simply has no button.
+- **Other options** writes two alternates on demand, **owner only**, and **opening the drawer is what
+  buys them**: the `POST /api/hypotheses/[id]/variants` fires once, on first open. The loose button
+  that used to sit in the middle of the copy panel is gone — the drawer is both the control and the
+  place the answer lands. **Fail-quiet by design**: the recommendation is already usable, so a failed
+  generation shows one line saying so rather than an error the reader cannot act on. Once a hypothesis
+  has its alternates they render on open with no second call.
 
 ### Nothing shows an effort score, anywhere
 
@@ -464,8 +501,8 @@ applied; under any other order the first row is the first match, not a recommend
 ## The two ranked fix lists — `components/flow-playbook.tsx`
 
 **Two lists, one component.** The flow playbook (structural conversion fixes) and the visibility audit
-have the identical shape and share one table, so one component renders both on **all three** analysis
-surfaces. Nothing is duplicated per surface or per kind.
+have the identical shape and share one table, so one component renders both, in all four tabs.
+Nothing is duplicated per surface or per kind.
 
 `section` (`PLAYBOOK_SECTION`: `flow` by default, or `visibility` / `seo` / `ai`) selects the dictionary
 subtree and the `data-testid`, **and nothing else** — there is no branch on it below the heading, which
@@ -484,13 +521,16 @@ is the point. Consequences:
 They render as **separate sections rather than one impact-ranked list**: a founder deciding what to fix
 first should not have "write a meta description" ranked in among the conversion fixes.
 
-- Per fix: `FlowCategoryBadge`, two `ScoreIndicator`s, the title, the problem, the **"Why" block**
-  (`components/why-block.tsx`) and then the `steps` as an `<ol>` numbered `01`-style (`font-mono
-  tabular-nums`, the same idiom as `landing.tracks`). Cards carry `break-inside-avoid` because one of
-  the three surfaces is a print view.
-- **The "Why" comes before the steps, and is a panel rather than a footnote.** It used to be 12px muted
-  text under the steps block, with a 9.6px label — readers reported never noticing the reasoning existed
-  at all. Do not shrink it back below the copy it explains.
+- Per fix: `FlowCategoryBadge`, two `ScoreIndicator`s, the title, the problem sentence, then a
+  `CardDrawers` row of **Why** and **How to ship it** — the `steps` as an `<ol>` numbered `01`-style
+  (`font-mono tabular-nums`, the same idiom as `landing.tracks`). Cards carry `break-inside-avoid`
+  from when one surface was a print view.
+- **The "Why" comes first in the row, and the steps open by default.** Those are two separate rules.
+  The order is the old constraint intact: the Why used to be 12px muted text *under* the steps block
+  with a 9.6px label, and readers reported never noticing the reasoning existed — it must never go
+  back below the thing it explains. Which drawer starts open is the other question, and the steps win
+  it: they are what the card exists to hand over. A drawer is not the footnote the old layout was —
+  it is a labelled control the reader chose not to press yet, sitting above the panel it opens.
 - **A flow fix changes structure, not one line of text**, so it is shipped by hand rather than as a
   wording swap. The `InfoHint` on the heading exists to say exactly that.
 - **Renders `null` when there are no fixes**, so an analysis whose playbook generation failed simply has

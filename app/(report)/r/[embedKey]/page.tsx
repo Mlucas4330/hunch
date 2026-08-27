@@ -1,16 +1,29 @@
 
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ReportCover } from '@/components/report-cover'
 import { Wordmark } from '@/components/wordmark'
 import { UnlockWall } from '@/components/unlock-wall'
-import { HypothesisCard } from '@/components/hypothesis-card'
-import { VariantPreview } from '@/components/variant-preview'
+import { HypothesisList } from '@/components/hypothesis-list'
 import { FlowPlaybook } from '@/components/flow-playbook'
 import { AnalysisTabs } from '@/components/analysis-tabs'
-import { WhyBlock } from '@/components/why-block'
-import { hasPlaceholders } from '@/lib/utils'
+import { InfoHint } from '@/components/info-hint'
+import { RichText } from '@/components/rich-text'
+import { CopyReportLink } from '@/components/copy-report-link'
+import { Button } from '@/components/ui/button'
 import { MeasuredReadout } from '@/components/measured-readout'
-import { competitorFor, loadReport, readoutFor, splitFixes, splitVisibility } from '@/lib/analyses'
+import { MeasurePage } from '@/components/measure-page'
+import { getCurrentUser } from '@/lib/current-user'
+import {
+  competitorFor,
+  loadReport,
+  readoutFor,
+  readoutHistory,
+  splitFixes,
+  splitVisibility
+} from '@/lib/analyses'
+import { EMPTY_HISTORY } from '@/lib/snapshots'
+import { hasReadout, readout } from '@/lib/readout'
 import { PLAYBOOK_EXPANDED_COUNT } from '@/lib/constants'
 import type { FlowFix } from '@/db/schema'
 import type { PlaybookSection } from '@/lib/enums'
@@ -38,7 +51,20 @@ export async function generateMetadata({ params }: { params: Promise<{ embedKey:
   })
 }
 
-export default async function PublicReportPage({
+/**
+ * The one analysis surface, keyed on the embed key and public.
+ *
+ * **`embedKey` is the only key that works for every row.** An analysis nobody has claimed has no
+ * `user_id`, so it could never be addressed by owner -- which is why this used to be two routes,
+ * `/analyses/[id]` for a row with an owner and this one for a row without. Two routes rendering the
+ * same document is two copies that drift, and they did: the copy panel was written twice, the
+ * `generated` predicate disagreed with itself, and the two disagreed on which cards start open.
+ *
+ * So there is one document and one axis through it. `isOwner` decides what the reader may *do* --
+ * spend a browser slot, buy two more variants, copy the share link -- and decides nothing at all
+ * about what the document *says*. See docs/report.md.
+ */
+export default async function ReportPage({
   params
 }: {
   params: Promise<{ embedKey: string }>
@@ -51,54 +77,64 @@ export default async function PublicReportPage({
   const analysis = await loadReport(embedKey)
   if (!analysis) notFound()
 
-  // Three shapes now, and they are the free/paid cut made visible.
+  const user = await getCurrentUser()
+  const isOwner = user !== null && analysis.userId === user.id
+
+  // Three shapes, and they are the free/paid cut made visible.
   //
   // 1. Nothing measured yet: the job is still on the queue. The form waits for this before it
   //    navigates, so a reader only lands here by opening the link early or reloading mid-run.
-  // 2. Measured, nothing generated: an anonymous analysis. Score and readout in full, then the wall.
+  // 2. Measured, nothing generated: nobody has spent a credit on it. Score and readout in full,
+  //    then the wall.
   // 3. Generated: the whole document.
   //
   // The readout is never gated in any of them, for the reason in docs/readout.md.
-  const measured = analysis.structure !== null
-  const generated = analysis.hypotheses.length > 0
+  const measured = hasReadout(readout(readoutFor(analysis)))
+  const generated = analysis.hypotheses.length > 0 || analysis.flowFixes.length > 0
 
-  if (!measured) return <MeasuringNotice t={t} url={analysis.url} />
-
-  const ranked = [...analysis.hypotheses].sort((a, b) => b.impactScore - a.impactScore)
-  const previewOrder = [
-    ...ranked.filter((h) => h.target === 'auto'),
-    ...ranked.filter((h) => h.target !== 'auto')
-  ]
-  const visible = previewOrder
   const fixes = splitFixes(analysis.flowFixes)
   const visibility = splitVisibility(analysis.flowFixes)
   const counts = {
-    changes: ranked.length + analysis.flowFixes.length,
-    ready: ranked.filter((hypothesis) => hypothesis.target === 'auto').length,
+    changes: analysis.hypotheses.length + analysis.flowFixes.length,
+    ready: analysis.hypotheses.filter((hypothesis) => hypothesis.target === 'auto').length,
     structural: analysis.flowFixes.length
   }
+
+  // The trend is two measurements of the same page subtracted, and re-measuring is what adds a
+  // point to it. Both are the owner's: a prospect handed the link must not be able to spend the
+  // owner's browser slots, so neither the button nor the history it feeds exists for them. Do not
+  // "fix" the missing button here -- see docs/readout.md.
+  const history = isOwner && measured ? await readoutHistory(analysis.id, analysis.market) : EMPTY_HISTORY
 
   function fixPanel(list: FlowFix[], section: PlaybookSection) {
     return <FlowPlaybook fixes={list} section={section} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
   }
 
+  if (!measured) {
+    return isOwner ? (
+      <div className="animate-fade-up space-y-6">
+        <ReportHeader isOwner={isOwner} t={t} embedKey={analysis.embedKey} />
+        <MeasurePage analysisId={analysis.id} />
+      </div>
+    ) : (
+      <MeasuringNotice t={t} url={analysis.url} />
+    )
+  }
+
   return (
-    <div className="space-y-8">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-4">
-        <Wordmark />
-        <div className="flex items-end gap-4">
-          <div className="text-right">
-            <p className="panel-label text-[0.65rem] text-muted-foreground">{t.report.teardown}</p>
-            <p className="font-display text-sm font-medium">{t.report.plan}</p>
-          </div>
-        </div>
-      </header>
+    <div className="animate-fade-up space-y-8">
+      <ReportHeader isOwner={isOwner} t={t} embedKey={analysis.embedKey} />
 
       <ReportCover
         t={t}
         url={analysis.url}
         generated={formatDate(analysis.createdAt, locale)}
         counts={generated ? counts : null}
+        hint={
+          <InfoHint label={t.analysis.hintLabel}>
+            <RichText>{t.analysis.hint}</RichText>
+          </InfoHint>
+        }
       />
 
       {/* Both cells count generated work, so on a measured-only report both would read 0 -- a page
@@ -111,13 +147,21 @@ export default async function PublicReportPage({
         </div>
       )}
 
-      <MeasuredReadout input={readoutFor(analysis)} {...competitorFor(analysis)} />
+      <div className="space-y-4">
+        <MeasuredReadout
+          input={readoutFor(analysis)}
+          previous={history.previous}
+          {...competitorFor(analysis)}
+          scores={history.scores}
+        />
+        {isOwner && <MeasurePage analysisId={analysis.id} variant="again" />}
+      </div>
 
       {generated ? (
         <AnalysisTabs
           counts={{
             flow: fixes.flow.length,
-            copy: ranked.length,
+            copy: analysis.hypotheses.length,
             seo: visibility.seo.length,
             ai: visibility.ai.length
           }}
@@ -126,72 +170,11 @@ export default async function PublicReportPage({
             seo: fixPanel(visibility.seo, 'seo'),
             ai: fixPanel(visibility.ai, 'ai'),
             copy: (
-              <div className="space-y-4">
-                {visible.map((hypothesis, index) => {
-                  const recommended = hypothesis.variants[0]
-                  return (
-                    <HypothesisCard
-                      key={hypothesis.id}
-                      hypothesis={hypothesis}
-                      rank={index + 1}
-                      isTop={index === 0}
-                      defaultOpen
-                    >
-                      {recommended && (
-                        <div className="space-y-2">
-                          <p className="panel-label text-[0.6rem] text-muted-foreground">
-                            {t.report.recommendation}
-                          </p>
-                          <div className="space-y-3 rounded-md border border-purple/40 bg-purple/10 p-3">
-                            <div className="space-y-1">
-                              <p className="panel-label text-[0.55rem] text-muted-foreground">
-                                {t.report.current}
-                              </p>
-                              <p className="text-sm text-muted-foreground line-through">
-                                {hypothesis.currentCopy}
-                              </p>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="panel-label text-[0.55rem] text-muted-foreground">
-                                {t.report.changeTo}
-                              </p>
-                              <p className="text-sm font-medium">{recommended.copy}</p>
-                            </div>
-                          </div>
-                          {hasPlaceholders(recommended.copy) && (
-                            <p className="font-mono text-xs text-amber">{t.report.placeholderNote}</p>
-                          )}
-                        </div>
-                      )}
-
-                      {hypothesis.target === 'auto' ? (
-                        <VariantPreview
-                          embedKey={analysis.embedKey}
-                          hypothesisId={hypothesis.id}
-                          initialUrl={recommended?.screenshotUrl ?? null}
-                          initialBeforeUrl={recommended?.screenshotBeforeUrl ?? null}
-                          initialOverflow={recommended?.screenshotOverflow ?? false}
-                        />
-                      ) : (
-                        <div className="rounded-md border border-dashed bg-muted/40 p-3">
-                          <p className="panel-label text-[0.6rem] text-muted-foreground">
-                            {t.report.manualSetup}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {t.report.manualSetupBody}
-                          </p>
-                        </div>
-                      )}
-
-                      <WhyBlock label={t.report.whyThisWorks}>
-                        <p>{hypothesis.rationale}</p>
-                        {recommended?.evidence && <p>{recommended.evidence}</p>}
-                      </WhyBlock>
-                    </HypothesisCard>
-                  )
-                })}
-
-              </div>
+              <HypothesisList
+                hypotheses={analysis.hypotheses}
+                embedKey={analysis.embedKey}
+                isOwner={isOwner}
+              />
             )
           }}
         />
@@ -199,11 +182,44 @@ export default async function PublicReportPage({
         <UnlockWall embedKey={embedKey} />
       )}
 
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
-        <p className="font-mono text-sm">{t.report.footerQuestion}</p>
-        <p className="text-sm text-muted-foreground">{t.report.generatedBy}</p>
-      </footer>
     </div>
+  )
+}
+
+// A signed-in reader already has the wordmark in the navbar the layout renders, so printing it
+// again here would be it twice. A signed-out one has no navbar at all, and the report has to say
+// whose document it is.
+//
+// **Copying the link is the owner's one control here, and it is a button rather than a card.** It
+// used to be a named "Interactive report" card with an `Open` button, which made sense while the
+// owner read this document on a different route. There is nothing to open now -- the link points at
+// the page it is sitting on -- so what is left is putting the URL on the clipboard.
+function ReportHeader({
+  isOwner,
+  t,
+  embedKey
+}: {
+  isOwner: boolean
+  t: Dictionary
+  embedKey: string
+}) {
+  return (
+    <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-4">
+      {isOwner ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="ghost" size="sm" className="-ml-3">
+            <Link href="/dashboard">{t.analysis.backToDashboard}</Link>
+          </Button>
+          <CopyReportLink reportUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''} embedKey={embedKey} />
+        </div>
+      ) : (
+        <Wordmark />
+      )}
+      <div className="text-right">
+        <p className="panel-label text-[0.65rem] text-muted-foreground">{t.report.teardown}</p>
+        <p className="font-display text-sm font-medium">{t.report.plan}</p>
+      </div>
+    </header>
   )
 }
 

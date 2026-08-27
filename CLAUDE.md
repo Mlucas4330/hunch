@@ -27,8 +27,8 @@ Read the file that covers what you are about to touch. Paths are relative to the
 | `docs/ai-pipeline.md` | touching a prompt, a Zod schema, or generation |
 | `docs/scraping.md` | touching `lib/scrape.ts`, the readouts, or browser concurrency |
 | `docs/readout.md` | touching anything that shows a number to a reader |
-| `docs/report.md` | touching the public report at `/r/<embedKey>` |
-| `docs/analysis-ui.md` | touching the dashboard, the analysis screens or the fix lists |
+| `docs/report.md` | touching the analysis surface at `/r/<embedKey>`, or the `isOwner` split through it |
+| `docs/analysis-ui.md` | touching the dashboard, the analysis screen or the fix lists |
 | `docs/components.md` | touching a shared component |
 | `docs/i18n.md` | adding or changing any user-facing string |
 | `docs/seo.md` | touching metadata, robots, the sitemap or an OG image |

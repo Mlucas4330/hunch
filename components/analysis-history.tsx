@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { Check, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ReportDeliverables } from '@/components/report-deliverables'
+import { CopyReportLink } from '@/components/copy-report-link'
 import { useI18n } from '@/components/i18n-provider'
 import { t } from '@/lib/i18n/format'
 
@@ -54,7 +54,7 @@ export function AnalysisHistory({
           >
             <CardContent className="flex flex-1 flex-col gap-3 p-4">
               <Link
-                href={`/analyses/${analysis.id}`}
+                href={`/r/${analysis.embedKey}`}
                 aria-label={t(dictionary.history.openAria, { url: analysis.url })}
                 className="absolute inset-0 rounded-lg focus-visible:outline-none"
               />
@@ -110,10 +110,12 @@ export function AnalysisHistory({
                   <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-border" />
                   <span className="truncate">{analysis.market}</span>
                 </div>
-                <ReportDeliverables
-                  variant="compact"
+                {/* `relative z-10` escapes the card's `absolute inset-0` overlay link, the same
+                    escape the delete cluster uses. */}
+                <CopyReportLink
                   reportUrl={appUrl}
                   embedKey={analysis.embedKey}
+                  className="relative z-10 -ml-2"
                 />
               </div>
             </CardContent>

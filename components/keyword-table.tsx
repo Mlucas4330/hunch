@@ -16,7 +16,7 @@ export function KeywordTable({ keywords }: { keywords: PageKeywords | null }) {
     <div className="space-y-2 break-inside-avoid" data-testid="keyword-table">
       <p className="panel-label text-[0.6rem] text-muted-foreground">{copy.title}</p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-md border-collapse text-sm">
+        <table className="w-full min-w-sm border-collapse text-sm">
           <thead>
             <tr className="border-b text-left">
               <th className="p-2 font-display font-semibold">{copy.term}</th>

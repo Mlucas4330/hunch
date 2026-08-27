@@ -148,7 +148,7 @@ Three decisions worth keeping:
 `scoreSeverity` reads downward like `rankBelow` and reuses `READOUT_SEVERITY_CLASS`, so the score is
 tinted by the same three colours as the values beneath it.
 
-`components/readout-score.tsx` renders it above the groups on all three surfaces. It deliberately does
+`components/readout-score.tsx` renders it above the groups. It deliberately does
 **not** reuse `components/score-indicator.tsx`: that is the 1-10 impact scale on the hypotheses,
 and two different scales wearing the same widget on one screen is where the reader stops trusting
 either.
@@ -229,28 +229,36 @@ click the owner makes.
 
 ## Where it renders
 
-Mounted on **all three** analysis surfaces, like `FlowPlaybook`, fed by `readoutFor(analysis)`: above
-the tabs on `/analyses/[id]`, between the `<h1>` and the tabs on the public report, and ahead of both
-fix lists on the report.
+Mounted once, on the one analysis surface, like `FlowPlaybook`: fed by `readoutFor(analysis)`,
+between the cover and the tabs on `/r/<embedKey>`. It used to be mounted on two routes that rendered
+the same document — see [report.md](report.md).
 
-**Outside every wall on the public report.** It is the part a stranger can check against their own
-page in one click, so it is what earns the rest of the document a reading; gating a measurement of
-someone's own site behind an email reads as a trick.
+**Outside every wall, for everyone.** It is the part a stranger can check against their own page in
+one click, so it is what earns the rest of the document a reading; gating a measurement of someone's
+own site reads as a trick.
+
+**The trend is the owner's half of it.** `previous` and `scores` come from `readoutHistory`, which
+the page only queries when `isOwner` — a delta between two of the owner's measurements is their
+record of their own page, and it arrives with the button that adds points to it.
 
 Returns `null` when nothing was measured, so an analysis created before the columns existed has no
 section rather than an empty heading — the same contract `FlowPlaybook` has with an empty list.
 
 ## `components/measure-page.tsx` — what the null becomes, and only for the owner
 
-`/analyses/[id]` asks `hasReadout(readout(readoutFor(analysis)))` itself (both pure, no query, no
+The page asks `hasReadout(readout(readoutFor(analysis)))` itself (both pure, no query, no
 model) and renders `MeasurePage` when the answer is no: the readout's own eyebrow, title and hint over
 a dashed panel, and a button posting to `POST /api/analyses/[id]/measure`, then `router.refresh()` so
 the server re-renders the real section in its place. Four states like `VariantPreview` — the shape is
 reused, the code is not — and the request is bounded by `MEASURE_REQUEST_TIMEOUT_MS`.
 
-**The public report keeps rendering `MeasuredReadout` alone.** A prospect with no
-session must not be able to spend the owner's browser slots, and on paper there is nothing to click.
-Do not "fix" the missing button there.
+**A reader who is not the owner gets `MeasuredReadout` alone.** Merging the two routes did not
+weaken this — it renamed the condition. It used to hold because the button lived on a different
+route; it now holds because `MeasurePage` is behind `isOwner` on the one route there is. A prospect
+with no session must not be able to spend the owner's browser slots. **Do not "fix" the missing
+button there**, and do not relax the gate to "any signed-in reader": a stranger with an account is
+still a stranger with respect to this page. An unmeasured row shows them the read-only
+`MeasuringNotice` instead.
 
 The backfill is opt-in, one analysis at a time, and **must not become a migration** — a sweep would
 re-open every customer's landing page. See [api.md](api.md).

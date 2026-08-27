@@ -54,6 +54,13 @@ export type RouteSkeleton = (typeof ROUTE_SKELETON)[number]
 export const ANALYSIS_TAB = ['flow', 'copy', 'seo', 'ai'] as const
 export type AnalysisTab = (typeof ANALYSIS_TAB)[number]
 
+// The second layer inside an open card. An open card shows the decision -- the rewritten line, or
+// the sentence naming the problem -- and everything that argues for it sits behind one of these.
+// One list for both card families: the copy card offers why/preview/alternates, the fix card
+// why/steps, and `CardDrawers` renders whichever it is handed. See docs/components.md.
+export const CARD_DRAWER = ['why', 'preview', 'alternates', 'steps'] as const
+export type CardDrawer = (typeof CARD_DRAWER)[number]
+
 // Derived from FIX_KIND so a kind added there cannot be forgotten here.
 export const PLAYBOOK_SECTION = [...FIX_KIND, 'seo', 'ai'] as const
 export type PlaybookSection = (typeof PLAYBOOK_SECTION)[number]

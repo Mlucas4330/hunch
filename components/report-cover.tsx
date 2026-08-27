@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { t as fill } from '@/lib/i18n/format'
 import { displayHost } from '@/lib/host'
 import type { Dictionary } from '@/lib/i18n'
@@ -12,12 +13,16 @@ export function ReportCover({
   t,
   url,
   generated,
-  counts
+  counts,
+  hint
 }: {
   t: Dictionary
   url: string
   generated: string
   counts: ReportCoverCounts | null
+  // Sits beside the host. A slot rather than a prop of its own because `InfoHint` is a client
+  // component and this is not: the page composes it and hands it down already built.
+  hint?: ReactNode
 }) {
   const host = displayHost(url)
 
@@ -27,7 +32,10 @@ export function ReportCover({
 
       <div className="space-y-1">
         <p className="panel-label text-[0.7rem] text-muted-foreground">{t.report.teardown}</p>
-        <h1 className="text-balance font-display text-3xl font-bold tracking-tight">{host}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-balance font-display text-3xl font-bold tracking-tight">{host}</h1>
+          {hint}
+        </div>
         <p className="break-all font-mono text-sm text-muted-foreground">{url}</p>
       </div>
 

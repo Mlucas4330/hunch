@@ -68,8 +68,8 @@ If a sentence would have to appear in two docs, it belongs there and both link t
 | [ai-pipeline.md](docs/ai-pipeline.md) | touching a prompt, a Zod schema, or generation |
 | [scraping.md](docs/scraping.md) | touching `lib/scrape.ts`, the readouts, or browser concurrency |
 | [readout.md](docs/readout.md) | touching anything that shows a number to a reader |
-| [report.md](docs/report.md) | touching the public report at `/r/<embedKey>` |
-| [analysis-ui.md](docs/analysis-ui.md) | touching the landing page, the dashboard, the analysis screens or the fix lists |
+| [report.md](docs/report.md) | touching the analysis surface at `/r/<embedKey>`, or the `isOwner` split through it |
+| [analysis-ui.md](docs/analysis-ui.md) | touching the landing page, the dashboard, the analysis screen or the fix lists |
 | [components.md](docs/components.md) | touching a shared component |
 | [i18n.md](docs/i18n.md) | adding or changing any user-facing string |
 | [seo.md](docs/seo.md) | touching metadata, robots, the sitemap or an OG image |

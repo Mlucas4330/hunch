@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils'
 
 export function HypothesisCard({
   hypothesis,
-  rank,
   isTop,
   defaultOpen,
   showManualBadge,
@@ -18,7 +17,6 @@ export function HypothesisCard({
   children
 }: {
   hypothesis: Hypothesis
-  rank: number
   isTop?: boolean
   defaultOpen?: boolean
   showManualBadge?: boolean
@@ -29,13 +27,13 @@ export function HypothesisCard({
 
   return (
     <DisclosureCard
-      rank={rank}
       title={hypothesis.problem}
       testId="hypothesis-card"
       className={cn(isTop && 'ring-1 ring-coral/40', className)}
       defaultOpen={defaultOpen}
+      score={<ScoreIndicator score={hypothesis.impactScore} />}
       badge={
-        <span className="flex shrink-0 items-center gap-1.5">
+        <>
           <SectionBadge section={hypothesis.section} />
           {showManualBadge && hypothesis.target === 'manual' && (
             <span className="rounded-full bg-neutral/15 px-2 py-0.5 text-xs font-medium text-neutral">
@@ -47,10 +45,8 @@ export function HypothesisCard({
               {dictionary.hypothesisList.testThisFirst}
             </span>
           )}
-        </span>
+        </>
       }
-      scores={<ScoreIndicator score={hypothesis.impactScore} variant="compact" />}
-      openScores={<ScoreIndicator score={hypothesis.impactScore} />}
     >
       {children}
     </DisclosureCard>

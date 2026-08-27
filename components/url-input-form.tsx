@@ -21,7 +21,7 @@ const PHASE_SCHEDULE: { at: number; phase: number }[] = [
   { at: 160000, phase: 3 }
 ]
 
-type Started = { embedKey: string; id: string; owned: boolean }
+type Started = { embedKey: string; owned: boolean }
 
 type Progress = { measured: boolean; generated: boolean }
 
@@ -148,7 +148,7 @@ export function UrlInputForm({
 
       // The route answers 202 with a key, not a finished analysis: the work is on the queue and the
       // wait belongs to the worker now. What is left here is asking until it lands.
-      const { embedKey, id, owned }: Started = await res.json()
+      const { embedKey, owned }: Started = await res.json()
       remember(embedKey)
 
       const done = await waitForAnalysis(embedKey, owned)
@@ -157,9 +157,9 @@ export function UrlInputForm({
         return
       }
 
-      // The owner gets the screen with the owner-only affordances; someone with no account gets the
-      // shareable one, which is the only surface that can render an analysis with no userId.
-      router.push(owned ? `/analyses/${id}` : `/r/${embedKey}`)
+      // One destination for both, because there is one screen: the embed key addresses a row whether
+      // or not anybody owns it, and the page turns the owner-only affordances on by itself.
+      router.push(`/r/${embedKey}`)
     } catch {
       setError(dictionary.urlForm.errorGeneric)
     } finally {

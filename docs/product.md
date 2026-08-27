@@ -79,8 +79,9 @@ what was counted, and no surface says what a change will produce — see
 
 **Share**
 
-- Share a public report link (`/r/<embedKey>`), read with no session and authorized by the opaque key
-  alone. See [report.md](report.md).
+- Share the analysis link (`/r/<embedKey>`), read with no session and authorized by the opaque key
+  alone. It is the same page the owner reads, minus the controls that spend something. See
+  [report.md](report.md).
 
 **Account**
 

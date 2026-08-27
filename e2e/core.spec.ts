@@ -236,21 +236,16 @@ test.describe('core features', () => {
     await page.fill('input[name="url"]', url)
     await page.getByRole('button', { name: 'Analyze' }).click()
 
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
+    await page.waitForURL(/\/r\/[0-9a-f-]+$/)
 
 
 
-    // One destination, not two: the PDF and the /analyses/[id]/report route are both gone, so the
-    // card count is the assertion. A second Open link reappearing here means something reintroduced a
-    // deliverable without a name -- see docs/report.md.
-    const deliverables = page.getByTestId('deliverables')
-    await expect(deliverables.getByText('Interactive report')).toBeVisible()
-    await expect(deliverables.getByRole('button', { name: 'Copy link' })).toBeVisible()
-    await expect(deliverables.getByRole('link', { name: 'Open' })).toHaveCount(1)
-    await expect(deliverables.getByRole('link', { name: 'Open' })).toHaveAttribute(
-      'href',
-      /\/r\/[0-9a-f-]+$/
-    )
+    // **Copying the link is the whole of it, and there is nothing to open.** This used to assert a
+    // named "Interactive report" card with an `Open` button, which made sense while the owner read
+    // this document on a different route -- the link now points at the page it sits on. An `Open`
+    // control reappearing here means somebody reintroduced the second route -- see docs/report.md.
+    await expect(page.getByTestId('copy-report-link')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Open' })).toHaveCount(0)
 
     await openCopyTab(page)
     await expect(page.getByText('Ship faster: releases in').first()).toBeVisible()
@@ -260,7 +255,7 @@ test.describe('core features', () => {
     await expect(history.getByText(url)).toBeVisible()
     // Two documents on the client card, and nothing else. Stage 2 is gone.
     await expect(history.getByRole('link', { name: 'Tests' })).toHaveCount(0)
-    await expect(page.getByTestId('deliverables-compact').first()).toBeVisible()
+    await expect(page.getByTestId('copy-report-link').first()).toBeVisible()
   })
 
   test('writes the two alternate options on demand, from the analysis', async ({ page }) => {
@@ -269,20 +264,25 @@ test.describe('core features', () => {
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
     await page.getByRole('button', { name: 'Analyze' }).click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
+    await page.waitForURL(/\/r\/[0-9a-f-]+$/)
     await openCopyTab(page)
 
     const card = page.getByTestId('hypothesis-card').first()
+    // Everything past the rewritten line is a drawer now, so nothing below is on screen until the
+    // reader asks for it. That is the assertion: an open card is the decision and nothing else.
     await expect(card.getByTestId('alternate-variants')).toHaveCount(0)
+    await expect(card.getByTestId('variant-preview')).toHaveCount(0)
 
     // A previa vive nas duas telas. Ficou so no relatorio publico por um tempo, o que colocava a
     // imagem na frente de todo mundo com quem o link foi compartilhado e de ninguem que pagou por
     // ela. Sob E2E_FIXTURES o render responde `unavailable`, entao o que se verifica aqui e que o
     // controle esta montado, nao que a imagem chegou.
+    await card.getByRole('button', { name: 'On your page' }).click()
     await expect(card.getByTestId('variant-preview')).toBeVisible()
 
     // Synchronized on the response rather than the default expect timeout: this is the only test
-    // that hits the route, so it always pays `next dev`'s cold compile for it.
+    // that hits the route, so it always pays `next dev`'s cold compile for it. Opening the drawer
+    // is what buys the two options -- the fetch fires once, on the first open.
     const [written] = await Promise.all([
       page.waitForResponse(
         (r) => /\/api\/hypotheses\/[0-9a-f-]+\/variants$/.test(r.url()) && r.request().method() === 'POST'
@@ -292,14 +292,17 @@ test.describe('core features', () => {
     expect(written.ok()).toBeTruthy()
 
     await expect(card.getByTestId('alternate-variants')).toBeVisible()
-    await expect(card.getByTestId('load-alternates')).toHaveCount(0)
+    // The preview drawer closed when the alternates one opened: one panel at a time is the whole
+    // reason the card got shorter.
+    await expect(card.getByTestId('variant-preview')).toHaveCount(0)
 
     // Persisted, not just held in local state.
     await page.reload()
     await openCopyTab(page)
-    await expect(
-      page.getByTestId('hypothesis-card').first().getByTestId('alternate-variants')
-    ).toBeVisible()
+    const reopened = page.getByTestId('hypothesis-card').first()
+    await reopened.getByTestId('load-alternates').click()
+    await expect(reopened.getByTestId('alternate-variants')).toBeVisible()
+    await expect(reopened.getByText('Stop [specific pain]. Start shipping.')).toBeVisible()
   })
 
   test('ranks the top ideas open and collapses the backlog', async ({ page }) => {
@@ -308,7 +311,7 @@ test.describe('core features', () => {
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
     await page.getByRole('button', { name: 'Analyze' }).click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
+    await page.waitForURL(/\/r\/[0-9a-f-]+$/)
     await openCopyTab(page)
 
     const rows = page.getByTestId('hypothesis-card')
@@ -323,6 +326,8 @@ test.describe('core features', () => {
     await expect(page.locator('[data-testid="hypothesis-card"] details[open]')).toHaveCount(2)
 
     await top.locator('summary').click()
+    // The rationale is the "Why this works" drawer now, not a panel stacked under the copy.
+    await top.getByRole('button', { name: 'Why this works' }).click()
     await expect(top).toContainText(
       'A specific, quantified outcome in the headline raises perceived value'
     )
@@ -339,7 +344,7 @@ test.describe('core features', () => {
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
     await page.getByRole('button', { name: 'Analyze' }).click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
+    await page.waitForURL(/\/r\/[0-9a-f-]+$/)
 
     const playbook = page.getByTestId('flow-playbook')
     await expect(playbook).toBeVisible()
@@ -349,7 +354,7 @@ test.describe('core features', () => {
       playbook.getByText('Add a "Continue with Google" button above the email field on the signup form')
     ).toBeVisible()
     await playbook.getByRole('button', { name: 'Why these are shipped by hand' }).click()
-    await expect(playbook.getByRole('tooltip')).toContainText('shipped by hand')
+    await expect(playbook.getByRole('tooltip')).toContainText('ship by hand')
 
     await page.getByRole('tab', { name: 'SEO' }).click()
     const seo = page.getByTestId('seo-playbook')
@@ -365,15 +370,14 @@ test.describe('core features', () => {
     await expect(ai.getByTestId('seo-fix')).toHaveCount(0)
     await expect(ai.getByRole('heading', { name: 'Add alt text to the product images' })).toBeVisible()
 
-    const origin = new URL(page.url()).origin
-    const analysisId = page.url().split('/').pop()
-    const detail = await page.request.get(`${origin}/api/analyses/${analysisId}`)
-    const { analysis } = await detail.json()
+    // Same URL, no cookie. There is one route now, so the anonymous reader opens the exact page the
+    // owner was just looking at -- what changes is what they are allowed to do on it.
+    const reportUrl = page.url()
 
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
     await pinEnglish(context)
     const anon = await context.newPage()
-    await anon.goto(`/r/${analysis.embedKey}`)
+    await anon.goto(reportUrl)
     await expect(anon.getByTestId('flow-playbook').getByTestId('flow-fix')).toHaveCount(4)
 
     await anon.getByRole('tab', { name: 'AI' }).click()
@@ -383,9 +387,17 @@ test.describe('core features', () => {
     await expect(anon.getByRole('tab')).toHaveCount(4)
 
     await anon.getByRole('tab', { name: 'Copy' }).click()
+    const card = anon.getByTestId('hypothesis-card').first()
+    await card.getByRole('button', { name: 'On your page' }).click()
     const preview = anon.getByTestId('variant-preview').first()
     await expect(preview.getByRole('button', { name: 'See how this looks on your page' })).toBeVisible()
     await expect(preview.getByRole('img')).toHaveCount(0)
+
+    // Owner-only affordances, and the whole of the isOwner axis: no share card, no re-measure
+    // button, no way to buy two more variants off a report somebody handed them.
+    await expect(anon.getByTestId('copy-report-link')).toHaveCount(0)
+    await expect(anon.getByTestId('load-alternates')).toHaveCount(0)
+    await expect(anon.getByRole('button', { name: 'Measure again' })).toHaveCount(0)
 
     await context.close()
   })
@@ -396,12 +408,45 @@ test.describe('core features', () => {
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
     await page.getByRole('button', { name: 'Analyze' }).click()
-    await page.waitForURL(/\/analyses\/[0-9a-f-]+$/)
+    await page.waitForURL(/\/r\/[0-9a-f-]+$/)
     const analysisUrl = page.url()
 
     await page.goto('/dashboard')
     await page.getByRole('link', { name: `Open analysis for ${url}` }).click()
     await expect(page).toHaveURL(analysisUrl)
-    await expect(page.getByRole('heading', { name: 'What to change on this page' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'example.com' })).toBeVisible()
+  })
+
+  test('redirects the old owner route to the report, and refuses it to anyone else', async ({
+    page,
+    browser
+  }) => {
+    const url = `https://example.com/?t=${Date.now()}-redirect`
+
+    await page.goto('/dashboard')
+    await page.fill('input[name="url"]', url)
+    await page.getByRole('button', { name: 'Analyze' }).click()
+    await page.waitForURL(/\/r\/[0-9a-f-]+$/)
+    const reportUrl = page.url()
+    const embedKey = reportUrl.split('/').pop()!
+
+    const origin = new URL(reportUrl).origin
+    const listed = await page.request.get(`${origin}/api/analyses`)
+    const { analyses } = await listed.json()
+    const row = analyses.find((entry: { embedKey: string }) => entry.embedKey === embedKey)
+    expect(row).toBeTruthy()
+
+    await page.goto(`/analyses/${row.id}`)
+    await expect(page).toHaveURL(reportUrl)
+
+    // **The embed key is the report's only credential**, so the redirect may never trade an id it
+    // does not own for one. A signed-out reader gets the sign-in wall from middleware; a signed-in
+    // stranger would get 404 from the page itself.
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    await pinEnglish(context)
+    const anon = await context.newPage()
+    await anon.goto(`/analyses/${row.id}`)
+    await expect(anon).toHaveURL(/\/auth\/signin/)
+    await context.close()
   })
 })

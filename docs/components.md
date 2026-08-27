@@ -90,8 +90,9 @@ and every click is a full round trip with no feedback.
 `RouteSkeleton` takes a `ROUTE_SKELETON` variant and paints the layout of the page that is coming --
 a grid of rows or one analysis -- built from `components/ui/skeleton.tsx`. It reads its
 `common.loading` label from `useI18n` rather than `getDictionary()`, so the shell stays out of
-`cookies()`. Mounted by `app/(app)/dashboard/loading.tsx`, `app/(app)/analyses/[id]/loading.tsx` and
-`app/(report)/r/[embedKey]/loading.tsx`.
+`cookies()`. Mounted by `app/(app)/dashboard/loading.tsx` and `app/(report)/r/[embedKey]/loading.tsx`.
+There used to be a third, under `/analyses/[id]`, byte for byte identical to the report's; that route
+renders nothing now, so it went with the page.
 
 There is deliberately no `loading.tsx` at the `app/(app)` group root: it would cover
 `/auth/signin` too, and neither shell is that page's shape.
@@ -168,10 +169,12 @@ lucide icon alone with the label carried by `aria-label` and `title`, and both o
 `rel="noreferrer noopener"`. Same container as everything else. Mounted in `app/(app)/layout.tsx`, so it reaches every
 app page.
 
-**It is deliberately not mounted in `app/(report)/layout.tsx`.** That began as a white-label
-constraint — a global footer would have been a fifth surface carrying our name onto a document an
-agency handed to their client — and it survives on its own merit: the public report is shared outward
-to someone with no account, and app chrome on it is noise. It has its own footer.
+**In `app/(report)/layout.tsx` it is mounted only for a reader with a session**, alongside the
+navbar. It began as a white-label constraint that mounted it nowhere there — a global footer would
+have carried our name onto a document an agency handed to their client — and it stayed off on its own
+merit while that route was the *second* analysis surface, read by someone with no account. It is the
+only one now, so a signed-in reader gets the app chrome they would have had on the route that went
+away, and a signed-out reader still gets none: the report has its own footer for them.
 
 ### Language toggle — `components/language-toggle.tsx`
 
@@ -184,14 +187,25 @@ header** — that surface has no navbar and is read signed-out by someone who ma
 
 ## Disclosure card — `components/disclosure-card.tsx`
 
-**The title reflow is conditional, and the condition is derived rather than passed.**
-`group-open:order-last group-open:basis-full` gives the title a full row once the card is open, which
-is right when it is squeezed between a rank, a badge and score chips — and wrong when it is alone. On
-the landing FAQ it pushed the question onto a second line and stranded the `+`/`-` marker by itself
-on the line above, which read as broken. `crowded` is computed from whether `rank`, `badge`, `scores`
-or `openScores` were given, so no call site can get it wrong; an uncrowded title wraps in place
-instead of truncating, which is what a question wants. The marker is `shrink-0 self-start` so it stays
-on the first line of a question that wraps.
+**The score is a rail down the left edge, and that replaced five things.** The header used to be a
+mono rank, a coloured pill, a coral flag and the word IMPACT next to ten meter bars next to `9/10`,
+all fighting over one wrapping line, with the title pushed underneath them. The meter alone was
+`shrink-0` at roughly 290px, which is *why* the title needed its own row and why an open card needed
+a whole second set of score elements (`openScores`) swapped in by CSS.
+
+The rail is one fixed-width block, tinted by impact, identical open or closed. Scanning a list reads
+9, 8, 7, 7, 5, 4 in a column — the ranking made visual. **It absorbed the rank**, which was a second
+number saying nearly the same thing: the list is sorted by impact, so `01` beside `9/10` was one fact
+twice. Gone with it: the `rank`, `scores` and `openScores` props, the `crowded` branch, the
+title-reflow classes, and `impactScoreFillClass`.
+
+The title now wraps in place in both states, which is also what the landing FAQ always wanted — the
+`crowded` branch existed because a title alone reflowed badly, and there is no reflow left.
+
+**The marker is a lucide `ChevronDown` that rotates**, not a literal `+` / `-` in a mono span. The
+glyphs read fine but were the only control in the product not drawn from the icon set. It stays
+`aria-hidden`: the accessible name is the `<h3>` inside the summary, and `<details>` exposes its own
+open state.
 
 **`<details>` does not animate on its own** — the browser flips the content's display and the card
 jumps straight to its new height. `app/globals.css` gives it movement in two **independent** rules,
@@ -202,10 +216,9 @@ itself. Where the second is unsupported the panel snaps to full height and the c
 nothing is gated on support. Both are switched off under `prefers-reduced-motion`, like every other
 animation here.
 
-**Every** ranked row, on every surface: hypotheses and fixes alike. A native `<details>` wrapping a
-`Card`, **not React state** — it costs no client JS and renders identically inside the server-rendered
-public report and the client-rendered analysis list, so one component covers both. The `+` / `-`
-affordance is `aria-hidden`; the summary's title is the accessible name.
+**Every** ranked row, in every tab: hypotheses and fixes alike. A native `<details>` wrapping a
+`Card`, **not React state** — it costs no client JS for the open/close itself. The second layer
+*inside* an open card is `CardDrawers` below, which does use state, and for a reason named there.
 
 The summary is the click target for every ranked row in the product, so it carries the hover and the
 inset focus ring itself; the `Card` around it lights its border on `focus-within` so keyboard and
@@ -214,42 +227,77 @@ mouse land on the same row.
 Top rows arrive with `defaultOpen` rather than through a separate always-open card component. That is
 the point of the shape: **what a row starts as is a default, never a state the reader is stuck in.**
 
-An open row **is** a full card and is dressed like one: the title stops truncating and `openScores`
-(full `ScoreIndicator` gauges) replaces the compact chips. Both score sets are rendered and swapped
-with `group-open:`, so the component stays CSS-only. They carry identical aria-labels and a
-`display:none` element is not announced, so the swap is invisible to a screen reader.
-
-**Open, the title takes a row of its own** (`group-open:order-last group-open:basis-full`), below the
-rank, badges and gauges. Sharing one wrapping line with them does not work: the gauges are `shrink-0`
-and eat roughly 290px, so the title is squeezed to whatever is left and an untruncated sentence
-renders as a tall narrow column. `order` is visual only — the `<h3>` stays in DOM order, which is what
-a screen reader reads and what names the `summary`. Closed, the title is back on the line and
-truncates, so the collapsed list stays one row per item. The report reaches the same shape
-without `<details>`.
-
 The title renders as an `<h3>` inside the `<summary>`. Since every row is one of these, a `<span>`
 there would leave the section's items with no headings at all — for a screen reader walking the page or
 for anything selecting them by role.
 
 ## Hypothesis card — `components/hypothesis-card.tsx`
 
-The `DisclosureCard` header of a hypothesis — rank, section badge, "Start here" flag, compact
-chips and open gauges — wired once. The owner's list and the public report both render it and pass
-their own body as `children`, which is the only part that legitimately differs between them.
+The `DisclosureCard` header of a hypothesis — rank, section badge, "Manual setup" pill, "Start here"
+flag, compact chips and open gauges — wired once, with the body passed as `children`.
 
-It exists because that wiring was **copied** into the report page, and the two drifted the moment one
-of them was touched. The bodies stay separate; the header must not.
+It exists because that wiring was **copied** into the report page and the two drifted the moment one
+of them was touched. There is one body now too (`components/hypothesis-list.tsx`), which is the same
+lesson applied one level down — see [report.md](report.md).
 
-`showManualBadge` is the owner's list only: the report already explains manual setup in the body.
+## Card drawers — `components/card-drawers.tsx`
 
-## Why block — `components/why-block.tsx`
+**The second layer inside an open card.** A row of toggles over `CARD_DRAWER`, with one panel open at
+a time and none open unless the caller names a `defaultDrawer`.
 
-The reasoning behind a ranked item, on all three surfaces. It is a component because it was previously
-neither consistent nor readable: a fix's `evidence` was 12px muted text under the steps panel, the
-public report folded the same text into a 9.6px `<details>`, and a hypothesis's `rationale` — which the
-model is *required* to write — was **never rendered on the analysis screen at all**.
+An open card had grown into a wall: the copy card stacked a `Recommendation` label, a `Current` label
+over the struck line, a `Change to` label over the new one, a placeholder warning, the before/after
+preview and a "Why this works" panel, and then hung an `Other options` button in the middle of it.
+Four 0.6rem eyebrows stood between the reader and the one sentence they came for.
 
-Body-sized foreground text in a tinted panel. **Do not quiet it back down.**
+**And the four bodies had drifted into four treatments** — a purple-tinted bordered box for the why,
+a borderless grey box for the steps, another grey box for the alternates, and no container at all for
+the preview — so clicking across the row made the card restyle itself under the reader. One shell
+lives in this component now (`rounded-md border bg-muted/40`), and callers pass content, never
+chrome. The toggle row sits under a `border-t`: the drawers are a layer beneath the decision, not
+more of it. Every button is `variant="outline"` in both states, so the row reads as a set of controls
+rather than as three pieces of text one of which happens to be boxed; the open one changes weight and
+ground, never whether it is a button.
+
+**What an open card shows is the decision.** The rewritten line, or the sentence naming the problem.
+Everything that argues for it — the rationale, the screenshot, the alternates, the steps — is a
+labelled control the reader can press. One panel at a time, because they answer different questions
+and reading two at once was never what anyone wanted; the height is the whole reason this exists.
+
+- **A drawer with nullish `content` renders no button.** That is how the preview disappears for a
+  manual hypothesis and the alternates disappear for a reader who does not own the analysis — the
+  caller passes `null` rather than filtering the list, so the ids stay stable and the row order does
+  not shift under the reader.
+- **`onOpen` fires once, on first open.** It is what lets the alternates drawer buy its two variants
+  when it is opened rather than on mount, so a card nobody expands costs no model call.
+- It is `useState`, unlike `DisclosureCard`, which is deliberately CSS-only. A drawer has to be able
+  to *close another one*, which a `<details>` cannot express without a `name` group and the caller
+  managing it. The cards are already client components.
+- **A drawer is not the footnote it replaced.** The rule in [analysis-ui.md](analysis-ui.md) — that a
+  "Why" must never be small muted text tucked under the thing it explains — holds: the toggle sits
+  *above* its panel, at the same size as every other control on the card, and the panel it opens is
+  the full-size `WhyBlock`.
+
+## Impact legend — `components/impact-legend.tsx`
+
+What the number on the rail means, said once per list rather than once per card. It is mounted by
+`RankedListHeader`, which both ranked lists render — see
+[analysis-ui.md](analysis-ui.md#the-header-over-a-ranked-list--componentsranked-list-headertsx).
+
+**It cannot go in the card.** `InfoHint` is a `<button>`, and a button inside a `<summary>` is an
+interactive element nested in an interactive one — clicking it would toggle the card. And the answer
+is the same for all six rows, so asking it six times is six controls carrying one sentence.
+
+The sentence is bounded by [invariants.md](invariants.md): the score ranks the fixes against each
+other, **it was written by a model rather than counted**, and it never says what the change will
+produce. There used to be no explanation at all, which left a `9/10` beside a fix looking like
+something measured.
+
+**There is no `WhyBlock` any more.** The reasoning was a component because it had been neither
+consistent nor readable — a fix's `evidence` was 12px muted text under the steps, the report folded
+the same text into a 9.6px `<details>`, and a hypothesis's `rationale` was never rendered at all. Its
+rule survives intact, one level up: `CardDrawers` gives every panel body-sized foreground text, and
+the toggle above it is a full-size control. **Do not quiet it back down.**
 
 ## Badges
 
@@ -275,16 +323,22 @@ only has to separate the categories it sits beside.
 
 ## Score indicator
 
-A bar or numbered badge for `impact_score` (1-10). Higher = warmer: coral at 8-10, amber at 5-7, gray
-at 1-4.
+`impact_score` (1-10). Higher = warmer: coral at 8-10, amber at 5-7, gray at 1-4, over
+`impactScoreRailClass` and `impactScoreBadgeClass`.
 
 - **Impact is the only scale it renders.** There used to be a `kind` prop carrying an effort scale
   beside it; effort is gone from the whole product — see
   [analysis-ui.md](analysis-ui.md#nothing-shows-an-effort-score-anywhere).
-- `variant="compact"` swaps the ten-segment gauge for one tinted chip (`I9`), over
-  `impactScoreBadgeClass`. It is what collapsed rows use: a screen holding ten or more rows cannot
-  afford ten gauges. **The `aria-label` is identical in both variants**, so nothing is lost to a
-  screen reader.
+- **`variant="rail"` is the default and the ranked-row treatment**: a `w-14` tinted block down the
+  left edge of a `DisclosureCard`, the number over `/10`. Identical open or closed.
+- **The ten-segment meter is gone.** It printed the same fact three times — bars, `9/10`, and the
+  colour — carried the word IMPACT beside it, and was `shrink-0` at roughly 290px, which crowded
+  every header it sat in. `impactScoreFillClass` went with it.
+- `variant="compact"` is the inline chip (`I9`), for anywhere a rail cannot go. **The `aria-label` is
+  identical in both variants**, so nothing is lost to a screen reader.
+- **What the number means is explained once per list, not per card** — see the impact legend above.
+  The rail carries no label of its own; six labelled gauges was part of what made the header a
+  soup.
 
 ## Info hint — `components/info-hint.tsx`
 
@@ -299,8 +353,24 @@ than `none` makes that element the containing block for its `position: fixed` de
 stacking context around them). The catcher covered the analysis container rather than the viewport. **A
 listener has no geometry to get wrong.**
 
-The panel is width-capped against the viewport (`max-w-[min(18rem,calc(100vw-2rem))]`): it is anchored
-to a 16px icon, so a fixed width runs off-screen wherever that icon sits near an edge.
+**The panel places itself, and a width cap alone was not enough.** It is anchored to a 16px icon, so
+`max-w-[min(18rem,calc(100vw-2rem))]` stops it being *wide* but does nothing about *where* it starts:
+rendered at `left-0` from a trigger near the right edge — the impact legend is right-aligned over both
+ranked lists — it ran off the page and put a horizontal scrollbar on the whole document.
+
+There was an `align="right"` escape hatch. **No call site ever passed it**, and it was the wrong shape
+twice over: every caller would have to know where it renders, and a trigger in the *middle* of a
+narrow screen overflows whichever side it opens to. It is gone.
+
+A layout effect measures the panel and translates it back inside before paint, re-running on resize.
+**It reads `document.documentElement.clientWidth`, never `window.innerWidth`** — `innerWidth` counts
+the vertical scrollbar, so on a desktop with one the panel was allowed ~15px past where the document
+ends, which is exactly enough to add the scrollbar this exists to prevent.
+
+`e2e/info-hint.spec.ts` opens every hint on the analysis at three widths and asserts both that the
+panel's box is inside the viewport and that the document never scrolls sideways. It is a sweep rather
+than a test of the one hint that broke, because the failure is positional: the next one to break is
+whichever hint moves closest to an edge.
 
 ## Rich text — `components/rich-text.tsx`
 

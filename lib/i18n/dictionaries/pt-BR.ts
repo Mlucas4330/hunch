@@ -31,10 +31,6 @@ export const ptBR: Dictionary = {
         title: 'Créditos',
         description: 'Dar créditos na mão.'
       },
-      analysis: {
-        title: 'O que mudar',
-        description: 'Correções de texto priorizadas e o playbook de fluxo desta landing page.'
-      },
       report: {
         title: 'Diagnóstico de conversão de {host}',
         description:
@@ -113,6 +109,8 @@ export const ptBR: Dictionary = {
   score: {
     impact: 'Impacto',
     aria: '{label} {score} de 10',
+    hintLabel: 'O que significa a nota de impacto',
+    hint: 'O quanto esta mudança importa *em relação às outras desta análise*, de 1 a 10. É o que ordena a lista: comece de cima. Escrito por um modelo, não contado, e não prevê o que a mudança vai dar.',
     short: {
       impact: 'I'
     }
@@ -411,18 +409,10 @@ export const ptBR: Dictionary = {
     eyebrow: 'O que mudar',
     title: 'O que mudar nesta página',
     hintLabel: 'Como usar esta tela',
-    hint: 'Cada aba é um tipo de correção, ordenada pelo impacto provável. *Fluxo* e *SEO* são mudanças que alguém aplica à mão; *Copy* é o texto, e ali cada ideia já vem com a versão nova escrita. Todo número do diagnóstico acima foi contado na própria página, então nada aqui é estimativa.',
+    hint: 'Cada aba é um tipo de correção. *Estrutura* e *SEO* saem à mão; *Copy* já vem com o texto novo escrito. Todo número do diagnóstico acima foi contado na sua página.',
     backToDashboard: 'Voltar para clientes',
     copyFailed: 'Não foi possível copiar',
-    deliverables: {
-      eyebrow: 'Entregáveis',
-      hintLabel: 'Para quem mandar',
-      hint: 'O relatório é *um link*, e quem abrir não precisa de conta. Mande para quem de fato edita a página, seja o dev, o designer ou quem publica a mudança: a pessoa recebe as correções priorizadas e a copy substituta sem você ter que colar nada em uma mensagem. Cada troca de texto pode ser vista na sua página real, dentro do próprio relatório.',
-      interactiveTitle: 'Relatório interativo',
-      interactiveBody: 'Uma página que qualquer um abre com o link. Cada troca de texto pode ser vista na sua página real.',
-      open: 'Abrir',
-      copyLink: 'Copiar link'
-    },
+    copyLink: 'Copiar link',
     tabs: {
       flow: 'Estrutura',
       copy: 'Copy',
@@ -442,7 +432,7 @@ export const ptBR: Dictionary = {
     eyebrow: 'Ajuste o fluxo',
     title: 'Antes de mexer nas palavras',
     hintLabel: 'Por que isto sai à mão',
-    hint: 'Isto muda a *estrutura* da sua página, não uma linha de texto, então sai à mão, e não como troca de texto. Costuma dar mais retorno do que qualquer mudança de texto.',
+    hint: 'Isto muda a *estrutura* da sua página, não uma linha de texto, então sai à mão.',
     stepsLabel: 'Como implementar',
     evidenceLabel: 'Por quê',
     count: {
@@ -455,7 +445,7 @@ export const ptBR: Dictionary = {
     eyebrow: 'Seja encontrado',
     title: 'Um buscador e uma IA conseguem ler esta página',
     hintLabel: 'O que esta seção verificou',
-    hint: 'Isto vem do que a sua página *declara sobre si mesma*: título, descrição, dados estruturados e o que o robots.txt permite. Verificamos a página, *não* a sua posição em busca: nada aqui diz onde você aparece nem se alguma IA cita você hoje, apenas se a sua página entrega o que elas precisam para encontrar e citar você.',
+    hint: 'Vem do que a sua página *declara sobre si mesma*: title, description, dados estruturados, robots.txt. Verificamos a página, *não* o índice - nada aqui diz onde você aparece nem se uma IA cita você.',
     stepsLabel: 'Como implementar',
     evidenceLabel: 'Por quê'
   },
@@ -464,7 +454,7 @@ export const ptBR: Dictionary = {
     eyebrow: 'Seja encontrado',
     title: 'O que um buscador consegue ler aqui',
     hintLabel: 'O que esta seção verificou',
-    hint: 'Isto vem do que a sua página *declara sobre si mesma*: título, descrição, canonical, dados estruturados e o que o robots.txt permite. Verificamos a página, *não* a sua posição em busca: nada aqui diz onde você aparece nem quanto tráfego você recebe, apenas se a sua página entrega o que um crawler precisa para alcançar e ler você.',
+    hint: 'Vem do que a sua página *declara sobre si mesma*: title, meta description, canonical, dados estruturados, robots.txt. Verificamos a página, *não* o índice - nada aqui diz onde você aparece nem quanto tráfego recebe.',
     stepsLabel: 'Como implementar',
     evidenceLabel: 'Por quê'
   },
@@ -473,7 +463,7 @@ export const ptBR: Dictionary = {
     eyebrow: 'Encontrado por IA',
     title: 'Uma IA consegue citar esta página',
     hintLabel: 'O que esta seção verificou',
-    hint: 'Um assistente respondendo sobre a sua categoria precisa *ler uma resposta na sua página* para citar você. Isto é o que torna uma resposta encontrável: fatos escritos em texto em vez de presos dentro de uma imagem, e perguntas respondidas onde um modelo consegue ver. Verificamos a página, *não* o que algum modelo diz hoje - nada aqui diz se alguma IA cita você neste momento.',
+    hint: 'Para citar você, um assistente precisa *ler uma resposta na sua página*: fatos em texto, não presos dentro de uma imagem. Verificamos a página, *não* o que algum modelo diz hoje.',
     stepsLabel: 'Como implementar',
     evidenceLabel: 'Por quê'
   },
@@ -482,7 +472,7 @@ export const ptBR: Dictionary = {
     eyebrow: 'Medido na página',
     title: 'O que encontramos',
     hintLabel: 'De onde vêm esses números',
-    hint: 'Tudo aqui foi *contado na própria página* na hora em que a carregamos - nada é estimativa, média de mercado ou benchmark. Os tempos vêm de um data center com conexão boa, então são *o melhor cenário*: no celular o visitante espera mais que isso, nunca menos.',
+    hint: 'Tudo aqui foi *contado na sua página* quando a carregamos - nada estimado, nada de benchmark. Os tempos vêm de um data center, então são *o melhor cenário*: um visitante real nunca bate isso.',
     groups: {
       structure: 'A experiência de quem chega na página',
       trust: 'O que a página oferece como motivo para confiar',
@@ -586,14 +576,20 @@ export const ptBR: Dictionary = {
   },
 
   hypothesisList: {
+    eyebrow: 'Reescreva o texto',
+    title: 'As linhas que valem trocar',
+    hintLabel: 'Como usar isto',
+    hint: 'Cada uma mostra a linha como ela está hoje e o texto substituto, *já escrito*. Quando a linha é um elemento único que conseguimos apontar, você vê um preview dela na sua página real.',
     manualSetup: 'Configuração manual',
     testThisFirst: 'Comece por aqui',
-    recommendedChallenger: 'Desafiante recomendado',
     evidenceMechanism: 'O mecanismo',
     placeholderWarning:
       'Contém [placeholders] - substitua pelos dados reais antes de entregar.',
+    previewLabel: 'Na sua página',
     otherOptions: 'Outras opções',
     writingOptions: 'Escrevendo outras opções...',
+    optionsUnavailable:
+      'Não conseguimos escrever outras opções agora. A recomendação acima continua valendo.',
     backlog: {
       one: 'mais {count} ideia',
       other: 'mais {count} ideias'
@@ -687,15 +683,11 @@ export const ptBR: Dictionary = {
     copyWritten: 'Texto já escrito',
     testThisFirst: 'Comece por aqui',
     problem: 'Problema',
-    recommendation: 'Recomendação',
     current: 'Atual',
     changeTo: 'Trocar por',
-    placeholderNote:
-      'Contém [placeholders]. Substitua pelos seus dados reais antes de lançar.',
     whyThisWorks: 'Por que isso funciona',
-    manualSetup: 'Configuração manual',
     manualSetupBody:
-      'Esta mudança toca uma seção que não é uma troca de texto de linha única, então a prévia no contexto não está disponível. Aplique o texto recomendado manualmente.',
+      'Não é uma troca de linha única, então não há preview. Aplique este texto manualmente.',
     appliedToYourPage: 'Aplicado à sua página',
     previewAlt: 'Variante aplicada à landing page',
     previewBeforeAlt: 'A landing page como ela está hoje',
@@ -711,9 +703,7 @@ export const ptBR: Dictionary = {
       'Não conseguimos renderizar sua página agora. O texto recomendado acima continua valendo.',
     previewRetry: 'Tentar de novo',
     previewOverflow:
-      'Este texto não cabe no espaço que sua página dá para esse elemento, então a prévia mostra ele cortado. Encurte o texto, ou dê mais espaço ao elemento antes de publicar.',
-    footerQuestion: 'Quer uma nota assim para a sua página?',
-    generatedBy: 'Gerado pelo Hunch'
+      'Este texto não cabe no espaço que sua página dá para esse elemento, então a prévia mostra ele cortado. Encurte o texto, ou dê mais espaço ao elemento antes de publicar.'
   },
 
 

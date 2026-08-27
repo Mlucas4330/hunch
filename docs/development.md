@@ -162,7 +162,7 @@ role.
 
 **The free, walled shape is no longer checked by hand.** `e2e/free-analysis.spec.ts` drains the
 balance to zero, runs an analysis, and asserts the three things that define the free half: the reader
-lands on `/r/<embedKey>` rather than being refused, the row came back with `user_id` null and
+lands on `/r/<embedKey>` (which is where every run lands now) rather than being refused, the row came back with `user_id` null and
 `structure` populated (so no model was called), and the report shows the unlock wall without claiming
 zero changes. It restores whatever balance it took, because the rest of the suite needs it.
 
