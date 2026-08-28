@@ -100,8 +100,28 @@ a company to register it to.
 
 The reasoning worth keeping:
 
-- **Not a subscription.** A page owner audits twice a year, and a monthly plan on that usage is a
-  cancellation waiting to happen.
+- **Credits are not a subscription, and the reason still holds for credits.** A page owner audits
+  twice a year, and a monthly plan *on that usage* is a cancellation waiting to happen. What changed
+  is not the answer to that, it is that a second product exists next to it — see below.
+- **There is now a subscription, and it sells a different thing.** `MONITORING_PLAN` bills monthly
+  for the page being measured again every week and the owner being told which numbers moved. That is
+  not "an audit on a schedule": an audit is generation, which costs tokens and is still bought by the
+  credit. A re-measure costs a browser slot and nothing else, which is what makes a recurring price
+  coherent rather than a way to charge twice for the same thing.
+
+  It is also the honest answer to the economics. A credit pack is a single purchase, so every real
+  spent acquiring a buyer has one transaction to pay it back — which works while acquisition is
+  organic and does not while it is bought. Recurring revenue is what makes a paid channel arithmetic
+  instead of a hope. What it must never do is change what a number is allowed to say: the weekly
+  email reports deltas and never causes, see [invariants.md](invariants.md).
+
+  It is sold under the packs on the landing page and cancelled from the dashboard, and **both halves
+  of that are deliberate**. Sold there because a stranger has to be able to read the offer, and the
+  card sits below the grid rather than in it so nobody reads it as a bigger pack. Cancelled there
+  because Mercado Pago's own account screen already works and is not where anyone looks — somebody
+  who cannot find how to stop paying does not give up, they open a chargeback. Blocking the email is
+  the other version of the same failure: it silences the message and leaves the charge running.
+  See [analysis-ui.md](analysis-ui.md) and [api.md](api.md).
 - **The pack sizes are a question as much as an offer.** Someone with one landing page needs one or
   two credits; a pack of ten selling well would say the buyer is not who this was rebuilt for.
 - **Granting is provider-agnostic**, keyed on `(provider, provider_ref)`. Stripe cannot charge in BRL

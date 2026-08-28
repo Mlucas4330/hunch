@@ -49,7 +49,11 @@ business detail, so anything unrecognised lands in `audience` intact rather than
 ## 2. Schemas
 
 ```typescript
-const VariantSchema = z.object({ copy: z.string(), evidence: z.string() })
+const VariantSchema = z.object({
+    copy: z.string(),
+    evidence: z.string(),
+    emphasis: z.string().nullable()
+})
 
 const HypothesisSchema = z.object({
     section: z.enum(SECTIONS).catch(SECTION_FALLBACK),
@@ -79,14 +83,16 @@ is the change to suspect.
 
 ```typescript
 
-const FlowFixSchema = z.object({
-    category: z.enum(FLOW_CATEGORY),
+const fixFields = {
     title: z.string(),
     problem: z.string(),
     steps: z.array(z.string()).min(2).max(PLAYBOOK_STEPS_MAX),
     impact_score: z.number().int().min(1).max(10),
-    evidence: z.string()
-})
+    evidence: z.string(),
+    finding: z.enum(READOUT_FINDING).nullable().catch(null)
+}
+
+const FlowFixSchema = z.object({ category: z.enum(FLOW_FIX_CATEGORY), ...fixFields })
 
 const PlaybookOutputSchema = z.object({
     fixes: z.array(FlowFixSchema).min(PLAYBOOK_MIN).max(PLAYBOOK_MAX)
@@ -95,6 +101,30 @@ const PlaybookOutputSchema = z.object({
 const VisibilityFixSchema = z.object({ category: z.enum(VISIBILITY_FIX_CATEGORY), ...fixFields })
 const VisibilityOutputSchema = z.object({ fixes: z.array(VisibilityFixSchema).max(VISIBILITY_MAX) })
 ```
+
+### `finding` is what ties a fix to the number that caused it
+
+Both fix families carry it, and it is the field that stops the report being two disjoint lists about
+one page. The readout counts 43 things above the tabs; the fix lists carry up to 20 cards below; until
+this existed, nothing tied one to the other and the reader did the join by recognising the words —
+"form has 7 fields" up here, "cut the form to three" down there.
+
+The generator always had the numbers. `findingsSection` in `lib/analyze.ts` now also hands it the
+**ids and severities**, narrowed to the groups that generator can act on, and `readoutRules` in
+`lib/ai/prompt.ts` — shared by both prompts for the same reason `marketRules` is — carries three
+rules: name the one finding the fix answers, never attach one to a finding whose severity is `ok`,
+and do not restate the measurement in `problem`. That last one is what kills the duplication: eleven
+of the fifteen `declared` and `crawler_access` findings had a fix category covering the same subject,
+and the fix's own sentence would repeat the tile the reader had just read.
+
+**`null` is a correct and common answer.** Nothing measures whether an action is repeated below the
+pricing table, so a fix about that names no finding.
+
+**It costs input tokens and not output ones.** `maxTokens` caps the completion, so serializing the
+findings in grows the prompt, never the budget the answer has to fit inside; the only growth on the
+output side is one short id per fix.
+
+**`section` is not the only field that degrades any more — `finding` does too, for the same reason.**
 
 **`section` is the one field that degrades instead of rejecting.** It only picks a badge colour, so an
 unrecognized value costs one mislabelled pill, while rejecting it throws away every other hypothesis
@@ -106,6 +136,12 @@ The failure it exists for was caused by the prompt: the element list used to for
 `(h2) "text"`, and the model read that tag as the section label and returned `section: 'h2'`. The list
 now uses `<tag> "text"` and `systemPrompt` says outright that an HTML tag is not a section value — but
 a schema that survives the next such slip is the actual guarantee.
+
+`finding` uses `.catch(null)` on exactly that reasoning, and the stakes are higher: a hallucinated id
+would reject the whole `generateObject` call, and both fix generators end in `catch -> return []`, so
+one bad string would empty an entire tab **with no error anywhere**. Degrading costs one missing link.
+`lib/ai/schema.test.ts` pins this, and `category` is deliberately left rejecting beside it — a wrong
+category files a fix under the wrong heading, which is a visible claim about what was audited.
 
 **The score bounds and `.min(5).max(8)` deliberately do NOT degrade.** Those catch an analysis that is
 genuinely wrong (a page that did not render, a model refusal) and must keep rejecting.
@@ -215,6 +251,21 @@ saying is two sentences: that a field *absent* from the readout was not measured
 from the page, and that the `trust` category argues from what was counted on this page and never from
 what people in any country expect. The existing "never recommend adding something the readout says
 the page already has" then covers the new fields unchanged.
+
+### `mobile` and `performance` are categories because the readout measured them
+
+The playbook used to receive `PageStructure` alone, and `FLOW_FIX_CATEGORY` had nothing covering a
+phone viewport or a load time. The readout counted both, both dragged the score down, and no fix could
+ever answer either — **the report told a founder their page was slow and then had nothing to say about
+it.** A measurement with no possible answer is a worse deliverable than not measuring.
+
+So `generatePlaybook` now also gets `PageMobile` and `PagePerformance`, and `PLAYBOOK_MAX` went from
+6 to 8: the subject got wider, and a ceiling that did not move would have let a phone fix crowd out a
+conversion one while the list looked the same length.
+
+The load numbers arrive with the caveat they always carry — measured from a datacentre, a floor a real
+visitor never beats — and the prompt forbids presenting one as what a visitor experiences, or saying
+what a faster page will produce. Same rule as everywhere else, see [invariants.md](invariants.md).
 
 ## 5. Visibility audit — `generateVisibility`
 

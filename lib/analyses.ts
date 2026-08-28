@@ -12,7 +12,14 @@ import {
   SNAPSHOT_HISTORY_MAX
 } from '@/lib/constants'
 import { displayHost } from '@/lib/host'
-import { AI_FIX_CATEGORY, type FixKind, type Market, type PulseState } from '@/lib/enums'
+import {
+  AI_FIX_CATEGORY,
+  isReadoutFinding,
+  type FixKind,
+  type Market,
+  type PulseState,
+  type ReadoutFinding
+} from '@/lib/enums'
 import { competitorInput } from '@/lib/competitor'
 import { EMPTY_HISTORY, snapshotInput, type ReadoutHistory } from '@/lib/snapshots'
 import { isUuid } from '@/lib/uuid'
@@ -65,6 +72,35 @@ export function splitVisibility(fixes: FlowFix[]): { seo: FlowFix[]; ai: FlowFix
     seo: visibility.filter((fix) => fix.category !== AI_FIX_CATEGORY),
     ai: visibility.filter((fix) => fix.category === AI_FIX_CATEGORY)
   }
+}
+
+/**
+ * Which fixes answer which measured finding.
+ *
+ * **This is the join the reader used to do in their head.** The readout counts 43 things above and
+ * the tabs carry up to 20 generated cards below, and until `flow_fixes.finding` existed nothing tied
+ * one to the other -- correlating "form has 7 fields" with "cut the form to three" was a matter of
+ * recognising the words.
+ *
+ * An array per finding rather than a single fix: nothing stops two fixes answering one number, and
+ * silently dropping the second would be a worse answer than showing both.
+ *
+ * **Rows written before the column existed carry `null`, and so do fixes no measurement backs** --
+ * nothing counts whether an action is repeated further down the page. Both are the same absence here
+ * and both are correct.
+ */
+export function fixesByFinding(fixes: FlowFix[]): Map<ReadoutFinding, FlowFix[]> {
+  const out = new Map<ReadoutFinding, FlowFix[]>()
+
+  for (const fix of fixes) {
+    if (!fix.finding || !isReadoutFinding(fix.finding)) continue
+
+    const existing = out.get(fix.finding)
+    if (existing) existing.push(fix)
+    else out.set(fix.finding, [fix])
+  }
+
+  return out
 }
 
 export function readoutFor(

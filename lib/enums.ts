@@ -61,8 +61,15 @@ export type AnalysisTab = (typeof ANALYSIS_TAB)[number]
 export const CARD_DRAWER = ['why', 'preview', 'alternates', 'steps'] as const
 export type CardDrawer = (typeof CARD_DRAWER)[number]
 
-// Derived from FIX_KIND so a kind added there cannot be forgotten here.
-export const PLAYBOOK_SECTION = [...FIX_KIND, 'seo', 'ai'] as const
+// Which lists `FlowPlaybook` can render, and therefore which dictionary sections have to exist.
+//
+// **It used to be `[...FIX_KIND, 'seo', 'ai']`, and that was wrong twice over.** `visibility` is a
+// FIX_KIND -- the discriminator on the table -- and it is the *parent* of the seo and ai lists, never
+// a list itself: `splitVisibility` cuts it into those two and nothing ever renders it whole. Deriving
+// from FIX_KIND therefore demanded a `dictionary.visibility` that no call site could reach, and the
+// one that existed sat there as a near-copy of `dictionary.seo`, same eyebrow and all, until it was
+// deleted. One word for the kind and for a section it never is: see the note on READOUT_GROUP.
+export const PLAYBOOK_SECTION = ['flow', 'seo', 'ai'] as const
 export type PlaybookSection = (typeof PLAYBOOK_SECTION)[number]
 
 // Declared as two families, not sliced out of one list: each generation is handed only its own as
@@ -74,7 +81,13 @@ export const FLOW_FIX_CATEGORY = [
   'objections',
   'trust',
   'pricing_clarity',
-  'page_structure'
+  'page_structure',
+  // **These two exist because the readout measured things nothing could fix.** The `mobile` and
+  // `load` groups drag a page's score down, and until now no fix category could address either:
+  // the report told a founder their page was slow and then offered nothing about it. A measurement
+  // with no possible answer is a worse deliverable than not measuring at all.
+  'mobile',
+  'performance'
 ] as const
 export type FlowFixCategory = (typeof FLOW_FIX_CATEGORY)[number]
 
@@ -114,6 +127,19 @@ export type CreditReason = (typeof CREDIT_REASON)[number]
 export const JOB_STATUS = ['queued', 'running', 'ready', 'unavailable'] as const
 export type JobStatus = (typeof JOB_STATUS)[number]
 
+// What a subscription is doing, in the provider's own vocabulary rather than a translation of it.
+// Mercado Pago's preapproval reports exactly these, and storing its word avoids a mapping that has
+// to be re-derived every time a provider adds a state. `authorized` is the only one that entitles
+// anything -- see lib/subscriptions.ts.
+export const SUBSCRIPTION_STATUS = ['pending', 'authorized', 'paused', 'cancelled'] as const
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUS)[number]
+
+// A provider is free to invent a state we have never seen, and the webhook must not guess when it
+// does. See the status handling in the Mercado Pago webhook.
+export function isSubscriptionStatus(value: unknown): value is SubscriptionStatus {
+  return SUBSCRIPTION_STATUS.includes(value as SubscriptionStatus)
+}
+
 // Abuse gates. Windows live in RATE_LIMITS, so a kind added here fails typecheck until it is given
 // one.
 export const RATE_LIMIT_KIND = [
@@ -128,7 +154,11 @@ export const RATE_LIMIT_KIND = [
   'signin',
   // Creating a payment is one call to the provider and no browser, so the budget is loose. It is its
   // own kind because a failed card retried three times must not spend the analysis allowance.
-  'billing'
+  'billing',
+  // Leaving an address costs one insert and one email, never a browser slot or a token. Its own kind
+  // so that someone correcting a typo in their address never spends the analysis allowance the same
+  // IP is about to need. See docs/api.md.
+  'lead'
 ] as const
 export type RateLimitKind = (typeof RATE_LIMIT_KIND)[number]
 
@@ -216,21 +246,79 @@ export type ReadoutFinding = (typeof READOUT_FINDING)[number]
 export const READOUT_SEVERITY = ['ok', 'warn', 'alert'] as const
 export type ReadoutSeverity = (typeof READOUT_SEVERITY)[number]
 
-// Also the render order. `visibility` is skipped whole when robots.txt could not be read, because
+// Also the render order. `crawler_access` is skipped whole when robots.txt could not be read, because
 // "we could not check" is not "they block AI crawlers". See docs/invariants.md.
 //
-// `trust` and `mobile` are skipped the same way and for the same reason: a row measured before those
+// **Three of these are named to avoid a collision, not for elegance.** `credibility`, `declared` and
+// `crawler_access` were once `trust`, `metadata` and `visibility` -- and each of those words already
+// names something else on the same screen: `trust` and `metadata` are fix categories, and
+// `visibility` is the FIX_KIND that parents BOTH the seo and ai tabs, a wider scope than the group
+// ever had. One word meaning two things in one report is how a reader concludes the page is saying
+// everything twice. See docs/readout.md.
+//
+// `credibility` and `mobile` are skipped the same way and for the same reason: a row measured before those
 // passes existed carries no value for them, and a group of zeroes would report never-measured as
 // wrong. Every group here is all or nothing.
 export const READOUT_GROUP = [
   'structure',
-  'trust',
+  'credibility',
   'mobile',
-  'metadata',
-  'visibility',
+  'declared',
+  'crawler_access',
   'load'
 ] as const
 export type ReadoutGroup = (typeof READOUT_GROUP)[number]
 
+// `flow_fixes.finding` is a `text` column rather than a pgEnum -- see the note on it in db/schema.ts --
+// so a value read back is a plain string and has to be narrowed before it can key anything. This is
+// the price of that choice, paid in one place.
+export function isReadoutFinding(value: unknown): value is ReadoutFinding {
+  return READOUT_FINDING.includes(value as ReadoutFinding)
+}
+
 export const READOUT_UNIT = ['count', 'seconds', 'megabytes', 'presence'] as const
 export type ReadoutUnit = (typeof READOUT_UNIT)[number]
+
+// How loud a log line is. `error` is something that needs a person, `warn` is something that
+// recovered on its own, `info` is a measurement nobody has to act on. See lib/log.ts.
+export const LOG_LEVEL = ['info', 'warn', 'error'] as const
+export type LogLevel = (typeof LOG_LEVEL)[number]
+
+// Every log line this app emits, named here so a line is greppable from the dashboard back to the
+// code that wrote it. Free-form messages drifted into four spellings of the same event, which is
+// what made the existing `console.error` calls impossible to count.
+//
+// The three that carry a number rather than a failure are the ones the queue had no answer for:
+// how deep the queue was when work arrived, how long a job waited for a browser slot, and how long
+// it then took. See docs/scraping.md.
+export const LOG_EVENT = [
+  'queue.enqueued',
+  'queue.job_finished',
+  'queue.job_failed',
+  'queue.no_runner',
+  'queue.reaped',
+  'queue.read_failed',
+  'queue.write_failed',
+  'queue.enqueue_failed',
+  'queue.reap_failed',
+  'scrape.slot_acquired',
+  'rate_limit.refused_closed',
+  'rate_limit.failed_open',
+  'redis.error',
+  'email.sent',
+  'email.failed',
+  // No credentials on this deploy. A warning rather than an error: local dev runs without them, and
+  // a form that failed because nobody set an API key would fail on every machine but production.
+  'email.skipped',
+  'lead.failed',
+  'subscription.created_failed',
+  'subscription.cancel_failed',
+  'subscription.activated',
+  'subscription.status_changed',
+  'subscription.renewed',
+  'subscription.unmatched',
+  'remeasure.swept',
+  'remeasure.measured',
+  'remeasure.failed'
+] as const
+export type LogEvent = (typeof LOG_EVENT)[number]

@@ -44,9 +44,17 @@ export function VariantPreview({
   const [beforeUrl, setBeforeUrl] = useState<string | null>(initialBeforeUrl)
   const [overflow, setOverflow] = useState(initialOverflow)
   const [state, setState] = useState<State>(initialUrl ? 'ready' : 'idle')
-  // Where the wipe sits, as a percentage from the left. Starts just past halfway so both images are
-  // visible at rest: at 0 or 100 the control looks like a plain screenshot with a stray slider.
-  const [wipe, setWipe] = useState(55)
+  // **How much of the rewrite is showing**, as a percentage. Not the position of the wipe line, and
+  // the difference is the whole bug this used to have: the value was the line's offset from the left,
+  // so raising it clipped the rewrite away. Dragging toward the "Rewritten" label produced *less*
+  // rewrite, and the pair read as if the two images had been swapped.
+  //
+  // Now the number means the thing the label under the handle names, `compareValue` is literally true
+  // rather than backwards, and the line's own offset is derived from it below.
+  //
+  // Starts just under halfway so both images are visible at rest: at 0 or 100 the control looks like
+  // a plain screenshot with a stray slider.
+  const [wipe, setWipe] = useState(45)
   const polling = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // A poll left running after the card unmounts keeps hitting the route for a preview nobody is
@@ -159,7 +167,7 @@ export function VariantPreview({
                 wipe and nothing would line up. */}
             <div
               className="absolute inset-0"
-              style={{ clipPath: `inset(0 0 0 ${wipe}%)` }}
+              style={{ clipPath: `inset(0 0 0 ${100 - wipe}%)` }}
               aria-hidden="true"
             >
               <Image
@@ -177,7 +185,7 @@ export function VariantPreview({
 
             <div
               className="pointer-events-none absolute inset-y-0 w-px bg-primary"
-              style={{ left: `${wipe}%` }}
+              style={{ left: `${100 - wipe}%` }}
               aria-hidden="true"
             />
           </div>

@@ -1,4 +1,5 @@
 import Redis from 'ioredis'
+import { log } from '@/lib/log'
 
 // One client for the whole process, pinned to `globalThis` for the same reason the browser pool is:
 // Next re-evaluates modules on every edit in dev and splits server bundles per route, so a
@@ -19,7 +20,7 @@ export function redis(): Redis | null {
     : null
 
   globalForRedis.redis?.on('error', (error) => {
-    console.error('[redis] error', error.message)
+    log.error('redis.error', error)
   })
 
   return globalForRedis.redis

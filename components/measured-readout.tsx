@@ -17,7 +17,7 @@ import {
   type ReadoutInput
 } from '@/lib/readout'
 import { deltas, type ScorePoint } from '@/lib/snapshots'
-import type { Locale, ReadoutUnit } from '@/lib/enums'
+import type { Locale, ReadoutFinding, ReadoutUnit } from '@/lib/enums'
 import { cn } from '@/lib/utils'
 
 export function MeasuredReadout({
@@ -26,6 +26,7 @@ export function MeasuredReadout({
   competitor = null,
   competitorHost = null,
   scores = [],
+  fixes = {},
   className
 }: {
   input: ReadoutInput
@@ -41,6 +42,19 @@ export function MeasuredReadout({
   competitor?: ReadoutInput | null
   competitorHost?: string | null
   scores?: ScorePoint[]
+  /**
+   * The titles of the generated fixes that answer each measured finding.
+   *
+   * **A third axis again, and the one that stops this being a list the reader has to join by hand.**
+   * The report used to show 43 counted tiles here and up to 20 generated cards in the tabs below with
+   * nothing tying them together, so "form has 7 fields" and "cut the form to three" were two
+   * paragraphs the reader had to recognise as the same subject.
+   *
+   * A plain object rather than a Map because it crosses the server boundary. Empty for every analysis
+   * with nothing generated -- which is every free one -- and that is what keeps this from becoming a
+   * paywall tease inside the one section that is never gated. See docs/invariants.md.
+   */
+  fixes?: Partial<Record<ReadoutFinding, string[]>>
   className?: string
 }) {
   const { dictionary, locale } = useI18n()
@@ -73,9 +87,29 @@ export function MeasuredReadout({
         const rows = measured.findings.filter((finding) => finding.group === group)
         if (rows.length === 0) return null
 
+        // **A group whose every check passed opens closed, and that is disclosure, not gating.** The
+        // whole readout used to render expanded at once -- 41 findings across six grids, and four in
+        // five of them saying nothing is wrong -- so the rows that needed attention were buried among
+        // the rows that did not. Nothing here is behind a payment or a session: same reader, one
+        // click, and the count is on the summary either way. The rule the readout is never gated is
+        // about charging for a measurement; see docs/invariants.md.
+        const wrong = rows.filter((finding) => finding.severity !== 'ok').length
+
         return (
-          <div key={group} className="space-y-2 break-inside-avoid">
-            <p className="panel-label text-[0.6rem] text-muted-foreground">{copy.groups[group]}</p>
+          <details
+            key={group}
+            open={wrong > 0}
+            className="group space-y-2 break-inside-avoid"
+            data-testid="readout-group"
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-1">
+              <span className="panel-label text-[0.6rem] text-muted-foreground">
+                {copy.groups[group]}
+              </span>
+              <span className="font-mono text-[0.7rem] tabular-nums text-muted-foreground">
+                {wrong > 0 ? t(copy.groupWrong, { wrong, total: rows.length }) : t(copy.groupOk, { total: rows.length })}
+              </span>
+            </summary>
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3">
               {rows.map((finding) => (
                 <div key={finding.id} className="space-y-1 bg-card p-3" data-testid="readout-finding">
@@ -98,6 +132,15 @@ export function MeasuredReadout({
                     )}
                   </div>
 
+                  {/* What was written to answer this number, where the number is. The full card,
+                      with its steps and its reasoning, is still the one in the tab below -- this is
+                      the pointer, not a second copy of it. */}
+                  {fixes[finding.id]?.length ? (
+                    <p className="text-[0.7rem] leading-snug text-purple" data-testid="finding-fix">
+                      {copy.fixLabel} {fixes[finding.id]!.join(' / ')}
+                    </p>
+                  ) : null}
+
                   {/* The other page's own number, labelled with its hostname. Not a delta and not a
                       verdict: two pages differ, and nothing here says the difference causes
                       anything. See docs/invariants.md. */}
@@ -112,7 +155,7 @@ export function MeasuredReadout({
                 </div>
               ))}
             </div>
-          </div>
+          </details>
         )
       })}
 

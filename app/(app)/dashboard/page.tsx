@@ -5,6 +5,7 @@ import { listAnalysesForUser, parsePaging } from '@/lib/analyses'
 import { UrlInputForm } from '@/components/url-input-form'
 import { AnalysisHistory } from '@/components/analysis-history'
 import { ClaimAnalyses } from '@/components/claim-analyses'
+import { CancelSubscription } from '@/components/cancel-subscription'
 import { InfoHint } from '@/components/info-hint'
 import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
@@ -15,7 +16,9 @@ import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 // this helper. Renaming the local would touch every line here for no gain.
 import { formatDate, t as interpolate } from '@/lib/i18n/format'
 import { pageMetadata } from '@/lib/seo'
+import { subscriptionFor, type SubscriptionRecord } from '@/lib/subscriptions'
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
+import type { Locale } from '@/lib/enums'
 
 export async function generateMetadata() {
   const { metadata } = await getDictionary()
@@ -40,6 +43,7 @@ export default async function DashboardPage({
     page: parsePaging(page)
   })
   const defaultBrief = rows.find((row) => row.brief)?.brief ?? ''
+  const subscription = await subscriptionFor(user.id)
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -55,6 +59,11 @@ export default async function DashboardPage({
         <p className="text-sm text-muted-foreground">{t.dashboard.subtitle}</p>
       </div>
 
+      {/* Only for somebody who has one. The dashboard is not a place to advertise to a reader who
+          is already signed in and has not bought it -- the offer lives on the landing page. */}
+      {subscription && (
+        <SubscriptionCard copy={t.dashboard.subscription} locale={locale} record={subscription} />
+      )}
 
       <UrlInputForm defaultBrief={defaultBrief} />
 
@@ -97,6 +106,50 @@ export default async function DashboardPage({
  * Renders nothing at one page, so an account with a handful of analyses never sees controls that
  * would go nowhere.
  */
+/**
+ * What state the subscription is in, and the way out of it.
+ *
+ * Every status gets its own sentence rather than a generic "subscribed": `pending` is a checkout
+ * nobody finished and is measuring nothing, and `cancelled` with a period end in the future is still
+ * measuring until that date. Collapsing those into one line would tell two different people the same
+ * wrong thing.
+ *
+ * The cancel button is offered only where there is something to cancel.
+ */
+function SubscriptionCard({
+  copy,
+  locale,
+  record
+}: {
+  copy: Dictionary['dashboard']['subscription']
+  locale: Locale
+  record: SubscriptionRecord
+}) {
+  const until = record.currentPeriodEnd
+    ? formatDate(record.currentPeriodEnd, locale)
+    : null
+
+  const status =
+    record.status === 'authorized'
+      ? [copy.active, until ? interpolate(copy.renews, { date: until }) : null]
+      : record.status === 'cancelled'
+        ? [until ? interpolate(copy.cancelled, { date: until }) : copy.cancelledNoDate]
+        : record.status === 'paused'
+          ? [copy.paused]
+          : [copy.pending]
+
+  return (
+    <div className="space-y-3 rounded-lg border bg-card px-4 py-3" data-testid="subscription-card">
+      <div className="space-y-1">
+        <p className="panel-label text-[0.65rem] text-muted-foreground">{copy.heading}</p>
+        <p className="text-sm">{status.filter(Boolean).join(' ')}</p>
+      </div>
+
+      {record.status !== 'cancelled' && <CancelSubscription />}
+    </div>
+  )
+}
+
 function Pagination({
   page,
   pages,

@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { ReportCover } from '@/components/report-cover'
 import { Wordmark } from '@/components/wordmark'
 import { UnlockWall } from '@/components/unlock-wall'
+import { WatchPageForm } from '@/components/watch-page-form'
 import { HypothesisList } from '@/components/hypothesis-list'
 import { FlowPlaybook } from '@/components/flow-playbook'
 import { AnalysisTabs } from '@/components/analysis-tabs'
@@ -16,6 +17,7 @@ import { MeasurePage } from '@/components/measure-page'
 import { getCurrentUser } from '@/lib/current-user'
 import {
   competitorFor,
+  fixesByFinding,
   loadReport,
   readoutFor,
   readoutHistory,
@@ -94,6 +96,16 @@ export default async function ReportPage({
 
   const fixes = splitFixes(analysis.flowFixes)
   const visibility = splitVisibility(analysis.flowFixes)
+
+  // Titles only, keyed by the finding each one answers, so a measured number can point at what was
+  // written for it. Empty on every analysis with nothing generated, which is what keeps the readout
+  // free of an affordance that would read as a paywall tease -- see docs/invariants.md.
+  const fixTitles = Object.fromEntries(
+    [...fixesByFinding(analysis.flowFixes)].map(([finding, list]) => [
+      finding,
+      list.map((fix) => fix.title)
+    ])
+  )
   const counts = {
     changes: analysis.hypotheses.length + analysis.flowFixes.length,
     ready: analysis.hypotheses.filter((hypothesis) => hypothesis.target === 'auto').length,
@@ -153,9 +165,23 @@ export default async function ReportPage({
           previous={history.previous}
           {...competitorFor(analysis)}
           scores={history.scores}
+          fixes={fixTitles}
         />
-        {isOwner && <MeasurePage analysisId={analysis.id} variant="again" />}
+        {isOwner && (
+          <MeasurePage
+            analysisId={analysis.id}
+            variant="again"
+            hasHistory={history.scores.length > 1}
+          />
+        )}
       </div>
+
+      {/* Below the readout, never above it, and never in front of it: the numbers are not behind
+          this and must not become so -- see docs/invariants.md. Offered only to a reader who is not
+          the owner, because an owner reaches this report from their dashboard and already has a
+          durable way back to it. For an anonymous reader the link lives in one browser's
+          localStorage and nowhere else, which is what makes the offer worth taking. */}
+      {!isOwner && <WatchPageForm embedKey={embedKey} />}
 
       {generated ? (
         <AnalysisTabs

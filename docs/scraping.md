@@ -254,12 +254,48 @@ process" and "in this deploy" are the same sentence today. It is pinned to `glob
 browser pool and the Redis client, for the same reason: Next re-evaluates modules per edit and splits
 bundles per route, so a module-scope singleton risks being one per bundle.
 
+### The worker runs `QUEUE_DRAIN_CONCURRENCY` jobs at once
+
+**It used to drain serially, and the reason written down for that was wrong.** The argument was that
+`withBrowserSlot` already caps how many pages exist at once, so a second limiter here would either
+fight it or hide it. The cap does still do exactly that and none of this changes it.
+
+What the argument missed is that **most of an owned analysis holds no slot at all**. It scrapes,
+releases the slot, and then spends 30-60s in three Sonnet calls competing for nothing — with the
+entire queue stopped behind it. The throughput ceiling was one job at a time, never the three tabs,
+and at one analysis every 60-120s a burst of ad traffic filled the queue faster than it drained.
+
+So the two limits were separated: **the slot cap limits Chromium, and this limits jobs in flight.**
+Scrape-heavy work now waits at `withBrowserSlot`, where the wait is bounded by
+`SCRAPE_QUEUE_MAX_WAIT_MS`, instead of at the head of the list where nothing bounded it.
+
+`reap` still depends on `queueDraining` admitting one drain at a time. Reaping on sight is sound only
+while this process holds nothing in the processing list, and it holds nothing precisely because every
+worker releases its id in a `finally` and no second drain is running — so `reap` stays where it is,
+before any worker starts, inside the flag.
+
 ### Four statuses, and the last two are the whole point
 
 `queued` / `running` / `ready` / `unavailable`. **"Still working" and "this can never work" used to
 reach the client as the same `error`**, so a preview that lost a race looked identical to one that was
 impossible — a manual hypothesis, a stale selector, an unwritable volume. The runner says which by
 resolving with a null url; only `unavailable` offers a retry.
+
+### Two kinds, and `remeasure` exists because `analysis` cannot do it
+
+`runAnalysis` returns early on a row that already holds its results — it has to, or a requeued job
+writes every hypothesis twice. That makes `analysis:<id>` a **guaranteed no-op** for a page that has
+already been measured, which is exactly the page the weekly sweep wants measured again.
+
+So the sweep enqueues `remeasure:<id>` instead, with its own runner in `lib/run-remeasure.ts`. It
+re-measures, appends a snapshot, and emails the owner which numbers moved. It spends no credit and
+calls no model: a re-measure is `measurePage` plus arithmetic, which is what a monthly fee can cover.
+
+The runner is registered at the module scope of `/api/cron/remeasure`, as every kind is, so that
+route being reached is what teaches the worker to run one. **A `remeasure` job orphaned by a restart
+and reaped before that module has loaded is answered `unavailable`** — it costs that page one week,
+and the next sweep picks it up because the cutoff is measured from the last snapshot, not from when
+the job was queued.
 
 ### The job id is the thing, never a token
 
@@ -305,7 +341,11 @@ every hypothesis twice. The credit is not at risk either way: it is spent by the
   finished render whose job TTL has lapsed still answers `ready`. Redis holds the in-flight answer;
   the row holds the durable one.
 - **The queue has a ceiling** (`QUEUE_MAX_DEPTH`) and answers `unavailable` past it. An unbounded
-  queue against one browser container is the outage it was supposed to prevent.
+  queue against one browser container is the outage it was supposed to prevent. **The ceiling has to
+  stay inside `ANALYSIS_WAIT_MAX_MS`**: a depth that takes longer to drain than the client waits
+  produces jobs whose reader has already given up, and past `JOB_TTL_MS` the answer they were waiting
+  for expires before the work runs. Both are derived from how long a job actually takes, which is why
+  `queue.job_finished` records it.
 - **Polling has its own rate limit.** `job_status` is deliberately loose and deliberately not
   `screenshot`: at `JOB_POLL_INTERVAL_MS` a single preview would burn the render quota on its own and
   stop the job it is waiting for.
@@ -320,14 +360,6 @@ is long.
 **This is the opposite call from the one the anonymous analysis route will make, on purpose.** A
 preview costs one browser slot for someone already holding a valid embed key; an unmetered public
 analysis is a bill. Same infrastructure, opposite failure direction, and both are deliberate.
-
-### A job in flight when the process restarts is lost
-
-It was popped off the list before it ran, so nothing picks it up: the client polls a `running` job
-until the TTL lapses, reads `unavailable`, and can ask again. That is the right trade for a
-screenshot — the work is idempotent and cheap to redo, and a processing list plus a reaper is
-machinery for a guarantee this does not need. **It stops being acceptable the moment a job spends a
-credit.**
 
 ## Running the scraper outside the Next build
 

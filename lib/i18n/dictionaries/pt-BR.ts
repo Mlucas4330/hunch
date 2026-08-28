@@ -71,6 +71,8 @@ export const ptBR: Dictionary = {
       trust: 'Confiança',
       pricing_clarity: 'Clareza de preços',
       page_structure: 'Estrutura da página',
+      mobile: 'Celular',
+      performance: 'Performance',
       indexability: 'Indexação',
       metadata: 'Metadados',
       structured_data: 'Dados estruturados',
@@ -306,6 +308,19 @@ export const ptBR: Dictionary = {
     subtitle: 'Cole a URL de uma landing page para medir e receber as correções priorizadas.',
     emptyTitle: 'Nenhuma página ainda',
     emptyDescription: 'Cole a URL de uma landing page aqui em cima para rodar a sua primeira análise.',
+    subscription: {
+      heading: 'Monitoramento semanal',
+      active: 'Ativo. Medimos suas páginas toda semana e mandamos por email o que mudou.',
+      renews: 'Renova em {date}.',
+      cancelled: 'Cancelado. Continuamos medindo até {date}, depois paramos.',
+      cancelledNoDate: 'Cancelado.',
+      pending: 'Esperando a confirmação do pagamento. Nada está sendo medido ainda.',
+      paused: 'Pausado no provedor de pagamento. Nada está sendo medido.',
+      cancel: 'Cancelar assinatura',
+      cancelling: 'Cancelando...',
+      cancelError: 'Não deu para cancelar. Tente de novo daqui a pouco.',
+      cancelNote: 'Cancelar interrompe a próxima cobrança. O mês que você já pagou vai até o fim.'
+    },
     pagination: {
       label: 'Mais páginas suas',
       previous: 'Mais recentes',
@@ -441,15 +456,6 @@ export const ptBR: Dictionary = {
     }
   },
 
-  visibility: {
-    eyebrow: 'Seja encontrado',
-    title: 'Um buscador e uma IA conseguem ler esta página',
-    hintLabel: 'O que esta seção verificou',
-    hint: 'Vem do que a sua página *declara sobre si mesma*: title, description, dados estruturados, robots.txt. Verificamos a página, *não* o índice - nada aqui diz onde você aparece nem se uma IA cita você.',
-    stepsLabel: 'Como implementar',
-    evidenceLabel: 'Por quê'
-  },
-
   seo: {
     eyebrow: 'Seja encontrado',
     title: 'O que um buscador consegue ler aqui',
@@ -473,13 +479,16 @@ export const ptBR: Dictionary = {
     title: 'O que encontramos',
     hintLabel: 'De onde vêm esses números',
     hint: 'Tudo aqui foi *contado na sua página* quando a carregamos - nada estimado, nada de benchmark. Os tempos vêm de um data center, então são *o melhor cenário*: um visitante real nunca bate isso.',
+    fixLabel: 'Correção escrita:',
+    groupOk: '{total} verificações, todas passando',
+    groupWrong: '{wrong} de {total} precisam de atenção',
     groups: {
       structure: 'A experiência de quem chega na página',
-      trust: 'O que a página oferece como motivo para confiar',
+      credibility: 'O que a página oferece como motivo para confiar',
       mobile: 'O que a página faz no celular',
-      metadata: 'O que a IA precisa está aqui?',
-      visibility: 'O que um crawler de IA tem permissão de ler',
-      load: 'A página está otimizada?'
+      declared: 'O que a página conta para uma máquina',
+      crawler_access: 'O que um crawler de IA tem permissão de ler',
+      load: 'O que custa abrir a página'
     },
     score: {
       label: 'Saúde do que medimos',
@@ -571,6 +580,8 @@ export const ptBR: Dictionary = {
       failed: 'Não conseguimos carregar a página desta vez. Nada foi alterado nesta análise.',
       retry: 'Tentar de novo',
       again: 'Medir de novo',
+      trendStartTitle: 'Acompanhe como esta página muda',
+      trendStartBody: 'Uma medição é uma foto, não um histórico. Meça esta página de novo e cada número aqui em cima ganha um "desde a última vez", mais uma linha mostrando a nota ao longo do tempo.',
       againHint: 'Abrimos a página outra vez e acrescentamos um ponto à evolução. As correções e os testes não mudam.'
     }
   },
@@ -617,6 +628,22 @@ export const ptBR: Dictionary = {
       qrAlt: 'QR Code do Pix',
       creditsArrive: 'Os créditos entram na sua conta assim que o pagamento for confirmado.',
       refresh: 'Atualizar o saldo'
+    },
+    monitoring: {
+      eyebrow: 'Ou acompanhe toda semana',
+      name: 'Monitoramento',
+      price: 'R$97',
+      cadence: 'por mês',
+      tagline: 'Os pacotes compram a escrita. Isto compra o acompanhamento.',
+      body: 'Um crédito compra uma análise, escrita uma vez. Isto mede sua página de novo toda semana e manda por email quais números se moveram desde a última.',
+      features: [
+        'Cada página sua medida toda semana',
+        'Um email listando o que mudou, e quanto',
+        '4 créditos por mês para as análises que você ainda quer escritas'
+      ],
+      cta: 'Assinar',
+      opening: 'Abrindo checkout...',
+      note: 'Cancele quando quiser, pelo seu painel.'
     },
     packs: {
       single: {
@@ -665,6 +692,38 @@ export const ptBR: Dictionary = {
     ],
     cta: 'Liberar as correções',
     ctaBuy: 'Comprar um crédito para liberar'
+  },
+
+  watch: {
+    heading: 'Receba este relatório por email',
+    body: 'Este relatório fica num link impossível de adivinhar que só este navegador conhece. Limpou o histórico, perdeu. Mande para você e ele é seu.',
+    placeholder: 'voce@empresa.com',
+    cta: 'Me manda o link',
+    sending: 'Enviando...',
+    success: 'Enviado. Confira sua caixa de entrada.',
+    errorInvalid: 'Isso não parece um endereço de email.',
+    errorRate: 'Tentativas demais. Espere alguns minutos.',
+    errorGeneric: 'Não deu para enviar. Tente de novo daqui a pouco.',
+    note: 'Um email com o link. Nada além disso, a não ser que você peça.',
+    email: {
+      subject: 'O relatório da sua landing page',
+      heading: 'Aqui está o seu relatório',
+      body: 'Você mediu {host}. O readout completo está no link abaixo, e ele continua lá.',
+      cta: 'Abrir o relatório',
+      keep: 'Guarde este email. O link é o único caminho de volta para este relatório.',
+      footer: 'Você recebeu isto porque alguém pediu neste endereço no hunch.'
+    },
+    weekly: {
+      subject: 'Algo piorou em {host}',
+      heading: 'Uma verificação da sua página piorou',
+      body: 'Medimos {host} de novo. {count} das verificações que contamos voltaram piores que da última vez.',
+      bodyScore: 'Medimos {host} de novo. Nada cruzou um limiar sozinho, mas a nota está {points} pontos menor que da última vez.',
+      rose: '{label}: subiu {amount}',
+      fell: '{label}: caiu {amount}',
+      cta: 'Ver o readout completo',
+      disclaimer: 'São duas medições da mesma página, com uma semana de diferença. Elas dizem o que mudou, não o que causou a mudança.',
+      manage: 'Gerencie ou cancele esta assinatura no seu painel: {link}'
+    }
   },
 
   report: {

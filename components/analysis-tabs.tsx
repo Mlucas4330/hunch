@@ -42,7 +42,7 @@ export function AnalysisTabs({
       <div
         role="tablist"
         aria-label={dictionary.analysis.title}
-        className="flex flex-wrap gap-x-2 gap-y-1 border-b"
+        className="flex flex-wrap gap-2"
       >
         {available.map((tab, index) => (
           <button
@@ -58,14 +58,17 @@ export function AnalysisTabs({
             tabIndex={tab === active ? 0 : -1}
             onClick={() => setSelected(tab)}
             onKeyDown={(event) => onKeyDown(event, index)}
-            // The hover has to draw the tab's own box, not just recolour its text: with only a colour
-            // change the row reads as one strip of words and nothing tells the reader where one target
-            // ends and the next begins.
+            // **Every tab draws its own box, selected or not.** This used to be an underline rail:
+            // one `border-b-2` that was `border-transparent` while inactive, so three of the four
+            // targets had no edge at all and the row read as a strip of words with one of them
+            // coloured. A reader could not see where a target began or ended until they hovered it.
+            // A full border on every tab is what makes the set read as a set, and the fill plus the
+            // accent border is what says which one is open.
             className={cn(
-              '-mb-px flex items-center gap-2 rounded-t-md border-b-2 px-4 py-3 text-sm font-medium transition-colors active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'flex items-center gap-2 rounded-md border px-4 py-2.5 text-sm font-medium transition-colors active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               tab === active
-                ? 'border-purple text-foreground'
-                : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
+                ? 'border-purple bg-purple/10 text-foreground'
+                : 'border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground'
             )}
           >
             {dictionary.analysis.tabs[tab]}

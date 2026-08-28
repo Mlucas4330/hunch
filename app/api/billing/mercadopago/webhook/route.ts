@@ -5,15 +5,23 @@ import { paymentEvents, users } from '@/db/schema'
 import {
   MERCADOPAGO_APPROVED,
   MERCADOPAGO_PAYMENT_TOPIC,
-  MERCADOPAGO_PROVIDER
+  MERCADOPAGO_PREAPPROVAL_TOPIC,
+  MERCADOPAGO_PROVIDER,
+  MERCADOPAGO_SUBSCRIPTION_PAYMENT_TOPIC
 } from '@/lib/constants'
 import { grantCredits } from '@/lib/credits'
 import {
   creditsForAmount,
+  creditsForRenewal,
+  getAuthorizedPayment,
   getPayment,
+  getPreapproval,
   verifyWebhookSignature,
   type MercadoPagoPayment
 } from '@/lib/mercadopago'
+import { recordSubscription } from '@/lib/subscriptions'
+import { isSubscriptionStatus } from '@/lib/enums'
+import { log } from '@/lib/log'
 
 // Same two guards as the Stripe webhook, for the same two different jobs. `payment_events` claims
 // the delivery so a retry does no work twice; the unique on `(provider, provider_ref)` in the ledger
@@ -78,6 +86,111 @@ async function creditFromPayment(payment: MercadoPagoPayment): Promise<void> {
   console.info('[billing/mercadopago] credit grant', { payment: payment.id, credits, ...result })
 }
 
+/**
+ * Records what the provider says an authorisation is now doing.
+ *
+ * **It grants nothing**, which is what keeps a cancellation from crediting anybody. The money for a
+ * subscription arrives on its own topic, one charge at a time.
+ */
+async function syncPreapproval(preapprovalId: string): Promise<void> {
+  const preapproval = await getPreapproval(preapprovalId)
+
+  if (!preapproval.external_reference) {
+    log.error('subscription.unmatched', undefined, { preapproval: preapprovalId })
+    return
+  }
+
+  // An unknown status is not a reason to guess. Leaving the row as it was is the safe direction:
+  // the worst case is a subscriber whose sweep keeps running for one more cycle, where writing a
+  // guessed `authorized` would sweep for someone who cancelled.
+  if (!isSubscriptionStatus(preapproval.status)) {
+    log.warn('subscription.status_changed', {
+      preapproval: preapprovalId,
+      status: preapproval.status,
+      stored: false
+    })
+    return
+  }
+
+  await recordSubscription({
+    userId: preapproval.external_reference,
+    provider: MERCADOPAGO_PROVIDER,
+    providerRef: preapproval.id,
+    status: preapproval.status,
+    currentPeriodEnd: preapproval.next_payment_date
+      ? new Date(preapproval.next_payment_date)
+      : null
+  })
+
+  log.info('subscription.status_changed', {
+    preapproval: preapprovalId,
+    status: preapproval.status,
+    stored: true
+  })
+}
+
+/**
+ * Credits one charge made against an authorisation.
+ *
+ * **Keyed on the charge, never on the subscription.** `providerRef` is this payment's own id, so
+ * every month claims its own ledger row; keying it on the preapproval would credit the first month
+ * and silently swallow all of them after it, which is the failure that looks exactly like working
+ * software for thirty days.
+ *
+ * The amount is matched against `MONITORING_PLAN` on the way back for the same reason a pack's is:
+ * a charge for an amount we do not sell buys nothing.
+ */
+async function creditFromRenewal(authorizedPaymentId: string): Promise<void> {
+  const payment = await getAuthorizedPayment(authorizedPaymentId)
+  if (payment.status !== MERCADOPAGO_APPROVED) return
+
+  const credits = creditsForRenewal(payment.transaction_amount)
+  if (credits <= 0) {
+    log.error('subscription.unmatched', undefined, {
+      payment: payment.id,
+      amount: payment.transaction_amount
+    })
+    return
+  }
+
+  const preapproval = await getPreapproval(payment.preapproval_id)
+  if (!preapproval.external_reference) {
+    log.error('subscription.unmatched', undefined, { preapproval: payment.preapproval_id })
+    return
+  }
+
+  const subscriber = await db.query.users.findFirst({
+    where: eq(users.id, preapproval.external_reference),
+    columns: { email: true }
+  })
+
+  if (!subscriber) {
+    log.error('subscription.unmatched', undefined, { user: preapproval.external_reference })
+    return
+  }
+
+  const result = await grantCredits({
+    email: subscriber.email,
+    credits,
+    provider: MERCADOPAGO_PROVIDER,
+    providerRef: String(payment.id)
+  })
+
+  // A paid renewal is also the provider confirming the authorisation is live, so the row is brought
+  // up to date here rather than waiting for a `preapproval` delivery that may not come.
+  await recordSubscription({
+    userId: preapproval.external_reference,
+    provider: MERCADOPAGO_PROVIDER,
+    providerRef: payment.preapproval_id,
+    status: 'authorized',
+    currentPeriodEnd: preapproval.next_payment_date
+      ? new Date(preapproval.next_payment_date)
+      : null
+  })
+
+  log.info('subscription.renewed', { payment: payment.id, credits, ...result })
+}
+
 export async function POST(request: Request) {
   const url = new URL(request.url)
   const body = (await request.json().catch(() => null)) as {
@@ -101,14 +214,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_signature' }, { status: 400 })
   }
 
-  if (type !== MERCADOPAGO_PAYMENT_TOPIC) return NextResponse.json({ received: true, ignored: true })
+  const handled =
+    type === MERCADOPAGO_PAYMENT_TOPIC ||
+    type === MERCADOPAGO_PREAPPROVAL_TOPIC ||
+    type === MERCADOPAGO_SUBSCRIPTION_PAYMENT_TOPIC
+
+  if (!handled) return NextResponse.json({ received: true, ignored: true })
 
   if (!(await claimEvent(dataId, type))) {
     return NextResponse.json({ received: true, duplicate: true })
   }
 
   try {
-    await creditFromPayment(await getPayment(dataId))
+    if (type === MERCADOPAGO_PAYMENT_TOPIC) await creditFromPayment(await getPayment(dataId))
+    else if (type === MERCADOPAGO_PREAPPROVAL_TOPIC) await syncPreapproval(dataId)
+    else await creditFromRenewal(dataId)
   } catch (error) {
     // The claim is released before answering 500, and that release is the point. A claim that
     // outlives a failed handling turns every retry into a `duplicate` that does nothing, which is

@@ -46,7 +46,8 @@ import {
   scrapePage
 } from '@/lib/scrape'
 import { variantCharBudget, variantWordBudget, wordCount } from '@/lib/text'
-import type { HypothesisTarget, Locale, Market } from '@/lib/enums'
+import { measuredFindings, type MeasuredFinding } from '@/lib/readout'
+import type { HypothesisTarget, Locale, Market, ReadoutGroup } from '@/lib/enums'
 
 const MODEL = 'claude-sonnet-4-6'
 
@@ -214,6 +215,21 @@ export async function analyzeLandingPage(
     ? `\n\nPage elements (each line is one real on-page element; current_copy must quote exactly one of these verbatim, and every variant you write for it must fit inside that element's word ceiling AND its character ceiling. The character ceiling is the measured width of the box that element occupies on the page: copy past it is cut off by the site's own CSS, not merely long):\n\n${elementList}`
     : ''
 
+  // The same findings the reader is about to see above the fix lists, computed once and split by
+  // what each generator can actually act on. Handing a generator ids it has no power over is how a
+  // fix ends up linked to the wrong number.
+  const findings = measuredFindings({
+    structure,
+    seo,
+    performance,
+    crawler: crawlerAccess,
+    keywords,
+    mobile,
+    market
+  })
+  const findingsFor = (groups: ReadoutGroup[]) =>
+    findings.filter((finding) => groups.includes(finding.group))
+
   const [{ object }, playbook, visibility] = await Promise.all([
     generateObject({
       model: anthropic(MODEL),
@@ -224,6 +240,9 @@ export async function analyzeLandingPage(
     }),
     generatePlaybook({
       structure,
+      mobile,
+      performance,
+      findings: findingsFor(['structure', 'credibility', 'mobile', 'load']),
       founderBrief: options.brief ?? null,
       locale,
       market,
@@ -232,6 +251,7 @@ export async function analyzeLandingPage(
     generateVisibility({
       seo,
       structure,
+      findings: findingsFor(['declared', 'crawler_access']),
       crawlerAccess,
       keywords,
       founderBrief: options.brief ?? null,
@@ -267,8 +287,39 @@ export async function analyzeLandingPage(
   })
 }
 
+/**
+ * The measured findings, as a generator sees them.
+ *
+ * Ids, severities and values only -- no labels. The label is the dictionary's job and the model has
+ * no use for it; what it needs is the vocabulary of ids to choose from, and the severity, because the
+ * prompt forbids hanging a fix off a passing check and Zod cannot see severity.
+ *
+ * This costs input tokens and never output ones: `maxTokens` caps the completion, so the only growth
+ * on that side is one short `finding` per fix.
+ */
+function findingsSection(findings: MeasuredFinding[]): string {
+  const compact = findings.map((finding) => ({
+    id: finding.id,
+    severity: finding.severity,
+    value: finding.value
+  }))
+
+  return `Findings already counted on this page and already shown to the reader (JSON). The "finding" field of every fix you write must be one of these ids, or null:\n${JSON.stringify(compact, null, 2)}`
+}
+
 export type PlaybookInput = {
   structure: PageStructure
+  // Added when `mobile` and `performance` became fix categories. This generator used to receive the
+  // structural readout alone, which is exactly why it could never answer a mobile or a load finding
+  // -- the report counted both and then had nothing to say about either.
+  mobile: PageMobile
+  performance: PagePerformance
+  /**
+   * The findings this generator may answer, already narrowed to the groups it can act on. Narrowed
+   * rather than handed the whole readout: an id it cannot address is an invitation to link a fix to
+   * the wrong number.
+   */
+  findings: MeasuredFinding[]
   founderBrief: string | null
   locale: Locale
   market: Market
@@ -281,7 +332,10 @@ export async function generatePlaybook(input: PlaybookInput): Promise<FlowFixOut
   }
 
   const sections = [
-    `Structural readout of the page (JSON):\n${JSON.stringify(input.structure, null, 2)}`
+    `Structural readout of the page (JSON):\n${JSON.stringify(input.structure, null, 2)}`,
+    `The same page in a phone viewport (JSON):\n${JSON.stringify(input.mobile, null, 2)}`,
+    `What the page cost to load (JSON). These were measured from a datacentre, so they are a floor a real visitor never beats -- never present one as what a visitor experiences:\n${JSON.stringify(input.performance, null, 2)}`,
+    findingsSection(input.findings)
   ]
 
   const competitorHost = input.competitor ? displayHost(input.competitor.url) : null
@@ -321,6 +375,8 @@ export async function generatePlaybook(input: PlaybookInput): Promise<FlowFixOut
 export type VisibilityInput = {
   seo: PageSeo
   structure: PageStructure
+  /** See the note on PlaybookInput. */
+  findings: MeasuredFinding[]
   crawlerAccess: CrawlerAccess
   keywords: PageKeywords
   founderBrief: string | null
@@ -343,6 +399,7 @@ export async function generateVisibility(input: VisibilityInput): Promise<Visibi
     `robots.txt (JSON). A status of "unknown" means the file could not be read: it does NOT mean the
 file is missing and does NOT mean anything is blocked, so say nothing about robots.txt in that
 case:\n${JSON.stringify(input.crawlerAccess, null, 2)}`,
+    findingsSection(input.findings),
     `Terms the page itself repeats, counted on the page, with where each one already appears. These
 are the page's own words, NOT search volume and NOT a ranking opportunity: never state how often
 anyone searches for one, and never promise a position:\n${JSON.stringify(

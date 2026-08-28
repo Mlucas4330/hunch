@@ -36,6 +36,7 @@ import {
 } from '@/lib/constants'
 import { assertPublicUrl, isPublicUrl } from '@/lib/url-guard'
 import { wordCount } from '@/lib/text'
+import { log } from '@/lib/log'
 
 export interface PageElement {
   text: string
@@ -187,19 +188,28 @@ function browserPool() {
 
 async function withBrowserSlot<T>(maxWaitMs: number, run: () => Promise<T>): Promise<T> {
   const pool = browserPool()
+  const queuedAt = Date.now()
 
   if (pool.active < SCRAPE_MAX_CONCURRENT_PAGES) {
     pool.active += 1
   } else {
     await new Promise<void>((resolve, reject) => {
       const grant = () => {
+        // Cleared on the way in, not left to fire against a waiter that is no longer queued. The
+        // splice below already made the late timer harmless, but harmless is not free: it held this
+        // closure and a live handle for the rest of the wait, on every job that queued and was then
+        // served. Under a burst that is the common path, not the rare one.
+        clearTimeout(expiry)
         pool.active += 1
         resolve()
       }
 
       pool.waiting.push(grant)
 
-      setTimeout(() => {
+      // Declared after `grant` and closed over by it. Nothing can call `grant` before this line
+      // runs -- it is only reachable from the `finally` of another slot holder -- so the closure
+      // always sees an assigned handle.
+      const expiry = setTimeout(() => {
         const queued = pool.waiting.indexOf(grant)
         if (queued === -1) return
 
@@ -208,6 +218,15 @@ async function withBrowserSlot<T>(maxWaitMs: number, run: () => Promise<T>): Pro
       }, maxWaitMs)
     })
   }
+
+  // Zero on the common path, and that is the point: the interesting number is how often it is not,
+  // and how long the tail gets. This is the only view into whether SCRAPE_MAX_CONCURRENT_PAGES is
+  // the binding constraint or an untouched ceiling. `queued` is what is still behind us.
+  log.info('scrape.slot_acquired', {
+    waitMs: Date.now() - queuedAt,
+    active: pool.active,
+    queued: pool.waiting.length
+  })
 
   try {
     return await run()

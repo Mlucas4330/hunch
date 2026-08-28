@@ -68,6 +68,8 @@ export const en = {
       trust: 'Trust',
       pricing_clarity: 'Pricing Clarity',
       page_structure: 'Page Structure',
+      mobile: 'Mobile',
+      performance: 'Performance',
       indexability: 'Indexability',
       metadata: 'Metadata',
       structured_data: 'Structured Data',
@@ -306,6 +308,19 @@ export const en = {
     subtitle: 'Paste a landing page URL to measure it and get the fixes ranked.',
     emptyTitle: 'No pages yet',
     emptyDescription: 'Paste a landing page URL above to run your first analysis.',
+    subscription: {
+      heading: 'Weekly monitoring',
+      active: 'Active. We measure your pages every week and email you what moved.',
+      renews: 'Renews on {date}.',
+      cancelled: 'Cancelled. We keep measuring until {date}, then stop.',
+      cancelledNoDate: 'Cancelled.',
+      pending: 'Waiting for the payment to be confirmed. Nothing is being measured yet.',
+      paused: 'Paused at the payment provider. Nothing is being measured.',
+      cancel: 'Cancel subscription',
+      cancelling: 'Cancelling...',
+      cancelError: 'Could not cancel it. Try again in a moment.',
+      cancelNote: 'Cancelling stops the next charge. The month you have already paid for runs to the end.'
+    },
     pagination: {
       label: 'More of your pages',
       previous: 'Newer',
@@ -438,15 +453,6 @@ export const en = {
     }
   },
 
-  visibility: {
-    eyebrow: 'Get found',
-    title: 'Can a search engine and an AI read this page',
-    hintLabel: 'What this section checked',
-    hint: 'From what your page *declares about itself*: title, description, structured data, robots.txt. We checked the page, *not* the index - nothing here says where you rank or whether an AI mentions you.',
-    stepsLabel: 'How to ship it',
-    evidenceLabel: 'Why'
-  },
-
   seo: {
     eyebrow: 'Get found',
     title: 'What a search engine can read here',
@@ -470,12 +476,15 @@ export const en = {
     title: 'What we counted',
     hintLabel: 'Where these numbers come from',
     hint: 'Everything here was *counted on your page* when we loaded it - nothing estimated, nothing benchmarked. Load times come from a data center, so they are *the best case*: a real visitor never beats them.',
+    fixLabel: 'Fix written:',
+    groupOk: '{total} checks, all passing',
+    groupWrong: '{wrong} of {total} need attention',
     groups: {
       structure: 'What a visitor runs into on the page',
-      trust: 'What the page offers as a reason to believe it',
+      credibility: 'What the page offers as a reason to believe it',
       mobile: 'What the page does on a phone',
-      metadata: 'What the page tells a machine',
-      visibility: 'What an AI crawler is allowed to read',
+      declared: 'What the page tells a machine',
+      crawler_access: 'What an AI crawler is allowed to read',
       load: 'What the page costs to open'
     },
     score: {
@@ -568,6 +577,8 @@ export const en = {
       failed: 'We could not load the page this time. Nothing was changed in this analysis.',
       retry: 'Try again',
       again: 'Measure again',
+      trendStartTitle: 'Track how this page changes',
+      trendStartBody: 'One measurement is a photo, not a history. Measure this page again and every number above gains a "since last time", plus a line showing the score over time.',
       againHint: 'Open the page again and add a point to the trend. The fixes and tests are untouched.'
     }
   },
@@ -612,6 +623,22 @@ export const en = {
       qrAlt: 'Pix QR code',
       creditsArrive: 'The credits land on your account as soon as the payment is confirmed.',
       refresh: 'Refresh the balance'
+    },
+    monitoring: {
+      eyebrow: 'Or watch it every week',
+      name: 'Monitoring',
+      price: 'R$97',
+      cadence: 'per month',
+      tagline: 'The packs buy the writing. This buys the watching.',
+      body: 'A credit buys one analysis, written once. This measures your page again every week and emails you which numbers moved since the last time.',
+      features: [
+        'Every page you own measured weekly',
+        'An email listing what moved, and by how much',
+        '4 credits a month for the analyses you still want written'
+      ],
+      cta: 'Subscribe',
+      opening: 'Opening checkout...',
+      note: 'Cancel any time, from your dashboard.'
     },
     packs: {
       single: {
@@ -660,6 +687,38 @@ export const en = {
     ],
     cta: 'Unlock the fixes',
     ctaBuy: 'Buy a credit to unlock'
+  },
+
+  watch: {
+    heading: 'Email yourself this report',
+    body: 'This report lives at an unguessable link that only this browser knows. Clear your history and it is gone. Send it to yourself and it is yours to keep.',
+    placeholder: 'you@company.com',
+    cta: 'Send me the link',
+    sending: 'Sending...',
+    success: 'Sent. Check your inbox.',
+    errorInvalid: 'That does not look like an email address.',
+    errorRate: 'Too many tries. Give it a few minutes.',
+    errorGeneric: 'Could not send it. Try again in a moment.',
+    note: 'One email with the link. Nothing else, unless you ask for it.',
+    email: {
+      subject: 'Your landing page report',
+      heading: 'Here is your report',
+      body: 'You measured {host}. The full readout is at the link below, and it stays there.',
+      cta: 'Open the report',
+      keep: 'Keep this email. The link is the only way back to this report.',
+      footer: 'You got this because someone asked for it at this address on hunch.'
+    },
+    weekly: {
+      subject: 'Something got worse on {host}',
+      heading: 'A check on your page got worse',
+      body: 'We measured {host} again. {count} of the checks we count came back worse than last time.',
+      bodyScore: 'We measured {host} again. Nothing crossed a threshold on its own, but the score is {points} points lower than last time.',
+      rose: '{label}: up {amount}',
+      fell: '{label}: down {amount}',
+      cta: 'See the full readout',
+      disclaimer: 'These are two measurements of the same page, a week apart. They say what changed, not what changed it.',
+      manage: 'Manage or cancel this subscription in your dashboard: {link}'
+    }
   },
 
   report: {

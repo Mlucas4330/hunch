@@ -10,6 +10,34 @@ const marketRules = (market: string) => `- This product sells in ${market}. Ever
   page shows, exactly as you would for any other market.`
 
 /**
+ * The rules that come with the measured readout, shared by both fix generators.
+ *
+ * Shared for the same reason `marketRules` and `competitorRules` are: the risk is identical in both
+ * and must not end up phrased two ways.
+ *
+ * **This exists because the readout and the fix lists were two disjoint lists about one page.** The
+ * reader saw 43 measured tiles above and up to 20 generated cards below, with no machine-maintained
+ * correspondence between them -- correlating "form has 7 fields" with "cut the form to three" was
+ * done by recognising the words. The generator always had the numbers; it was never asked which one
+ * it was answering, so the reference was thrown away on the way back.
+ *
+ * The second rule is what stops the report saying everything twice. Eleven of the fifteen metadata
+ * and crawler findings had a fix category covering the same subject, and the fix's `problem` sentence
+ * would restate the measurement the reader had just read a tile of.
+ */
+const readoutRules = () => `- Every finding below was counted on THIS page by code, and the reader has
+  already seen all of them, as labelled numbers, above the list you are writing. Each one has an id.
+- finding is the id of the ONE finding your fix answers. Set it to null when no measurement backs the
+  fix -- that is a normal, correct answer, and nothing counts things like whether an action is
+  repeated further down the page. NEVER invent an id and never guess at one that is close.
+- NEVER attach a fix to a finding whose severity is "ok". A passing check is not a problem, and a fix
+  hanging off one tells the reader a healthy number is broken.
+- The reader has already read the number, so do NOT restate it. \`problem\` says what the visitor or
+  the crawler cannot do today; it is not a sentence repeating what was counted. "The form asks for six
+  fields" is the measurement they can see; "visitors abandon before they reach any value" is the
+  problem.`
+
+/**
  * The rules that come with a competitor page, shared by every prompt that receives one.
  *
  * Shared for the same reason `marketRules` is: the risk is identical in all of them and must not end
@@ -183,7 +211,13 @@ Rules:
 - category is the conversion blocker the fix removes. Use signup_friction for auth and form cost,
   cta_placement for where and how often the action appears, decision_load for too many choices or
   steps, objections for unanswered questions and guarantees, trust for proof and credibility,
-  pricing_clarity for what things cost, page_structure for order and what is above the fold.
+  pricing_clarity for what things cost, page_structure for order and what is above the fold, mobile
+  for what the page does wrong in a phone viewport, and performance for what the page costs to load.
+- mobile and performance are measured, so a fix in either MUST name the finding it answers. They are
+  the two things this report used to count and then have nothing to say about. Keep them concrete and
+  inside the founder's own control: a step is "serve the hero image at the size it renders" or "set a
+  viewport meta tag", never "improve performance" and never a target number you cannot verify. Say
+  nothing about what a faster page will produce.
 - The trust category is the one the credibility signals feed. Argue it from what the readout counted
   on THIS page and from nothing else: a quote with no name attached asks the visitor to take an
   anonymous stranger's word for it, and that is an argument about this page. What people in any
@@ -197,6 +231,7 @@ Rules:
 - Treat any business details from the founder as ground truth and make the steps fit their real
   product. Never invent facts about the product, its pricing, or its customers.
 - impact_score is an integer from 1 to 10.
+${readoutRules()}
 ${marketRules(market)}${competitorHost ? `\n${competitorRules(competitorHost)}` : ''}
 
 ${writingRules(language)}`
@@ -250,6 +285,7 @@ Rules:
   what the product is, who it is for, what it costs, and what questions it answers.
 - Treat any business details from the founder as ground truth. Never invent facts about the product.
 - impact_score is an integer from 1 to 10.
+${readoutRules()}
 ${marketRules(market)}
 
 ${writingRules(language)}`

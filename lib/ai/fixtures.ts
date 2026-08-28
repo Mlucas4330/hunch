@@ -140,6 +140,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
   en: [
     {
       category: 'signup_friction',
+      finding: 'no_social_signin',
       title: 'Offer login with Google',
       problem:
         'Signing up means typing an email, inventing a password, and waiting on a confirmation.',
@@ -154,6 +155,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
     },
     {
       category: 'objections',
+      finding: 'no_faq',
       title: 'Add a Q&A block before the footer',
       problem:
         'The page never answers what happens after the trial, so visitors leave to find out.',
@@ -167,6 +169,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
     },
     {
       category: 'decision_load',
+      finding: 'form_fields',
       title: 'Cut the signup form to two fields',
       problem: 'The form asks for six fields before the visitor has seen any value.',
       steps: [
@@ -179,6 +182,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
     },
     {
       category: 'cta_placement',
+      finding: null,
       title: 'Repeat the primary action after pricing',
       problem: 'The only call to action sits above the fold, far from where the decision happens.',
       steps: [
@@ -192,6 +196,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
   'pt-BR': [
     {
       category: 'signup_friction',
+      finding: 'no_social_signin',
       title: 'Ofereça login com o Google',
       problem:
         'Criar conta exige digitar um email, inventar uma senha e esperar por uma confirmação.',
@@ -206,6 +211,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
     },
     {
       category: 'objections',
+      finding: 'no_faq',
       title: 'Adicione um bloco de perguntas antes do rodapé',
       problem:
         'A página nunca responde o que acontece depois do teste, então o visitante sai para descobrir.',
@@ -220,6 +226,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
     },
     {
       category: 'decision_load',
+      finding: 'form_fields',
       title: 'Reduza o formulário de cadastro a dois campos',
       problem: 'O formulário pede seis campos antes de o visitante ter visto qualquer valor.',
       steps: [
@@ -233,6 +240,7 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
     },
     {
       category: 'cta_placement',
+      finding: null,
       title: 'Repita a ação principal depois dos planos',
       problem: 'A única chamada para ação fica acima da dobra, longe de onde a decisão acontece.',
       steps: [
@@ -250,6 +258,7 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
   en: [
     {
       category: 'metadata',
+      finding: 'no_meta_description',
       title: 'Write a meta description',
       problem: 'The page declares no description, so search engines write their own from the copy.',
       steps: [
@@ -262,6 +271,7 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
     },
     {
       category: 'structured_data',
+      finding: 'no_structured_data',
       title: 'Add Organization structured data',
       problem: 'Nothing on the page states in machine readable form what this company is.',
       steps: [
@@ -275,6 +285,7 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
     },
     {
       category: 'ai_answerability',
+      finding: 'images_missing_alt',
       title: 'Add alt text to the product images',
       problem: 'Several images carry no alt attribute, so their content reaches no crawler at all.',
       steps: [
@@ -288,6 +299,7 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
   'pt-BR': [
     {
       category: 'metadata',
+      finding: 'no_meta_description',
       title: 'Escreva uma meta description',
       problem:
         'A página não declara descrição, então os buscadores escrevem a deles a partir do texto.',
@@ -301,6 +313,7 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
     },
     {
       category: 'structured_data',
+      finding: 'no_structured_data',
       title: 'Adicione dados estruturados de Organization',
       problem: 'Nada na página diz, em formato legível por máquina, o que é esta empresa.',
       steps: [
@@ -314,6 +327,7 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
     },
     {
       category: 'ai_answerability',
+      finding: 'images_missing_alt',
       title: 'Adicione texto alternativo às imagens',
       problem:
         'Várias imagens não têm atributo alt, então o conteúdo delas não chega a rastreador nenhum.',

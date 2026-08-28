@@ -114,6 +114,14 @@ worth asserting, which is the opposite of what the wrapper was added for.
   it went with the waitlist. What replaces it is `UnlockWall` — log in, buy credits — shown when
   `generated` is false. `gate()`, `Gated` and `BlurredRow` were removed rather than left behind as a
   pass-through with a misleading name.
+- **An address is asked for again, and this time it gates nothing.** `WatchPageForm` sits below
+  `MeasuredReadout` for a reader who is not the owner, and offers to email them the link to the
+  report. The difference from the wall that was removed is the whole point: that one held someone
+  else's report hostage to a stranger's address, this one hands the reader something they cannot
+  otherwise keep — an `embed_key` lives in one browser's `localStorage`, so the email is their only
+  durable way back. It is skipped for an owner, who reaches the report from their dashboard. The
+  offer must never move above the readout; see [invariants.md](invariants.md) and
+  [api.md](api.md).
 - Copy-tab rows are `HypothesisList`, the same component on the same page for everyone. It used to
   be that component on one route and eighty-five lines of inline JSX on the other; the inline copy
   is gone. `HYPOTHESIS_EXPANDED_COUNT` rows start open here as everywhere, which is a change for
@@ -211,6 +219,19 @@ legitimately, because longer copy really does push the rest of the card down.
 The rewrite sits on top of the current page and is revealed by `clip-path`, never by a width: clipping
 shows the right-hand slice of an image still laid out at full size, so the two stay registered.
 Resizing it would slide the content sideways under the wipe and nothing would line up.
+
+**The slider's value is how much of the rewrite is showing, never the wipe line's offset**, and the
+distinction is a bug that shipped. It used to be the offset: `clip-path: inset(0 0 0 ${wipe}%)` with
+the line at `left: ${wipe}%`, so *raising* it clipped the rewrite away. Dragging the handle toward the
+`Rewritten` label produced less rewrite and more of the current page — and a reader watching the
+picture fill with the page they already have, while the handle sits under the word "Rewritten",
+reads it as the two images being the wrong way round. Nothing was ever swapped: `before` is captured
+before the copy is applied, saved to `screenshot_before_url`, and rendered as the base layer, end to
+end.
+
+Both the clip and the line now derive from `100 - wipe`, so the number means what the label under the
+handle says, `report.compareValue` ("{percent}% of the rewritten page shown") is literally true rather
+than backwards, and the default sits just under halfway so both images are visible at rest.
 
 The handle is an `<input type="range">`. That is the reason it works with a keyboard and a screen
 reader at all — arrows move the wipe and the value is announced, none of which exists behind a

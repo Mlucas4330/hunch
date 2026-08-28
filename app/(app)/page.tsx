@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { AnalysisPulse } from '@/components/analysis-pulse'
 import { CreditPacks } from '@/components/credit-packs'
+import { MonitoringPlan } from '@/components/monitoring-plan'
 import { UrlInputForm } from '@/components/url-input-form'
 import { LandingFaq } from '@/components/landing-faq'
 import { ProductDemo } from '@/components/product-demo'
@@ -196,6 +197,12 @@ export default async function LandingPage() {
           signedIn={Boolean(session?.user)}
           provider={mercadoPagoEnabled() ? MERCADOPAGO_PROVIDER : STRIPE_PROVIDER}
         />
+
+        {/* Mercado Pago only, and that is a capability check rather than a preference: the
+            subscription is a preapproval, and the Stripe path here is `mode: 'payment'` with no
+            recurring price behind it. A card that opens a checkout which cannot exist is worse than
+            no card. */}
+        {mercadoPagoEnabled() && <MonitoringPlan signedIn={Boolean(session?.user)} />}
       </section>
 
       <LandingFaq copy={d.landing.faq} />

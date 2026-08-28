@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FLOW_FIX_CATEGORY, SECTIONS, VISIBILITY_FIX_CATEGORY } from '@/lib/enums'
+import { FLOW_FIX_CATEGORY, READOUT_FINDING, SECTIONS, VISIBILITY_FIX_CATEGORY } from '@/lib/enums'
 import {
   PLAYBOOK_MAX,
   PLAYBOOK_MIN,
@@ -38,7 +38,20 @@ const fixFields = {
   problem: z.string(),
   steps: z.array(z.string()).min(2).max(PLAYBOOK_STEPS_MAX),
   impact_score: z.number().int().min(1).max(10),
-  evidence: z.string()
+  evidence: z.string(),
+  /**
+   * Which measured finding this fix answers, or null when no measurement backs it.
+   *
+   * **This is what stops the readout and the fix lists being two disjoint lists about one page.**
+   * The reader used to correlate "form has 7 fields" with "cut the form to three" by recognising the
+   * words; the model already had the number, and the reference was thrown away on the way back.
+   *
+   * **`.catch(null)` is not decoration.** A hallucinated id would otherwise reject the whole
+   * `generateObject` call, and `generatePlaybook` swallows that in `catch -> return []` — so one bad
+   * string would empty an entire tab with no error anywhere. Degrading costs one missing link; the
+   * same trade `section` makes, for the same reason. See docs/ai-pipeline.md.
+   */
+  finding: z.enum(READOUT_FINDING).nullable().catch(null)
 }
 
 export const FlowFixSchema = z.object({

@@ -35,6 +35,7 @@ analyses
 - locale          (enum: LOCALE, default: en)
 - market          (enum: MARKET, default: us)
 - created_at      (timestamp)
+- index(created_at desc)        <- analysisPulse takes the newest 48 and nothing else
 
 page_snapshots                  <- the history behind the analyses columns above
 - id             (uuid, PK)
@@ -44,6 +45,60 @@ page_snapshots                  <- the history behind the analyses columns above
                   never rewrites what a reader was already shown)
 - captured_at    (timestamp)
 - index(analysis_id, captured_at)
+- index(analysis_id, captured_at desc) WHERE score IS NOT NULL
+                  <- latestScores() takes the newest scored row per analysis and feeds both the
+                     public board and the pulse. The index above does not serve it: the sort is
+                     descending and the score filter is not covered, so it fell back to scanning a
+                     table that gains a row on every measure and every re-measure.
+
+leads                           <- an address someone left to be sent their report's link
+- id              (uuid, PK)
+- email           (text: a string a stranger typed. NOT verified, NOT a user -- see below)
+- analysis_id     (FK -> analyses.id, cascade)
+- locale          (enum: LOCALE, pinned like analyses.locale so what is written to this person is
+                   written in the language they were reading)
+- unsubscribed_at (timestamp, nullable: kept rather than deleted, or the next submit of the same
+                   address silently re-subscribes them)
+- created_at      (timestamp)
+- unique(email, analysis_id)    <- a double click is one lead, not two
+- index(email)
+
+  **Its own table, and that is the security boundary.** `users` is keyed on email with no accounts
+  table, so whoever presents an address next owns that row and the credits in it -- which is why only
+  a provider-verified address may create one (invariants.md). Nobody verified a lead's address. It
+  lives here, where it can never key a sign-in, grant anything, or make anyone an owner.
+
+  It is also not a column on `analyses`: a lead is a contact for one page and the same person can
+  measure several. That keeps `analyses.user_id` as the only cut between the free half and the paid
+  one -- leaving an address changes nothing about ownership.
+
+subscriptions                   <- a recurring authorisation at a provider, and its state
+- id                 (uuid, PK)
+- user_id            (FK -> users.id, cascade)
+- provider           (text: reaches the same column names as credit_transactions.provider)
+- provider_ref       (text: the provider's own id for the AUTHORISATION -- preapproval_id at
+                      Mercado Pago. The authorisation IS this id, hence the unique.)
+- status             (enum: SUBSCRIPTION_STATUS. Only `authorized` entitles anything -- `pending` is
+                      a checkout somebody opened and abandoned.)
+- current_period_end (timestamp, nullable: null until the first charge, which is when a next payment
+                      date exists)
+- created_at / updated_at (timestamp)
+- unique(provider, provider_ref)
+- index(user_id, status)
+
+  **It holds entitlement, never balance.** A renewal's credits go through `grantCredits` like any
+  purchase, so `users.credits` stays the one answer to what someone can spend. Two tables would be
+  two answers -- see invariants.md.
+
+  **Idempotency for the money is NOT here.** It is on `credit_transactions(provider, provider_ref)`
+  keyed per *charge*: a renewal is a new payment against the same authorisation, so keying grants on
+  this column would credit month one and silently swallow every month after it.
+
+  **`current_period_end` outlives a cancellation, and is load bearing.** `analysesDueForRemeasure`
+  sweeps `authorized` rows *and* `cancelled` rows whose period end is still in the future, so
+  cancelling stops the next charge without taking back the month already billed. That is why the
+  cancel path preserves the column instead of clearing it. Null never sweeps -- a preapproval that
+  was never charged has no paid month to honour.
 
 hypotheses
 - id             (uuid, PK)
@@ -69,6 +124,18 @@ flow_fixes                      <- BOTH ranked lists of fixes, one row each
 - evidence     (text, nullable: the CRO mechanism behind the fix)
 - position     (int: impact desc, assigned at insert, counted PER KIND so each section ranks from 1)
 - created_at   (timestamp)
+- finding      (text, nullable: the READOUT_FINDING this fix answers, or null when no measurement
+                backs it -- nothing counts whether an action is repeated below the pricing table.
+                This is the join that stops the readout and the fix lists being two disjoint lists
+                about one page; see fixesByFinding in lib/analyses.ts.
+
+                **text, not a pgEnum, against the precedent set by `kind` and `category` right
+                above.** Those are small closed lists that move with the product. READOUT_FINDING is
+                43 values and grows whenever a measurement is added -- the `credibility` and `mobile`
+                groups both arrived after the fact -- so as an enum every new finding would become an
+                `ALTER TYPE` migration coupling lib/readout.ts to the schema, for a guarantee the Zod
+                parse already gives at the only point the value is produced. The price is
+                `isReadoutFinding` narrowing it on the way back out, paid in one place.)
 
 variants
 - id             (uuid, PK)
@@ -148,8 +215,9 @@ it to stay quiet outside Brazil.
 An analysis created before these columns holds null and renders no readout section, exactly as an
 empty playbook renders no playbook. **Nothing is regenerated**, and nothing sweeps them.
 `POST /api/analyses/[id]/measure` re-measures one analysis at a time on the owner's click, and
-There is no sweep any more: the cron that did it only ever touched paid plans, and without plans a
-sweep is browser time nobody asked for.
+The sweep is back and a subscription is what pays for it: `/api/cron/remeasure` queues a re-measure
+per page owned by an active subscriber, which is what keeps it from being browser time nobody asked
+for. See [api.md](api.md).
 
 The columns are the current measurement and `page_snapshots` is the history. They are written
 together, in one transaction, every time — a trend that disagrees with the readout above it is worse
@@ -177,6 +245,11 @@ share this table, this `category` column and one component.
 `VISIBILITY_FIX_CATEGORY` for `visibility`. Each generation's Zod schema is given only its own family,
 because a visibility fix categorized `trust` would render under the wrong heading and the prompt alone
 cannot prevent that.
+
+`FLOW_FIX_CATEGORY` gained `mobile` and `performance`, which is an `ALTER TYPE` on `flow_category`
+(migration 0034) rather than a code-only change -- the price of that column being a pgEnum, and the
+reason `finding` beside it is not one. They exist because the `mobile` and `load` readout groups had
+no fix category that could answer them: the score fell for something the product could not act on.
 
 No variants and no target: nothing here is a single-element text swap, so there is no replacement line
 to render. A founder ships the steps by hand.

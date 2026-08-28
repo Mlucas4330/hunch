@@ -51,6 +51,13 @@ page in one click, and the only thing here anyone shares unprompted.
   "You have no credits" beside a Buy button otherwise reads as a dead end, when the whole measured
   readout is still available. The FAQ answers the same question directly. At one credit the line is
   noise, so it is not shown.
+- **The subscription card is on the dashboard, and only when there is one.** It states what the
+  subscription is doing in its own sentence per status — `pending` is a checkout nobody finished and
+  is measuring nothing, `cancelled` with a period end in the future is still measuring until that
+  date — because collapsing those into one "subscribed" line tells two different people the same
+  wrong thing. With no subscription the card does not render at all: the dashboard is not a place to
+  advertise to somebody already signed in who has not bought it, and the offer lives on the landing
+  page where a stranger can also read it.
 - **The balance lives in the account menu, not on the dashboard.** It used to sit above the form that
   spends it, which meant it existed on exactly one screen; in `AccountPanel` it is on every screen and
   in the mobile menu for free, because the navbar already renders that panel in both. It is still read
@@ -168,7 +175,18 @@ personal recommendation.
 **The displayed price, `CREDIT_PACKS.amountBrl` and the Stripe price id must move together.** The
 amount is a dictionary string because the page renders for a reader with no session and no round trip;
 a price edited at a provider and not here is a page that lies about what it costs. See
-[api.md](api.md).
+[api.md](api.md). `MONITORING_PLAN.amountBrl` and `credits.monitoring.price` are the same pair for the
+subscription.
+
+### The monitoring plan
+
+`components/monitoring-plan.tsx`, in the same section and **below the grid rather than inside it**.
+The reasoning is in [components.md](components.md) and it is about the offer, not the layout: side by
+side with the packs a reader compares R$97 against R$99 and reads the subscription as an expensive
+pack, when what it sells is the page being measured every week rather than anything being written.
+
+Rendered only where Mercado Pago is configured, because the subscription is a preapproval and the
+Stripe path has no recurring price behind it.
 
 **The buy button does one of two things, and the server decides which.** With Mercado Pago configured
 it opens the Payment Brick in a modal over the page — card, Pix and boleto, no redirect — and
@@ -386,6 +404,11 @@ any **number**, and that rule is untouched.
 
 **Only the labels changed**; the enum values are persisted in Postgres.
 
+- **Every tab draws its own border, selected or not.** This was an underline rail: a single
+  `border-b-2` that was `border-transparent` while inactive, so three of the four targets had no edge
+  at all and the row read as a strip of words with one of them coloured — a reader could not see
+  where one target ended and the next began without hovering it. Now each tab is a bordered box; the
+  fill and the accent border say which one is open, and the border alone says the set is a set.
 - **Every panel stays mounted and inactive ones are `hidden`**, so switching tabs never remounts an
   already-rendered preview.
 - **An empty tab is not rendered.** `FlowPlaybook` returns `null` for an empty list, so the shell
@@ -414,11 +437,11 @@ the only one of the four opening straight onto cards. Written twice it drifts ag
 either is touched — the same failure this whole surface was merged to stop, one level down.
 
 **The copy tab's strings live in `hypothesisList`, not in a `copy` subtree beside `flow`/`seo`/`ai`.**
-Those four are `PLAYBOOK_SECTION` values reached through `dictionary[section]` and must mirror each
-other key for key; a `copy` sitting next to them would look like a fifth member of a union it can
-never join, and would need `stepsLabel` and `evidenceLabel` for cards that have no steps. `copy` is
-an `ANALYSIS_TAB` value, and the two enums overlap in name only — `copy` is in one, `visibility` in
-the other.
+Those three are `PLAYBOOK_SECTION` values reached through `dictionary[section]` and must mirror each
+other key for key; a `copy` sitting next to them would look like a fourth member of a union it can
+never join, and would need `stepsLabel` and `evidenceLabel` for cards that have no steps. `copy` is an
+`ANALYSIS_TAB` value, and the two enums are deliberately different lists rather than one — the tabs are
+what a reader clicks, the sections are what has a dictionary subtree.
 
 ### The ranked hypothesis list — `components/hypothesis-list.tsx`
 
@@ -510,19 +533,24 @@ applied; under any other order the first row is the first match, not a recommend
 have the identical shape and share one table, so one component renders both, in all four tabs.
 Nothing is duplicated per surface or per kind.
 
-`section` (`PLAYBOOK_SECTION`: `flow` by default, or `visibility` / `seo` / `ai`) selects the dictionary
-subtree and the `data-testid`, **and nothing else** — there is no branch on it below the heading, which
-is the point. Consequences:
+`section` (`PLAYBOOK_SECTION`: `flow` by default, or `seo` / `ai`) selects the dictionary subtree and
+the `data-testid`, **and nothing else** — there is no branch on it below the heading, which is the
+point. Consequences:
 
-- `dictionary.flow`, `.visibility`, `.seo` and `.ai` mirror each other key for key and are keyed by the
-  enum value, so the component reads `dictionary[section]` with no mapping table. A key added to one
-  must be added to all four or the union access stops typechecking.
+- `dictionary.flow`, `.seo` and `.ai` mirror each other key for key and are keyed by the enum value, so
+  the component reads `dictionary[section]` with no mapping table. A key added to one must be added to
+  all three or the union access stops typechecking.
 - Test ids are `${section}-playbook` and `${section}-fix`, so no two families can be counted as one. **A
   shared `flow-fix` id across sections would break the e2e counts silently** — those counts are what
   assert the families never merge.
 - Rows are split by `splitFixes` and `splitVisibility`, never filtered inline at a call site.
-- **`visibility` survives as a value even though no surface renders it combined any more.** It was what the print report renders, because on
-  paper there is nothing to click and the SEO / AI split would only mean two headings.
+- **`visibility` is gone from this enum, and that fixed a real hole.** `PLAYBOOK_SECTION` used to be
+  `[...FIX_KIND, 'seo', 'ai']`, on the reasoning that a kind added to `FIX_KIND` must not be forgotten
+  here. But `visibility` is the kind that *parents* the seo and ai lists — `splitVisibility` cuts it
+  into those two and no call site ever passes it — so deriving from `FIX_KIND` demanded a
+  `dictionary.visibility` nothing could reach. The one that existed was a near-copy of
+  `dictionary.seo`, same `eyebrow` and all, and sat there unrendered until it was deleted. The enum is
+  now the three sections that actually render.
 
 They render as **separate sections rather than one impact-ranked list**: a founder deciding what to fix
 first should not have "write a meta description" ranked in among the conversion fixes.

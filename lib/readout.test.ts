@@ -231,7 +231,7 @@ test('a blocked AI crawler is an alert and carries the count that was read', () 
 
   assert.equal(find(blocked, 'ai_crawlers_blocked')?.value, 2)
   assert.equal(find(blocked, 'ai_crawlers_blocked')?.severity, 'alert')
-  assert.equal(find(blocked, 'ai_crawlers_blocked')?.group, 'visibility')
+  assert.equal(find(blocked, 'ai_crawlers_blocked')?.group, 'crawler_access')
 
   const all = findingsFor({ crawler: { blocksAll: true } })
 
@@ -298,7 +298,7 @@ test('a structure measured before the form pass existed reports no form findings
 test('a structure measured before the trust pass existed reports no trust findings', () => {
   const old = findingsFor({ market: 'br' })
 
-  assert.equal(old.some((finding) => finding.group === 'trust'), false)
+  assert.equal(old.some((finding) => finding.group === 'credibility'), false)
 })
 
 test('the form findings appear once the page was actually counted', () => {

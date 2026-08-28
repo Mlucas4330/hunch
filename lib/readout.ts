@@ -224,10 +224,10 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
     // a convention there; on a US page its absence is not a finding, it is noise. The market rules
     // out a sentence, it never supplies a fact about buyers -- see docs/invariants.md.
     if (market === 'br' && structure.hasCnpj !== undefined) {
-      out.push(presence('no_cnpj', 'trust', structure.hasCnpj))
+      out.push(presence('no_cnpj', 'credibility', structure.hasCnpj))
     }
 
-    out.push(presence('no_trust_badge', 'trust', structure.trustBadgeCount > 0))
+    out.push(presence('no_trust_badge', 'credibility', structure.trustBadgeCount > 0))
 
     // Only for a page that has testimonials at all. `no_testimonials` above already says when there
     // are none, and following it with "0 of them carry a name" is the same absence said twice.
@@ -235,7 +235,7 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
       out.push(
         count(
           'testimonial_attribution',
-          'trust',
+          'credibility',
           structure.testimonialWithAttributionCount,
           rankBelow(
             structure.testimonialWithAttributionCount,
@@ -246,7 +246,7 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
     }
 
     if (structure.hasPrivacyPolicy !== undefined) {
-      out.push(presence('no_privacy_policy', 'trust', structure.hasPrivacyPolicy))
+      out.push(presence('no_privacy_policy', 'credibility', structure.hasPrivacyPolicy))
     }
 
     // One reachable channel is the finding, not which one. A page with a phone number and no address
@@ -255,7 +255,7 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
       out.push(
         presence(
           'no_contact_channel',
-          'trust',
+          'credibility',
           structure.hasPhone || structure.hasPhysicalAddress || Boolean(structure.hasSocialLinks)
         )
       )
@@ -321,27 +321,27 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
 
   if (seo) {
     if (seo.robotsMeta?.toLowerCase().includes('noindex')) {
-      out.push({ id: 'noindex', group: 'metadata', severity: 'alert', value: 1, unit: 'presence' })
+      out.push({ id: 'noindex', group: 'declared', severity: 'alert', value: 1, unit: 'presence' })
     }
 
-    out.push(presence('no_meta_description', 'metadata', seo.metaDescription !== null))
-    out.push(count('h1_count', 'metadata', seo.h1Count, seo.h1Count === 1 ? 'ok' : 'warn'))
+    out.push(presence('no_meta_description', 'declared', seo.metaDescription !== null))
+    out.push(count('h1_count', 'declared', seo.h1Count, seo.h1Count === 1 ? 'ok' : 'warn'))
     out.push(
       count(
         'images_missing_alt',
-        'metadata',
+        'declared',
         seo.imagesMissingAlt,
         seo.imagesMissingAlt > 0 ? 'warn' : 'ok'
       )
     )
-    out.push(presence('no_structured_data', 'metadata', seo.jsonLdTypes.length > 0))
-    out.push(presence('no_og_image', 'metadata', seo.hasOgImage))
-    out.push(presence('no_canonical', 'metadata', seo.canonical !== null))
-    out.push(presence('no_lang', 'metadata', seo.lang !== null))
+    out.push(presence('no_structured_data', 'declared', seo.jsonLdTypes.length > 0))
+    out.push(presence('no_og_image', 'declared', seo.hasOgImage))
+    out.push(presence('no_canonical', 'declared', seo.canonical !== null))
+    out.push(presence('no_lang', 'declared', seo.lang !== null))
     out.push(
       count(
         'internal_links',
-        'metadata',
+        'declared',
         seo.internalLinkCount,
         rankBelow(seo.internalLinkCount, READOUT_THRESHOLDS.internalLinksWarn)
       )
@@ -352,9 +352,9 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
   // term, and three warns about a term that does not exist would be an accusation about nothing.
   const leadTerm = keywords?.terms[0]
   if (leadTerm) {
-    out.push(presence('term_in_title', 'metadata', leadTerm.inTitle))
-    out.push(presence('term_in_h1', 'metadata', leadTerm.inH1))
-    out.push(presence('term_in_meta_description', 'metadata', leadTerm.inMetaDescription))
+    out.push(presence('term_in_title', 'declared', leadTerm.inTitle))
+    out.push(presence('term_in_h1', 'declared', leadTerm.inH1))
+    out.push(presence('term_in_meta_description', 'declared', leadTerm.inMetaDescription))
   }
 
   // An unreadable robots.txt is not a permissive one. The whole group is skipped rather than
@@ -363,7 +363,7 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
     out.push(
       count(
         'ai_crawlers_blocked',
-        'visibility',
+        'crawler_access',
         crawler.blockedAgents.length,
         crawler.blockedAgents.length > 0 ? 'alert' : 'ok'
       )
@@ -371,13 +371,13 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
 
     out.push({
       id: 'robots_blocks_all',
-      group: 'visibility',
+      group: 'crawler_access',
       severity: crawler.blocksAll ? 'alert' : 'ok',
       value: crawler.blocksAll ? 0 : 1,
       unit: 'presence'
     })
 
-    out.push(presence('no_sitemap', 'visibility', crawler.sitemaps.length > 0))
+    out.push(presence('no_sitemap', 'crawler_access', crawler.sitemaps.length > 0))
   }
 
   if (performance) {

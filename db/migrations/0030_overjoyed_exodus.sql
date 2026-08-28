@@ -1,0 +1,2 @@
+CREATE INDEX "analyses_created_at_idx" ON "analyses" USING btree ("created_at" desc);--> statement-breakpoint
+CREATE INDEX "page_snapshots_scored_latest_idx" ON "page_snapshots" USING btree ("analysis_id","captured_at" desc) WHERE "page_snapshots"."score" is not null;

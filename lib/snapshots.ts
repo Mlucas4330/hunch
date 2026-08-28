@@ -1,6 +1,7 @@
 import { measuredFindings, type MeasuredFinding, type ReadoutInput } from '@/lib/readout'
 import { readoutScore } from '@/lib/score'
-import type { Market, ReadoutFinding } from '@/lib/enums'
+import { REGRESSION_SCORE_DROP } from '@/lib/constants'
+import { READOUT_SEVERITY, type Market, type ReadoutFinding } from '@/lib/enums'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
 import type { PageMobile, PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
@@ -92,4 +93,61 @@ export function deltas(
   }
 
   return out
+}
+
+/**
+ * What got **worse** between two measurements.
+ *
+ * Same arithmetic discipline as `deltas` and the same rule about what may be said of it: this reports
+ * that a number moved in the bad direction, never that anything caused it to. See docs/invariants.md.
+ *
+ * **It exists because "something changed" is not worth interrupting anyone for.** The weekly mail
+ * used to fire on any delta, which meant a week where two numbers drifted by network noise read the
+ * same as a week where the form doubled in length -- and a notification that cries wolf weekly is one
+ * people filter. Only a regression is worth a push; an improvement is worth seeing on the report when
+ * the reader next opens it.
+ *
+ * Two independent signals, because they catch different failures:
+ *
+ * - **A severity crossing.** `READOUT_SEVERITY` is ordered by badness, so a finding that moves to a
+ *   higher index has crossed a threshold somebody set on purpose. This catches the sharp ones.
+ * - **A score drop past `REGRESSION_SCORE_DROP`.** A page can pick up a dozen half-point warns
+ *   without any single one crossing, and that is a real decline nothing above would report.
+ */
+export type Regression = {
+  worsened: MeasuredFinding[]
+  scoreDrop: number
+}
+
+export function regressions(current: ReadoutInput, previous: ReadoutInput | null): Regression {
+  if (!previous) return { worsened: [], scoreDrop: 0 }
+
+  const currentFindings = measuredFindings(current)
+  const before = new Map<ReadoutFinding, MeasuredFinding>(
+    measuredFindings(previous).map((finding) => [finding.id, finding])
+  )
+
+  const worsened = currentFindings.filter((finding) => {
+    const was = before.get(finding.id)
+    if (!was) return false
+
+    return READOUT_SEVERITY.indexOf(finding.severity) > READOUT_SEVERITY.indexOf(was.severity)
+  })
+
+  // Null when a side has no findings at all, which is not a drop -- it is nothing to compare.
+  const now = readoutScore(currentFindings).overall
+  const then = readoutScore(measuredFindings(previous)).overall
+  const scoreDrop = now !== null && then !== null ? Math.max(0, then - now) : 0
+
+  return { worsened, scoreDrop }
+}
+
+/**
+ * Whether a regression is worth sending a message about.
+ *
+ * One place, so the mail and anything else that ever notifies cannot drift into two definitions of
+ * "got worse".
+ */
+export function isWorthReporting(regression: Regression): boolean {
+  return regression.worsened.length > 0 || regression.scoreDrop >= REGRESSION_SCORE_DROP
 }

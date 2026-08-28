@@ -16,7 +16,8 @@ deprecated and `railway.json` must never name it again.
 | `browser` | `railway.browser.json` (*Config as code*, set by hand) | **no variables, no public domain** |
 | `Postgres` | Railway plugin | |
 | `Redis` | Railway plugin | rate limit counters and the job queue |
-| `cron-prune` | `railway.cron-prune.json` (*Config as code*, set by hand) | calls `/api/cron/prune-screenshots`; the only cron |
+| `cron-prune` | `railway.cron-prune.json` (*Config as code*, set by hand) | calls `/api/cron/prune-screenshots`, daily |
+| `cron-remeasure` | `railway.cron-remeasure.json` (*Config as code*, set by hand) | calls `/api/cron/remeasure`, weekly |
 
 Every service but the plugins is the **same repo** pointed at a different config file. The schedules
 live in `deploy.cronSchedule` in those files rather than in the dashboard, so a changed cron time
@@ -80,12 +81,16 @@ boundary, including the shape where the `Bearer ` prefix is lost.
 `APP_URL` is a per-environment origin under the same rule as step 2, which is exactly why it is a
 variable instead of a literal in the committed start command.
 
-There used to be two crons, and they were **two services rather than one command hitting both URLs**:
+**`cron-remeasure` is set up exactly like `cron-prune`** — same image, same script, same two
+referenced variables (`CRON_SECRET` and `APP_URL`), differing only in `startCommand` and
+`cronSchedule`. It runs Mondays at 07:00 UTC, deliberately a different hour from the prune so two
+jobs never hit `app` together.
+
+There are two crons again, and they are **two services rather than one command hitting both URLs**:
 `curl` exits 0 on a non-2xx, so `curl A && curl B` is really `A; B`, and adding `-f` to fix that would
-have let a failed first call silently skip the prune. The second cron is gone, but keep the shape if
-one is ever added — one route per service is what makes `--fail-with-body` in `scripts/cron-call.sh`
-safe, so a `401` or a `500` surfaces as a failed run instead of a green one, and it keeps the
-schedules independent so two jobs never hit `app` together.
+have let a failed first call silently skip the prune. One route per service is what makes
+`--fail-with-body` in `scripts/cron-call.sh` safe, so a `401` or a `500` surfaces as a failed run
+instead of a green one, and it keeps the schedules independent.
 
 ## The browser image
 
@@ -225,6 +230,34 @@ Three more things the probe depends on:
 The timeout is 300s, Railway's own default, rather than the 120s that was there before: `preDeployCommand`
 migrations plus a cold Next boot are the slow part, and a probe that gives up early looks exactly like
 an app that never came up.
+
+## Logs — `lib/log.ts`
+
+One JSON line per event on stdout, which is what Railway collects. There is no transport and no
+error-tracking dependency: both would be a failure mode of their own in exchange for something the
+platform already does.
+
+Every line has `level`, `event` and `at`. **The event names are an enum** (`LOG_EVENT` in
+`lib/enums.ts`) rather than free text, because the `console.error` calls this replaced had drifted
+into several spellings of the same event and could not be counted. A line that cannot be serialized
+is dropped rather than thrown — logging must never take down the work it is describing.
+
+**Three of the events carry a number rather than a failure**, and they are the three that decide
+whether the app is keeping up. Nothing reported them before, so a queue backing up under traffic was
+invisible until readers started timing out:
+
+| Event | Field | What it answers |
+| --- | --- | --- |
+| `queue.enqueued` | `depth` | How much work was already ahead of this job |
+| `scrape.slot_acquired` | `waitMs`, `queued` | Whether `SCRAPE_MAX_CONCURRENT_PAGES` is actually binding |
+| `queue.job_finished` | `ms` | How long a job takes, which is what sizes `QUEUE_MAX_DEPTH` |
+
+The last one is load bearing for capacity: `QUEUE_MAX_DEPTH` has to stay inside `ANALYSIS_WAIT_MAX_MS`
+at the measured duration and `QUEUE_DRAIN_CONCURRENCY`, or the queue accepts work whose reader will
+have given up before it runs. See [scraping.md](scraping.md).
+
+**The healthcheck is not monitoring** — see above, Railway stops probing once a deploy is live. These
+lines are.
 
 ## Things that are easy to get wrong
 

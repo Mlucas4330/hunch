@@ -22,6 +22,13 @@ whereas a presence finding's sentence ("there is no FAQ") is outright false in i
 
 ## A group label has to cover every finding under it
 
+**Three groups are named to avoid a collision.** `credibility`, `declared` and `crawler_access` were
+once `trust`, `metadata` and `visibility`, and each of those words already named something else on the
+same screen: `trust` and `metadata` are fix categories rendered as badges below, and `visibility` is
+the `FIX_KIND` that parents **both** the seo and ai tabs — a wider scope than the group ever had. One
+word meaning two things in one report is how a reader concludes the page is saying everything twice.
+Nothing here is in the database, so the rename was a pure TypeScript change.
+
 `READOUT_GROUP` is a bucket of findings, and its label in `readout.groups` is read as a claim about all
 of them. `structure` is the one that keeps getting this wrong: it held *"What the page asks of a
 visitor"* / *"O que a página exige de quem chega"*, and only three of its eight findings are things the
@@ -36,7 +43,7 @@ neutral about the direction, true of all of them. **When a finding is added to a
 group's label before shipping it.** The form findings that landed later pass the same test: a
 mandatory field, an unlabelled one and a button that links nowhere are all things a visitor runs into.
 
-## The `visibility` group
+## The `crawler_access` group
 
 `crawler_access` is what the product actually measured about being found by an AI: which of
 `AI_CRAWLER_AGENTS` the site's own robots.txt disallows, whether it blocks everything, and whether it
@@ -51,13 +58,13 @@ robots.txt is a measured answer, and it means nothing is blocked and no sitemap 
 
 ## A group is skipped whole, never rendered as zeroes
 
-`visibility` was the first, and `trust` and `mobile` follow it exactly. All three answer the same
+`crawler_access` was the first, and `credibility` and `mobile` follow it exactly. All three answer the same
 question: what does the readout do when a pass never ran?
 
-- `visibility` is gated on `crawler.status !== 'unknown'`.
+- `crawler_access` is gated on `crawler.status !== 'unknown'`.
 - `mobile` is gated on `mobile !== null` — the column is null on every row measured before the phone
   pass existed.
-- `trust` is gated on **one field**, `structure.trustBadgeCount !== undefined`, rather than on
+- `credibility` is gated on **one field**, `structure.trustBadgeCount !== undefined`, rather than on
   `structure` itself. The object being present says nothing about whether anybody counted a trust
   signal on it, because the fields were added to a `jsonb` that already had rows.
 
@@ -70,7 +77,7 @@ in [invariants.md](invariants.md#unknown-is-never-reported-as-negative). Adding 
 `PageStructure` therefore means adding a guard, and the test that pins it is *"a structure measured
 before the form pass existed reports no form findings"* in `lib/readout.test.ts`.
 
-## The `trust` group
+## The `credibility` group
 
 What the page offers a visitor as a reason to believe it: a company registration number, a security
 or reputation badge, testimonials that name who said them, a linked privacy policy, and a way to
@@ -141,7 +148,7 @@ Three decisions worth keeping:
 - **A `warn` is worth half a finding, not a failure.** The whole reason the readout has three states is
   that the middle one is not the bottom one; collapsing them in the score would undo that.
 - **The overall weighs every finding equally, never every group equally.** Averaging the group averages
-  would let `load`, with three findings, count as much as `metadata` with nine.
+  would let `load`, with three findings, count as much as `declared` with nine.
 - **A group with nothing measured scores `null` and does not render**, the same contract the findings
   have with a metric the browser did not report. Zero would mean "measured, and terrible".
 
@@ -220,12 +227,55 @@ component, so a database import there would ship the schema to the browser. The 
 the line is "the score over time" and never takes the tint of whatever the latest value happens to be.
 No legend, because the title names the only series.
 
-**Re-measuring is the owner's, and it is bounded twice.** `POST /api/analyses/[id]/measure` is no
+**Re-measuring on the owner's click is bounded twice.** `POST /api/analyses/[id]/measure` is no
 longer idempotent — it is the re-measure — and the `measure` rate limit is what holds the browser
-cost. **There is no sweep.** The weekly cron that did it only ever touched paid plans, so it went with
-them — and the reasoning it was built on survives as the rule: an unbounded sweep re-opening every
-customer's landing page is exactly what the backfill was forbidden from becoming. Re-measuring is a
-click the owner makes.
+cost. It spends no credit either way: a re-measure is `measurePage` and arithmetic, never a model
+call.
+
+**There is a sweep again, and a subscription is what bounds it.** The weekly cron that used to do
+this went with plans, on the reasoning that an unbounded sweep re-opening every customer's landing
+page is exactly what the backfill was forbidden from becoming. That reasoning is intact and is now
+enforced by the filter rather than by the cron's absence: `analysesDueForRemeasure` returns only
+pages owned by somebody with an active subscription, so every page it opens has been paid for. See
+[api.md](api.md).
+
+**Below two snapshots there is no history, and the owner is now told so instead of shown nothing.**
+The sparkline and the per-finding deltas both return null on a single measurement — which is what
+almost every analysis has — so the whole history feature was built and invisible to nearly everyone
+who owned one. `MeasurePage variant="again"` takes `hasHistory` and, when there is none, names what a
+second measurement unlocks rather than rendering a bare button. Same control, different framing; the
+compact row is still what an owner with a history sees.
+
+## A group whose checks all passed opens closed
+
+Every group is a `<details>`. It starts open when any finding in it is `warn` or `alert`, and closed
+when they all pass; the summary carries the count either way, so a collapsed group still says "12
+checks, all passing" rather than hiding that it exists.
+
+**This is disclosure, not gating, and the distinction has to stay written down.** The readout rendered
+fully expanded at once -- 41 findings across six grids, four in five of them reporting nothing wrong
+-- so the rows that needed attention sat buried among the rows that did not. Nothing here is behind a
+payment, a session or a wall: the same reader, one click, no state anyone else controls. The rule in
+[invariants.md](invariants.md) is that a measurement of somebody's own page is never *charged for* or
+walled; it has never been a rule against letting a reader fold up the part that is fine.
+
+`ok` rows still render and still matter -- see the note on green being load-bearing above. They are
+one click away instead of thirty lines of scroll.
+
+## The fix that answers a number sits beside it
+
+A finding cell renders the **title** of any generated fix whose `flow_fixes.finding` names it, from
+`fixesByFinding`. The full card -- steps, reasoning, evidence -- stays in its tab; this is a pointer,
+never a second copy.
+
+**It is empty on every analysis with nothing generated**, which is every free one, and that is
+deliberate rather than incidental: an affordance that appeared here and led nowhere would be a
+paywall tease inside the one section [invariants.md](invariants.md) says is never gated. The map comes
+back empty, the line does not render, and the free readout is exactly what it was.
+
+Rows written before the column existed carry `null` and behave identically. So do fixes no
+measurement backs -- nothing counts whether an action is repeated below the pricing table, and `null`
+is the honest answer there.
 
 ## Where it renders
 

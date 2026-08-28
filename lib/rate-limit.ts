@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { RATE_LIMITS } from '@/lib/constants'
 import { redis } from '@/lib/redis'
+import { log } from '@/lib/log'
 import type { RateLimitKind } from '@/lib/enums'
 
 const SLIDING_WINDOW = `
@@ -64,7 +65,7 @@ export async function enforceRateLimit(
   const client = redis()
   if (!client) {
     if (options.failClosed) {
-      console.error('[rate-limit] no redis and this route fails closed, refusing')
+      log.error('rate_limit.refused_closed', undefined, { kind, reason: 'no_redis' })
       return unavailable(headers)
     }
     return null
@@ -91,10 +92,10 @@ export async function enforceRateLimit(
     resetAt = reset
   } catch (error) {
     if (options.failClosed) {
-      console.error('[rate-limit] check failed and this route fails closed, refusing', error)
+      log.error('rate_limit.refused_closed', error, { kind, reason: 'check_failed' })
       return unavailable(headers)
     }
-    console.error('[rate-limit] check failed, allowing request', error)
+    log.error('rate_limit.failed_open', error, { kind })
     return null
   }
 

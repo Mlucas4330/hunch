@@ -31,13 +31,13 @@ const MINE: ReadoutInput = {
   market: 'us'
 }
 
-// The competitor's robots.txt is not fetched: the visibility group is about the reader's own site,
+// The competitor's robots.txt is not fetched: the crawler_access group is about the reader's own site,
 // and somebody else's robots.txt compares nothing worth comparing.
-test('the competitor readout has no visibility group', () => {
+test('the competitor readout has no crawler_access group', () => {
   const findings = measuredFindings(competitorInput(THEIRS, 'us'))
 
   assert.equal(findings.length > 0, true)
-  assert.equal(findings.some((finding) => finding.group === 'visibility'), false)
+  assert.equal(findings.some((finding) => finding.group === 'crawler_access'), false)
 })
 
 test('the competitor is measured by the same code, so a shared finding compares directly', () => {
@@ -57,7 +57,7 @@ test('a finding only one side has is left out rather than compared against zero'
   assert.equal(
     mine.some((finding) => finding.id === 'ai_crawlers_blocked'),
     true,
-    'the reader has a visibility group'
+    'the reader has a crawler_access group'
   )
   assert.equal(theirs.has('ai_crawlers_blocked'), false)
 })

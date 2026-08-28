@@ -16,7 +16,7 @@ test('a group with nothing measured scores null, never zero', () => {
   const score = readoutScore([finding('structure', 'ok')])
 
   assert.equal(score.groups.structure, 100)
-  assert.equal(score.groups.metadata, null, 'nothing was measured, which is not the same as bad')
+  assert.equal(score.groups.declared, null, 'nothing was measured, which is not the same as bad')
   assert.equal(score.groups.load, null)
 })
 

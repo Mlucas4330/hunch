@@ -254,9 +254,22 @@ export const JOB_POLL_INTERVAL_MS = 2_000
 // queue on one browser container is the outage it exists to prevent, not a safeguard against it.
 export const QUEUE_MAX_DEPTH = 50
 
+// How many jobs the worker runs at once.
+//
+// It is not the browser cap and must not be read as one: `withBrowserSlot` still admits
+// SCRAPE_MAX_CONCURRENT_PAGES tabs and is the only thing that limits Chromium. This limits how many
+// jobs are *in flight*, which matters because most of an owned analysis holds no slot at all -- it
+// scrapes once, releases, then spends 30-60s in three Sonnet calls. Draining that serially left the
+// whole queue waiting on work that was competing for nothing.
+//
+// Matched to the browser cap so a burst of pure-scrape jobs queues at the slot rather than here,
+// where the wait is already bounded by SCRAPE_QUEUE_MAX_WAIT_MS.
+export const QUEUE_DRAIN_CONCURRENCY = 3
+
 // How long the form waits for a queued analysis before giving up on the reader's behalf. Measured on
 // the wall clock rather than a retry count, because what matters is how long someone has been
-// looking at a spinner. Generous: the queue is serial and a burst puts real analyses behind it.
+// looking at a spinner. Generous: a burst still puts real analyses behind QUEUE_DRAIN_CONCURRENCY
+// others, and the ones ahead may be holding every browser slot.
 export const ANALYSIS_WAIT_MAX_MS = 8 * MINUTE_MS
 
 // Where the browser keeps the keys of analyses it started with no account. It is the only thing
@@ -329,6 +342,38 @@ export const CREDIT_PACKS = [
 
 export type CreditPackId = (typeof CREDIT_PACKS)[number]['id']
 
+// The monitoring subscription: what a month of it costs, and what a month of it grants.
+//
+// **It is a different thing from a pack and sells a different thing.** A pack buys generation, once.
+// This buys the page being measured again every week and the reader being told what moved -- which
+// costs a browser slot and no tokens at all -- plus a handful of credits for the analyses they will
+// still want written. Per analysis it is dearer than the ten-pack on purpose: nobody is buying
+// analyses by the unit here, they are buying not having to remember to look.
+//
+// `credits` is granted through `grantCredits` on every approved renewal, exactly like a purchase,
+// because a subscription is not a second way to hold a balance -- see docs/invariants.md.
+//
+// **The amount is the Mercado Pago half of the same rule as CREDIT_PACKS.amountBrl**: the provider
+// is told what to charge from here, and a renewal is matched back against this number. A payment for
+// an amount this does not name grants nothing.
+export const MONITORING_PLAN = {
+  id: 'monitor',
+  amountBrl: 97,
+  credits: 4,
+  frequency: 1,
+  frequencyType: 'months',
+  currency: 'BRL'
+} as const
+
+// How stale a page has to be before the weekly sweep measures it again. Seven days minus a few
+// hours: a cron on a fixed schedule that required a full seven would skip a week whenever the
+// previous run finished a minute late.
+export const REMEASURE_MIN_AGE_MS = 6.5 * 24 * 60 * 60 * 1000
+
+// A cost ceiling, not a page size. Each entry opens a real browser against a customer's site, and
+// the sweep shares SCRAPE_MAX_CONCURRENT_PAGES with everyone who is waiting on a live analysis.
+export const REMEASURE_BATCH_MAX = 40
+
 // The two ids that reach `credit_transactions.provider` and `payment_events.provider`. Here rather
 // than beside each adapter so a client component can name one without importing a server module.
 export const STRIPE_PROVIDER: PaymentProvider = 'stripe'
@@ -385,11 +430,24 @@ export const SUPADEMO_EMBED_ORIGIN = 'https://app.supademo.com'
 export const SUPADEMO_ASPECT = '2 / 1'
 
 
+// Resend's HTTP API. Called with fetch rather than the SDK, on the same reasoning as the Mercado
+// Pago adapter -- see lib/email.ts.
+export const EMAIL_API_ORIGIN = 'https://api.resend.com'
+
 export const MERCADOPAGO_SDK_URL = 'https://sdk.mercadopago.com/js/v2'
 export const MERCADOPAGO_BRICK_CONTAINER = 'mercadopago-brick'
 export const MERCADOPAGO_APPROVED = 'approved'
-// The notification family that carries money. Merchant orders and the rest say nothing about it.
+// The notification families that carry money or entitlement. Merchant orders and the rest say
+// nothing about either.
+//
+// `preapproval` announces that an authorisation changed state -- authorised, paused, cancelled --
+// and carries no payment. `subscription_authorized_payment` announces one charge made against an
+// authorisation, and is the only one of the three that credits anything. They are separate topics
+// because they answer separate questions, and collapsing them would either credit a cancellation or
+// miss a renewal.
 export const MERCADOPAGO_PAYMENT_TOPIC = 'payment'
+export const MERCADOPAGO_PREAPPROVAL_TOPIC = 'preapproval'
+export const MERCADOPAGO_SUBSCRIPTION_PAYMENT_TOPIC = 'subscription_authorized_payment'
 
 // The Brick's own locale codes, which are not the app's. See docs/i18n.md.
 export const MERCADOPAGO_LOCALE: Record<Locale, string> = {
@@ -414,7 +472,10 @@ export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: numb
   // stop the job the caller already spent a browser slot on.
   job_status: { tokens: 600, windowMs: HOUR_MS },
   signin: { tokens: 5, windowMs: 15 * MINUTE_MS },
-  billing: { tokens: 20, windowMs: HOUR_MS }
+  billing: { tokens: 20, windowMs: HOUR_MS },
+  // Loose enough that a typo and a retry cost nothing, tight enough that the address field is not a
+  // free way to make us send mail to a stranger.
+  lead: { tokens: 10, windowMs: HOUR_MS }
 }
 
 // Same-origin, so no next/image remote pattern and img-src 'self' already covers them.
@@ -520,7 +581,11 @@ export const VARIANTS_PER_HYPOTHESIS = 3
 // Bounded because a founder acts on a short list, and the playbook shares the generation budget.
 export const PLAYBOOK_MIN = 3
 
-export const PLAYBOOK_MAX = 6
+// Raised from 6 when `mobile` and `performance` joined the categories. The subject got wider, and a
+// ceiling that did not move would have let a phone-viewport fix crowd out a conversion one -- the
+// list would look the same length while quietly covering less of what it now measures. Still bounded:
+// a founder acts on a short list, and every extra card is generation budget and page height.
+export const PLAYBOOK_MAX = 8
 
 export const PLAYBOOK_STEPS_MAX = 5
 
@@ -603,6 +668,14 @@ export const TREND_SCORE_MAX = 100
 
 // How far back the trend reads. A landing page re-measured weekly gives this about three months,
 // which is longer than any conversation about it.
+// How far the score has to fall before it is worth interrupting somebody about.
+//
+// A page picks up and sheds warns constantly -- an image swapped in the CMS, a script the marketing
+// team added, a CDN that got slower. Notifying on every point would train the reader to filter the
+// only message the subscription sends. Five points is roughly two findings crossing from ok to
+// alert, or four from ok to warn: a change somebody made, not weather. See lib/snapshots.ts.
+export const REGRESSION_SCORE_DROP = 5
+
 export const SNAPSHOT_HISTORY_MAX = 12
 
 // Named so the schema's fallback is not a bare literal. See docs/ai-pipeline.md.
@@ -789,6 +862,8 @@ export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
   trust: 'bg-green/15 text-green',
   pricing_clarity: 'bg-amber/15 text-amber',
   page_structure: 'bg-neutral/15 text-neutral',
+  mobile: 'bg-blue/15 text-blue',
+  performance: 'bg-amber/15 text-amber',
   indexability: 'bg-coral/15 text-coral',
   metadata: 'bg-purple/15 text-purple',
   structured_data: 'bg-blue/15 text-blue',

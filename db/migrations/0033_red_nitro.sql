@@ -1,0 +1,1 @@
+ALTER TABLE "flow_fixes" ADD COLUMN "finding" text;

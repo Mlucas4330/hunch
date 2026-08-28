@@ -89,7 +89,24 @@ The product used to carry a live A/B testing stage, and that stage was the one p
 sentence would have been earned. It is gone — see [product.md](product.md) — so the rule is no longer
 "only an experiment may say it" but simply "nothing says it".
 
-*Governs:* [readout.md](readout.md), [report.md](report.md)
+**The weekly monitoring email is the surface where this rule bites hardest**, and it is the reason
+the rule needed restating rather than just citing. That email exists to report a delta to somebody
+paying to be told about it, which is exactly the moment the tempting sentence is "your change
+worked". It may not say that, and it must not learn to: it lists which numbers moved and by how
+much, and carries a line saying in as many words that two measurements a week apart report what
+changed and not what changed it. `deltas()` in `lib/snapshots.ts` emits values, never prose, for the
+same reason `lib/readout.ts` does.
+
+**It fires only on a regression, and that is a separate rule from what it may say.** `regressions()`
+returns a finding whose severity crossed, or a score that fell by `REGRESSION_SCORE_DROP`, and
+`isWorthReporting()` is the single definition of "got worse" so no second surface can invent its own.
+The reasoning is not about accuracy, it is about attention: a push interrupts somebody, and a weekly
+message saying two numbers drifted teaches a subscriber to filter the only message this product
+sends. An improvement is still measured, still written, and still shown on the report — it is simply
+not worth an interruption. **The narrowing changes nothing about the prohibition above**: a
+regression report may say a number got worse and still may never say what made it worse.
+
+*Governs:* [readout.md](readout.md), [report.md](report.md), [api.md](api.md)
 
 ### Keywords measure the page's own words, never the index
 
@@ -219,6 +236,23 @@ The second provider has landed and the shape held: Mercado Pago verifies a payme
 bought, and calls `grantCredits`. `lib/credits.ts` did not change to accommodate it, which is the
 whole return on writing it this way.
 
+**The monitoring subscription held it too, and it was the harder test.** A subscription has state a
+one-off payment does not -- it renews, it fails, it gets cancelled -- and the obvious way to build it
+is a second place that says what someone is entitled to. That is exactly the second source of truth
+this rule exists to prevent. So it was split: `subscriptions` holds **eligibility and status**, and
+every renewal's credits go through `grantCredits` with the charge's own id as `providerRef`, exactly
+like a pack. `users.credits` stays the one answer to what a person can spend, and the ledger still
+explains every row in it.
+
+Two consequences worth stating, because both are the kind of bug that looks like working software:
+
+- **The grant is keyed on the charge, never on the authorisation.** A renewal is a new payment
+  against the same preapproval, so keying it on the preapproval id credits the first month and
+  silently swallows every month after it -- for thirty days that is indistinguishable from correct.
+- **What the subscription buys that credits cannot is the sweep**, and the sweep costs a browser slot
+  and zero tokens. That is what makes a monthly price coherent: the fee pays for measurement on a
+  schedule, and generation is still bought by the credit.
+
 *Governs:* [api.md](api.md), [data-model.md](data-model.md), [product.md](product.md)
 
 ### The free half is what code counted; the paid half is what a model wrote
@@ -244,15 +278,24 @@ surface renders the unlock wall rather than four empty tabs. There is one surfac
 Buying credits does not retroactively generate anything — the reader runs the URL again with a credit
 in hand.
 
-Two consequences that must hold together:
+Three consequences that must hold together:
 
 - **The readout is never gated**, on any surface. It is the part the reader can check against their
   own site in one click, and gating a measurement of someone's own page reads as a trick — see
   [readout.md](readout.md).
 - **A token spent on an ownerless analysis is a bug**, not a cost. If one ever appears, the split
   leaked.
+- **An address is not ownership.** `POST /api/leads` takes an email on the report surface and sends
+  the reader the link back, and that is the whole of what it does: it writes to `leads`, never to
+  `users`, and a lead never becomes an owner by leaving one. The cut stays the one nullable column.
 
-*Governs:* [product.md](product.md), [api.md](api.md), [readout.md](readout.md)
+  This is also why the offer sits **below** the readout rather than in front of it, and why it may
+  never move: the wall this replaced traded a stranger's address for a preview of someone else's
+  report, and the rule above is what killed it. What is asked for here buys the reader something —
+  an `embed_key` lives in one browser's `localStorage`, so the email is the only durable copy of the
+  link they can have.
+
+*Governs:* [product.md](product.md), [api.md](api.md), [readout.md](readout.md), [report.md](report.md)
 
 ### The public board carries a domain and a score, and nothing else
 

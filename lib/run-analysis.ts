@@ -162,6 +162,7 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
           steps: fix.steps,
           impactScore: fix.impact_score,
           evidence: fix.evidence,
+          finding: fix.finding,
           position
         }))
       )

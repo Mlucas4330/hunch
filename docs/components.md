@@ -429,6 +429,31 @@ the Stripe price id all hold one number and have to be changed together. `provid
 server and decides whether a button leaves for Stripe checkout or opens the Brick in place. See
 [analysis-ui.md](analysis-ui.md#the-credit-packs).
 
+## Monitoring plan — `components/monitoring-plan.tsx`
+
+The subscription offer, in the same `#credits` section as the packs and **deliberately not in their
+grid**. A pack and this sell different things — a pack buys generation, which costs tokens and
+happens once; this buys the page being measured every week, which costs a browser slot and no tokens.
+Priced side by side in one row, a reader compares R$97 against R$99 and concludes the ten-pack is
+better value, which misreads both. See [product.md](product.md).
+
+**No Brick.** A preapproval is confirmed at a hosted `init_point`, so the whole flow is a POST and a
+redirect — simpler than the pack path, not a reduced version of it.
+
+**The page renders it only when `mercadoPagoEnabled()`.** That is a capability check, not a
+preference: the Stripe path here is `mode: 'payment'` with no recurring price behind it, so a card
+that opened a checkout which cannot exist would be worse than no card.
+
+## Cancel subscription — `components/cancel-subscription.tsx`
+
+The button inside the dashboard's subscription card. It **sends no id** — the route resolves the
+subscription from the session, so nothing here could name somebody else's. See
+[api.md](api.md#delete-apibillingmercadopagosubscribe).
+
+`router.refresh()` on success rather than local optimistic state, because the card above it is
+server-rendered from the row the webhook also writes. Two places deciding what state a subscription
+is in is exactly what an optimistic version would create.
+
 ## The live board — `components/analysis-pulse.tsx`
 
 The landing page's only polling surface, and the parent of the two below. It holds the data and the

@@ -1,5 +1,6 @@
-import { JOB_TTL_MS, QUEUE_MAX_DEPTH } from '@/lib/constants'
+import { JOB_TTL_MS, QUEUE_DRAIN_CONCURRENCY, QUEUE_MAX_DEPTH } from '@/lib/constants'
 import { redis } from '@/lib/redis'
+import { log } from '@/lib/log'
 import type { JobStatus } from '@/lib/enums'
 
 // A job queue over Redis, drained by a worker inside this process.
@@ -77,7 +78,7 @@ export async function readJob<T = unknown>(id: string): Promise<Job<T> | null> {
     const raw = await client.get(jobKey(id))
     return raw ? (JSON.parse(raw) as Job<T>) : null
   } catch (error) {
-    console.error('[queue] read failed', error)
+    log.error('queue.read_failed', error, { job: id })
     return null
   }
 }
@@ -89,7 +90,7 @@ async function writeJob(id: string, job: Job): Promise<void> {
   try {
     await client.set(jobKey(id), JSON.stringify(job), 'PX', JOB_TTL_MS)
   } catch (error) {
-    console.error('[queue] write failed', error)
+    log.error('queue.write_failed', error, { job: id })
   }
 }
 
@@ -115,10 +116,14 @@ export async function enqueue(id: string): Promise<Job | null> {
     await writeJob(id, job)
     await client.rpush(QUEUE_KEY, id)
 
+    // Depth as it was when this job arrived, which is the number that says whether the queue is
+    // keeping up. Read before the push so it counts what is ahead of this job, not this job.
+    log.info('queue.enqueued', { job: id, depth })
+
     void drain()
     return job
   } catch (error) {
-    console.error('[queue] enqueue failed', error)
+    log.error('queue.enqueue_failed', error, { job: id })
     return null
   }
 }
@@ -156,15 +161,16 @@ async function reap(): Promise<void> {
   try {
     let requeued = 0
     while (await client.lmove(PROCESSING_KEY, QUEUE_KEY, 'LEFT', 'LEFT')) requeued++
-    if (requeued > 0) console.warn('[queue] requeued jobs orphaned by a restart', requeued)
+    if (requeued > 0) log.warn('queue.reaped', { requeued })
   } catch (error) {
-    console.error('[queue] reap failed', error)
+    log.error('queue.reap_failed', error)
   }
 }
 
+type QueueClient = NonNullable<ReturnType<typeof redis>>
+
 /**
- * Drains the queue one job at a time. Serial on purpose: `withBrowserSlot` already caps how many
- * pages exist at once, and a second limiter here would either fight it or hide it.
+ * One worker loop: takes ids until the queue is empty, runs each to a terminal answer.
  *
  * **A job in flight when the process restarts is picked back up.** It used to be lost: the id was
  * popped off the list before it ran, so nothing was left holding it, and the client polled a
@@ -181,6 +187,64 @@ async function reap(): Promise<void> {
  * that already has its results — see lib/run-analysis.ts. The credit is not at risk either way: it
  * is spent by the route, not by the job.
  */
+async function worker(client: QueueClient): Promise<void> {
+  for (;;) {
+    const id = await client.lmove(QUEUE_KEY, PROCESSING_KEY, 'LEFT', 'RIGHT')
+    if (!id) break
+
+    const startedAt = Date.now()
+
+    try {
+      const { kind } = split(id)
+      const run = globalForQueue.queueRunners!.get(kind)
+
+      if (!run) {
+        // A kind nobody registered is a deploy that lost its handler, not a retryable failure.
+        log.error('queue.no_runner', undefined, { kind, job: id })
+        await writeJob(id, { status: 'unavailable' })
+        continue
+      }
+
+      await writeJob(id, { status: 'running' })
+
+      try {
+        const outcome = await run(id)
+        await writeJob(
+          id,
+          outcome.ok ? { status: 'ready', result: outcome.result } : { status: 'unavailable' }
+        )
+        log.info('queue.job_finished', { job: id, ms: Date.now() - startedAt, ok: outcome.ok })
+      } catch (error) {
+        log.error('queue.job_failed', error, { job: id, ms: Date.now() - startedAt })
+        await writeJob(id, { status: 'unavailable' })
+      }
+    } finally {
+      // Both outcomes above are terminal answers the client can read, so the claim is released
+      // either way. Only a process that dies before reaching here leaves the entry for `reap`.
+      await client.lrem(PROCESSING_KEY, 1, id)
+    }
+  }
+}
+
+/**
+ * Drains the queue with QUEUE_DRAIN_CONCURRENCY workers side by side.
+ *
+ * **It used to be serial, and the reason given for that was wrong.** The argument was that
+ * `withBrowserSlot` already caps how many pages exist at once, so a second limiter here would
+ * either fight it or hide it. The cap does still do exactly that and nothing here changes it — but
+ * most of an owned analysis is not holding a slot. It scrapes, releases, then spends 30-60s in
+ * three Sonnet calls competing for nothing while the whole queue waits behind it. The throughput
+ * ceiling was one job at a time, never the three tabs.
+ *
+ * So the slot cap goes on limiting Chromium and this limits jobs in flight. A burst of scrape-heavy
+ * work now waits at `withBrowserSlot`, bounded by SCRAPE_QUEUE_MAX_WAIT_MS, instead of at the head
+ * of this list where nothing bounded it.
+ *
+ * **`queueDraining` still admits one drain at a time, and `reap` depends on that.** Reaping on
+ * sight is sound only while this process holds nothing in the processing list, and it holds nothing
+ * precisely because every worker releases its id in a `finally` and no second drain is running. So
+ * `reap` stays where it is: before any worker starts, inside the flag.
+ */
 export async function drain(): Promise<void> {
   const client = redis()
   if (!client || globalForQueue.queueDraining) return
@@ -190,39 +254,7 @@ export async function drain(): Promise<void> {
   try {
     await reap()
 
-    for (;;) {
-      const id = await client.lmove(QUEUE_KEY, PROCESSING_KEY, 'LEFT', 'RIGHT')
-      if (!id) break
-
-      try {
-        const { kind } = split(id)
-        const run = globalForQueue.queueRunners!.get(kind)
-
-        if (!run) {
-          // A kind nobody registered is a deploy that lost its handler, not a retryable failure.
-          console.error('[queue] no runner for kind', kind)
-          await writeJob(id, { status: 'unavailable' })
-          continue
-        }
-
-        await writeJob(id, { status: 'running' })
-
-        try {
-          const outcome = await run(id)
-          await writeJob(
-            id,
-            outcome.ok ? { status: 'ready', result: outcome.result } : { status: 'unavailable' }
-          )
-        } catch (error) {
-          console.error('[queue] job failed', id, error)
-          await writeJob(id, { status: 'unavailable' })
-        }
-      } finally {
-        // Both outcomes above are terminal answers the client can read, so the claim is released
-        // either way. Only a process that dies before reaching here leaves the entry for `reap`.
-        await client.lrem(PROCESSING_KEY, 1, id)
-      }
-    }
+    await Promise.all(Array.from({ length: QUEUE_DRAIN_CONCURRENCY }, () => worker(client)))
   } finally {
     globalForQueue.queueDraining = false
   }

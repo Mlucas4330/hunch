@@ -13,10 +13,17 @@ import { t } from '@/lib/i18n/format'
 // button under one that does, so a re-measure can add a point to the trend.
 export function MeasurePage({
   analysisId,
-  variant = 'backfill'
+  variant = 'backfill',
+  hasHistory = true
 }: {
   analysisId: string
   variant?: 'backfill' | 'again'
+  /**
+   * Whether there are already two measurements to compare. Only read by the `again` variant, and it
+   * defaults to true so the compact row stays the default shape -- the explaining state is the
+   * exception, for the owner who has never re-measured.
+   */
+  hasHistory?: boolean
 }) {
   const router = useRouter()
   const { dictionary } = useI18n()
@@ -47,6 +54,32 @@ export function MeasurePage({
   }
 
   if (variant === 'again') {
+    // **With one measurement there is no trend, and the trend says nothing about why.** Both the
+    // sparkline and the per-finding deltas return null below two snapshots, so an owner who has
+    // never pressed this sees no evidence that a history exists at all -- the feature is built and
+    // invisible to almost everyone. This state names it instead of rendering nothing.
+    if (!hasHistory) {
+      return (
+        <div
+          className="space-y-3 rounded-lg border border-dashed p-4 print:hidden"
+          data-testid="measure-again"
+        >
+          <div className="space-y-1">
+            <p className="font-display text-sm font-bold tracking-tight">
+              {copy.measure.trendStartTitle}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {state === 'error' ? copy.measure.failed : copy.measure.trendStartBody}
+            </p>
+          </div>
+
+          <Button onClick={measure} disabled={state === 'loading'} aria-busy={state === 'loading'}>
+            {state === 'loading' ? copy.measure.loading : copy.measure.again}
+          </Button>
+        </div>
+      )
+    }
+
     return (
       <div className="flex flex-wrap items-center gap-3 print:hidden" data-testid="measure-again">
         <Button
