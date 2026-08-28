@@ -80,7 +80,11 @@ async function creditFromPayment(payment: MercadoPagoPayment): Promise<void> {
     email: buyer.email,
     credits,
     provider: MERCADOPAGO_PROVIDER,
-    providerRef: String(payment.id)
+    providerRef: String(payment.id),
+    // The amount the provider confirmed, not the one the pack map holds -- they agree, because
+    // `creditsForAmount` just refused everything where they would not, and reporting the confirmed
+    // figure keeps that true by construction rather than by two constants staying in step.
+    amountBrl: payment.transaction_amount
   })
 
   console.info('[billing/mercadopago] credit grant', { payment: payment.id, credits, ...result })
@@ -173,7 +177,11 @@ async function creditFromRenewal(authorizedPaymentId: string): Promise<void> {
     email: subscriber.email,
     credits,
     provider: MERCADOPAGO_PROVIDER,
-    providerRef: String(payment.id)
+    providerRef: String(payment.id),
+    // Every renewal reports, not only the first. A subscription is what makes a paid channel pay for
+    // itself -- see docs/product.md -- so bidding against the first month alone would understate the
+    // channel by exactly the amount that justifies it.
+    amountBrl: payment.transaction_amount
   })
 
   // A paid renewal is also the provider confirming the authorisation is live, so the row is brought

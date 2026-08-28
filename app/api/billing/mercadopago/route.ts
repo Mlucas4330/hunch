@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { siteOrigin } from '@/lib/app-url'
-import { CREDIT_PACKS } from '@/lib/constants'
+import { CREDIT_PACKS, GCLID_COOKIE } from '@/lib/constants'
+import { rememberAdClick } from '@/lib/credits'
 import { getCurrentUser } from '@/lib/current-user'
+import { log } from '@/lib/log'
 import { createPayment } from '@/lib/mercadopago'
 import { enforceRateLimit } from '@/lib/rate-limit'
 
@@ -39,6 +42,21 @@ export async function POST(request: Request) {
 
   const pack = CREDIT_PACKS.find((p) => p.id === parsed.data.pack)
   if (!pack) return NextResponse.json({ error: 'invalid_pack' }, { status: 422 })
+
+  // The click is copied onto the buyer here rather than at sign-in, because this is the first moment
+  // both halves exist at once: the cookie was written by middleware before anyone had an account,
+  // and the webhook that reports the sale runs with no cookies at all. See docs/ads.md.
+  //
+  // **Wrapped, because attribution may never cost a sale.** This is marketing bookkeeping sitting in
+  // front of a payment, and the failure it is guarding is not hypothetical: between deploying this
+  // and running the migration, `users.gclid` does not exist yet and every write here throws. Losing
+  // the attribution on a purchase is a gap in a report; losing the purchase is revenue.
+  try {
+    const gclid = (await cookies()).get(GCLID_COOKIE)?.value
+    if (gclid) await rememberAdClick(user.id, gclid)
+  } catch (error) {
+    log.error('ads.conversion_failed', error, { stage: 'remember_click', user: user.id })
+  }
 
   try {
     const payment = await createPayment(

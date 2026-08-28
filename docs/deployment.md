@@ -206,6 +206,17 @@ that secret rather than a broken handler.
 How much a payment is worth comes from `CREDIT_PACKS.amountBrl`, and it has to match the price the
 dictionary prints, exactly as the Stripe price ids do.
 
+## Google Ads
+
+Six variables, all of them optional and all of them required together -- `googleAdsEnabled()` refuses
+a partial set, because half a configuration is one failed upload per payment forever. Unset outside
+production, where the conversion report skips quietly. The variables, the setup order and the reason
+`GOOGLE_ADS_API_VERSION` is a scheduled chore rather than a constant are in [ads.md](ads.md).
+
+**Nothing is served to a browser for this**, so there is no CSP entry, no script host and no consent
+banner to configure. The only runtime dependency is outbound access to `oauth2.googleapis.com` and
+`googleads.googleapis.com`.
+
 ## Stripe
 
 Kept alongside, and it charges nothing until it is configured. A **webhook endpoint** at

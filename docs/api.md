@@ -259,6 +259,12 @@ It answers the payment's status plus the Pix QR when there is one, and **grants 
 approved in this response is still credited by the webhook, so there is one path that moves a balance
 instead of two that have to agree.
 
+It also copies the `GCLID_COOKIE` onto the buyer's row, and **this is the only route that reads that
+cookie.** It happens here because this is the first moment both halves exist at once: the cookie was
+written by middleware before the visitor had an account, and the webhook that reports the sale runs
+with no cookies at all. It is not part of taking the payment and cannot fail one. See
+[ads.md](ads.md).
+
 ### `POST /api/billing/mercadopago/webhook`
 
 Verifies `x-signature` against `MERCADOPAGO_WEBHOOK_SECRET` (see
@@ -284,6 +290,11 @@ happened to an id — and grants only when the status is `approved` and the amou
 
 On an exception it releases the claim before answering `500`, so the retry can redo the work: a claim
 that survives a failure turns every retry into a no-op and loses a paid credit.
+
+Both crediting topics pass the **amount the provider confirmed** to `grantCredits`, which is what
+reports the sale to Google Ads. The reporting is not in this route and must not move here: three
+payment paths end at `grantCredits`, and it is the ledger's own idempotency that stops a re-delivered
+webhook reporting one payment twice. Every renewal reports, not just the first. See [ads.md](ads.md).
 
 ## Subscriptions
 

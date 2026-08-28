@@ -136,8 +136,15 @@ The reasoning worth keeping:
 - **No white-label, no plans, no PDF, no lead capture.** All four were built for a reader who sold
   audits to other people, and all four were deleted rather than left dormant
 - **No transactional email anywhere**, which is why sign-in is OAuth only
-- **No live A/B testing, no snippet, no tracking, no significance.** See the section above for why
-  that stage was removed rather than fixed
+- **No live A/B testing, no snippet, no significance.** See the section above for why that stage was
+  removed rather than fixed
+- **No third-party tracker on any surface.** This line used to read "no tracking" flatly, and that
+  became untrue the day the product started buying traffic: a paid click now leaves a first-party
+  cookie holding its Google Ads click id, and a confirmed payment is reported to Google from the
+  server. What still holds, and is the part worth stating, is that **nothing is loaded from a third
+  party into any page** -- no tag manager, no analytics script, no pixel. The distinction is not
+  pedantry: the product charges people to be told their page is heavy, so a tag container on our own
+  landing page would be it failing its own audit. See [ads.md](ads.md)
 - **No causal claim on any surface.** Nothing states what a change will produce, because nothing here
   controlled for anything — see
   [invariants.md](invariants.md#a-delta-is-arithmetic-between-two-measurements-never-a-result-attributed-to-a-change)

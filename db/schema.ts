@@ -59,6 +59,18 @@ export const users = pgTable('users', {
   // never carried in the JWT -- a token lives SESSION_MAX_AGE_SECONDS, so a balance stamped into one
   // is stale the instant something is bought or spent. See docs/invariants.md.
   credits: integer('credits').notNull().default(0),
+  // The Google Ads click this person last arrived on, copied off the first-party cookie when they
+  // create a payment and read back by `grantCredits` to report the sale. Null on everyone who never
+  // came from an ad, which is most rows and is not a gap.
+  //
+  // **It is stored on the buyer rather than on the payment on purpose.** The click happens before
+  // anyone signs in and often days before they buy, so there is no payment to hang it on when it
+  // arrives; `users` is the first row that exists on both sides of that gap. The cost is that it is
+  // last-click only, which is also what Google's own default attribution reports.
+  gclid: text('gclid'),
+  // When that click was captured, because a click older than GCLID_MAX_AGE_SECONDS is outside
+  // Google's conversion window and reporting it produces a rejected upload rather than a conversion.
+  gclidAt: timestamp('gclid_at'),
   lastSignInAt: timestamp('last_sign_in_at'),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })

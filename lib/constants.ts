@@ -40,6 +40,49 @@ export const BLOG_POST_DATE: Record<BlogSlug, string> = {
 
 export const CALLBACK_URL_PARAM = 'callbackUrl'
 
+// Google Ads, and the whole of what the site knows about it. **There is no Google tag on any page**
+// -- no gtag.js, no third-party cookie, nothing loaded from Google at all. Middleware reads the
+// click id out of the query string into a first-party cookie, and a confirmed payment is reported to
+// Google from the server. See docs/ads.md.
+//
+// The reasoning is not only privacy, though LGPD makes that half easy. This product charges people
+// to be told their landing page is heavy, and `READOUT_THRESHOLDS.pageWeightWarnBytes` is 2MB:
+// shipping Google's tag onto our own landing page would be the product failing its own audit.
+export const GCLID_PARAM = 'gclid'
+
+export const GCLID_COOKIE = 'hunch.gclid'
+
+// Google's own longest click-to-conversion window. A click older than this is refused on upload, so
+// keeping the cookie any longer only produces uploads that are rejected.
+export const GCLID_MAX_AGE_SECONDS = 60 * 60 * 24 * 90
+
+export const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+
+export const GOOGLE_ADS_API_ORIGIN = 'https://googleads.googleapis.com'
+
+// **Pinned, and it sunsets.** Google retires an API version roughly a year after release and a call
+// to a retired one fails outright. Confirm this against Google's current release notes before
+// enabling the integration, and treat bumping it as a scheduled chore rather than a surprise.
+export const GOOGLE_ADS_API_VERSION = 'v18'
+
+// The account is Brazilian and the packs are priced in BRL, so a conversion is worth what
+// CREDIT_PACKS.amountBrl charged. Never a made-up value: the amount is the one the provider
+// confirmed.
+export const ADS_CONVERSION_CURRENCY = 'BRL'
+
+// Google wants `yyyy-MM-dd HH:mm:ss+HH:mm`, and the offset has to be a real one rather than UTC:
+// the API validates the timestamp against the account's own timezone. The account is Sao Paulo.
+export const ADS_CONVERSION_TIMEZONE = 'America/Sao_Paulo'
+
+// A conversion upload is best effort and gets one short attempt. It runs inside a webhook whose
+// answer decides whether Mercado Pago retries the *payment*, so it may never be what makes that
+// request slow -- see the note in lib/credits.ts.
+export const ADS_UPLOAD_TIMEOUT_MS = 5_000
+
+// How long a fetched OAuth access token is reused. Google issues them for an hour; the margin is
+// there so a token is never spent on the request that discovers it just expired.
+export const ADS_TOKEN_SAFETY_MARGIN_MS = 5 * 60 * 1000
+
 // How each provider's address is verified, declared per provider rather than assumed.
 //
 // The row is keyed on email with no `accounts` table, so whoever presents an address next owns

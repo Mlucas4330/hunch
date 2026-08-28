@@ -1,7 +1,10 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { creditTransactions, users } from '@/db/schema'
+import { GCLID_MAX_AGE_SECONDS } from '@/lib/constants'
 import type { CreditReason } from '@/lib/enums'
+import { googleAdsEnabled, uploadClickConversion } from '@/lib/google-ads'
+import { log } from '@/lib/log'
 
 /**
  * Everything that moves a balance goes through this file, and **no provider code ever touches the
@@ -29,9 +32,86 @@ export type Grant = {
    * other way credits are created. See docs/invariants.md.
    */
   reason?: Extract<CreditReason, 'purchase' | 'grant'>
+  /**
+   * What the buyer paid, in BRL, for reporting the sale to Google Ads. Omitted by the paths where
+   * there is no amount to report -- a hand grant, and the e2e setup -- and a grant with no amount
+   * reports nothing rather than reporting a zero.
+   */
+  amountBrl?: number
 }
 
 export type GrantResult = { granted: boolean; duplicate: boolean }
+
+/**
+ * Stores the Google Ads click the buyer arrived on, ahead of a payment.
+ *
+ * Last click wins, which is both the simple answer and the one Google's own default attribution
+ * reports. The timestamp is what later decides whether the click is still inside the conversion
+ * window -- see `reportConversion`.
+ */
+export async function rememberAdClick(userId: string, gclid: string): Promise<void> {
+  await db.update(users).set({ gclid, gclidAt: new Date() }).where(eq(users.id, userId))
+}
+
+/**
+ * Tells Google Ads that a click it sent turned into a paid sale.
+ *
+ * **It lives here rather than in the two webhooks because this is the one place that knows a payment
+ * really landed.** The Mercado Pago pack route, the renewal route and the Stripe route all end at
+ * `grantCredits`, so reporting from each of them would be the same code written three times, and the
+ * first one fixed would be the moment the three started disagreeing -- the same reasoning that put
+ * every balance movement in this file. It also means the report is gated on the ledger's own
+ * idempotency: it runs only when a row was actually claimed, so a re-delivered webhook cannot report
+ * a second conversion for one payment.
+ *
+ * **Nothing it does can fail the payment.** It is awaited rather than left dangling -- a serverless
+ * invocation can be frozen the moment the response is returned, which would drop the upload silently
+ * -- but every failure is logged and swallowed. A conversion Google never recorded is a reporting
+ * gap; a webhook that answers 500 is a payment Mercado Pago retries.
+ */
+async function reportConversion(grant: Grant, userId: string): Promise<void> {
+  if (grant.reason === 'grant' || !grant.amountBrl || !googleAdsEnabled()) return
+
+  try {
+    const row = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: { gclid: true, gclidAt: true }
+    })
+
+    // Most buyers never came from an ad, so this is the ordinary path and not a failure. A click
+    // past the window is treated the same way: Google refuses it, so sending it would only turn a
+    // quiet skip into a logged error.
+    const expired =
+      !row?.gclidAt || Date.now() - row.gclidAt.getTime() > GCLID_MAX_AGE_SECONDS * 1000
+
+    if (!row?.gclid || expired) {
+      log.info('ads.conversion_skipped', {
+        provider: grant.provider,
+        providerRef: grant.providerRef,
+        reason: row?.gclid ? 'click_expired' : 'no_click'
+      })
+      return
+    }
+
+    await uploadClickConversion({
+      gclid: row.gclid,
+      valueBrl: grant.amountBrl,
+      orderId: grant.providerRef,
+      at: new Date()
+    })
+
+    log.info('ads.conversion_uploaded', {
+      provider: grant.provider,
+      providerRef: grant.providerRef,
+      valueBrl: grant.amountBrl
+    })
+  } catch (error) {
+    log.error('ads.conversion_failed', error, {
+      provider: grant.provider,
+      providerRef: grant.providerRef
+    })
+  }
+}
 
 /**
  * Credits an account for a confirmed payment, creating the row when nobody has signed in yet.
@@ -45,7 +125,7 @@ export async function grantCredits(grant: Grant): Promise<GrantResult> {
   const email = grant.email.trim().toLowerCase()
   if (!email || grant.credits <= 0) return { granted: false, duplicate: false }
 
-  return db.transaction(async (tx) => {
+  const { result, userId } = await db.transaction(async (tx) => {
     // The buyer may have no account: they paid from a checkout link and have never opened the app.
     // The row is created holding the credits, and their first sign-in fills in the person — see
     // docs/invariants.md. `name: email` is the whole provisioning record.
@@ -67,15 +147,23 @@ export async function grantCredits(grant: Grant): Promise<GrantResult> {
       .onConflictDoNothing()
       .returning({ id: creditTransactions.id })
 
-    if (claimed.length === 0) return { granted: false, duplicate: true }
+    if (claimed.length === 0) {
+      return { result: { granted: false, duplicate: true }, userId: user.id }
+    }
 
     await tx
       .update(users)
       .set({ credits: sql`${users.credits} + ${grant.credits}` })
       .where(eq(users.id, user.id))
 
-    return { granted: true, duplicate: false }
+    return { result: { granted: true, duplicate: false }, userId: user.id }
   })
+
+  // Outside the transaction on purpose: an outbound HTTP call inside one holds a Postgres connection
+  // open for the length of someone else's API, and a rollback would not un-send it anyway.
+  if (result.granted) await reportConversion(grant, userId)
+
+  return result
 }
 
 /**

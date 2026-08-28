@@ -208,6 +208,23 @@ name the caller never controlled; and **SVG is refused**, because these files ar
 origin and an SVG can carry `<script>`, which would be stored XSS on the domain holding the session
 cookie.
 
+## The ad click cookie — `middleware.ts`
+
+The one cookie this app sets that is not the session or the locale, and **it is deliberately not a
+tracker.** `GCLID_COOKIE` holds a Google Ads click id read out of our own query string; no script is
+loaded from Google on any page, nothing is written to it that the visitor did not arrive carrying,
+and its value leaves the server only after a payment has been confirmed. See [ads.md](ads.md).
+
+Three properties are load bearing:
+
+- **`httpOnly`**, so no script on the page can read it. There is no legitimate client-side reader:
+  every use is server side.
+- **Validated on the way in.** The value is matched against a strict `[A-Za-z0-9_-]{1,200}` pattern
+  before it is stored, on the same reasoning as `SCREENSHOT_FILENAME_PATTERN`: it is attacker-supplied
+  input that gets persisted and later interpolated into an outbound API call, so it is an allowlist
+  rather than a sanitizer. Anything that is not a click id is dropped, not escaped.
+- **`sameSite: 'lax'`**, which is what a click arriving from Google's own redirect needs and no more.
+
 ## Rate limiting — `lib/rate-limit.ts`
 
 Distinct from the plan quotas: those are what a tier allows, these are what the infrastructure will

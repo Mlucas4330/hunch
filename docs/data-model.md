@@ -15,6 +15,12 @@ users
 - stripe_customer_id (text, nullable: written only by the webhook, see api.md#post-apibillingwebhook)
                      <- a row may be created by the webhook before its owner has ever signed in;
                      name is then the email until they do, see invariants.md
+- gclid              (text, nullable: the Google Ads click this person last arrived on, copied off
+                     the first-party cookie when they create a payment. Null on everyone who never
+                     came from an ad, which is most rows and is not a gap -- see ads.md)
+- gclid_at           (timestamp, nullable: when that click was captured. A click older than
+                     GCLID_MAX_AGE_SECONDS is outside Google's conversion window, so reporting it
+                     would produce a rejection rather than a conversion)
 - last_sign_in_at    (timestamp, nullable: null means the row was provisioned and nobody has claimed
                      it yet, see invariants.md)
 - created_at         (timestamp)

@@ -319,6 +319,13 @@ export const LOG_EVENT = [
   'subscription.unmatched',
   'remeasure.swept',
   'remeasure.measured',
-  'remeasure.failed'
+  'remeasure.failed',
+  // Reporting a paid conversion back to Google Ads. `skipped` is the ordinary case and not a
+  // failure: most buyers never came from an ad, so there is no click to report. `failed` is the one
+  // that needs a person -- an expired refresh token reports nothing and changes nothing else, so
+  // without a line here the channel goes blind silently. See docs/ads.md.
+  'ads.conversion_uploaded',
+  'ads.conversion_skipped',
+  'ads.conversion_failed'
 ] as const
 export type LogEvent = (typeof LOG_EVENT)[number]
