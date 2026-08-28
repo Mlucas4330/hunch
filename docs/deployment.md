@@ -35,8 +35,12 @@ live in `deploy.cronSchedule` rather than in the dashboard, so a changed cron ti
 
 ## Bringing a project up
 
-`railway link` the project, then `railway config plan` to read the diff and `railway config apply` to
-reconcile. That creates every service in the table, both databases, the volume and its mount, and every
+`railway link` the project, then **`railway config pull` first**: it writes the project's current state
+over the file, and a clean import must plan to zero changes. Pull is what turns a guess about names
+into a reading of them — service names, the region, volume names and which variables actually exist are
+none of them derivable from this repo. Merge the `build` and `deploy` blocks back on top of what it
+brought, because those live in the file and Railway reports them as `null`. Then `railway config plan`
+to read the diff and `railway config apply` to reconcile. That creates every service in the table, both databases, the volume and its mount, and every
 variable whose value the file knows — `DATABASE_URL`, `REDIS_URL`, `BROWSER_URL`, `AUTH_TRUST_HOST`,
 `SCREENSHOT_DIR`, `PUPPETEER_SKIP_DOWNLOAD`, the two cron variables and the custom domain all come from
 it. One thing it cannot do for you: **fill in the `preserve()` values.** Set the secrets from
@@ -87,12 +91,16 @@ would null both, and a column whose file still exists has to keep it.
 [scraping.md](scraping.md#browser-lifecycle-and-the-concurrency-cap) for what each half of that value is
 load-bearing for.
 
-Each cron carries these two, as references rather than copies:
+Each cron carries these two, and the file states them differently on purpose:
 
 ```
-CRON_SECRET = ${{ app.CRON_SECRET }}
-APP_URL     = https://${{ app.RAILWAY_PUBLIC_DOMAIN }}
+CRON_SECRET = app.env.CRON_SECRET   // a reference, declared in .railway/railway.ts
+APP_URL     = https://hunch.solutions   // a value, held in the dashboard as preserve()
 ```
+
+The split is forced by the rule below: **a variable's value is write-only to IaC**, so only the
+reference can be declared without the plan drifting forever. `CRON_SECRET` is the half that matters
+— it is the one that must never drift from `app`'s — and it is the half the file can hold.
 
 **They stay separate services on purpose.** The browser service's empty environment is the entire
 mitigation for its missing sandbox ([security.md](security.md)), and merging it into `app` would put an
@@ -100,9 +108,8 @@ unsandboxed renderer in the same container as `DATABASE_URL` and `ANTHROPIC_API_
 build block is also what keeps `watchPatterns` meaningful: without it every push to the app would
 rebuild `browser` too, and that image reinstalls Chromium from apt each time.
 
-**The two cron variables are references, and nothing may retype them.** A hand-copied `CRON_SECRET`
-that drifts from `app`'s is the likeliest way this breaks, and it fails as a `401` that looks like a
-broken route.
+**`CRON_SECRET` is a reference, and nothing may retype it.** A hand-copied one that drifts from `app`'s
+is the likeliest way this breaks, and it fails as a `401` that looks like a broken route.
 
 **An unset `CRON_SECRET` on `app` fails the same way**, and that is deliberate: `secretsMatch` returns
 false when either side is missing, so a service with no secret refuses every call rather than
@@ -348,9 +355,51 @@ lines are.
   does not redeploy `app`. `.railway/railway.ts` is deliberately **not** negated: a change to `app`'s own
   deploy config has to reach a build to take effect. The cost is that editing a cron schedule redeploys
   `app` as well, which is the price of one file describing every service.
+- **A variable's value is write-only to IaC, so declaring one drifts forever.** `railway config plan`
+  reports the current side of every variable as `preserve()` — Railway never hands the stored value
+  back for comparison — so any literal declared in the file shows as a change on every plan, applies
+  "successfully", and shows again on the next one. **References are exempt**: `app.env.CRON_SECRET`
+  compares and settles. So the file declares references and `preserve()`, never a literal value, and
+  that is also why `railway config pull` renders every variable as `preserve()` rather than as itself.
+  A permanently dirty plan is worse than an undeclared value: it teaches you to skim the one output
+  that is supposed to be read before an apply.
+- **A service's *Config as code* path outlives the file it points at, and IaC cannot clear it.**
+  `browser` and `cron-prune` had `/railway.browser.json` and `/railway.cron-prune.json` set by hand in
+  the dashboard, and deleting those files left the pointers behind: both services failed their next
+  build, with a log that stops at `scheduling build on Metal builder` and says nothing else. `app` was
+  never affected, because a root `railway.json` is auto-detected rather than pointed at, so it had no
+  path to go stale — which is why the app kept serving while the other two could not build.
+  Declaring `configFile` in `.railway/railway.ts` does **not** fix it: the field is not managed by IaC
+  and plans to no change at all. Clear it in the dashboard, or through the API with
+  `serviceInstanceUpdate` and `railwayConfigFile: ""`. **An explicit `null` there is silently ignored**
+  — the mutation answers `true` and the value stays — because a patch reads null as "not provided".
+  The empty string is what actually clears it.
+- **`ON_FAILURE` cannot be written, because it is the default.** Railway stores an unset restart policy
+  rather than the default's name, so declaring it makes every plan report the same `null → "ON_FAILURE"`
+  change, apply report success, and the next plan report it again. `app` therefore declares only
+  `restartPolicyMaxRetries`. `ALWAYS` on `browser` and `NEVER` on the crons are not defaults and do
+  persist — see [The cron image](#the-cron-image) for why `NEVER` is load-bearing there.
+- **On Windows, `npm i -g @railway/cli` does not put `railway.exe` on the PATH.** It installs `.cmd` and
+  `.ps1` shims next to the real binary, and the IaC SDK checks the CLI version with `execFileSync`,
+  which cannot run a `.cmd`. The failure is `ENOENT`, which the SDK reports as **"requires Railway CLI
+  5.42.1 or newer"** — a version error naming a CLI that is already newer than that. Put
+  `%APPDATA%\npm\node_modules\@railway\cli\bin` on the PATH, or install the native CLI.
 - **Rate limiting fails open** — see
   [invariants.md](invariants.md#rate-limiting-fails-open-deliberately). Confirm with a real 429 rather
   than by reading the config.
+
+## CI
+
+Pin the plan and apply that exact file, so what lands is what was reviewed:
+
+```
+railway config plan --out railway-plan.json
+railway config apply --plan railway-plan.json --yes --confirm-destructive
+```
+
+`railwayapp/config` is the GitHub Action for it. Nothing in this repo does that yet — the apply is run
+by hand — and the reason to keep it in view is that **the repo and the project have to move together**:
+a push that deletes a build setting from this file is only safe once the apply that rewrites it has run.
 
 ## Migrations
 
