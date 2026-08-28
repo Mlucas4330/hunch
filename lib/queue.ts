@@ -131,7 +131,7 @@ export async function enqueue(id: string): Promise<Job | null> {
 /**
  * Puts back whatever a previous process was holding when it died.
  *
- * **This version is correct only because there is exactly one process.** `railway.json` pins
+ * **This version is correct only because there is exactly one process.** `.railway/railway.ts` pins
  * `numReplicas: 1` and the screenshot volume is what pins it, so anything sitting in PROCESSING_KEY
  * at startup was orphaned by definition and can be requeued on sight. The day a second replica
  * exists this becomes a bug of the worst kind — it would requeue a job another replica is running

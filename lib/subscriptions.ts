@@ -108,8 +108,6 @@ export type DueAnalysis = { id: string; url: string; email: string }
  * never charged, so there is no paid month to honour.
  */
 export async function analysesDueForRemeasure(): Promise<DueAnalysis[]> {
-  const cutoff = new Date(Date.now() - REMEASURE_MIN_AGE_MS)
-
   return db
     .select({ id: analyses.id, url: analyses.url, email: users.email })
     .from(analyses)
@@ -128,7 +126,7 @@ export async function analysesDueForRemeasure(): Promise<DueAnalysis[]> {
       )
     )
     .where(
-      sql`coalesce((select max(${pageSnapshots.capturedAt}) from ${pageSnapshots} where ${pageSnapshots.analysisId} = ${analyses.id}), ${analyses.createdAt}) < ${cutoff}`
+      sql`coalesce((select max(${pageSnapshots.capturedAt}) from ${pageSnapshots} where ${pageSnapshots.analysisId} = ${analyses.id}), ${analyses.createdAt}) < now() - make_interval(secs => ${REMEASURE_MIN_AGE_MS / 1000})`
     )
     .orderBy(analyses.createdAt)
     .limit(REMEASURE_BATCH_MAX)

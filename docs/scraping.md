@@ -234,7 +234,7 @@ Three rules hold it together:
 - **`assertPublicUrl` runs before the slot is taken**, so a refused URL never spends capacity and a
   throw from it cannot leak one.
 
-The cap is per process, which only equals per deploy because `railway.json` pins `numReplicas: 1` (the
+The cap is per process, which only equals per deploy because `.railway/railway.ts` pins `numReplicas: 1` (the
 screenshot volume requires it). Scaling `app` would multiply the real tab count; Redis is already
 available if a cross-process cap is ever genuinely needed.
 
@@ -319,7 +319,7 @@ So `drain` moves the id to `queue:processing` with `LMOVE` instead of popping it
 `finally` (both terminal answers are answers the client can read, so both release the claim), and
 `reap` puts back whatever a dead process left behind.
 
-**`reap` is correct only because there is exactly one process.** `railway.json` pins
+**`reap` is correct only because there is exactly one process.** `.railway/railway.ts` pins
 `numReplicas: 1`, and the screenshot volume is what pins it, so anything sitting in the processing
 list at startup was orphaned by definition. The day a second replica exists this becomes a bug of the
 worst kind — it would requeue a job another replica is running right now — and the fix then is a

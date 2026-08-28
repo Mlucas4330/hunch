@@ -223,7 +223,7 @@ export const SCRAPE_ASSET_READY_TIMEOUT_MS = 3_000
 export const SCRAPE_PAINT_SETTLE_MS = 250
 
 // Tabs on the single shared `browser` service are the scarce resource, and per process only equals
-// per deploy because railway.json pins numReplicas: 1. See docs/scraping.md.
+// per deploy because .railway/railway.ts pins numReplicas: 1. See docs/scraping.md.
 export const SCRAPE_MAX_CONCURRENT_PAGES = 3
 
 // The worker waits here, not the reader: the request that asks for a preview now returns as soon as
