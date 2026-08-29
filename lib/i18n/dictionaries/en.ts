@@ -308,19 +308,6 @@ export const en = {
     subtitle: 'Paste a landing page URL to measure it and get the fixes ranked.',
     emptyTitle: 'No pages yet',
     emptyDescription: 'Paste a landing page URL above to run your first analysis.',
-    subscription: {
-      heading: 'Weekly monitoring',
-      active: 'Active. We measure your pages every week and email you what moved.',
-      renews: 'Renews on {date}.',
-      cancelled: 'Cancelled. We keep measuring until {date}, then stop.',
-      cancelledNoDate: 'Cancelled.',
-      pending: 'Waiting for the payment to be confirmed. Nothing is being measured yet.',
-      paused: 'Paused at the payment provider. Nothing is being measured.',
-      cancel: 'Cancel subscription',
-      cancelling: 'Cancelling...',
-      cancelError: 'Could not cancel it. Try again in a moment.',
-      cancelNote: 'Cancelling stops the next charge. The month you have already paid for runs to the end.'
-    },
     pagination: {
       label: 'More of your pages',
       previous: 'Newer',
@@ -421,17 +408,17 @@ export const en = {
     eyebrow: 'What to change',
     title: 'What to change on this page',
     hintLabel: 'How to use this screen',
-    hint: 'Each tab is one kind of fix. *Structure* and *SEO* ship by hand; *Copy* comes with the replacement already written. Every number in the readout above was counted on your page.',
+    hint: 'Each section is one kind of fix. *Structure* and *SEO* ship by hand; *Copy* comes with the replacement already written. Every number in the readout above was counted on your page.',
     backToDashboard: 'Back to clients',
     copyFailed: 'Could not copy',
     copyLink: 'Copy link',
-    tabs: {
+    sections: {
       flow: 'Structure',
       copy: 'Copy',
       seo: 'SEO',
       ai: 'AI'
     },
-    tabQuestions: {
+    sectionQuestions: {
       flow: 'Is your page scaring off the people who arrive?',
       copy: 'Does your copy convince, or only describe?',
       seo: 'Can Google find your page?',
@@ -490,7 +477,13 @@ export const en = {
     score: {
       label: 'Health of what we counted',
       scale: '100 means every check on this page passed. 0 means none of them did.',
-      method: 'Averaged over the {count} checks below, each one counted on this page itself: a check that passes is worth a full point, a borderline one half, a failing one none. It rates only what was counted here, and says nothing about how much traffic or revenue the page makes.'
+      method: 'Averaged over the {count} checks below, each one counted on this page itself: a check that passes is worth a full point, a borderline one half, a failing one none. It rates only what was counted here, and says nothing about how much traffic or revenue the page makes.',
+      railAria: 'Group health {score} out of 100',
+      severity: {
+        ok: 'Healthy',
+        warn: 'Worth a look',
+        alert: 'Needs work'
+      }
     },
     findings: {
       form_fields: 'Signup form fields',
@@ -537,6 +530,12 @@ export const en = {
       mobile_tiny_text: 'Text too small to read on a phone',
       mobile_above_fold_ctas: 'Calls to action above the fold on a phone'
     },
+    criterion: {
+      above: 'flagged from {value}',
+      below: 'flagged at {value} or fewer',
+      band: 'flagged at none, and from {value}',
+      exactly: 'flagged when it is not {value}'
+    },
     presence: {
       yes: 'Yes',
       no: 'No'
@@ -557,6 +556,10 @@ export const en = {
       megabytes: '{value} MB'
     },
     keywords: {
+      eyebrow: 'Counted in your own copy',
+      heading: 'The words this page is built around',
+      explain:
+        'These are the terms your page repeats, counted in its own text. What matters is the columns on the right: a term you say fifteen times in the body but never put in the title or the H1 is a term a crawler, an assistant and an ad have nothing to match on.',
       title: 'The terms this page repeats most',
       term: 'Term',
       count: 'Times said',
@@ -578,9 +581,25 @@ export const en = {
       retry: 'Try again',
       again: 'Measure again',
       trendStartTitle: 'Track how this page changes',
-      trendStartBody: 'One measurement is a photo, not a history. Measure this page again and every number above gains a "since last time", plus a line showing the score over time.',
-      againHint: 'Open the page again and add a point to the trend. The fixes and tests are untouched.'
+      trendStartBody: 'One measurement is a photo, not a history. Measure this page again and every number above gains a "since last time", plus a line showing the score over time.'
     }
+  },
+
+  adIdeas: {
+    eyebrow: 'Written from those terms',
+    title: 'Ad groups for a search campaign',
+    hintLabel: 'Where these ads come from',
+    hint: 'Grouped from the terms *counted on your page* and written to fit Google Ads: headlines up to 30 characters, descriptions up to 90. There is *no search volume, no cost per click and no competition* anywhere here, because we have no index and no clickstream and never invent one. Treat it as a first draft to check inside your account.',
+    explain:
+      'Group the terms above into ad groups, and write the headlines and descriptions for each one using what this page already says. One credit is not spent: it is included with the analysis.',
+    cta: 'Write ad ideas',
+    loading: 'Writing ad ideas...',
+    failed: 'We could not write the ad ideas this time. Nothing in this analysis was changed.',
+    retry: 'Try again',
+    headlines: 'Headlines',
+    descriptions: 'Descriptions',
+    negatives: 'Negative keywords',
+    negativesHint: 'Searches this page does not serve. Add them at campaign level before the first click.'
   },
 
   hypothesisList: {
@@ -624,27 +643,11 @@ export const en = {
       creditsArrive: 'The credits land on your account as soon as the payment is confirmed.',
       refresh: 'Refresh the balance'
     },
-    monitoring: {
-      eyebrow: 'Or watch it every week',
-      name: 'Monitoring',
-      price: 'R$97',
-      cadence: 'per month',
-      tagline: 'The packs buy the writing. This buys the watching.',
-      body: 'A credit buys one analysis, written once. This measures your page again every week and emails you which numbers moved since the last time.',
-      features: [
-        'Every page you own measured weekly',
-        'An email listing what moved, and by how much',
-        '4 credits a month for the analyses you still want written'
-      ],
-      cta: 'Subscribe',
-      opening: 'Opening checkout...',
-      note: 'Cancel any time, from your dashboard.'
-    },
     packs: {
       single: {
         name: 'Single',
-        price: 'R$19',
-        perAnalysis: 'R$19 per analysis',
+        price: 'R$147',
+        perAnalysis: 'R$147 per analysis',
         tagline: 'One page, one look at it.',
         features: [
           'The score and every row that made it',
@@ -654,23 +657,12 @@ export const en = {
       },
       trio: {
         name: 'Trio',
-        price: 'R$39',
-        perAnalysis: 'R$13 per analysis',
-        tagline: 'A page, its rewrite, and a look back.',
+        price: 'R$297',
+        perAnalysis: 'R$99 per analysis',
+        tagline: 'A funnel of up to three pages.',
         features: [
           'Everything in Single, three times over',
-          'Room to re-measure after you ship the changes',
-          'Credits never expire'
-        ]
-      },
-      pack: {
-        name: 'Pack',
-        price: 'R$99',
-        perAnalysis: 'R$9.90 per analysis',
-        tagline: 'A whole funnel, or a roster of clients.',
-        features: [
-          'Everything in Trio, ten analyses in all',
-          'Enough for every page in a funnel',
+          'One analysis for every page in the funnel',
           'Credits never expire'
         ]
       }
@@ -707,17 +699,6 @@ export const en = {
       cta: 'Open the report',
       keep: 'Keep this email. The link is the only way back to this report.',
       footer: 'You got this because someone asked for it at this address on hunch.'
-    },
-    weekly: {
-      subject: 'Something got worse on {host}',
-      heading: 'A check on your page got worse',
-      body: 'We measured {host} again. {count} of the checks we count came back worse than last time.',
-      bodyScore: 'We measured {host} again. Nothing crossed a threshold on its own, but the score is {points} points lower than last time.',
-      rose: '{label}: up {amount}',
-      fell: '{label}: down {amount}',
-      cta: 'See the full readout',
-      disclaimer: 'These are two measurements of the same page, a week apart. They say what changed, not what changed it.',
-      manage: 'Manage or cancel this subscription in your dashboard: {link}'
     }
   },
 

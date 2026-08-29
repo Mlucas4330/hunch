@@ -1,4 +1,5 @@
 
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ReportCover } from '@/components/report-cover'
@@ -7,13 +8,14 @@ import { UnlockWall } from '@/components/unlock-wall'
 import { WatchPageForm } from '@/components/watch-page-form'
 import { HypothesisList } from '@/components/hypothesis-list'
 import { FlowPlaybook } from '@/components/flow-playbook'
-import { AnalysisTabs } from '@/components/analysis-tabs'
+import { AnalysisSections } from '@/components/analysis-sections'
 import { InfoHint } from '@/components/info-hint'
 import { RichText } from '@/components/rich-text'
 import { CopyReportLink } from '@/components/copy-report-link'
 import { Button } from '@/components/ui/button'
 import { MeasuredReadout } from '@/components/measured-readout'
 import { MeasurePage } from '@/components/measure-page'
+import { PageTerms } from '@/components/page-terms'
 import { getCurrentUser } from '@/lib/current-user'
 import {
   competitorFor,
@@ -117,6 +119,7 @@ export default async function ReportPage({
   // owner's browser slots, so neither the button nor the history it feeds exists for them. Do not
   // "fix" the missing button here -- see docs/readout.md.
   const history = isOwner && measured ? await readoutHistory(analysis.id, analysis.market) : EMPTY_HISTORY
+  const hasHistory = history.scores.length > 1
 
   function fixPanel(list: FlowFix[], section: PlaybookSection) {
     return <FlowPlaybook fixes={list} section={section} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
@@ -135,7 +138,12 @@ export default async function ReportPage({
 
   return (
     <div className="animate-fade-up space-y-8">
-      <ReportHeader isOwner={isOwner} t={t} embedKey={analysis.embedKey} />
+      <ReportHeader
+        isOwner={isOwner}
+        t={t}
+        embedKey={analysis.embedKey}
+        remeasure={isOwner ? <MeasurePage analysisId={analysis.id} variant="again" /> : null}
+      />
 
       <ReportCover
         t={t}
@@ -167,12 +175,12 @@ export default async function ReportPage({
           scores={history.scores}
           fixes={fixTitles}
         />
-        {isOwner && (
-          <MeasurePage
-            analysisId={analysis.id}
-            variant="again"
-            hasHistory={history.scores.length > 1}
-          />
+        {/* The button itself is in the header now, where the owner reaches it without scrolling the
+            whole document first. What is left here is the panel for the owner who has never pressed
+            it: below two snapshots there is no sparkline and no delta anywhere, so the history is
+            built and invisible unless something names it. See docs/readout.md. */}
+        {isOwner && !hasHistory && (
+          <MeasurePage analysisId={analysis.id} variant="trend_start" />
         )}
       </div>
 
@@ -184,7 +192,7 @@ export default async function ReportPage({
       {!isOwner && <WatchPageForm embedKey={embedKey} />}
 
       {generated ? (
-        <AnalysisTabs
+        <AnalysisSections
           counts={{
             flow: fixes.flow.length,
             copy: analysis.hypotheses.length,
@@ -208,6 +216,17 @@ export default async function ReportPage({
         <UnlockWall embedKey={embedKey} />
       )}
 
+      {/* **Last in the document, below the tabs, and below the wall on a report with nothing
+          generated.** The terms are a measurement, so they are free like the rest of the readout and
+          sitting under the wall does not gate them -- it shows a reader who has not paid that the
+          counted half keeps going. What the owner can do here is ask for the ad groups; everyone
+          else reads the table. See docs/readout.md. */}
+      <PageTerms
+        keywords={analysis.keywords}
+        analysisId={analysis.id}
+        isOwner={isOwner}
+        adIdeas={analysis.adIdeas}
+      />
     </div>
   )
 }
@@ -220,14 +239,20 @@ export default async function ReportPage({
 // used to be a named "Interactive report" card with an `Open` button, which made sense while the
 // owner read this document on a different route. There is nothing to open now -- the link points at
 // the page it is sitting on -- so what is left is putting the URL on the clipboard.
+//
+// `remeasure` is the second one, passed in rather than built here because the unmeasured branch has
+// nothing to measure again: that reader gets the whole `MeasurePage` section below the header, and a
+// button offering the same thing above it would be the same action twice.
 function ReportHeader({
   isOwner,
   t,
-  embedKey
+  embedKey,
+  remeasure = null
 }: {
   isOwner: boolean
   t: Dictionary
   embedKey: string
+  remeasure?: ReactNode
 }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-4">
@@ -237,6 +262,7 @@ function ReportHeader({
             <Link href="/dashboard">{t.analysis.backToDashboard}</Link>
           </Button>
           <CopyReportLink reportUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''} embedKey={embedKey} />
+          {remeasure}
         </div>
       ) : (
         <Wordmark />

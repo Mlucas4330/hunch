@@ -28,7 +28,6 @@ deprecated and `.railway/railway.ts` must never name it again.
 | `postgres` | `postgres()` helper | |
 | `redis` | `redis()` helper | rate limit counters and the job queue |
 | `cron-prune` | repo, `Dockerfile.cron` | calls `/api/cron/prune-screenshots`, daily |
-| `cron-remeasure` | repo, `Dockerfile.cron` | calls `/api/cron/remeasure`, weekly |
 
 Every service but the two databases is the **same repo** with a different `build` block. The schedules
 live in `deploy.cronSchedule` rather than in the dashboard, so a changed cron time arrives as a diff.
@@ -120,13 +119,8 @@ boundary, including the shape where the `Bearer ` prefix is lost.
 `APP_URL` is a per-environment origin under the same rule as `AUTH_URL`, which is exactly why it is a
 variable instead of a literal in the committed start command.
 
-**`cron-remeasure` is set up exactly like `cron-prune`** — same image, same script, same two
-referenced variables (`CRON_SECRET` and `APP_URL`), differing only in `startCommand` and
-`cronSchedule`. It runs Mondays at 07:00 UTC, deliberately a different hour from the prune so two
-jobs never hit `app` together.
-
-There are two crons again, and they are **two services rather than one command hitting both URLs**:
-`curl` exits 0 on a non-2xx, so `curl A && curl B` is really `A; B`, and adding `-f` to fix that would
+**A second cron is one more service, never a second URL in the same command.** `curl` exits 0 on a
+non-2xx, so `curl A && curl B` is really `A; B`, and adding `-f` to fix that would
 have let a failed first call silently skip the prune. One route per service is what makes
 `--fail-with-body` in `scripts/cron-call.sh` safe, so a `401` or a `500` surfaces as a failed run
 instead of a green one, and it keeps the schedules independent.
@@ -183,9 +177,12 @@ is a daily job and not a substitute for anything time-sensitive.
 **Deleting a cron route means deleting its service from `.railway/railway.ts`** — the `service()` call
 and its entry in `resources` — and applying. That is a destructive change, so the plan names it and a
 non-interactive apply needs `--confirm-destructive`. Leaving the service behind leaves it firing on
-schedule at a route that no longer answers, which is what happened to `cron-remeasure` after the pivot
-removed `/api/cron/remeasure`. Under the old *Config as code* the repo could not remove a service at
-all; this is the one thing the migration made strictly better rather than merely equal.
+schedule at a route that no longer answers. **`cron-remeasure` is the standing example and it has now
+happened twice**: the pivot removed `/api/cron/remeasure` once and the monitoring subscription was
+removed along with it a second time, so the service has to be deleted from the Railway project both
+in `.railway/railway.ts` and, if an older apply left it running, in the dashboard. Under the old
+*Config as code* the repo could not remove a service at all; this is the one thing the migration made
+strictly better rather than merely equal.
 
 ## Mercado Pago
 
@@ -225,9 +222,10 @@ secret in `STRIPE_WEBHOOK_SECRET`. It claims every delivery into `payment_events
 work, and grants credits for a session whose
 `payment_status` is `paid` — see [api.md](api.md#post-apibillingwebhook).
 
-Plus **one price id per credit pack** in `STRIPE_PRICE_SINGLE`, `STRIPE_PRICE_TRIO` and
-`STRIPE_PRICE_PACK`. Those ids are the only thing that decides how many credits a payment buys, and
-an unset one makes that pack refuse checkout rather than sell nothing.
+Plus **one price id per credit pack** in `STRIPE_PRICE_SINGLE` and `STRIPE_PRICE_TRIO`. Those ids are
+the only thing that decides how many credits a payment buys, and an unset one makes that pack refuse
+checkout rather than sell nothing. `STRIPE_PRICE_PACK` is gone with the ten-pack; a price left behind
+at Stripe charges an amount `creditsForAmount` no longer recognises, which grants nothing.
 
 **Two things hold one number and Stripe is not asked at render time:** the amount each price charges,
 and the amount printed on the home page. Change them together or the page lies about what it costs.

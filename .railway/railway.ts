@@ -100,7 +100,6 @@ export default defineRailway(() => {
       PUPPETEER_SKIP_DOWNLOAD: preserve(),
       REDIS_URL: preserve(),
       SCREENSHOT_DIR: preserve(),
-      STRIPE_PRICE_PACK: preserve(),
       STRIPE_PRICE_SINGLE: preserve(),
       STRIPE_PRICE_TRIO: preserve(),
       STRIPE_SECRET_KEY: preserve(),
@@ -131,7 +130,6 @@ export default defineRailway(() => {
     });
 
   const cronPrune = cron("cron-prune", "/api/cron/prune-screenshots", "0 9 * * *");
-  const cronRemeasure = cron("cron-remeasure", "/api/cron/remeasure", "0 7 * * 1");
 
   return project("Hunch", {
     resources: [
@@ -139,7 +137,6 @@ export default defineRailway(() => {
       redisDatabase,
       postgresDatabase,
       cronPrune,
-      cronRemeasure,
       browser,
       postgresVolume,
       redisVolume,

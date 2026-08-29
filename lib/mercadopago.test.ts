@@ -31,6 +31,15 @@ test('an amount matching no pack buys nothing', () => {
   assert.equal(creditsForAmount(19.5), 0)
 })
 
+// The prices a payment could have been created against before the repricing. A stale checkout that
+// somehow still charges one of them grants nothing rather than guessing what it was meant to buy,
+// which is the same direction `creditsForAmount` already refuses in.
+test('a retired price buys nothing', () => {
+  for (const amount of [19, 39, 99, 97]) {
+    assert.equal(creditsForAmount(amount), 0, `R$${amount} is no longer a pack`)
+  }
+})
+
 test('a signature over the right manifest verifies', () => {
   assert.equal(
     verifyWebhookSignature({

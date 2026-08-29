@@ -43,12 +43,12 @@ Someone clicks an ad, reads a blog post, measures a page, signs in a week later 
 after that. `users` is the first row present on both sides of that gap. The price is that attribution
 is last-click, which is also what Google's own default reports.
 
-**Reporting lives in `grantCredits` and not in the webhooks.** Three paths end there -- a pack, a
-subscription renewal, and Stripe -- so reporting from each would be the same code written three
-times, and the first one fixed is the moment the three start disagreeing. It is the same reasoning
-that put every balance movement in that file, and it buys a second guarantee for free: the report is
-gated on the ledger's own `(provider, provider_ref)` unique, so a re-delivered webhook cannot report
-one payment twice. Google's `orderId` carries the provider reference as a third layer.
+**Reporting lives in `grantCredits` and not in the webhooks.** Every path that grants ends there -- a
+pack today, Stripe when there is a company to register it to, a hand grant that deliberately reports
+nothing -- so reporting from each would be the same code written once per path, and the first one
+fixed is the moment they start disagreeing. It is the same reasoning that put every balance movement
+in that file, and it buys a second guarantee for free: the report is gated on the ledger's own
+`(provider, provider_ref)` unique, so a re-delivered webhook cannot report one payment twice. Google's `orderId` carries the provider reference as a third layer.
 
 **Nothing about this can fail a payment.** Every error is logged as `ads.conversion_failed` and
 swallowed. A conversion Google never recorded is a reporting gap; a webhook that answers `500` is a
@@ -90,6 +90,11 @@ release and a call to a retired one fails outright -- as `ads.conversion_failed`
 until someone reads the logs. Confirm it against Google's current release notes before enabling, and
 put the bump on a calendar rather than waiting to be surprised by it.
 
+It is pinned to `v25` as of 2026-08-29, when v23, v24 and v25 were the live versions. It had sat at
+`v18` since before the integration was ever switched on, which is the failure mode this paragraph
+describes: nothing surfaces it until the first real payment, and the error it produces looks exactly
+like a bad credential.
+
 ### Setup order
 
 1. Create a **manager account** (MCC) if there is not one; the developer token belongs to it, not to
@@ -115,8 +120,12 @@ put the bump on a calendar rather than waiting to be surprised by it.
    days to match `GCLID_MAX_AGE_SECONDS`.
 4. Take its numeric id out of the conversion action's URL.
 5. Create an OAuth client (Desktop) in a Cloud project with the Google Ads API enabled, and mint a
-   refresh token for an account that can see the ad account.
-6. Set the six variables and confirm with a real R$19 purchase from a URL carrying a fake `gclid`.
+   refresh token for an account that can see the ad account. **Use a Cloud project of its own rather
+   than the one behind Google sign in.** The `adwords` scope is a sensitive one and the consent
+   screen belongs to the project, so adding it to the project that authenticates paying users puts a
+   verification requirement on the thing that logs them in. Publish that consent screen before
+   minting: a token issued while it is in Testing stops working after seven days.
+6. Set the six variables and confirm with a real R$147 purchase from a URL carrying a fake `gclid`.
    It will be rejected as an unknown click, and the rejection proves the whole chain end to end --
    the log line will read `ads.conversion_failed` naming the click, not a token or permission error.
 
@@ -124,28 +133,44 @@ put the bump on a calendar rather than waiting to be surprised by it.
 
 ### The arithmetic first, because it decides everything else
 
-**A credit pack cannot pay for a paid click, and the subscription can.** This is not a pessimistic
-framing, it is the same point [product.md](product.md) already makes about why `MONITORING_PLAN`
-exists at all: a single purchase gives one transaction to repay acquisition, which works while
-acquisition is organic and does not while it is bought.
+**There is no recurring revenue, so one purchase has to repay one click.** That is the whole
+constraint, and it is what set the price rather than the other way round.
 
-The featured pack is R$39. Brazilian search CPCs for marketing-tool intent run roughly R$1.50 to
-R$5, and a cold landing page converting a click into a purchase at 1-2% is a normal expectation.
-That puts acquisition somewhere around R$100 to R$400 per buyer. Against a R$39 pack that is a loss
-on every sale. Against R$97 a month it is repaid in one to four months.
+Brazilian search CPCs for marketing-tool intent run roughly R$1.50 to R$5, and a cold landing page
+converting a click into a purchase at 1-2% is a normal expectation. That puts acquisition somewhere
+around R$100 to R$400 per buyer. An analysis costs a couple of reais to produce, so the contribution
+is very nearly the whole ticket:
 
-**So the campaign is bidding for subscribers, and pack sales are what happens on the way there.**
-Two consequences that are easy to get wrong:
+| Ticket | Contribution | Break-even CPA | Needed at R$3 CPC |
+| --- | --- | --- | --- |
+| R$19 (the old single) | ~R$17 | R$17 | 17.6% |
+| R$39 (the old featured pack) | ~R$37 | R$37 | 8.1% |
+| R$147 | ~R$145 | R$145 | 2.1% |
+| R$297 | ~R$295 | R$295 | 1.0% |
 
-- Every renewal reports, not only the first charge. The webhook does this already. Bidding against
-  the first month alone understates the channel by exactly the margin that justifies it.
-- Because the conversion value uploaded is one month's charge rather than a lifetime value, **the
-  target CPA in the account should be set against expected months retained**, and that number is an
-  assumption until there is a cohort. Write it down as an assumption; do not let it turn into a
-  figure anyone quotes.
+The old prices were not close. **R$147 is the first ticket in that table whose break-even sits inside
+the range a real funnel reaches**, and it sits at the pessimistic edge of it: 2.1% click to purchase
+is the top of the 1-2% expectation, not the middle.
+
+**The trio is the lever, and it is why there are two cards rather than one.** Blended ticket is what
+actually pays the bill: if three buyers in ten take the trio, the blend is about R$192 and break-even
+falls to roughly 1.6%. That is the number the campaign is really playing for.
+
+**This was previously solved with a subscription, which is gone** — see
+[product.md](product.md) for why. The honest summary of the trade: recurring revenue would have made
+this arithmetic comfortable, and the subscription that was supposed to provide it sold a weekly
+report on pages that do not change weekly. A price that can pay for a click is a worse business than
+retention and a better one than a plan nobody renews.
+
+**A price test cannot settle this and should not be attempted.** At single-digit monthly conversions
+the sample never arrives — the same argument that removed the A/B testing stage in
+[product.md](product.md), applied to our own pricing. What is known is that the old price provably
+could not pay for a click.
 
 Every number in this section is an estimate, not a measurement. That distinction is the product's
-whole thesis and it does not stop applying to our own marketing.
+whole thesis and it does not stop applying to our own marketing. **Treat the first R$1.000 of spend
+as buying the conversion rate, not as buying revenue**, and do not let any figure in that table turn
+into something anyone quotes as measured.
 
 ### Start with one Search campaign and nothing else
 
@@ -221,6 +246,23 @@ Headlines worth testing: `Nota da sua landing page em 20s`, `Cole a URL. Receba 
 `Sem instalar nada, sem cadastro`, `Seu site aparece no ChatGPT?`, `O que sua pagina diz sobre si`.
 
 Sitelinks to `/blog`, `/#how` and `/#credits`.
+
+### The product writes ad groups too, and the same rules bind them
+
+`POST /api/analyses/[id]/ads` groups the terms counted on a reader's page into ad groups and writes
+the headlines and descriptions -- see [ai-pipeline.md](ai-pipeline.md#5b-ad-ideas--generateadideas).
+It is the same reasoning as this section applied to somebody else's campaign, and worth stating here
+because this is the file where the temptation lives.
+
+**Everything above about what an ad may say binds that output too.** No promised increase, no
+percentage, no superlative nobody can check. And one more that is specific to it: **no search volume,
+no cost per click, no competition figure**, because we have no index and no clickstream and the terms
+are a count of the page's own words. See
+[invariants.md](invariants.md#keywords-measure-the-pages-own-words-never-the-index).
+
+The character ceilings in `AD_HEADLINE_MAX_CHARS` (30) and `AD_DESCRIPTION_MAX_CHARS` (90) are
+Google's own, enforced in Zod rather than asked for in the prompt, so a line the reader could not
+upload never reaches them.
 
 ### Creating the campaigns
 

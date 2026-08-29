@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { CREDIT_PACKS, MONITORING_PLAN } from '@/lib/constants'
+import { CREDIT_PACKS } from '@/lib/constants'
 
 /**
  * The Mercado Pago adapter's own half: the client, the price map and the signature check. What it
@@ -44,7 +44,7 @@ export type MercadoPagoPayment = {
 }
 
 // A refused call answers a body naming the field it refused, and that body used to be dropped on the
-// floor: every failure surfaced as a bare status code, so "the subscription button returns 502" was
+// floor: every failure surfaced as a bare status code, so "the checkout button returns 502" was
 // as much as anyone could learn from a log. Cheap to keep, and it is the whole difference between a
 // guess and a diagnosis. Capped because it is going into a log line, not a report.
 const ERROR_BODY_MAX_CHARS = 500
@@ -98,87 +98,6 @@ export async function createPayment(
  */
 export async function getPayment(id: string): Promise<MercadoPagoPayment> {
   return call<MercadoPagoPayment>(`/v1/payments/${encodeURIComponent(id)}`, { method: 'GET' })
-}
-
-/**
- * A recurring authorisation. Mercado Pago calls it a preapproval, and it is a different object from
- * a payment: it authorises charges, and each charge it produces is its own `authorized_payment`.
- */
-export type MercadoPagoPreapproval = {
-  id: string
-  status: string
-  external_reference: string | null
-  init_point?: string
-  next_payment_date?: string
-  auto_recurring?: { transaction_amount?: number }
-}
-
-/**
- * One charge made against a preapproval. The webhook's `subscription_authorized_payment` topic
- * carries the id of one of these, never of a `/v1/payments` payment, which is why it needs its own
- * lookup rather than reusing `getPayment`.
- */
-export type MercadoPagoAuthorizedPayment = {
-  id: number
-  preapproval_id: string
-  status: string
-  transaction_amount: number
-}
-
-/**
- * Opens a recurring authorisation the subscriber then confirms at `init_point`.
- *
- * **The amount is sent from our own map and never taken from the caller**, the same rule
- * `createPayment` follows and for the same reason -- see `creditsForAmount`. It is also matched
- * again on the way back, because what a preapproval was created with and what it later charges are
- * two separate facts.
- */
-export async function createPreapproval(
-  body: Record<string, unknown>,
-  idempotencyKey: string
-): Promise<MercadoPagoPreapproval> {
-  return call<MercadoPagoPreapproval>('/preapproval', {
-    method: 'POST',
-    headers: { 'X-Idempotency-Key': idempotencyKey },
-    body: JSON.stringify(body)
-  })
-}
-
-export async function getPreapproval(id: string): Promise<MercadoPagoPreapproval> {
-  return call<MercadoPagoPreapproval>(`/preapproval/${encodeURIComponent(id)}`, { method: 'GET' })
-}
-
-/**
- * Ends a recurring authorisation, so nothing further is charged against it.
- *
- * **It takes an id the caller already proved belongs to the person asking.** Nothing here checks
- * that, because nothing here can: this is the adapter, and it cancels whatever it is handed. The
- * route is what resolves the id from the session -- see the cancel handler, which never reads it
- * from a request body.
- */
-export async function cancelPreapproval(id: string): Promise<MercadoPagoPreapproval> {
-  return call<MercadoPagoPreapproval>(`/preapproval/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    body: JSON.stringify({ status: 'cancelled' })
-  })
-}
-
-export async function getAuthorizedPayment(id: string): Promise<MercadoPagoAuthorizedPayment> {
-  return call<MercadoPagoAuthorizedPayment>(
-    `/authorized_payments/${encodeURIComponent(id)}`,
-    { method: 'GET' }
-  )
-}
-
-/**
- * Whether an amount is what the monitoring plan charges.
- *
- * The subscription's analogue of `creditsForAmount`, kept separate rather than folded into it: a
- * pack and a plan are different products and a renewal that happens to equal a pack's price must not
- * buy that pack. **A renewal for an amount this refuses grants nothing.**
- */
-export function creditsForRenewal(amount: number): number {
-  return amount === MONITORING_PLAN.amountBrl ? MONITORING_PLAN.credits : 0
 }
 
 /**

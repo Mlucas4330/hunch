@@ -91,8 +91,9 @@ what was counted, and no surface says what a change will produce — see
 
 ## How a customer pays
 
-**Credits, bought outright.** One credit unlocks one full analysis; the score is always free. Three
-packs on the home page, and a webhook grants once the payment is confirmed.
+**Credits, bought outright.** One credit unlocks one full analysis; the score is always free. Two
+packs on the home page — R$147 for one analysis, R$297 for three — and a webhook grants once the
+payment is confirmed.
 
 Mercado Pago takes the money today, through a Payment Brick embedded in the page: Pix, card and
 boleto, and a CPF is enough to receive. Stripe stays wired behind the same buttons for when there is
@@ -100,30 +101,34 @@ a company to register it to.
 
 The reasoning worth keeping:
 
-- **Credits are not a subscription, and the reason still holds for credits.** A page owner audits
-  twice a year, and a monthly plan *on that usage* is a cancellation waiting to happen. What changed
-  is not the answer to that, it is that a second product exists next to it — see below.
-- **There is now a subscription, and it sells a different thing.** `MONITORING_PLAN` bills monthly
-  for the page being measured again every week and the owner being told which numbers moved. That is
-  not "an audit on a schedule": an audit is generation, which costs tokens and is still bought by the
-  credit. A re-measure costs a browser slot and nothing else, which is what makes a recurring price
-  coherent rather than a way to charge twice for the same thing.
+- **Credits are not a subscription.** A page owner audits twice a year, and a monthly plan *on that
+  usage* is a cancellation waiting to happen.
 
-  It is also the honest answer to the economics. A credit pack is a single purchase, so every real
-  spent acquiring a buyer has one transaction to pay it back — which works while acquisition is
-  organic and does not while it is bought. Recurring revenue is what makes a paid channel arithmetic
-  instead of a hope. What it must never do is change what a number is allowed to say: the weekly
-  email reports deltas and never causes, see [invariants.md](invariants.md).
+  **There was a subscription and it has been deleted**, which is the second demolition in this doc
+  and worth the same treatment as the first. `MONITORING_PLAN` billed R$97 a month to measure the
+  page again every week and mail the owner what moved. Two things were wrong with it, and only the
+  second is obvious in hindsight:
 
-  It is sold under the packs on the landing page and cancelled from the dashboard, and **both halves
-  of that are deliberate**. Sold there because a stranger has to be able to read the offer, and the
-  card sits below the grid rather than in it so nobody reads it as a bigger pack. Cancelled there
-  because Mercado Pago's own account screen already works and is not where anyone looks — somebody
-  who cannot find how to stop paying does not give up, they open a chargeback. Blocking the email is
-  the other version of the same failure: it silences the message and leaves the charge running.
-  See [analysis-ui.md](analysis-ui.md) and [api.md](api.md).
-- **The pack sizes are a question as much as an offer.** Someone with one landing page needs one or
-  two credits; a pack of ten selling well would say the buyer is not who this was rebuilt for.
+  - **It delivered silence most months.** The mail fires only on a regression, deliberately — see
+    [invariants.md](invariants.md). That is the right rule for a notification and a fatal one for a
+    product, because the thing being watched is a landing page, and a landing page that nobody has
+    touched does not regress. The subscriber paid monthly to be told nothing, which is not a
+    perception problem to be fixed with copy.
+  - **It was dominated by the offer next to it.** Four credits for R$97 sat beside ten for R$99. A
+    reader comparing the two cards was being asked to pay more per analysis for the privilege of
+    also being watched.
+
+  It existed to make paid acquisition arithmetic work — one purchase gives one transaction to repay
+  a click, which fails the moment clicks are bought. That problem was real and is now answered by
+  the price of the analysis instead. See [ads.md](ads.md).
+- **The pack sizes are a question as much as an offer.** Someone with one landing page needs one;
+  someone with a funnel needs three. The pack of ten went with the subscription: it priced an
+  analysis at R$9,90, which made the cheapest thing on the page the one nobody this was rebuilt for
+  had a use for.
+- **The price is set against acquisition, not against the token bill.** An analysis costs a couple of
+  reais to produce and sells for R$147. The margin is not the point; the point is that a single
+  purchase has to be able to repay a click on its own, and R$19 could not. See [ads.md](ads.md),
+  which also carries the honest caveat that R$147 only barely can.
 - **Granting is provider-agnostic**, keyed on `(provider, provider_ref)`. Stripe cannot charge in BRL
   without a registered company, which is exactly why the second provider exists — and the adapter
   shape is what kept adding it from being a rewrite: `lib/credits.ts` did not change. See

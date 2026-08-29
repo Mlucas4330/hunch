@@ -63,7 +63,11 @@ export const GOOGLE_ADS_API_ORIGIN = 'https://googleads.googleapis.com'
 // **Pinned, and it sunsets.** Google retires an API version roughly a year after release and a call
 // to a retired one fails outright. Confirm this against Google's current release notes before
 // enabling the integration, and treat bumping it as a scheduled chore rather than a surprise.
-export const GOOGLE_ADS_API_VERSION = 'v18'
+//
+// Checked 2026-08-29: v23, v24 and v25 are live and v18 had long since been retired. Google keeps
+// three versions and sunsets one per release, so this has roughly a year before it needs the same
+// check again.
+export const GOOGLE_ADS_API_VERSION = 'v25'
 
 // The account is Brazilian and the packs are priced in BRL, so a conversion is worth what
 // CREDIT_PACKS.amountBrl charged. Never a made-up value: the amount is the one the provider
@@ -371,51 +375,25 @@ export const PULSE_SPHERE = {
 // What is for sale. The price id is the only thing that decides how many credits a payment is worth
 // -- see creditsForPrice in lib/stripe.ts -- and the label is what the home page prints beside it.
 //
-// The three sizes are a question as much as an offer: a page owner needs one or two, so a pack of ten
-// selling well would say the buyer is not who this was rebuilt for. See docs/product.md.
+// Two sizes, because there are two buyers and no third: somebody with one landing page, and somebody
+// with a funnel of two or three. The pack of ten is gone -- it priced an analysis at R$9,90, which
+// was the cheapest thing on the page and the one nobody this was rebuilt for had a use for.
+//
+// **The prices carry the acquisition arithmetic, and that is why they are what they are.** A single
+// purchase gives one transaction to repay a click, so the ticket has to be able to. R$19 could not:
+// against a CAC estimated at R$100 to R$400 it was a loss on every sale, which is what the monitoring
+// subscription used to exist to paper over. See docs/ads.md.
+//
 // `amountBrl` is the Mercado Pago half of the same decision. Stripe keeps the amount on its own
 // servers behind the price id, so the id is enough there; the Payment Brick has the browser send the
 // amount, which makes it an input nobody may trust. The number here is what the server charges and
 // what the webhook matches a payment against -- see creditsForAmount in lib/mercadopago.ts.
 export const CREDIT_PACKS = [
-  { id: 'single', credits: 1, amountBrl: 19, priceId: process.env.STRIPE_PRICE_SINGLE ?? '' },
-  { id: 'trio', credits: 3, amountBrl: 39, priceId: process.env.STRIPE_PRICE_TRIO ?? '' },
-  { id: 'pack', credits: 10, amountBrl: 99, priceId: process.env.STRIPE_PRICE_PACK ?? '' }
+  { id: 'single', credits: 1, amountBrl: 147, priceId: process.env.STRIPE_PRICE_SINGLE ?? '' },
+  { id: 'trio', credits: 3, amountBrl: 297, priceId: process.env.STRIPE_PRICE_TRIO ?? '' }
 ] as const
 
 export type CreditPackId = (typeof CREDIT_PACKS)[number]['id']
-
-// The monitoring subscription: what a month of it costs, and what a month of it grants.
-//
-// **It is a different thing from a pack and sells a different thing.** A pack buys generation, once.
-// This buys the page being measured again every week and the reader being told what moved -- which
-// costs a browser slot and no tokens at all -- plus a handful of credits for the analyses they will
-// still want written. Per analysis it is dearer than the ten-pack on purpose: nobody is buying
-// analyses by the unit here, they are buying not having to remember to look.
-//
-// `credits` is granted through `grantCredits` on every approved renewal, exactly like a purchase,
-// because a subscription is not a second way to hold a balance -- see docs/invariants.md.
-//
-// **The amount is the Mercado Pago half of the same rule as CREDIT_PACKS.amountBrl**: the provider
-// is told what to charge from here, and a renewal is matched back against this number. A payment for
-// an amount this does not name grants nothing.
-export const MONITORING_PLAN = {
-  id: 'monitor',
-  amountBrl: 97,
-  credits: 4,
-  frequency: 1,
-  frequencyType: 'months',
-  currency: 'BRL'
-} as const
-
-// How stale a page has to be before the weekly sweep measures it again. Seven days minus a few
-// hours: a cron on a fixed schedule that required a full seven would skip a week whenever the
-// previous run finished a minute late.
-export const REMEASURE_MIN_AGE_MS = 6.5 * 24 * 60 * 60 * 1000
-
-// A cost ceiling, not a page size. Each entry opens a real browser against a customer's site, and
-// the sweep shares SCRAPE_MAX_CONCURRENT_PAGES with everyone who is waiting on a live analysis.
-export const REMEASURE_BATCH_MAX = 40
 
 // The two ids that reach `credit_transactions.provider` and `payment_events.provider`. Here rather
 // than beside each adapter so a client component can name one without importing a server module.
@@ -480,17 +458,9 @@ export const EMAIL_API_ORIGIN = 'https://api.resend.com'
 export const MERCADOPAGO_SDK_URL = 'https://sdk.mercadopago.com/js/v2'
 export const MERCADOPAGO_BRICK_CONTAINER = 'mercadopago-brick'
 export const MERCADOPAGO_APPROVED = 'approved'
-// The notification families that carry money or entitlement. Merchant orders and the rest say
-// nothing about either.
-//
-// `preapproval` announces that an authorisation changed state -- authorised, paused, cancelled --
-// and carries no payment. `subscription_authorized_payment` announces one charge made against an
-// authorisation, and is the only one of the three that credits anything. They are separate topics
-// because they answer separate questions, and collapsing them would either credit a cancellation or
-// miss a renewal.
+// The one notification family that carries money. Merchant orders and the rest say nothing about
+// either a payment or an entitlement.
 export const MERCADOPAGO_PAYMENT_TOPIC = 'payment'
-export const MERCADOPAGO_PREAPPROVAL_TOPIC = 'preapproval'
-export const MERCADOPAGO_SUBSCRIPTION_PAYMENT_TOPIC = 'subscription_authorized_payment'
 
 // The Brick's own locale codes, which are not the app's. See docs/i18n.md.
 export const MERCADOPAGO_LOCALE: Record<Locale, string> = {
@@ -518,7 +488,11 @@ export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: numb
   billing: { tokens: 20, windowMs: HOUR_MS },
   // Loose enough that a typo and a retry cost nothing, tight enough that the address field is not a
   // free way to make us send mail to a stranger.
-  lead: { tokens: 10, windowMs: HOUR_MS }
+  lead: { tokens: 10, windowMs: HOUR_MS },
+  // One Sonnet call and no browser. Tighter than `variants` because the answer is written once per
+  // analysis and read back from the column afterwards, so a second call on the same analysis is
+  // either a retry after a failure or somebody hammering the button.
+  ad_ideas: { tokens: 10, windowMs: HOUR_MS }
 }
 
 // Same-origin, so no next/image remote pattern and img-src 'self' already covers them.
@@ -709,16 +683,8 @@ export const TREND_CHART = { width: 240, height: 48, padding: 6, dotRadius: 4 } 
 
 export const TREND_SCORE_MAX = 100
 
-// How far back the trend reads. A landing page re-measured weekly gives this about three months,
-// which is longer than any conversation about it.
-// How far the score has to fall before it is worth interrupting somebody about.
-//
-// A page picks up and sheds warns constantly -- an image swapped in the CMS, a script the marketing
-// team added, a CDN that got slower. Notifying on every point would train the reader to filter the
-// only message the subscription sends. Five points is roughly two findings crossing from ok to
-// alert, or four from ok to warn: a change somebody made, not weather. See lib/snapshots.ts.
-export const REGRESSION_SCORE_DROP = 5
-
+// How far back the trend reads. An owner who re-measures after each round of changes gets a dozen
+// points out of this, which is longer than any conversation about one page.
 export const SNAPSHOT_HISTORY_MAX = 12
 
 // Named so the schema's fallback is not a bare literal. See docs/ai-pipeline.md.
@@ -738,6 +704,26 @@ export const KEYWORD_MIN_COUNT = 2
 
 // Bigrams as well as single words, because "landing page" is one term and two words.
 export const KEYWORD_MAX_WORDS = 2
+
+/**
+ * The shape of one set of ad ideas written off the terms this code counted.
+ *
+ * **The two character limits are Google's, not ours, and they are enforced in the Zod schema.** A
+ * headline of 40 characters is a headline Google refuses at upload, so letting one through would
+ * hand the reader copy they cannot use -- the schema rejects it and the whole call degrades to
+ * nothing, exactly like every other generator here.
+ *
+ * The rest are sizing decisions. Four groups is already more than a first campaign should run, and
+ * five headlines is what Google's responsive search ad wants to start rotating. See docs/ads.md.
+ */
+export const AD_HEADLINE_MAX_CHARS = 30
+export const AD_DESCRIPTION_MAX_CHARS = 90
+export const AD_GROUPS_MIN = 2
+export const AD_GROUPS_MAX = 4
+export const AD_HEADLINES_PER_GROUP = 5
+export const AD_DESCRIPTIONS_PER_GROUP = 2
+export const AD_TERMS_PER_GROUP_MAX = 6
+export const AD_NEGATIVES_MAX = 12
 
 // Both languages in one list, like STRUCTURE_PATTERNS: the page's language is not known until the
 // scrape, and a Portuguese stopword is never an English keyword. Accents kept -- pt-BR needs them.
@@ -853,7 +839,15 @@ export const OG_IMAGE_SIZE = { width: 1200, height: 630 }
 export const DEFAULT_OG_IMAGE_PATH = '/opengraph-image'
 
 // One measure for every surface: the navbar, the app pages and both reports. See docs/components.md.
-export const CONTAINER_CLASS = 'mx-auto w-full max-w-5xl px-4'
+//
+// 90rem is 1440px, one step past Tailwind's largest named container (`max-w-7xl`, 80rem). **Widening
+// it costs nothing below that width**, because `max-width` only binds above its own value -- a phone
+// and a 1366px laptop render exactly as they did, which is why there is no breakpoint here.
+//
+// The text measures are deliberately not this number and must not be folded into it: the blog
+// article and the body paragraphs stay capped near `max-w-2xl` because that is a reading measure,
+// and a line of prose 1440px wide is unreadable however much room the layout has.
+export const CONTAINER_CLASS = 'mx-auto w-full max-w-[90rem] px-4'
 
 // Semantic token utilities from app/globals.css -- never raw Tailwind colors or hex values.
 export const SECTION_BADGE_CLASS: Record<Section, string> = {

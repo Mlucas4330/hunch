@@ -51,13 +51,6 @@ page in one click, and the only thing here anyone shares unprompted.
   "You have no credits" beside a Buy button otherwise reads as a dead end, when the whole measured
   readout is still available. The FAQ answers the same question directly. At one credit the line is
   noise, so it is not shown.
-- **The subscription card is on the dashboard, and only when there is one.** It states what the
-  subscription is doing in its own sentence per status — `pending` is a checkout nobody finished and
-  is measuring nothing, `cancelled` with a period end in the future is still measuring until that
-  date — because collapsing those into one "subscribed" line tells two different people the same
-  wrong thing. With no subscription the card does not render at all: the dashboard is not a place to
-  advertise to somebody already signed in who has not bought it, and the offer lives on the landing
-  page where a stranger can also read it.
 - **The balance lives in the account menu, not on the dashboard.** It used to sit above the form that
   spends it, which meant it existed on exactly one screen; in `AccountPanel` it is on every screen and
   in the mobile menu for free, because the navbar already renders that panel in both. It is still read
@@ -164,8 +157,9 @@ length. `AI_POST_SLUG` names the target so the link cannot outlive the post.
 
 ### The credit packs
 
-`components/credit-packs.tsx`, under `#credits`. Three cards from `CREDIT_PACKS`, each with its price,
-its price **per analysis**, a one-line tagline and what it includes — all from `dictionary.credits`.
+`components/credit-packs.tsx`, under `#credits`. Two cards from `CREDIT_PACKS` — R$147 for one
+analysis, R$297 for three — each with its price, its price **per analysis**, a one-line tagline and
+what it includes, all from `dictionary.credits`.
 
 `FEATURED_CREDIT_PACK` names the one marked `credits.mostChosen`; it is `trio`, and the card carries
 the ring, the lift and the filled button. **It is a claim about the offer, not about the reader** —
@@ -175,23 +169,17 @@ personal recommendation.
 **The displayed price, `CREDIT_PACKS.amountBrl` and the Stripe price id must move together.** The
 amount is a dictionary string because the page renders for a reader with no session and no round trip;
 a price edited at a provider and not here is a page that lies about what it costs. See
-[api.md](api.md). `MONITORING_PLAN.amountBrl` and `credits.monitoring.price` are the same pair for the
-subscription.
+[api.md](api.md).
 
-### The monitoring plan
-
-`components/monitoring-plan.tsx`, in the same section and **below the grid rather than inside it**.
-The reasoning is in [components.md](components.md) and it is about the offer, not the layout: side by
-side with the packs a reader compares R$97 against R$99 and reads the subscription as an expensive
-pack, when what it sells is the page being measured every week rather than anything being written.
-
-Rendered only where Mercado Pago is configured, because the subscription is a preapproval and the
-Stripe path has no recurring price behind it.
+**There is no third card and no plan under the grid.** A monitoring subscription was sold there and
+has been removed — see [product.md](product.md). The layout consequence worth keeping is the one that
+predicted the problem: it sat below the grid rather than in it because side by side a reader compared
+R$97 against R$99 and read it as an expensive pack. That comparison was the correct one to make.
 
 **The buy button does one of two things, and the server decides which.** With Mercado Pago configured
 it opens the Payment Brick in a modal over the page — card, Pix and boleto, no redirect — and
-otherwise it leaves for Stripe checkout. **One dialog serves the three cards**, keyed on which pack is
-open: three mounted Bricks would be three SDK initialisations racing for one container id. Pix clears after the reader has finished with the form, so what the Brick
+otherwise it leaves for Stripe checkout. **One dialog serves both cards**, keyed on which pack is
+open: two mounted Bricks would be two SDK initialisations racing for one container id. Pix clears after the reader has finished with the form, so what the Brick
 says afterwards is that the credits land when the payment is confirmed: **the page may not report a
 balance it has not read back.**
 
@@ -377,17 +365,47 @@ decide.
   a named "Deliverables" card above the readout while there were two routes to tell apart; there is
   one now, so the card described the page it sat on. See
   [report.md](report.md#copy-report-link--componentscopy-report-linktsx).
-- `MeasuredReadout` above the tabs, with the score, the findings and the keyword table for everyone —
-  plus the trend and `MeasurePage variant="again"` for the owner. An analysis with nothing measured
-  shows `MeasurePage` alone to the owner and a read-only `MeasuringNotice` to everyone else. See
-  [readout.md](readout.md).
+- **`MeasurePage variant="again"` sits in the same header**, also owner-only, passed in as the
+  `remeasure` prop rather than built by `ReportHeader`. It used to sit below the entire readout,
+  which is the last thing an owner reaches and the action they repeat most. The unmeasured branch
+  passes nothing, because that reader already gets the whole `MeasurePage` section below the header
+  and a button offering the same thing above it would be the action twice.
+- `MeasuredReadout` above the sections, with the score and the group cards for everyone — plus the trend
+  for the owner, and `MeasurePage variant="trend_start"` below it while there is only one
+  measurement. An analysis with nothing measured shows `MeasurePage` alone to the owner and a
+  read-only `MeasuringNotice` to everyone else. See [readout.md](readout.md).
+- **`PageTerms` closes the document**, below the four sections: the terms counted on the page and,
+  for the owner, the ad groups written off them. See below.
 
-### Four tabs — `components/analysis-tabs.tsx`, over the `ANALYSIS_TAB` enum
+### Four sections — `components/analysis-sections.tsx`, over the `ANALYSIS_TAB` enum
 
-**Structure** (the playbook), **Copy** (the hypotheses), **SEO** and **AI**. `flow` opens first — fix
-the structure before the wording — and if it is empty the first non-empty tab opens instead.
+**Structure** (the playbook), **Copy** (the hypotheses), **SEO** and **AI**, stacked, each one a
+`PanelCard` — see [components.md](components.md). The first non-empty one opens and the rest start
+closed.
 
-**Every tab here is about what to change, and every one of them needs nothing but the URL.** There
+**They were tabs, and the shape has now changed four times.** Each fix is worth keeping because each
+one created the next problem:
+
+1. An **underline rail**: one `border-b-2` that was `border-transparent` while inactive, so three of
+   the four targets had no edge at all and the row read as a strip of words with one of them
+   coloured. A reader could not see where one target ended and the next began without hovering it.
+2. **A border on every tab**, which fixed that and left four bordered boxes floating on the page's own
+   graph-paper background with no container anywhere — four separate components that happened to sit
+   above some content, rather than the selector for it.
+3. **One `Card` around the strip and the panel**, which fixed the floating and left the report with
+   two container idioms on one screen: the readout's collapsing group cards above, a tab strip below.
+4. **The same `PanelCard` as everything else**, which is where it is now.
+
+**The reader gains something the tab version could never give them: more than one open at a time.** A
+tab is a claim that these are alternative views of one thing. They are not — they are four lists of
+work, and somebody deciding what to ship this week wants the structural fixes and the copy on screen
+together.
+
+**All four open is not an option and neither is all four closed.** Open is up to twenty fix cards and
+eight hypotheses at once, a page nobody reads the start of; closed is four black bars and none of what
+the reader paid for.
+
+**Every section here is about what to change, and every one of them needs nothing but the URL.** There
 used to be a fifth, `tests`, holding the live A/B testing stage; that stage is gone entirely — see
 [product.md](product.md) — along with the `counts.tests` prop and the public report's `tests: 0` /
 `tests: null` pair that existed only to hold it out of a report.
@@ -397,39 +415,36 @@ had been softened to *Page structure / Wording / Search visibility / AI visibili
 was the client of an agency and not a developer. That reader is gone: someone who owns a landing page
 knows what SEO is, and the technical word is both shorter and more precise.
 
-Each panel then opens with a **direct question** from `analysis.tabQuestions[tab]` — *A sua página está
-espantando quem chega?*, *O Google acha a sua página?* — because a wrapping row of tabs has no room
-for a sentence and a panel does. The question frames; it never asserts. What may not be invented is
-any **number**, and that rule is untouched.
+Each panel then opens with a **direct question** from `analysis.sectionQuestions[tab]` — *A sua
+página está espantando quem chega?*, *O Google acha a sua página?* — because the bar shares its line
+with a count and a panel has width for a sentence. The question frames; it never asserts. What may not
+be invented is any **number**, and that rule is untouched.
 
-**Only the labels changed**; the enum values are persisted in Postgres.
+**Only the labels changed**; the enum values are persisted in Postgres. `ANALYSIS_TAB` keeps its name
+because it is still the order and the dictionary key, and the values are the same four things.
 
-- **Every tab draws its own border, selected or not.** This was an underline rail: a single
-  `border-b-2` that was `border-transparent` while inactive, so three of the four targets had no edge
-  at all and the row read as a strip of words with one of them coloured — a reader could not see
-  where one target ended and the next began without hovering it. Now each tab is a bordered box; the
-  fill and the accent border say which one is open, and the border alone says the set is a set.
-- **Every panel stays mounted and inactive ones are `hidden`**, so switching tabs never remounts an
-  already-rendered preview.
-- **An empty tab is not rendered.** `FlowPlaybook` returns `null` for an empty list, so the shell
+- **An empty section is not rendered.** `FlowPlaybook` returns `null` for an empty list, so the shell
   computes emptiness itself. This is the normal case for analyses generated before the visibility audit
   existed: their rows are all `flow`, so SEO and AI are genuinely empty.
 - `seo` and `ai` are the same rows cut by category — see [data-model.md](data-model.md).
+- **Every panel is mounted**, open or closed, so opening one never remounts an already-rendered
+  preview. `<details>` hides the body rather than unmounting it, which is what the tab version got
+  from `hidden`.
 - **Each panel is wrapped in a `<div>` of its own, and that is a React key fix rather than layout.** A
-  panel is built by the page that owns the tabs and handed over as a prop, so it is created in a
+  panel is built by the page that owns these sections and handed over as a prop, so it is created in a
   server component and reconciled by a client one — which costs it the marking that says it is a
   statically placed child. Dropped in beside the panel heading it becomes the second entry of a
-  children array with no key, and dev warns, naming `AnalysisTabs` (where the array is) and the page
-  (where the element came from). The old fix was a `key` on every panel at every call site, which
+  children array with no key, and dev warns, naming `AnalysisSections` (where the array is) and the
+  page (where the element came from). The old fix was a `key` on every panel at every call site, which
   worked on `/analyses/[id]` and was never done on the public report — a fair illustration of what
   two routes rendering one document cost, and one of the reasons there is now one. The wrapper makes
   the panel an only child instead of an array member, and no call site has to know any of this.
 
 ### The header over a ranked list — `components/ranked-list-header.tsx`
 
-Eyebrow, title, the section's own `InfoHint`, and the impact legend. It sits **below** the tab's
-question (`analysis.tabQuestions`, rendered by `AnalysisTabs`): the question frames the tab, this
-names the list and states what the section checked.
+Eyebrow, title, the section's own `InfoHint`, and the impact legend. It sits **below** the section's
+question (`analysis.sectionQuestions`, rendered by `AnalysisSections`): the question frames the
+section, this names the list and states what was checked.
 
 **It is a component because there are two lists and they had already drifted.** `FlowPlaybook` built
 this markup inline for its three sections and `HypothesisList` had none at all, so the copy tab was
@@ -568,9 +583,45 @@ first should not have "write a meta description" ranked in among the conversion 
 - **A flow fix changes structure, not one line of text**, so it is shipped by hand rather than as a
   wording swap. The `InfoHint` on the heading exists to say exactly that.
 - **Renders `null` when there are no fixes**, so an analysis whose playbook generation failed simply has
-  no section. `AnalysisTabs` relies on this.
+  no section. `AnalysisSections` relies on this.
 - **Every fix is a `DisclosureCard`.** `expandFrom` is the index past which they *start* closed — the two
   tabbed surfaces pass `PLAYBOOK_EXPANDED_COUNT` (2), and a stacked surface would pass nothing**, so every fix
   starts open. Either way a row can be closed.
 - The visibility section's `hint` states the limit of what was measured, per
   [invariants.md](invariants.md#the-audit-measured-the-page-not-the-index).
+
+## The page's own words, and what can be bought with them
+
+`components/page-terms.tsx`, the last section of the analysis, below the four fix sections and in
+the same `PanelCard` idiom. Three parts inside it: a heading and a paragraph saying what to take from
+the terms, `KeywordTable` as it always was, and `AdIdeas` under it. **It starts open**, unlike the
+four above it — it is the last thing on the page, so nothing is buried by it.
+
+**The table used to be the last thing inside `MeasuredReadout` and it went nowhere.** It counts the
+terms a page repeats and marks which of its own surfaces already carry each one, which is the only
+keyword data this product can honestly produce — see
+[invariants.md](invariants.md#keywords-measure-the-pages-own-words-never-the-index). What it lacked
+was a destination: four Yes/No columns, and a reader left to work out that a term said fifteen times
+in the body and missing from the title is the finding. The heading says that now, and the section
+below turns the same terms into something to spend.
+
+`readout.keywords.hint` stays under the table, where the columns it qualifies are, and is
+deliberately **not** repeated as an `InfoHint` on the section heading.
+
+### `components/ad-ideas.tsx`
+
+Ad groups for a search campaign, written off the measured terms. Four states like `MeasurePage` —
+idle with a button, loading, error, and the result — and once written it comes back from the column
+rather than the model.
+
+- **Owner only, and it renders nothing at all for anyone else** unless the ideas already exist. A
+  reader handed the link sees the measured terms and no affordance leading somewhere they cannot go.
+- Each group is a card: the theme, the terms it rests on as chips, then the headlines and the
+  descriptions. The negatives close the section.
+- **Every line carries its character count against Google's ceiling.** That is the one number that
+  belongs in this section, and it is arithmetic over text this code is holding — a headline past
+  `AD_HEADLINE_MAX_CHARS` is rejected at upload, so the reader needs to see how much room an edit has.
+- **No search volume, no cost per click, no competition, anywhere.** This is the first surface in the
+  product whose output *looks* like a keyword tool's, which is exactly why the prohibition is stated
+  in the prompt, in the copy, and here. See [ai-pipeline.md](ai-pipeline.md) and
+  [ads.md](ads.md).

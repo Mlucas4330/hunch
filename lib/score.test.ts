@@ -9,7 +9,7 @@ let next = 0
 
 function finding(group: ReadoutGroup, severity: ReadoutSeverity): MeasuredFinding {
   next += 1
-  return { id: 'form_fields', group, severity, value: next, unit: 'count' }
+  return { id: 'form_fields', group, severity, value: next, unit: 'count', criterion: null }
 }
 
 test('a group with nothing measured scores null, never zero', () => {

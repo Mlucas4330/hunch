@@ -308,19 +308,6 @@ export const ptBR: Dictionary = {
     subtitle: 'Cole a URL de uma landing page para medir e receber as correções priorizadas.',
     emptyTitle: 'Nenhuma página ainda',
     emptyDescription: 'Cole a URL de uma landing page aqui em cima para rodar a sua primeira análise.',
-    subscription: {
-      heading: 'Monitoramento semanal',
-      active: 'Ativo. Medimos suas páginas toda semana e mandamos por email o que mudou.',
-      renews: 'Renova em {date}.',
-      cancelled: 'Cancelado. Continuamos medindo até {date}, depois paramos.',
-      cancelledNoDate: 'Cancelado.',
-      pending: 'Esperando a confirmação do pagamento. Nada está sendo medido ainda.',
-      paused: 'Pausado no provedor de pagamento. Nada está sendo medido.',
-      cancel: 'Cancelar assinatura',
-      cancelling: 'Cancelando...',
-      cancelError: 'Não deu para cancelar. Tente de novo daqui a pouco.',
-      cancelNote: 'Cancelar interrompe a próxima cobrança. O mês que você já pagou vai até o fim.'
-    },
     pagination: {
       label: 'Mais páginas suas',
       previous: 'Mais recentes',
@@ -424,17 +411,17 @@ export const ptBR: Dictionary = {
     eyebrow: 'O que mudar',
     title: 'O que mudar nesta página',
     hintLabel: 'Como usar esta tela',
-    hint: 'Cada aba é um tipo de correção. *Estrutura* e *SEO* saem à mão; *Copy* já vem com o texto novo escrito. Todo número do diagnóstico acima foi contado na sua página.',
+    hint: 'Cada seção é um tipo de correção. *Estrutura* e *SEO* saem à mão; *Copy* já vem com o texto novo escrito. Todo número do diagnóstico acima foi contado na sua página.',
     backToDashboard: 'Voltar para clientes',
     copyFailed: 'Não foi possível copiar',
     copyLink: 'Copiar link',
-    tabs: {
+    sections: {
       flow: 'Estrutura',
       copy: 'Copy',
       seo: 'SEO',
       ai: 'IA'
     },
-    tabQuestions: {
+    sectionQuestions: {
       flow: 'A sua página está espantando quem chega?',
       copy: 'O seu texto convence, ou só descreve?',
       seo: 'O Google acha a sua página?',
@@ -493,7 +480,13 @@ export const ptBR: Dictionary = {
     score: {
       label: 'Saúde do que medimos',
       scale: '100 significa que todas as verificações desta página passaram. 0 significa que nenhuma passou.',
-      method: 'Média das {count} verificações abaixo, cada uma contada na própria página: a que passa vale um ponto inteiro, a que fica no limite vale meio, a que falha não vale nada. A nota avalia só o que foi contado aqui, e não diz nada sobre quanto tráfego ou receita a página gera.'
+      method: 'Média das {count} verificações abaixo, cada uma contada na própria página: a que passa vale um ponto inteiro, a que fica no limite vale meio, a que falha não vale nada. A nota avalia só o que foi contado aqui, e não diz nada sobre quanto tráfego ou receita a página gera.',
+      railAria: 'Saúde do grupo {score} de 100',
+      severity: {
+        ok: 'Saudável',
+        warn: 'Vale olhar',
+        alert: 'Precisa de trabalho'
+      }
     },
     findings: {
       form_fields: 'Campos no formulário de cadastro',
@@ -540,6 +533,12 @@ export const ptBR: Dictionary = {
       mobile_tiny_text: 'Texto pequeno demais para ler no celular',
       mobile_above_fold_ctas: 'CTAs acima da dobra no celular'
     },
+    criterion: {
+      above: 'sinalizamos a partir de {value}',
+      below: 'sinalizamos em {value} ou menos',
+      band: 'sinalizamos em nenhum, e a partir de {value}',
+      exactly: 'sinalizamos quando não é {value}'
+    },
     presence: {
       yes: 'Sim',
       no: 'Não'
@@ -560,6 +559,10 @@ export const ptBR: Dictionary = {
       megabytes: '{value} MB'
     },
     keywords: {
+      eyebrow: 'Contado no seu próprio texto',
+      heading: 'As palavras em torno das quais esta página foi escrita',
+      explain:
+        'São os termos que a sua página repete, contados no texto dela mesma. O que importa são as colunas da direita: um termo que você diz quinze vezes no corpo e nunca colocou no title nem no H1 é um termo que o crawler, o assistente e o anúncio não têm com o que casar.',
       title: 'Os termos que esta página mais repete',
       term: 'Termo',
       count: 'Vezes que aparece',
@@ -581,9 +584,25 @@ export const ptBR: Dictionary = {
       retry: 'Tentar de novo',
       again: 'Medir de novo',
       trendStartTitle: 'Acompanhe como esta página muda',
-      trendStartBody: 'Uma medição é uma foto, não um histórico. Meça esta página de novo e cada número aqui em cima ganha um "desde a última vez", mais uma linha mostrando a nota ao longo do tempo.',
-      againHint: 'Abrimos a página outra vez e acrescentamos um ponto à evolução. As correções e os testes não mudam.'
+      trendStartBody: 'Uma medição é uma foto, não um histórico. Meça esta página de novo e cada número aqui em cima ganha um "desde a última vez", mais uma linha mostrando a nota ao longo do tempo.'
     }
+  },
+
+  adIdeas: {
+    eyebrow: 'Escrito a partir desses termos',
+    title: 'Grupos de anúncio para uma campanha de busca',
+    hintLabel: 'De onde vêm estes anúncios',
+    hint: 'Agrupados a partir dos termos *contados na sua página* e escritos dentro dos limites do Google Ads: headline até 30 caracteres, descrição até 90. Não há *volume de busca, custo por clique nem concorrência* em lugar nenhum aqui, porque não temos índice nem clickstream e nunca inventamos um. Trate como um primeiro rascunho para conferir dentro da sua conta.',
+    explain:
+      'Agrupamos os termos acima em grupos de anúncio e escrevemos as headlines e as descrições de cada um com o que esta página já diz. Não gasta crédito: vem junto com a análise.',
+    cta: 'Escrever ideias de anúncio',
+    loading: 'Escrevendo ideias de anúncio...',
+    failed: 'Não conseguimos escrever as ideias de anúncio desta vez. Nada nesta análise foi alterado.',
+    retry: 'Tentar de novo',
+    headlines: 'Headlines',
+    descriptions: 'Descrições',
+    negatives: 'Palavras negativas',
+    negativesHint: 'Buscas que esta página não atende. Adicione no nível da campanha antes do primeiro clique.'
   },
 
   hypothesisList: {
@@ -629,27 +648,11 @@ export const ptBR: Dictionary = {
       creditsArrive: 'Os créditos entram na sua conta assim que o pagamento for confirmado.',
       refresh: 'Atualizar o saldo'
     },
-    monitoring: {
-      eyebrow: 'Ou acompanhe toda semana',
-      name: 'Monitoramento',
-      price: 'R$97',
-      cadence: 'por mês',
-      tagline: 'Os pacotes compram a escrita. Isto compra o acompanhamento.',
-      body: 'Um crédito compra uma análise, escrita uma vez. Isto mede sua página de novo toda semana e manda por email quais números se moveram desde a última.',
-      features: [
-        'Cada página sua medida toda semana',
-        'Um email listando o que mudou, e quanto',
-        '4 créditos por mês para as análises que você ainda quer escritas'
-      ],
-      cta: 'Assinar',
-      opening: 'Abrindo checkout...',
-      note: 'Cancele quando quiser, pelo seu painel.'
-    },
     packs: {
       single: {
         name: 'Avulso',
-        price: 'R$19',
-        perAnalysis: 'R$19 por análise',
+        price: 'R$147',
+        perAnalysis: 'R$147 por análise',
         tagline: 'Uma página, um diagnóstico dela.',
         features: [
           'A nota e cada linha que a formou',
@@ -659,23 +662,12 @@ export const ptBR: Dictionary = {
       },
       trio: {
         name: 'Trio',
-        price: 'R$39',
-        perAnalysis: 'R$13 por análise',
-        tagline: 'Uma página, a reescrita dela e uma conferida depois.',
+        price: 'R$297',
+        perAnalysis: 'R$99 por análise',
+        tagline: 'Um funil de até três páginas.',
         features: [
           'Tudo do Avulso, três vezes',
-          'Espaço para medir de novo depois de publicar as mudanças',
-          'Os créditos não expiram'
-        ]
-      },
-      pack: {
-        name: 'Pacote',
-        price: 'R$99',
-        perAnalysis: 'R$9,90 por análise',
-        tagline: 'Um funil inteiro, ou uma carteira de clientes.',
-        features: [
-          'Tudo do Trio, dez análises no total',
-          'Dá para cada página de um funil',
+          'Uma análise para cada página do funil',
           'Os créditos não expiram'
         ]
       }
@@ -712,17 +704,6 @@ export const ptBR: Dictionary = {
       cta: 'Abrir o relatório',
       keep: 'Guarde este email. O link é o único caminho de volta para este relatório.',
       footer: 'Você recebeu isto porque alguém pediu neste endereço no hunch.'
-    },
-    weekly: {
-      subject: 'Algo piorou em {host}',
-      heading: 'Uma verificação da sua página piorou',
-      body: 'Medimos {host} de novo. {count} das verificações que contamos voltaram piores que da última vez.',
-      bodyScore: 'Medimos {host} de novo. Nada cruzou um limiar sozinho, mas a nota está {points} pontos menor que da última vez.',
-      rose: '{label}: subiu {amount}',
-      fell: '{label}: caiu {amount}',
-      cta: 'Ver o readout completo',
-      disclaimer: 'São duas medições da mesma página, com uma semana de diferença. Elas dizem o que mudou, não o que causou a mudança.',
-      manage: 'Gerencie ou cancele esta assinatura no seu painel: {link}'
     }
   },
 

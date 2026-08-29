@@ -127,19 +127,6 @@ export type CreditReason = (typeof CREDIT_REASON)[number]
 export const JOB_STATUS = ['queued', 'running', 'ready', 'unavailable'] as const
 export type JobStatus = (typeof JOB_STATUS)[number]
 
-// What a subscription is doing, in the provider's own vocabulary rather than a translation of it.
-// Mercado Pago's preapproval reports exactly these, and storing its word avoids a mapping that has
-// to be re-derived every time a provider adds a state. `authorized` is the only one that entitles
-// anything -- see lib/subscriptions.ts.
-export const SUBSCRIPTION_STATUS = ['pending', 'authorized', 'paused', 'cancelled'] as const
-export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUS)[number]
-
-// A provider is free to invent a state we have never seen, and the webhook must not guess when it
-// does. See the status handling in the Mercado Pago webhook.
-export function isSubscriptionStatus(value: unknown): value is SubscriptionStatus {
-  return SUBSCRIPTION_STATUS.includes(value as SubscriptionStatus)
-}
-
 // Abuse gates. Windows live in RATE_LIMITS, so a kind added here fails typecheck until it is given
 // one.
 export const RATE_LIMIT_KIND = [
@@ -158,7 +145,11 @@ export const RATE_LIMIT_KIND = [
   // Leaving an address costs one insert and one email, never a browser slot or a token. Its own kind
   // so that someone correcting a typo in their address never spends the analysis allowance the same
   // IP is about to need. See docs/api.md.
-  'lead'
+  'lead',
+  // One model call and no browser, written once per analysis and then read back from the column. Its
+  // own kind rather than `variants` because a retry after a failed generation must not eat the
+  // allowance for rewriting copy, which is the thing the reader actually paid for. See docs/api.md.
+  'ad_ideas'
 ] as const
 export type RateLimitKind = (typeof RATE_LIMIT_KIND)[number]
 
@@ -279,6 +270,19 @@ export function isReadoutFinding(value: unknown): value is ReadoutFinding {
 export const READOUT_UNIT = ['count', 'seconds', 'megabytes', 'presence'] as const
 export type ReadoutUnit = (typeof READOUT_UNIT)[number]
 
+// Which side of its own threshold a finding is flagged on.
+//
+// **It exists because a bare number does not say which way to move.** "Signup form fields / 6" is a
+// measurement the reader cannot act on: six could be four too many or two too few, and the severity
+// colour says something is wrong without saying what. The direction is not a judgement anybody has
+// to invent -- `measuredFindings` already picked a ranker and a number from READOUT_THRESHOLDS, and
+// this is that choice carried out to the reader instead of thrown away. See docs/readout.md.
+//
+// `band` is `above_fold_ctas`, where both ends are bad: none at all is an alert and a crowd of them
+// is a warning. `exactly` is `h1_count`, where anything but one is wrong in either direction.
+export const READOUT_CRITERION_KIND = ['above', 'below', 'band', 'exactly'] as const
+export type ReadoutCriterionKind = (typeof READOUT_CRITERION_KIND)[number]
+
 // How loud a log line is. `error` is something that needs a person, `warn` is something that
 // recovered on its own, `info` is a measurement nobody has to act on. See lib/log.ts.
 export const LOG_LEVEL = ['info', 'warn', 'error'] as const
@@ -311,15 +315,6 @@ export const LOG_EVENT = [
   // a form that failed because nobody set an API key would fail on every machine but production.
   'email.skipped',
   'lead.failed',
-  'subscription.created_failed',
-  'subscription.cancel_failed',
-  'subscription.activated',
-  'subscription.status_changed',
-  'subscription.renewed',
-  'subscription.unmatched',
-  'remeasure.swept',
-  'remeasure.measured',
-  'remeasure.failed',
   // Reporting a paid conversion back to Google Ads. `skipped` is the ordinary case and not a
   // failure: most buyers never came from an ad, so there is no click to report. `failed` is the one
   // that needs a person -- an expired refresh token reports nothing and changes nothing else, so

@@ -281,22 +281,6 @@ reach the client as the same `error`**, so a preview that lost a race looked ide
 impossible — a manual hypothesis, a stale selector, an unwritable volume. The runner says which by
 resolving with a null url; only `unavailable` offers a retry.
 
-### Two kinds, and `remeasure` exists because `analysis` cannot do it
-
-`runAnalysis` returns early on a row that already holds its results — it has to, or a requeued job
-writes every hypothesis twice. That makes `analysis:<id>` a **guaranteed no-op** for a page that has
-already been measured, which is exactly the page the weekly sweep wants measured again.
-
-So the sweep enqueues `remeasure:<id>` instead, with its own runner in `lib/run-remeasure.ts`. It
-re-measures, appends a snapshot, and emails the owner which numbers moved. It spends no credit and
-calls no model: a re-measure is `measurePage` plus arithmetic, which is what a monthly fee can cover.
-
-The runner is registered at the module scope of `/api/cron/remeasure`, as every kind is, so that
-route being reached is what teaches the worker to run one. **A `remeasure` job orphaned by a restart
-and reaped before that module has loaded is answered `unavailable`** — it costs that page one week,
-and the next sweep picks it up because the cutoff is measured from the last snapshot, not from when
-the job was queued.
-
 ### The job id is the thing, never a token
 
 `<kind>:<ref>`, and for a screenshot the ref is the `variantId`. Two readers opening the same preview

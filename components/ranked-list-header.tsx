@@ -9,12 +9,13 @@ import { RichText } from '@/components/rich-text'
  *
  * **One component because there are two lists and they had already drifted once.** `FlowPlaybook`
  * built this markup inline for its three sections and `HypothesisList` had nothing at all, so the
- * copy tab was the only one of the four opening straight onto cards. Written twice it would drift
+ * copy section was the only one of the four opening straight onto cards. Written twice it would drift
  * again the first time either was touched -- which is the failure this whole surface was merged to
  * stop, one level down.
  *
- * It sits **below** the tab's question (`analysis.tabQuestions`, rendered by `AnalysisTabs`). The
- * question frames the tab; this names the list and states what the section checked.
+ * It sits **below** the section's question (`analysis.sectionQuestions`, rendered by
+ * `AnalysisSections`). The question frames the section; this names the list and states what was
+ * checked.
  */
 export function RankedListHeader({
   eyebrow,

@@ -37,6 +37,7 @@ analyses
 - crawler_access  (jsonb, nullable: CrawlerAccess, what the site's robots.txt allows an AI crawler)
 - keywords        (jsonb, nullable: PageKeywords, the terms the page repeats and where they appear)
 - mobile          (jsonb, nullable: PageMobile, the same page's geometry in a phone viewport)
+- ad_ideas        (jsonb, nullable: AdIdeas, ad groups written off `keywords` on the owner's click)
 - embed_key       (uuid, unique: public opaque key the report URL uses; never expose analyses.id)
 - locale          (enum: LOCALE, default: en)
 - market          (enum: MARKET, default: us)
@@ -77,34 +78,6 @@ leads                           <- an address someone left to be sent their repo
   It is also not a column on `analyses`: a lead is a contact for one page and the same person can
   measure several. That keeps `analyses.user_id` as the only cut between the free half and the paid
   one -- leaving an address changes nothing about ownership.
-
-subscriptions                   <- a recurring authorisation at a provider, and its state
-- id                 (uuid, PK)
-- user_id            (FK -> users.id, cascade)
-- provider           (text: reaches the same column names as credit_transactions.provider)
-- provider_ref       (text: the provider's own id for the AUTHORISATION -- preapproval_id at
-                      Mercado Pago. The authorisation IS this id, hence the unique.)
-- status             (enum: SUBSCRIPTION_STATUS. Only `authorized` entitles anything -- `pending` is
-                      a checkout somebody opened and abandoned.)
-- current_period_end (timestamp, nullable: null until the first charge, which is when a next payment
-                      date exists)
-- created_at / updated_at (timestamp)
-- unique(provider, provider_ref)
-- index(user_id, status)
-
-  **It holds entitlement, never balance.** A renewal's credits go through `grantCredits` like any
-  purchase, so `users.credits` stays the one answer to what someone can spend. Two tables would be
-  two answers -- see invariants.md.
-
-  **Idempotency for the money is NOT here.** It is on `credit_transactions(provider, provider_ref)`
-  keyed per *charge*: a renewal is a new payment against the same authorisation, so keying grants on
-  this column would credit month one and silently swallow every month after it.
-
-  **`current_period_end` outlives a cancellation, and is load bearing.** `analysesDueForRemeasure`
-  sweeps `authorized` rows *and* `cancelled` rows whose period end is still in the future, so
-  cancelling stops the next charge without taking back the month already billed. That is why the
-  cancel path preserves the column instead of clearing it. Null never sweeps -- a preapproval that
-  was never charged has no paid month to honour.
 
 hypotheses
 - id             (uuid, PK)
@@ -220,14 +193,27 @@ it to stay quiet outside Brazil.
 
 An analysis created before these columns holds null and renders no readout section, exactly as an
 empty playbook renders no playbook. **Nothing is regenerated**, and nothing sweeps them.
-`POST /api/analyses/[id]/measure` re-measures one analysis at a time on the owner's click, and
-The sweep is back and a subscription is what pays for it: `/api/cron/remeasure` queues a re-measure
-per page owned by an active subscriber, which is what keeps it from being browser time nobody asked
-for. See [api.md](api.md).
+`POST /api/analyses/[id]/measure` re-measures one analysis at a time on the owner's click, and that
+click is the only thing that re-measures anything. **There is no sweep.** One existed twice and was
+removed twice — once with the plans it swept for, once with the subscription that paid for it — and
+the reason did not change either time: a scheduled re-measure opens a real browser against somebody's
+site, so it is browser time nobody asked for unless something pays for it. See [api.md](api.md) and
+[product.md](product.md).
 
 The columns are the current measurement and `page_snapshots` is the history. They are written
 together, in one transaction, every time — a trend that disagrees with the readout above it is worse
 than no trend.
+
+### `analyses.ad_ideas` is one column and not a table
+
+It holds a single object, read whole and written whole, exactly like the measurement columns above
+it — so a table would buy nothing and cost a join, a cascade and a position column. **Nothing ever
+reads one ad group without the rest of the set**, which is the test: `flow_fixes` is a table because
+the report slices it by `kind` and `category` and ranks it; this is never sliced.
+
+Null on every analysis nobody has asked for one on, which is most of them: it is written by
+`POST /api/analyses/[id]/ads` on the owner's click, never during the run. See
+[api.md](api.md) and [ai-pipeline.md](ai-pipeline.md).
 
 ### `analyses.locale` and `analyses.market` are pinned at creation
 

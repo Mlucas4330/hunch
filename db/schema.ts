@@ -20,7 +20,6 @@ import {
   MARKET,
   CREDIT_REASON,
   SECTIONS,
-  SUBSCRIPTION_STATUS,
   USER_ROLE
 } from '@/lib/enums'
 import {
@@ -37,6 +36,7 @@ import type {
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
 import type { CompetitorMeasurement } from '@/lib/competitor'
+import type { AdIdeas } from '@/lib/ai/schema'
 
 export const sectionEnum = pgEnum('section', SECTIONS)
 export const hypothesisTargetEnum = pgEnum('hypothesis_target', HYPOTHESIS_TARGET)
@@ -46,7 +46,6 @@ export const marketEnum = pgEnum('market', MARKET)
 export const fixKindEnum = pgEnum('fix_kind', FIX_KIND)
 export const userRoleEnum = pgEnum('user_role', USER_ROLE)
 export const creditReasonEnum = pgEnum('credit_reason', CREDIT_REASON)
-export const subscriptionStatusEnum = pgEnum('subscription_status', SUBSCRIPTION_STATUS)
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -98,6 +97,11 @@ export const analyses = pgTable(
     // the prompts refer to the page by it. Both null on every analysis that named none.
     competitorUrl: text('competitor_url'),
     competitor: jsonb('competitor').$type<CompetitorMeasurement>(),
+    // Ad groups written off `keywords`, on the owner's click rather than during the run. One column
+    // rather than a table: it is a single object, read whole and written whole, exactly like the
+    // measurement columns above it. Null on every analysis nobody has asked for one on, which is
+    // most of them. See docs/data-model.md.
+    adIdeas: jsonb('ad_ideas').$type<AdIdeas>(),
     locale: localeEnum('locale').notNull().default(DEFAULT_LOCALE),
     market: marketEnum('market').notNull().default(DEFAULT_MARKET),
     embedKey: uuid('embed_key').notNull().defaultRandom().unique(),
@@ -242,42 +246,6 @@ export const leads = pgTable(
   ]
 )
 
-/**
- * A recurring authorisation at a provider, and what state it is in.
- *
- * **It holds entitlement, never balance.** What a subscriber can do that nobody else can is have
- * their page swept and be told what moved; the credits a renewal buys are added by `grantCredits`
- * like any other purchase and live in `users.credits` with the rest. Two tables would be two answers
- * to "how many credits does this person have", and invariants.md exists to keep there being one.
- *
- * `providerRef` is the provider's own id for the authorisation -- Mercado Pago's `preapproval_id` --
- * and it is unique because that id **is** the subscription. Idempotency for the money is elsewhere,
- * on `credit_transactions(provider, provider_ref)` keyed per payment: a renewal is a new payment
- * against the same authorisation, so keying grants on this column would credit the first month and
- * silently swallow every month after it.
- */
-export const subscriptions = pgTable(
-  'subscriptions',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    provider: text('provider').notNull(),
-    providerRef: text('provider_ref').notNull(),
-    status: subscriptionStatusEnum('status').notNull().default('pending'),
-    // What the provider last told us the authorisation runs until. Nullable because a preapproval
-    // that has never been charged has no next payment date yet.
-    currentPeriodEnd: timestamp('current_period_end'),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow()
-  },
-  (table) => [
-    unique('subscriptions_provider_ref_idx').on(table.provider, table.providerRef),
-    index('subscriptions_user_idx').on(table.userId, table.status)
-  ]
-)
-
 // Every movement of the balance, in both directions. Not decoration: without it "a credit went
 // missing" has no answer, and a webhook that pays twice is indistinguishable from one that paid once.
 export const creditTransactions = pgTable(
@@ -369,4 +337,3 @@ export type Hypothesis = typeof hypotheses.$inferSelect
 export type Variant = typeof variants.$inferSelect
 export type FlowFix = typeof flowFixes.$inferSelect
 export type Lead = typeof leads.$inferSelect
-export type Subscription = typeof subscriptions.$inferSelect

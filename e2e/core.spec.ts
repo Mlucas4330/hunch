@@ -1,8 +1,13 @@
 ﻿import { test, expect, type Page } from '@playwright/test'
 import { pinEnglish } from './locale'
 
-async function openCopyTab(page: Page) {
-  await page.getByRole('tab', { name: 'Copy' }).click()
+// The four fix lists are stacked `<details>` sections now, not tabs, so opening one is a click on
+// its own bar and never closes another. Idempotent on purpose: `flow` starts open and the rest
+// start closed, and a spec should not have to know which.
+async function openSection(page: Page, section: 'flow' | 'copy' | 'seo' | 'ai') {
+  const panel = page.getByTestId(`analysis-section-${section}`)
+  const open = await panel.locator('details').evaluate((el) => (el as HTMLDetailsElement).open)
+  if (!open) await panel.locator('summary').click()
 }
 
 test.describe('core features', () => {
@@ -139,11 +144,10 @@ test.describe('core features', () => {
     await page.goto('/')
 
     const packs = page.getByTestId('credit-packs')
-    await expect(packs.getByText('R$19').first()).toBeVisible()
-    await expect(packs.getByText('R$39').first()).toBeVisible()
-    await expect(packs.getByText('R$99').first()).toBeVisible()
+    await expect(packs.getByText('R$147').first()).toBeVisible()
+    await expect(packs.getByText('R$297').first()).toBeVisible()
     await expect(packs.getByText('Most chosen')).toHaveCount(1)
-    await expect(packs.getByRole('button', { name: 'Buy' })).toHaveCount(3)
+    await expect(packs.getByRole('button', { name: 'Buy' })).toHaveCount(2)
 
     await expect(page.locator('#contact')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Score my page' }).first()).toBeVisible()
@@ -247,7 +251,7 @@ test.describe('core features', () => {
     await expect(page.getByTestId('copy-report-link')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open' })).toHaveCount(0)
 
-    await openCopyTab(page)
+    await openSection(page, 'copy')
     await expect(page.getByText('Ship faster: releases in').first()).toBeVisible()
 
     await page.goto('/dashboard')
@@ -265,7 +269,7 @@ test.describe('core features', () => {
     await page.fill('input[name="url"]', url)
     await page.getByRole('button', { name: 'Analyze' }).click()
     await page.waitForURL(/\/r\/[0-9a-f-]+$/)
-    await openCopyTab(page)
+    await openSection(page, 'copy')
 
     const card = page.getByTestId('hypothesis-card').first()
     // Everything past the rewritten line is a drawer now, so nothing below is on screen until the
@@ -298,7 +302,7 @@ test.describe('core features', () => {
 
     // Persisted, not just held in local state.
     await page.reload()
-    await openCopyTab(page)
+    await openSection(page, 'copy')
     const reopened = page.getByTestId('hypothesis-card').first()
     await reopened.getByTestId('load-alternates').click()
     await expect(reopened.getByTestId('alternate-variants')).toBeVisible()
@@ -312,7 +316,7 @@ test.describe('core features', () => {
     await page.fill('input[name="url"]', url)
     await page.getByRole('button', { name: 'Analyze' }).click()
     await page.waitForURL(/\/r\/[0-9a-f-]+$/)
-    await openCopyTab(page)
+    await openSection(page, 'copy')
 
     const rows = page.getByTestId('hypothesis-card')
     await expect(rows).toHaveCount(6)
@@ -356,14 +360,14 @@ test.describe('core features', () => {
     await playbook.getByRole('button', { name: 'Why these are shipped by hand' }).click()
     await expect(playbook.getByRole('tooltip')).toContainText('ship by hand')
 
-    await page.getByRole('tab', { name: 'SEO' }).click()
+    await openSection(page, 'seo')
     const seo = page.getByTestId('seo-playbook')
     await expect(seo).toBeVisible()
     await expect(seo.getByTestId('seo-fix')).toHaveCount(2)
     await expect(seo.getByTestId('flow-fix')).toHaveCount(0)
     await expect(seo.getByRole('heading', { name: 'Write a meta description' })).toBeVisible()
 
-    await page.getByRole('tab', { name: 'AI' }).click()
+    await openSection(page, 'ai')
     const ai = page.getByTestId('ai-playbook')
     await expect(ai).toBeVisible()
     await expect(ai.getByTestId('ai-fix')).toHaveCount(1)
@@ -380,13 +384,13 @@ test.describe('core features', () => {
     await anon.goto(reportUrl)
     await expect(anon.getByTestId('flow-playbook').getByTestId('flow-fix')).toHaveCount(4)
 
-    await anon.getByRole('tab', { name: 'AI' }).click()
+    await openSection(anon, 'ai')
     await expect(anon.getByTestId('ai-playbook').getByTestId('ai-fix')).toHaveCount(1)
 
-    // Four tabs, all about what to change.
-    await expect(anon.getByRole('tab')).toHaveCount(4)
+    // Four sections, all about what to change.
+    await expect(anon.getByTestId('analysis-sections').locator('details')).toHaveCount(4)
 
-    await anon.getByRole('tab', { name: 'Copy' }).click()
+    await openSection(anon, 'copy')
     const card = anon.getByTestId('hypothesis-card').first()
     await card.getByRole('button', { name: 'On your page' }).click()
     const preview = anon.getByTestId('variant-preview').first()
@@ -398,6 +402,12 @@ test.describe('core features', () => {
     await expect(anon.getByTestId('copy-report-link')).toHaveCount(0)
     await expect(anon.getByTestId('load-alternates')).toHaveCount(0)
     await expect(anon.getByRole('button', { name: 'Measure again' })).toHaveCount(0)
+    await expect(anon.getByRole('button', { name: 'Write ad ideas' })).toHaveCount(0)
+
+    // The terms below the tabs are a measurement, so a stranger reads them like the rest of the
+    // readout. Only the ad groups written off them are the owner's. See docs/invariants.md.
+    await expect(anon.getByTestId('page-terms')).toBeVisible()
+    await expect(anon.getByTestId('keyword-table')).toBeVisible()
 
     await context.close()
   })

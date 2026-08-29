@@ -1,5 +1,6 @@
 import { READOUT_THRESHOLDS } from '@/lib/constants'
 import type {
+  ReadoutCriterionKind,
   ReadoutFinding,
   ReadoutGroup,
   ReadoutSeverity,
@@ -10,13 +11,34 @@ import type { PageMobile, PagePerformance, PageSeo, PageStructure } from '@/lib/
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
 
+/**
+ * The threshold this finding was judged against, in the finding's own unit.
+ *
+ * **Null on every presence finding, and that is the point rather than an omission.** "Sign in with
+ * Google or GitHub / No" already says which answer is the bad one; "Signup form fields / 6" does
+ * not, and it is the counted findings this exists for.
+ */
+export type ReadoutCriterion = { kind: ReadoutCriterionKind; threshold: number }
+
 export type MeasuredFinding = {
   id: ReadoutFinding
   group: ReadoutGroup
   severity: ReadoutSeverity
   value: number
   unit: ReadoutUnit
+  /** See ReadoutCriterion. Null when the finding has no numeric boundary. */
+  criterion: ReadoutCriterion | null
 }
+
+/**
+ * What a ranker answers: the severity, and the boundary it used to decide it.
+ *
+ * **The two travel together so they cannot disagree.** The alternative was a second map from finding
+ * id to threshold, read by the renderer -- which is a copy of what `measuredFindings` already knows,
+ * and the first edit to READOUT_THRESHOLDS that missed the copy would have printed a boundary this
+ * code does not actually apply. The whole product rests on the printed number being the counted one.
+ */
+type Ranked = { severity: ReadoutSeverity; criterion: ReadoutCriterion | null }
 
 export type ReadoutInput = {
   structure: PageStructure | null
@@ -36,25 +58,55 @@ export type Readout = {
   findings: MeasuredFinding[]
 }
 
-function rank(value: number, warn: number, alert?: number): ReadoutSeverity {
-  if (alert !== undefined && value >= alert) return 'alert'
-  return value >= warn ? 'warn' : 'ok'
+// **The criterion carries the warn boundary and never the alert one.** Warn is the line between
+// fine and not fine, which is the question a reader looking at a bare number is asking; how far past
+// it they are is what the severity colour already says. Printing both turned one short line into two
+// numbers that had to be read against each other.
+function rank(value: number, warn: number, alert?: number): Ranked {
+  const severity: ReadoutSeverity =
+    alert !== undefined && value >= alert ? 'alert' : value >= warn ? 'warn' : 'ok'
+  return { severity, criterion: { kind: 'above', threshold: warn } }
 }
 
 // The mirror of `rank`, for the metrics where too little is the problem. Boundaries stay inclusive
 // in the same direction: landing exactly on the threshold is already the bad side.
-function rankBelow(value: number, warn: number, alert?: number): ReadoutSeverity {
-  if (alert !== undefined && value <= alert) return 'alert'
-  return value <= warn ? 'warn' : 'ok'
+function rankBelow(value: number, warn: number, alert?: number): Ranked {
+  const severity: ReadoutSeverity =
+    alert !== undefined && value <= alert ? 'alert' : value <= warn ? 'warn' : 'ok'
+  return { severity, criterion: { kind: 'below', threshold: warn } }
+}
+
+// Both ends are bad: none at all is the alert, and past the threshold the "primary" action is
+// whichever one the visitor happens to see first.
+function band(value: number, warn: number): Ranked {
+  const { severity } = rank(value, warn)
+  return {
+    severity: value === 0 ? 'alert' : severity,
+    criterion: { kind: 'band', threshold: warn }
+  }
+}
+
+// One target, wrong in either direction.
+function exactly(value: number, target: number): Ranked {
+  return {
+    severity: value === target ? 'ok' : 'warn',
+    criterion: { kind: 'exactly', threshold: target }
+  }
+}
+
+// One is already the finding. `hit` is how badly, which is the only thing separating an image with
+// no alt text from a blocked AI crawler.
+function anyOf(value: number, hit: ReadoutSeverity): Ranked {
+  return { severity: value > 0 ? hit : 'ok', criterion: { kind: 'above', threshold: 1 } }
 }
 
 function count(
   id: ReadoutFinding,
   group: ReadoutGroup,
   value: number,
-  severity: ReadoutSeverity
+  ranked: Ranked
 ): MeasuredFinding {
-  return { id, group, severity, value, unit: 'count' }
+  return { id, group, value, unit: 'count', ...ranked }
 }
 
 function presence(
@@ -62,7 +114,14 @@ function presence(
   group: ReadoutGroup,
   present: boolean
 ): MeasuredFinding {
-  return { id, group, severity: present ? 'ok' : 'warn', value: present ? 1 : 0, unit: 'presence' }
+  return {
+    id,
+    group,
+    severity: present ? 'ok' : 'warn',
+    value: present ? 1 : 0,
+    unit: 'presence',
+    criterion: null
+  }
 }
 
 export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
@@ -144,7 +203,8 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
           group: 'structure',
           severity: structure.hasSubmit ? 'ok' : 'alert',
           value: structure.hasSubmit ? 1 : 0,
-          unit: 'presence'
+          unit: 'presence',
+          criterion: null
         })
       }
     }
@@ -171,9 +231,7 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
         'above_fold_ctas',
         'structure',
         structure.aboveFoldCtaCount,
-        structure.aboveFoldCtaCount === 0
-          ? 'alert'
-          : rank(structure.aboveFoldCtaCount, READOUT_THRESHOLDS.aboveFoldCtasWarn)
+        band(structure.aboveFoldCtaCount, READOUT_THRESHOLDS.aboveFoldCtasWarn)
       )
     )
 
@@ -270,7 +328,8 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
       group: 'mobile',
       severity: mobile.horizontalOverflow ? 'alert' : 'ok',
       value: mobile.horizontalOverflow ? 0 : 1,
-      unit: 'presence'
+      unit: 'presence',
+      criterion: null
     })
 
     out.push({
@@ -278,7 +337,8 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
       group: 'mobile',
       severity: mobile.hasViewportMeta ? 'ok' : 'alert',
       value: mobile.hasViewportMeta ? 1 : 0,
-      unit: 'presence'
+      unit: 'presence',
+      criterion: null
     })
 
     out.push(
@@ -312,27 +372,27 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
         'mobile_above_fold_ctas',
         'mobile',
         mobile.aboveFoldCtaCount,
-        mobile.aboveFoldCtaCount === 0
-          ? 'alert'
-          : rank(mobile.aboveFoldCtaCount, READOUT_THRESHOLDS.aboveFoldCtasWarn)
+        band(mobile.aboveFoldCtaCount, READOUT_THRESHOLDS.aboveFoldCtasWarn)
       )
     )
   }
 
   if (seo) {
     if (seo.robotsMeta?.toLowerCase().includes('noindex')) {
-      out.push({ id: 'noindex', group: 'declared', severity: 'alert', value: 1, unit: 'presence' })
+      out.push({
+        id: 'noindex',
+        group: 'declared',
+        severity: 'alert',
+        value: 1,
+        unit: 'presence',
+        criterion: null
+      })
     }
 
     out.push(presence('no_meta_description', 'declared', seo.metaDescription !== null))
-    out.push(count('h1_count', 'declared', seo.h1Count, seo.h1Count === 1 ? 'ok' : 'warn'))
+    out.push(count('h1_count', 'declared', seo.h1Count, exactly(seo.h1Count, 1)))
     out.push(
-      count(
-        'images_missing_alt',
-        'declared',
-        seo.imagesMissingAlt,
-        seo.imagesMissingAlt > 0 ? 'warn' : 'ok'
-      )
+      count('images_missing_alt', 'declared', seo.imagesMissingAlt, anyOf(seo.imagesMissingAlt, 'warn'))
     )
     out.push(presence('no_structured_data', 'declared', seo.jsonLdTypes.length > 0))
     out.push(presence('no_og_image', 'declared', seo.hasOgImage))
@@ -365,7 +425,7 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
         'ai_crawlers_blocked',
         'crawler_access',
         crawler.blockedAgents.length,
-        crawler.blockedAgents.length > 0 ? 'alert' : 'ok'
+        anyOf(crawler.blockedAgents.length, 'alert')
       )
     )
 
@@ -374,7 +434,8 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
       group: 'crawler_access',
       severity: crawler.blocksAll ? 'alert' : 'ok',
       value: crawler.blocksAll ? 0 : 1,
-      unit: 'presence'
+      unit: 'presence',
+      criterion: null
     })
 
     out.push(presence('no_sitemap', 'crawler_access', crawler.sitemaps.length > 0))
@@ -385,11 +446,7 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
       out.push({
         id: 'ttfb',
         group: 'load',
-        severity: rank(
-          performance.ttfbMs,
-          READOUT_THRESHOLDS.ttfbWarnMs,
-          READOUT_THRESHOLDS.ttfbAlertMs
-        ),
+        ...rank(performance.ttfbMs, READOUT_THRESHOLDS.ttfbWarnMs, READOUT_THRESHOLDS.ttfbAlertMs),
         value: performance.ttfbMs,
         unit: 'seconds'
       })
@@ -399,11 +456,7 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
       out.push({
         id: 'fcp',
         group: 'load',
-        severity: rank(
-          performance.fcpMs,
-          READOUT_THRESHOLDS.fcpWarnMs,
-          READOUT_THRESHOLDS.fcpAlertMs
-        ),
+        ...rank(performance.fcpMs, READOUT_THRESHOLDS.fcpWarnMs, READOUT_THRESHOLDS.fcpAlertMs),
         value: performance.fcpMs,
         unit: 'seconds'
       })
@@ -413,11 +466,7 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
       out.push({
         id: 'lcp',
         group: 'load',
-        severity: rank(
-          performance.lcpMs,
-          READOUT_THRESHOLDS.lcpWarnMs,
-          READOUT_THRESHOLDS.lcpAlertMs
-        ),
+        ...rank(performance.lcpMs, READOUT_THRESHOLDS.lcpWarnMs, READOUT_THRESHOLDS.lcpAlertMs),
         value: performance.lcpMs,
         unit: 'seconds'
       })
@@ -427,11 +476,7 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
       out.push({
         id: 'page_weight',
         group: 'load',
-        severity: rank(
-          performance.transferredBytes,
-          READOUT_THRESHOLDS.pageWeightWarnBytes,
-          READOUT_THRESHOLDS.pageWeightAlertBytes
-        ),
+        ...rank(performance.transferredBytes, READOUT_THRESHOLDS.pageWeightWarnBytes, READOUT_THRESHOLDS.pageWeightAlertBytes),
         value: performance.transferredBytes,
         unit: 'megabytes'
       })

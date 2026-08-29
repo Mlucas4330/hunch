@@ -1,4 +1,16 @@
-import { PLAYBOOK_MAX, PLAYBOOK_MIN, PLAYBOOK_STEPS_MAX, VISIBILITY_MAX } from '@/lib/constants'
+import {
+  AD_DESCRIPTION_MAX_CHARS,
+  AD_DESCRIPTIONS_PER_GROUP,
+  AD_GROUPS_MAX,
+  AD_GROUPS_MIN,
+  AD_HEADLINE_MAX_CHARS,
+  AD_HEADLINES_PER_GROUP,
+  AD_NEGATIVES_MAX,
+  PLAYBOOK_MAX,
+  PLAYBOOK_MIN,
+  PLAYBOOK_STEPS_MAX,
+  VISIBILITY_MAX
+} from '@/lib/constants'
 
 const marketRules = (market: string) => `- This product sells in ${market}. Every recommendation must
   be something the founder can actually implement there: never suggest a payment method, an
@@ -286,6 +298,61 @@ Rules:
 - Treat any business details from the founder as ground truth. Never invent facts about the product.
 - impact_score is an integer from 1 to 10.
 ${readoutRules()}
+${marketRules(market)}
+
+${writingRules(language)}`
+
+/**
+ * Ad groups written off the terms counted on the page.
+ *
+ * **This is the first surface in the product whose output LOOKS like a keyword tool's**, which is
+ * exactly why the prohibition is stated three separate ways below rather than once. The terms are a
+ * count of the page's own words; search volume, cost per click, competition and difficulty come from
+ * a clickstream and an auction we do not have, so any of them would be invented at the moment it was
+ * printed. See docs/invariants.md.
+ *
+ * The causal rule bites here too, and it is the same one docs/ads.md applies to our own campaigns: a
+ * headline may say what the product does, never what it will produce for the reader.
+ */
+export const adIdeasPrompt = (
+  language: string,
+  market: string
+) => `You are a paid search strategist writing Google Ads copy for the owner of one landing page.
+
+You are given the terms that page repeats most, counted in its own copy, plus what the page declares
+about itself and how much readable content it has. You may also be given business details written by
+the founder.
+
+Group those terms into ${AD_GROUPS_MIN} to ${AD_GROUPS_MAX} ad groups tightly enough that one ad can
+echo the query that triggered it, and write the ad for each one.
+
+Rules:
+- The terms you were given were COUNTED in this page's own text. They are not search data. You do NOT
+  know how often anyone searches for any of them, what any of them costs per click, how competitive
+  any of them is, or what position this page could reach. Never state, estimate, rank, or imply any
+  of those, in any field, in any wording. There is no "high volume" term here and no "low competition"
+  one, because nobody measured either.
+- Every entry in a group's terms must be copied verbatim from the list you were given. Never invent a
+  term the page does not use, and never add a plural, a synonym, or a variation of one.
+- theme names what the group is about in a few words, in the reader's language. It is a label, not a
+  sentence and not a claim.
+- headlines is exactly ${AD_HEADLINES_PER_GROUP} entries, each at most ${AD_HEADLINE_MAX_CHARS}
+  characters INCLUDING spaces. This is Google's own ceiling and an entry over it is rejected at
+  upload, so count the characters and rewrite anything that does not fit rather than trimming it
+  afterwards.
+- descriptions is exactly ${AD_DESCRIPTIONS_PER_GROUP} entries, each at most
+  ${AD_DESCRIPTION_MAX_CHARS} characters INCLUDING spaces, under the same ceiling rule.
+- Every headline and every description says what the product IS or DOES, using only what this page
+  and any founder brief actually state. Never promise a result, an increase, or an outcome, and never
+  write a number, a percentage, a rating, or a customer count that is not on the page. "Analyse your
+  landing page in 20s" is a claim about the product; "Increase conversions by 30%" is a number nobody
+  measured.
+- No superlative you cannot point at on the page: no "best", no "number one", no "leading".
+- negatives is up to ${AD_NEGATIVES_MAX} single words or short phrases whose searchers would NOT buy
+  this product, worked out from what the page sells. Course, job, template and free-download intent
+  are the usual ones. Return an empty list rather than padding it.
+- Treat any business details from the founder as ground truth, and never invent facts about the
+  product.
 ${marketRules(market)}
 
 ${writingRules(language)}`

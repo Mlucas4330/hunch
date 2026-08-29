@@ -1,4 +1,5 @@
 import type {
+  AdIdeas,
   AnalysisOutput,
   FlowFixOutput,
   VariantOutput,
@@ -593,4 +594,83 @@ export function fixtureVisibility(locale: Locale): VisibilityFixOutput[] {
 
 export function fixtureAlternateVariants(locale: Locale): VariantOutput[] {
   return ALTERNATE_VARIANTS[locale]
+}
+
+// Every term below is one of FIXTURE_KEYWORDS' own, because the route filters the generated groups
+// against the measured terms and a fixture that failed that filter would come back empty.
+const AD_IDEAS: Record<Locale, AdIdeas> = {
+  en: {
+    groups: [
+      {
+        theme: 'Workspace for teams',
+        terms: ['workspace', 'teams', 'modern teams'],
+        headlines: [
+          'One workspace for teams',
+          'Your team, one workspace',
+          'Built for modern teams',
+          'Start your workspace free',
+          'A workspace teams keep'
+        ],
+        descriptions: [
+          'One workspace where your team plans, writes and ships without switching tools.',
+          'Set up in minutes. No card to start, and your team can join the same day.'
+        ]
+      },
+      {
+        theme: 'Pricing and onboarding',
+        terms: ['pricing', 'onboarding'],
+        headlines: [
+          'Pricing on the page',
+          'See pricing, no demo call',
+          'Onboarding in one sitting',
+          'Simple pricing, no surprises',
+          'Start onboarding today'
+        ],
+        descriptions: [
+          'Pricing is on the page, so you can decide before anyone asks you for a call.',
+          'Onboarding walks your team through setup, from the first invite to the first project.'
+        ]
+      }
+    ],
+    negatives: ['course', 'jobs', 'salary', 'template', 'free download', 'tutorial']
+  },
+  'pt-BR': {
+    groups: [
+      {
+        theme: 'Workspace para times',
+        terms: ['workspace', 'teams', 'modern teams'],
+        headlines: [
+          'Um workspace para o time',
+          'Seu time, um workspace so',
+          'Feito para times modernos',
+          'Comece seu workspace gratis',
+          'O workspace que o time usa'
+        ],
+        descriptions: [
+          'Um workspace onde seu time planeja, escreve e entrega sem trocar de ferramenta.',
+          'Configuracao em minutos. Sem cartao para comecar, e o time entra no mesmo dia.'
+        ]
+      },
+      {
+        theme: 'Precos e onboarding',
+        terms: ['pricing', 'onboarding'],
+        headlines: [
+          'Precos na propria pagina',
+          'Veja o preco, sem reuniao',
+          'Onboarding de uma sentada',
+          'Precos simples, sem surpresa',
+          'Comece o onboarding hoje'
+        ],
+        descriptions: [
+          'O preco esta na pagina, entao voce decide antes de alguem pedir uma reuniao.',
+          'O onboarding leva o time pela configuracao, do primeiro convite ao primeiro projeto.'
+        ]
+      }
+    ],
+    negatives: ['curso', 'vaga', 'salario', 'template', 'download gratis', 'tutorial']
+  }
+}
+
+export function fixtureAdIdeas(locale: Locale): AdIdeas {
+  return AD_IDEAS[locale]
 }

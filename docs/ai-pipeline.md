@@ -283,6 +283,41 @@ keyword tool. See
 credibility rests on — see
 [invariants.md](invariants.md#the-audit-measured-the-page-not-the-index).
 
+## 5b. Ad ideas — `generateAdIdeas`
+
+**The only generator that is not in the `Promise.all`, and it must stay out of it.** Everything there
+runs on every paid analysis; most owners of a landing page are not buying search traffic for it, so
+putting this beside them would add a Sonnet call to every run to serve a minority. It is asked for by
+a button on the report instead — `POST /api/analyses/[id]/ads`, owner only — written once, and read
+back from `analyses.ad_ideas` afterwards. See [api.md](api.md).
+
+Fed the measured `PageKeywords` terms, the page's title and meta description, its word count and
+whether it has an FAQ, plus any founder brief. It returns `AdIdeas` or **null**: empty is a real
+answer (a page with nothing to group) and the route has to tell the two apart to decide whether to
+write the column.
+
+`adIdeasPrompt` carries `marketRules` and `writingRules` like every other prompt, plus the rule the
+whole section rests on, stated three ways because this is **the first surface in the product whose
+output looks like the output of a keyword tool**: the terms were counted in the page's own copy, and
+there is no search volume, no cost per click, no competition and no ranking potential anywhere,
+because we have neither an index nor a clickstream. See
+[invariants.md](invariants.md#keywords-measure-the-pages-own-words-never-the-index).
+
+Two more constraints are enforced outside the prompt, because a prompt cannot guarantee either:
+
+- **The character ceilings are Zod's.** `AD_HEADLINE_MAX_CHARS` (30) and
+  `AD_DESCRIPTION_MAX_CHARS` (90) are Google's own limits, so a line past one is a line the reader
+  cannot upload. It rejects rather than degrades, unlike `finding` — half a set of unusable headlines
+  is worse than an empty section with a retry, and the retry costs one call rather than a paid
+  analysis.
+- **`terms` is intersected with the measured terms on the way back**, by `groundTerms`. A `terms`
+  entry is a plain string, so a model that pluralises one, translates one or helpfully adds a synonym
+  produces a term this code never counted — and the entire claim the section makes is that these
+  words came off the page. A group left with nothing is dropped whole.
+
+The causal prohibition applies here as it does to our own campaigns: a headline may say what the
+product does, never what it will produce. See [ads.md](ads.md#what-the-ads-may-say).
+
 ## 6. Market
 
 `marketRules(market)` in `lib/ai/prompt.ts` is shared by every prompt that receives a market, because

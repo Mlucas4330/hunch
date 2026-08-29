@@ -29,9 +29,10 @@ something or expose something:
 | ---------- | --- |
 | `CopyReportLink` | The link it copies *is* the embed key. A reader who was handed the link already has it; a reader who was not must not be given it. |
 | `readoutHistory`, so `previous` and `scores` on `MeasuredReadout` | The trend is the owner's record of their own page. |
-| `MeasurePage` (both variants) | Every press opens a real browser against three shared slots. A prospect must not be able to spend the owner's. **Do not "fix" the missing button here** -- see [readout.md](readout.md). |
+| `MeasurePage` (all three variants) | Every press opens a real browser against three shared slots. A prospect must not be able to spend the owner's. **Do not "fix" the missing button here** -- see [readout.md](readout.md). |
 | The alternates drawer | `POST /api/hypotheses/[id]/variants` is authenticated, so for anyone else the button would answer 401. |
 | "Back to dashboard" | There is no dashboard to go back to without an account. |
+| The `AdIdeas` button | `POST /api/analyses/[id]/ads` is authenticated and owner-checked, so for anyone else it would answer 404. The terms it is written from are a measurement and stay visible to everyone -- see [invariants.md](invariants.md#the-free-half-is-what-code-counted-the-paid-half-is-what-a-model-wrote). |
 | `MeasurePage` in place of `MeasuringNotice` on an unmeasured row | Same reason: the owner can act on it, the reader can only wait. |
 
 **The chrome follows the session, not ownership**, and that is deliberately the weaker test.
@@ -107,9 +108,12 @@ worth asserting, which is the opposite of what the wrapper was added for.
 - The cover carries the `InfoHint` that used to sit beside the old screen's `What to change`
   heading. `ReportCover` takes it as a `hint` slot rather than building it: `InfoHint` is a client
   component and the page is not, so the page composes it and hands it down already built.
-- Then `AnalysisTabs` — the same **four tabs**, with nothing held out. This surface used to pass
-  `tests: 0` to keep a fifth tab away from a reader; running a test is now its own screen, so there
-  is no longer a tab to exclude. See [analysis-ui.md](analysis-ui.md).
+- Then `AnalysisSections` — the same **four fix lists**, with nothing held out. They were tabs; they
+  are stacked `PanelCard`s now. This surface used to pass `tests: 0` to keep a fifth one away from a
+  reader; that stage is gone entirely, so there is nothing to exclude. See
+  [analysis-ui.md](analysis-ui.md).
+- Then `PageTerms` — the terms counted on the page, and the ad groups the owner can have written off
+  them.
 - **Nothing is gated by plan today.** The wall was an email capture for an agency's lead magnet, and
   it went with the waitlist. What replaces it is `UnlockWall` — log in, buy credits — shown when
   `generated` is false. `gate()`, `Gated` and `BlurredRow` were removed rather than left behind as a
@@ -143,11 +147,14 @@ plain-language summary, and the date.
 and the raw URL -- and when the two routes merged one of them had to go. This one names the page
 being read rather than the tool reading it, and it already handled `counts: null`.
 
-**The reader is the client's business owner, not a developer.** That is why the heading is the host
-rather than `{count} tests to lift your conversion`, why the URL lost its purple monospace treatment,
-and why the tab labels in `analysis.tabs` read *Page structure / Wording / Search visibility / AI
-visibility* instead of *Flow / Copy / SEO / Found by AI*. Only the **labels** moved: the
-`PlaybookSection` values in `lib/enums.ts` are persisted in Postgres and are not renamed.
+**The heading is the host** rather than `{count} tests to lift your conversion`, and the URL lost its
+purple monospace treatment. Both date from when this document was written for an agency's client, and
+both survived the pivot because they were right for either reader.
+
+**The section labels did not.** `analysis.sections` read *Page structure / Wording / Search visibility
+/ AI visibility* for that reader and now reads *Structure / Copy / SEO / AI* — the reasoning for going
+back is in [analysis-ui.md](analysis-ui.md). Only the **labels** ever moved: the `PlaybookSection`
+values in `lib/enums.ts` are persisted in Postgres and are not renamed.
 
 `report.summaryBody` is **assembled in code** from counted facts — total recommendations, how many are
 copy the product already wrote, how many are structural — interpolated into a dictionary string, the

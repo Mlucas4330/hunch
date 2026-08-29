@@ -14,7 +14,7 @@ import { t } from '@/lib/i18n/format'
 import { cn } from '@/lib/utils'
 
 /**
- * The three packs, and the checkout button behind each.
+ * The two packs, and the checkout button behind each.
  *
  * Prices come from the dictionary rather than from Stripe: the page has to render for a reader with
  * no session and no round trip, and the amount shown is the one the price id charges. **They have to
@@ -29,9 +29,9 @@ import { cn } from '@/lib/utils'
  * see app/(app)/page.tsx. Stripe leaves for its own hosted page; Mercado Pago opens the Payment Brick
  * in a dialog over the page. Neither branch knows anything about the other's credentials.
  *
- * **One dialog for the three cards, not one each.** Only one pack can be being paid for at a time, so
- * a single instance keyed on which pack is open is the whole state -- three mounted Bricks would be
- * three SDK initialisations racing for the same container id.
+ * **One dialog for both cards, not one each.** Only one pack can be being paid for at a time, so a
+ * single instance keyed on which pack is open is the whole state -- two mounted Bricks would be two
+ * SDK initialisations racing for the same container id.
  */
 export function CreditPacks({
   signedIn,
@@ -73,7 +73,7 @@ export function CreditPacks({
   const opened = CREDIT_PACKS.find((pack) => pack.id === open)
 
   return (
-    <div className="grid items-start gap-4 pt-3 sm:grid-cols-3" data-testid="credit-packs">
+    <div className="grid items-start gap-4 pt-3 sm:grid-cols-2" data-testid="credit-packs">
       {opened && (
         <Dialog open onClose={() => setOpen(null)} title={copy.packs[opened.id].name}>
           <MercadoPagoBrick pack={opened.id} amount={opened.amountBrl} />

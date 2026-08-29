@@ -10,25 +10,28 @@ performance detail, not the security boundary — see [security.md](security.md)
 | `GET /api/analyses` | session, or embed key for `?embedKey=` | history, or one analysis' progress |
 | `GET /api/analyses/[id]` | session + ownership | |
 | `POST /api/analyses/[id]/measure` | session + ownership | measures the page again, appending a snapshot |
+| `POST /api/analyses/[id]/ads` | session + ownership | writes ad groups off the terms counted on the page |
 | `GET\|POST /api/hypotheses/[id]/variants` | session + ownership | the two alternates, on demand from the analysis screen |
 | `POST /api/billing/checkout` | session | opens a Checkout Session for a credit pack |
 | `POST /api/billing/webhook` | Stripe signature | grants credits for a paid session |
 | `POST /api/billing/mercadopago` | session | creates the payment the Payment Brick collected |
-| `POST /api/billing/mercadopago/webhook` | Mercado Pago signature | grants credits for an approved payment, and records subscription state |
-| `POST /api/billing/mercadopago/subscribe` | session | opens the monitoring preapproval; entitles nothing until the webhook confirms it |
-| `DELETE /api/billing/mercadopago/subscribe` | session | cancels the caller's own subscription; takes no id |
+| `POST /api/billing/mercadopago/webhook` | Mercado Pago signature | grants credits for an approved payment |
 | `POST /api/analyses/claim` | session | hands anonymous analyses to the account that just signed in |
 | `POST /api/leads` | — | takes an address and emails the report's link back; gates nothing |
 | `POST\|GET /api/report/screenshot` | embed key | queues a preview and reports on it — see [report.md](report.md) |
 | `GET /api/pulse` | — | the landing page's ranked board and live feed, domain and score only |
 | `GET /api/cron/prune-screenshots` | `CRON_SECRET` | see [deployment.md](deployment.md) |
-| `GET /api/cron/remeasure` | `CRON_SECRET` | the weekly sweep; queues a re-measure per subscribed page |
 | `GET /api/health` | — | Railway's deploy probe, imports nothing — see [deployment.md](deployment.md#healthcheck) |
 
 **Routes that were removed with the agency framing:** `GET /api/usage` (no plans, no allowance),
-`POST /api/brand` (no white-label), `POST /api/waitlist` (no lead capture),
-`POST /api/report/view` (no open tracking) and `GET /api/cron/remeasure` (it swept paid plans, and
-without plans a sweep is browser time nobody asked for — re-measuring is the owner's click).
+`POST /api/brand` (no white-label), `POST /api/waitlist` (no lead capture) and
+`POST /api/report/view` (no open tracking).
+
+**Routes removed with the monitoring subscription:** `POST|DELETE /api/billing/mercadopago/subscribe`
+and `GET /api/cron/remeasure`. The sweep has now been added and removed twice for the same reason
+both times — a scheduled re-measure is browser time nobody asked for unless something pays for it,
+and what paid for it sold a weekly report on pages that do not change weekly. **Re-measuring is the
+owner's click**, at `POST /api/analyses/[id]/measure`. See [product.md](product.md).
 
 ## Analyses
 
@@ -138,6 +141,32 @@ One thing it deliberately does **not** do:
 
 - **It is its own `RATE_LIMIT_KIND` rather than reusing `analysis`**: it buys no generation, only
   browser time. The rate limit alone is the gate.
+
+### `POST /api/analyses/[id]/ads`
+
+Ad groups written off `analyses.keywords` by `generateAdIdeas` (`lib/analyze.ts`), stored on
+`analyses.ad_ideas` and returned as `{ adIdeas }`. See
+[ai-pipeline.md](ai-pipeline.md) for the prompt and [analysis-ui.md](analysis-ui.md) for the section
+that renders it.
+
+- **Owner only, and it spends no credit.** The analysis was already paid for. Charging again here
+  would put a second source of truth beside the ledger about what a purchase entitles someone to,
+  which is the shape
+  [invariants.md](invariants.md#credits-are-granted-by-one-internal-path-and-no-provider-code-touches-the-tables)
+  exists to prevent. What bounds the cost is the `ad_ideas` rate limit (10/hour), the ownership
+  check, and the column: once written, the answer is read back rather than generated again.
+- **Its own `RATE_LIMIT_KIND` rather than reusing `variants`.** A retry after a failed generation
+  must not eat the allowance for rewriting copy, which is the thing the reader actually paid for.
+- **Idempotent by column.** A row that already has `ad_ideas` returns it without calling a model, so a
+  second press costs one query.
+- **`422 nothing_measured` when the page has no counted terms.** The whole claim the section makes is
+  that these words came off the reader's own page; with no terms there is nothing to ground it in,
+  and a model asked anyway would invent the keywords a keyword tool would have sold them.
+- `locale` comes from the **stored** `analyses.locale`, never the reader's current one — see
+  [invariants.md](invariants.md#generated-content-is-pinned-to-the-locale-it-was-written-in).
+
+Errors: `401` with no session, `404` for an unknown or unowned id, `422 nothing_measured`,
+`500 generation_failed`, `429` from the rate limit.
 
 ## Hypotheses
 
@@ -269,19 +298,7 @@ with no cookies at all. It is not part of taking the payment and cannot fail one
 
 Verifies `x-signature` against `MERCADOPAGO_WEBHOOK_SECRET` (see
 [security.md](security.md#mercado-pago-webhook-signature)) and refuses anything unproven with `400`.
-It handles three topics and acknowledges everything else unread:
-
-| Topic | What it does |
-| --- | --- |
-| `payment` | credits a one-off pack |
-| `preapproval` | records what state a subscription is in, and **grants nothing** |
-| `subscription_authorized_payment` | credits one renewal charge |
-
-**The two subscription topics are separate because they answer separate questions.** Collapsing them
-would either credit a cancellation or miss a renewal. A `preapproval` delivery carries no payment, so
-it may never move a balance; a status the enum does not name leaves the row untouched rather than
-guessing, because the safe direction is one extra sweep for someone who cancelled and not a sweep for
-someone who never paid.
+It handles the `payment` topic, which credits a pack, and acknowledges everything else unread.
 
 The claim is keyed `<payment id>:<topic>`, because a Pix payment notifies once pending and again once
 approved and collapsing those two would throw away the delivery carrying the money. It then **reads
@@ -291,89 +308,7 @@ happened to an id — and grants only when the status is `approved` and the amou
 On an exception it releases the claim before answering `500`, so the retry can redo the work: a claim
 that survives a failure turns every retry into a no-op and loses a paid credit.
 
-Both crediting topics pass the **amount the provider confirmed** to `grantCredits`, which is what
-reports the sale to Google Ads. The reporting is not in this route and must not move here: three
-payment paths end at `grantCredits`, and it is the ledger's own idempotency that stops a re-delivered
-webhook reporting one payment twice. Every renewal reports, not just the first. See [ads.md](ads.md).
-
-## Subscriptions
-
-### `POST /api/billing/mercadopago/subscribe`
-
-Session required. Opens a Mercado Pago **preapproval** for `MONITORING_PLAN` and answers its id and
-`init_point`, which is where the subscriber confirms it.
-
-**The amount is sent from `MONITORING_PLAN` and never taken from the caller**, the same rule the pack
-route follows, and the renewal is matched back against the same number — a charge for an amount we do
-not sell buys nothing.
-
-**It entitles nothing.** The row is written `pending`, which no sweep reads; only the webhook
-confirming the provider authorised it flips that to `authorized`. Someone who opens a checkout and
-walks away has bought nothing and is swept for nothing. The row is written *before* the reader is
-sent anywhere, so the webhook has something to find whichever way the race falls —
-`recordSubscription` upserts on `(provider, provider_ref)` for exactly that reason.
-
-**A subscription does not hold credits.** A renewal calls `grantCredits` like any purchase, so
-`users.credits` stays the single answer to what someone can spend and the ledger keeps explaining
-every row in it. What `subscriptions` holds is the other half of what was bought: eligibility for the
-sweep. See [invariants.md](invariants.md).
-
-### `DELETE /api/billing/mercadopago/subscribe`
-
-Session required. Answers `{ cancelled: true }`, `401` with no session, `404` when the caller has no
-subscription or it is already cancelled, `502` when the provider could not be reached.
-
-**It takes no id, and that is the whole authorisation story.** `subscriptionFor` looks the row up by
-the session's `userId`, so there is no field anywhere a caller could put somebody else's
-`preapproval_id` in. This is deliberately structural rather than an ownership check: a body-supplied
-id plus a test is one forgotten line away from cancelling strangers' subscriptions. `e2e/subscription.spec.ts`
-pins it.
-
-"Nothing to cancel" and "not yours" are the same `404` on purpose — neither tells a caller anything
-about a row they do not own.
-
-**The provider is called first and the row written second, and only that order is safe.** Writing
-`cancelled` and then failing to reach Mercado Pago would stop sweeping somebody who is still being
-charged: they silently lose what they are paying for. The other way round leaves our row stale until
-the `preapproval` webhook lands, which is the failure that repairs itself. The write here is
-optimistic so the screen answers at once; `syncPreapproval` stays the writer of record.
-
-**Cancelling stops the next charge, not the month already paid for.** `analysesDueForRemeasure` keeps
-sweeping a `cancelled` row while `current_period_end` is in the future, which is why the cancel path
-preserves that column rather than clearing it. A null period end never sweeps — that is a preapproval
-that was never charged, so there is no paid month to honour.
-
-### `GET /api/cron/remeasure`
-
-`CRON_SECRET`, like the prune. Answers `{ due, queued }`.
-
-**The filter is an active subscription, and that is the entire cost control.** Each entry opens a
-real browser against a customer's site and shares `SCRAPE_MAX_CONCURRENT_PAGES` with everyone waiting
-on a live analysis. The version of this that existed before the pivot filtered on a `users.plan`
-column and was deleted along with plans, precisely because a sweep with nothing paying for it is
-browser time nobody asked for — that argument inverts cleanly now one exists again.
-
-Two things it does differently from the deleted version:
-
-- **It enqueues instead of measuring in line.** The old one looped `measurePage` serially inside the
-  request, taking slots without consulting the queue, so a sweep and a reader who had just clicked
-  Analyze competed blindly. Going through `enqueue` means it obeys `QUEUE_MAX_DEPTH` and shares the
-  drain. A full queue stops the sweep rather than displacing live work: those pages are still due
-  tomorrow.
-- **It uses its own job kind.** `runAnalysis` returns early on a row that already holds a
-  measurement, so `analysis:<id>` for one of these pages would be a guaranteed no-op. `remeasure` is
-  the kind that means "measure it again" — see [scraping.md](scraping.md).
-
-The re-measure spends **no credit and calls no model**: it is `measurePage` plus arithmetic, which is
-what a monthly fee can cover.
-
-**The sweep runs weekly; the email does not.** Every run writes its measurement, so the report always
-shows the full picture, improvements included. A message is sent only when `isWorthReporting()` says
-the page got worse — a finding whose severity crossed, or a score down by `REGRESSION_SCORE_DROP`.
-
-The reasoning is about attention, not accuracy. A weekly note saying two numbers drifted teaches a
-subscriber to filter the only message this product sends, and the owner already knows about the
-changes they made themselves. What they cannot know is that a tag somebody else added, a swapped CMS
-image or a slower CDN pushed the page the wrong way — which is the case this fires on. What it may
-then say is still bounded by the delta rule: it reports that a number got worse, never what made it
-worse. See [invariants.md](invariants.md).
+It passes the **amount the provider confirmed** to `grantCredits`, which is what reports the sale to
+Google Ads. The reporting is not in this route and must not move here: every path that grants ends at
+`grantCredits`, and it is the ledger's own idempotency that stops a re-delivered webhook reporting one
+payment twice. See [ads.md](ads.md).

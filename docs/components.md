@@ -114,10 +114,24 @@ scrolls sideways on a phone. `e2e/free-analysis.spec.ts` asserts it for the repo
 
 ### One container — `CONTAINER_CLASS`
 
-`mx-auto w-full max-w-5xl px-4` in `lib/constants.ts`, read by the navbar, `app/(app)/layout.tsx`,
+`mx-auto w-full max-w-[90rem] px-4` in `lib/constants.ts`, read by the navbar, `app/(app)/layout.tsx`,
 `app/(report)/layout.tsx` and the site footer. **Every surface is the same measure**, so the wordmark
 lines up with the content under it and `/r` is not a different width from `/analyses`. The report
 sets no width of its own; it inherits the app container.
+
+**One constant is the whole knob, and that has a consequence worth stating**: there is no way to
+widen one surface. Changing this moves the navbar, the app pages, both reports and the footer
+together, by construction. A change meant for the report alone that is made here has already been
+made everywhere.
+
+90rem is 1440px, up from 64rem. **Nothing below 1440px of viewport is affected** — `max-width` binds
+only above its own value, so phones and 1366px laptops render exactly as before and no breakpoint is
+involved.
+
+**The reading measures are a separate number and stay one.** The blog article and the body paragraphs
+cap near `max-w-2xl` *inside* this container, because a line of prose 1440px wide is unreadable
+whatever the layout allows. Folding the two into one value is the mistake this note exists to
+prevent.
 
 ### Navbar
 
@@ -186,6 +200,12 @@ client JS beyond that, no URL change. Mounted in `components/navbar.tsx` and, **
 header** — that surface has no navbar and is read signed-out by someone who may not read English.
 
 ## Disclosure card — `components/disclosure-card.tsx`
+
+**Two kinds of caller, and the `score` rail is why.** The ranked fix and hypothesis cards pass
+`ScoreIndicator` (1-10 impact); the readout's group cards pass their own 0-100 health rail. The shell
+is deliberately shared: a number down the left edge is how this report says *here is a thing with a
+score on it*, and having two answers to that on one page was the actual inconsistency. **The widget
+is deliberately not shared** — see the note in [readout.md](readout.md#a-group-is-a-card-with-its-score-down-the-left-edge).
 
 **The score is a rail down the left edge, and that replaced five things.** The header used to be a
 mono rank, a coloured pill, a coral flag and the word IMPACT next to ten meter bars next to `9/10`,
@@ -277,6 +297,50 @@ and reading two at once was never what anyone wanted; the height is the whole re
   "Why" must never be small muted text tucked under the thing it explains — holds: the toggle sits
   *above* its panel, at the same size as every other control on the card, and the panel it opens is
   the full-size `WhyBlock`.
+
+## Panel card — `components/panel-card.tsx`
+
+A card whose heading is a labelled bar, and whose bar is the only thing that opens it. Two callers:
+the four analysis sections that replaced the tabs, and the terms section that closes the document.
+
+**One component because they had already started to differ.** They are the same object — a heading
+somebody clicks, a summary of what is inside it on the same line, and a body. Written twice it drifts
+the first time either is touched, which is the failure `RankedListHeader` exists to stop one level up.
+
+**The bar is the whole `<summary>`, and that is a fix rather than a style.** The readout's group
+cards, which used this before they moved to `DisclosureCard`, first put the label in the bar and the
+score on a second row below it with both inside the summary: two visually distinct strips, one
+behaviour, and a reader who clicked the score row and watched the card collapse had found a control
+nobody told them about. Everything that toggles is on one line, and everything below it is content
+that does not.
+
+**The bar is the card's own surface, not an inverted one.** It was `bg-foreground` for a while and
+the contrast did make a section read as a heading — but a page of black bars is a page where the
+headings outweigh what they head, and it put the report's only inverted surface on its most ordinary
+furniture. The `border-b`, the mono label and the hover carry the same job at the weight a heading
+should have.
+
+`trailing` is what the bar says about the body without opening it — a count of cards. It sits before
+the chevron and must stay short enough not to wrap.
+
+## Page terms — `components/page-terms.tsx`
+
+The last section of the analysis: the terms counted on the page, and the ad groups written off them.
+A composer, not a widget — a `PanelCard` holding a heading, `KeywordTable` and `AdIdeas` — and it
+exists because those three were one thing conceptually and were previously two things in two places,
+with the table buried at the bottom of `MeasuredReadout` leading nowhere. **It starts open**, unlike
+the four sections above it: it is the last thing on the page, so nothing is buried by it. Returns
+`null` with no terms. See [analysis-ui.md](analysis-ui.md) and [readout.md](readout.md).
+
+## Ad ideas — `components/ad-ideas.tsx`
+
+Four states like `MeasurePage`: idle with a button, loading, error, and the result. Owner only, and
+it renders nothing at all for anyone else unless the ideas already exist, so a reader handed the link
+never sees an affordance leading somewhere they cannot go.
+
+Each group is a `Card` with the theme, its terms as `Badge` chips, and two `Lines` blocks. **`Lines`
+prints a character count against Google's ceiling on every entry** — the one number this section may
+carry, and it is arithmetic over text the component is already holding.
 
 ## Impact legend — `components/impact-legend.tsx`
 
@@ -423,36 +487,11 @@ are covered by `e2e/checkout-brick.spec.ts`, which stubs the SDK at its own URL.
 
 ## Credit packs — `components/credit-packs.tsx`
 
-The three cards under `#credits`, from `CREDIT_PACKS`, with `FEATURED_CREDIT_PACK` deciding which one
+The two cards under `#credits`, from `CREDIT_PACKS`, with `FEATURED_CREDIT_PACK` deciding which one
 is marked. Prices and feature lines come from `dictionary.credits`; the amount shown, `amountBrl` and
 the Stripe price id all hold one number and have to be changed together. `provider` comes from the
 server and decides whether a button leaves for Stripe checkout or opens the Brick in place. See
 [analysis-ui.md](analysis-ui.md#the-credit-packs).
-
-## Monitoring plan — `components/monitoring-plan.tsx`
-
-The subscription offer, in the same `#credits` section as the packs and **deliberately not in their
-grid**. A pack and this sell different things — a pack buys generation, which costs tokens and
-happens once; this buys the page being measured every week, which costs a browser slot and no tokens.
-Priced side by side in one row, a reader compares R$97 against R$99 and concludes the ten-pack is
-better value, which misreads both. See [product.md](product.md).
-
-**No Brick.** A preapproval is confirmed at a hosted `init_point`, so the whole flow is a POST and a
-redirect — simpler than the pack path, not a reduced version of it.
-
-**The page renders it only when `mercadoPagoEnabled()`.** That is a capability check, not a
-preference: the Stripe path here is `mode: 'payment'` with no recurring price behind it, so a card
-that opened a checkout which cannot exist would be worse than no card.
-
-## Cancel subscription — `components/cancel-subscription.tsx`
-
-The button inside the dashboard's subscription card. It **sends no id** — the route resolves the
-subscription from the session, so nothing here could name somebody else's. See
-[api.md](api.md#delete-apibillingmercadopagosubscribe).
-
-`router.refresh()` on success rather than local optimistic state, because the card above it is
-server-rendered from the row the webhook also writes. Two places deciding what state a subscription
-is in is exactly what an optimistic version would create.
 
 ## The live board — `components/analysis-pulse.tsx`
 

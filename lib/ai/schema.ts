@@ -1,6 +1,14 @@
 import { z } from 'zod'
 import { FLOW_FIX_CATEGORY, READOUT_FINDING, SECTIONS, VISIBILITY_FIX_CATEGORY } from '@/lib/enums'
 import {
+  AD_DESCRIPTION_MAX_CHARS,
+  AD_DESCRIPTIONS_PER_GROUP,
+  AD_GROUPS_MAX,
+  AD_GROUPS_MIN,
+  AD_HEADLINE_MAX_CHARS,
+  AD_HEADLINES_PER_GROUP,
+  AD_NEGATIVES_MAX,
+  AD_TERMS_PER_GROUP_MAX,
   PLAYBOOK_MAX,
   PLAYBOOK_MIN,
   PLAYBOOK_STEPS_MAX,
@@ -71,6 +79,37 @@ export const VisibilityFixSchema = z.object({
 export const VisibilityOutputSchema = z.object({
   fixes: z.array(VisibilityFixSchema).max(VISIBILITY_MAX)
 })
+
+/**
+ * Ad groups written off the terms this code counted on the page.
+ *
+ * **The character limits are Google's and they are hard.** A 40 character headline is rejected at
+ * upload, so copy past the ceiling is copy the reader cannot use -- the same reasoning that makes a
+ * variant's word ceiling a constraint rather than a preference. `.max()` here means one over-long
+ * headline fails the whole call, which `generateAdIdeas` swallows into `null`; that is the right
+ * trade, because half a set of unusable headlines is worse than an empty section with a retry.
+ *
+ * **`terms` is not free text.** Every entry must be one of the terms the reader can see in the table
+ * right above the section, which is what keeps this from turning into a keyword planner inventing
+ * words the page never used. The prompt states it; nothing in Zod can check it, so
+ * `generateAdIdeas` filters the result against the measured terms on the way back.
+ */
+export const AdGroupSchema = z.object({
+  theme: z.string(),
+  terms: z.array(z.string()).min(1).max(AD_TERMS_PER_GROUP_MAX),
+  headlines: z.array(z.string().max(AD_HEADLINE_MAX_CHARS)).length(AD_HEADLINES_PER_GROUP),
+  descriptions: z
+    .array(z.string().max(AD_DESCRIPTION_MAX_CHARS))
+    .length(AD_DESCRIPTIONS_PER_GROUP)
+})
+
+export const AdIdeasSchema = z.object({
+  groups: z.array(AdGroupSchema).min(AD_GROUPS_MIN).max(AD_GROUPS_MAX),
+  negatives: z.array(z.string()).max(AD_NEGATIVES_MAX)
+})
+
+export type AdGroup = z.infer<typeof AdGroupSchema>
+export type AdIdeas = z.infer<typeof AdIdeasSchema>
 
 export type AlternateVariantsOutput = z.infer<typeof AlternateVariantsSchema>
 export type VariantOutput = z.infer<typeof VariantSchema>

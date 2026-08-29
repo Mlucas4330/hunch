@@ -89,22 +89,23 @@ The product used to carry a live A/B testing stage, and that stage was the one p
 sentence would have been earned. It is gone — see [product.md](product.md) — so the rule is no longer
 "only an experiment may say it" but simply "nothing says it".
 
-**The weekly monitoring email is the surface where this rule bites hardest**, and it is the reason
-the rule needed restating rather than just citing. That email exists to report a delta to somebody
-paying to be told about it, which is exactly the moment the tempting sentence is "your change
-worked". It may not say that, and it must not learn to: it lists which numbers moved and by how
-much, and carries a line saying in as many words that two measurements a week apart report what
-changed and not what changed it. `deltas()` in `lib/snapshots.ts` emits values, never prose, for the
-same reason `lib/readout.ts` does.
+**The owner's re-measure is the surface where this rule bites hardest.** `POST /api/analyses/[id]/measure`
+exists so somebody who has just shipped the changes this product recommended can measure the page
+again, which is exactly the moment the tempting sentence is "your change worked". It may not say
+that, and no surface reading the result may learn to: the trend lists which numbers moved and by how
+much, and nothing anywhere attributes the movement. `deltas()` in `lib/snapshots.ts` emits values,
+never prose, for the same reason `lib/readout.ts` does.
 
-**It fires only on a regression, and that is a separate rule from what it may say.** `regressions()`
-returns a finding whose severity crossed, or a score that fell by `REGRESSION_SCORE_DROP`, and
-`isWorthReporting()` is the single definition of "got worse" so no second surface can invent its own.
-The reasoning is not about accuracy, it is about attention: a push interrupts somebody, and a weekly
-message saying two numbers drifted teaches a subscriber to filter the only message this product
-sends. An improvement is still measured, still written, and still shown on the report — it is simply
-not worth an interruption. **The narrowing changes nothing about the prohibition above**: a
-regression report may say a number got worse and still may never say what made it worse.
+**The temptation is strongest precisely because the causal story is most plausible here** — the
+reader did change the page, and they changed it the way this product told them to. That is still not
+a controlled experiment: the page may have changed in five other ways, the CDN may have had a better
+minute, and nothing here can separate those. Two measurements report what changed and not what
+changed it, whoever made the change and however confident they are about it.
+
+**This rule used to be written around a weekly monitoring email**, which has been deleted along with
+the subscription that paid for it — see [product.md](product.md). The prohibition never depended on
+that surface and does not weaken with it gone: it binds every surface that shows two measurements of
+the same page, and the re-measure is now the one that does.
 
 *Governs:* [readout.md](readout.md), [report.md](report.md), [api.md](api.md)
 
@@ -118,7 +119,23 @@ clickstream and a SERP index we do not have, so any such number would be invente
 printed. This is the same rule as the one below applied to a different noun, and it is why the keyword
 table has a "times said" column and never a "searches per month" one.
 
-*Governs:* [readout.md](readout.md), [ai-pipeline.md](ai-pipeline.md)
+**A counted term may be written into an ad, and it carries none of the index with it.** `generateAdIdeas`
+groups those terms into ad groups and writes headlines and descriptions for them, which is the first
+output in the product that *looks* like what a keyword tool sells -- and is the reason this rule needed
+extending rather than restating. What changes is the form; what does not change is that nothing here
+knows how often anyone searches for a term, what it costs, or how contested it is. So:
+
+- **No volume, no cost per click, no competition, no difficulty, no expected position**, in any field,
+  in any wording. There is no "high volume" term in this product and no "low competition" one, because
+  nobody measured either, and a model handed a list that looks exactly like a keyword planner's output
+  will supply those adjectives unless told not to.
+- **Every term in a group is one this code counted.** A pluralised, translated or helpfully added
+  synonym is a word the page never used, and the whole claim the section rests on is that these came
+  off the page. The prompt says so and `groundTerms` enforces it, because a prompt cannot.
+- **A headline says what the product does, never what it will produce.** That is the delta rule below,
+  applied to our reader's advertising exactly as [ads.md](ads.md) applies it to our own.
+
+*Governs:* [readout.md](readout.md), [ai-pipeline.md](ai-pipeline.md), [ads.md](ads.md)
 
 ### The audit measured the page, not the index
 
@@ -236,22 +253,23 @@ The second provider has landed and the shape held: Mercado Pago verifies a payme
 bought, and calls `grantCredits`. `lib/credits.ts` did not change to accommodate it, which is the
 whole return on writing it this way.
 
-**The monitoring subscription held it too, and it was the harder test.** A subscription has state a
-one-off payment does not -- it renews, it fails, it gets cancelled -- and the obvious way to build it
-is a second place that says what someone is entitled to. That is exactly the second source of truth
-this rule exists to prevent. So it was split: `subscriptions` holds **eligibility and status**, and
-every renewal's credits go through `grantCredits` with the charge's own id as `providerRef`, exactly
-like a pack. `users.credits` stays the one answer to what a person can spend, and the ledger still
-explains every row in it.
+**The monitoring subscription held it too, and it was the harder test.** It has since been deleted
+for product reasons rather than structural ones — see [product.md](product.md) — and what it proved
+on the way out is worth keeping: a subscription has state a one-off payment does not, it renews, it
+fails, it gets cancelled, and the obvious way to build it is a second place that says what someone is
+entitled to. That is exactly the second source of truth this rule exists to prevent. So it was split:
+`subscriptions` held **eligibility and status** only, and every renewal's credits went through
+`grantCredits` with the charge's own id as `providerRef`, exactly like a pack.
 
-Two consequences worth stating, because both are the kind of bug that looks like working software:
+Removing it was consequently a matter of dropping one table and one route. **`lib/credits.ts` did not
+change**, which is the same return this rule paid when Mercado Pago was added — the shape survives
+both directions, adding a payment source and taking one away.
 
-- **The grant is keyed on the charge, never on the authorisation.** A renewal is a new payment
-  against the same preapproval, so keying it on the preapproval id credits the first month and
-  silently swallows every month after it -- for thirty days that is indistinguishable from correct.
-- **What the subscription buys that credits cannot is the sweep**, and the sweep costs a browser slot
-  and zero tokens. That is what makes a monthly price coherent: the fee pays for measurement on a
-  schedule, and generation is still bought by the credit.
+The consequence that outlives the feature, because it is the kind of bug that looks like working
+software: **a recurring grant is keyed on the charge, never on the authorisation.** A renewal is a
+new payment against the same preapproval, so keying it on the preapproval id credits the first month
+and silently swallows every month after it. For thirty days that is indistinguishable from correct.
+Anything recurring added later inherits that rule.
 
 *Governs:* [api.md](api.md), [data-model.md](data-model.md), [product.md](product.md)
 

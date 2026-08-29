@@ -403,3 +403,71 @@ test('the mobile group reports what the phone pass counted', () => {
     false
   )
 })
+
+// The criterion is what turns a bare count into something a reader can act on: "6" says nothing
+// about whether six is four too many or two too few. It is not a second opinion about the
+// thresholds -- it is the one the ranker actually applied, carried out instead of thrown away, which
+// is why these assert it against READOUT_THRESHOLDS rather than against a literal.
+
+test('a counted finding carries the boundary it was judged against', () => {
+  const findings = findingsFor({ structure: { formFieldCount: 6 } })
+
+  assert.deepEqual(find(findings, 'form_fields')?.criterion, {
+    kind: 'above',
+    threshold: READOUT_THRESHOLDS.formFieldsWarn
+  })
+})
+
+test('a metric where too little is the problem says so', () => {
+  const findings = findingsFor({ structure: { wordCount: 640 } })
+
+  assert.deepEqual(
+    find(findings, 'word_count')?.criterion,
+    { kind: 'below', threshold: READOUT_THRESHOLDS.wordCountWarn },
+    'the direction is the whole point: 640 words is fine, 200 is not'
+  )
+})
+
+test('the criterion is stated on a passing finding too', () => {
+  // A green number with no boundary beside it is the same unanswerable question as a red one.
+  const findings = findingsFor({ structure: { formFieldCount: 2 } })
+  const form = find(findings, 'form_fields')
+
+  assert.equal(form?.severity, 'ok')
+  assert.equal(form?.criterion?.threshold, READOUT_THRESHOLDS.formFieldsWarn)
+})
+
+test('a finding with two bad ends reports a band, not a ceiling', () => {
+  const none = find(findingsFor({ structure: { aboveFoldCtaCount: 0 } }), 'above_fold_ctas')
+
+  assert.equal(none?.severity, 'alert')
+  assert.deepEqual(
+    none?.criterion,
+    { kind: 'band', threshold: READOUT_THRESHOLDS.aboveFoldCtasWarn },
+    'saying only "flagged from 5" would tell a page with no call to action that it is under the line'
+  )
+})
+
+test('a presence finding carries no criterion, because the label already names the bad answer', () => {
+  const findings = findingsFor({ structure: { hasOauth: false } })
+
+  assert.equal(find(findings, 'no_social_signin')?.criterion, null)
+  assert.equal(find(findings, 'no_faq')?.criterion, null)
+})
+
+test('a load boundary stays in the unit it was measured in', () => {
+  const findings = findingsFor({ performance: { lcpMs: 3_000 } })
+
+  assert.deepEqual(
+    find(findings, 'lcp')?.criterion,
+    { kind: 'above', threshold: READOUT_THRESHOLDS.lcpWarnMs },
+    'milliseconds here, converted once at the edge like the value beside it'
+  )
+})
+
+test('h1_count is wrong in both directions, so its criterion is a target', () => {
+  assert.deepEqual(find(findingsFor({ seo: { h1Count: 3 } }), 'h1_count')?.criterion, {
+    kind: 'exactly',
+    threshold: 1
+  })
+})

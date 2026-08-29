@@ -36,9 +36,13 @@ test('no hint on the analysis can push the page sideways', async ({ page }) => {
   for (const size of WIDTHS) {
     await page.setViewportSize({ width: size.width, height: size.height })
 
-    // Every tab, because the impact legend and the section hints move with the panel they sit in.
-    for (const tab of ['Structure', 'Copy', 'SEO', 'AI']) {
-      await page.getByRole('tab', { name: tab }).click()
+    // Every section, because the impact legend and the section hints move with the panel they sit
+    // in. They are stacked `<details>` now rather than tabs, so opening one leaves the rest as they
+    // were and the loop ends with all four open.
+    for (const section of ['flow', 'copy', 'seo', 'ai']) {
+      const panel = page.getByTestId(`analysis-section-${section}`)
+      const open = await panel.locator('details').evaluate((el) => (el as HTMLDetailsElement).open)
+      if (!open) await panel.locator('summary').click()
 
       const hints = page.locator('button[aria-expanded]:has(svg)')
       const count = await hints.count()
@@ -60,16 +64,16 @@ test('no hint on the analysis can push the page sideways', async ({ page }) => {
         // The panel itself has to be inside the document, not merely not-scrolling: a parent with
         // `overflow: hidden` would hide the symptom while still clipping the text.
         const box = await tooltip.first().boundingBox()
-        expect(box, `${size.name} / ${tab} / hint ${i}: no box`).not.toBeNull()
-        expect(box!.x, `${size.name} / ${tab} / hint ${i}: off the left edge`).toBeGreaterThanOrEqual(0)
+        expect(box, `${size.name} / ${section} / hint ${i}: no box`).not.toBeNull()
+        expect(box!.x, `${size.name} / ${section} / hint ${i}: off the left edge`).toBeGreaterThanOrEqual(0)
         expect(
           box!.x + box!.width,
-          `${size.name} / ${tab} / hint ${i}: off the right edge`
+          `${size.name} / ${section} / hint ${i}: off the right edge`
         ).toBeLessThanOrEqual(size.width)
 
         expect(
           await documentOverflow(page),
-          `${size.name} / ${tab} / hint ${i}: document scrolls sideways`
+          `${size.name} / ${section} / hint ${i}: document scrolls sideways`
         ).toBeLessThanOrEqual(0)
 
         await page.keyboard.press('Escape')

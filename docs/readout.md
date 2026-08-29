@@ -112,6 +112,60 @@ in the abstract. A carousel's dots, a row of social icons and an icon-only close
 built page in the high teens on their own, so the original alert at ten called almost every site
 broken. The finding is "hard to use with a thumb", not "one control is two pixels short".
 
+## Every counted finding states the boundary it was judged against
+
+A finding renders as `label / value`, and for a **count** that is not enough to act on. *Signup form
+fields / 6* leaves the reader with the question the whole section exists to answer: is six four too
+many, or two too few? The severity colour says something is wrong without saying which way to move,
+and on a free analysis there is no generated fix beside it either — so the number was a dead end for
+most readers, on most rows.
+
+`MeasuredFinding.criterion` closes it: `{ kind, threshold }`, rendered under the label as *sinalizamos
+a partir de 4* / *flagged from 4*.
+
+**It is the boundary the ranker actually applied, not a second copy of it.** `rank` and `rankBelow`
+return `{ severity, criterion }` together, so the printed number and the applied number are the same
+value by construction. The alternative — a map from finding id to threshold, read by the renderer —
+is a duplicate of what `measuredFindings` already knows, and the first edit to `READOUT_THRESHOLDS`
+that missed the copy would have printed a boundary this code does not apply. On a product whose whole
+claim is that the printed number is the counted one, that is the expensive bug.
+
+Four kinds, and each exists because a simpler set would lie about some finding:
+
+- **`above`** — `rank`. *Flagged from 4.*
+- **`below`** — `rankBelow`, where too little is the problem. *Flagged at 300 or fewer.*
+- **`band`** — `above_fold_ctas` and its phone twin, where **both** ends are bad: none at all is an
+  alert and a crowd is a warning. Printing only the ceiling would tell a page with no call to action
+  that it is comfortably under the line.
+- **`exactly`** — `h1_count`, wrong in either direction.
+
+**The criterion carries the warn boundary and never the alert one.** Warn is the line between fine
+and not fine, which is what a reader looking at a bare number is asking; how far past it they are is
+what the colour already says. Both numbers turned one short line into two that had to be read against
+each other.
+
+**It renders on passing findings too**, and that is where it earns most: a green `720` beside
+*flagged at 300 or fewer* explains itself, where a green `720` alone is another number to take on
+trust.
+
+**A presence finding carries `null` and renders nothing.** *Sign in with Google or GitHub / No*
+already names the bad answer, and *flagged on No* would be noise on more than a third of the rows.
+The counted findings are what this is for.
+
+**What it may never become.** *Flagged from 4* is a statement about our own check. *"Two fields too
+many, costing you signups"* is a prediction nobody measured, and it is the same line this whole
+section is drawn along — see
+[invariants.md](invariants.md#the-readout-says-what-was-counted-never-what-it-will-produce). The
+reasoning behind each threshold lives in the comments on `READOUT_THRESHOLDS` and is deliberately not
+shipped as copy: it is an argument, and an argument is the generated half's job.
+
+### `readout.atLeast` belongs to the value and to nothing else
+
+The qualifier on `page_weight` is there because `SCRAPE_ALLOWED_RESOURCE_TYPES` blocks media, so the
+bytes counted are a floor. It used to live inside `renderUnit`, which is shared — so the delta read
+*+at least 0.3 MB*, and the threshold beside it would have read *at least 2 MB*, as if our own
+boundary were approximate. It is applied in `renderValue` now, on the measured value, once.
+
 ## Rules the numbers obey
 
 - **Thresholds (`READOUT_THRESHOLDS`) are deliberately loose.** A false alert on a healthy page is the
@@ -155,10 +209,13 @@ Three decisions worth keeping:
 `scoreSeverity` reads downward like `rankBelow` and reuses `READOUT_SEVERITY_CLASS`, so the score is
 tinted by the same three colours as the values beneath it.
 
-`components/readout-score.tsx` renders it above the groups. It deliberately does
-**not** reuse `components/score-indicator.tsx`: that is the 1-10 impact scale on the hypotheses,
-and two different scales wearing the same widget on one screen is where the reader stops trusting
-either.
+`components/readout-score.tsx` renders the overall above the group cards, and **each group's own
+score is rendered by that group's card** rather than here. The card used to carry a bar per group as
+well, which became the same six numbers stated twice the moment the groups became cards -- and worse,
+the reader had to match a label in this card against a heading further down to join them. It
+deliberately does **not** reuse `components/score-indicator.tsx`: that is the 1-10 impact scale on the
+hypotheses, and two different scales wearing the same widget on one screen is where the reader stops
+trusting either.
 
 ### The scale explains itself, in the card, always visible
 
@@ -169,7 +226,7 @@ on paper, where a tooltip is a click nobody makes and a print that never appears
 
 - `readout.score.scale`, beside the number: the two ends stated outright, 100 is every check passing
   and 0 is none of them.
-- `readout.score.method`, under the group bars: the arithmetic (full point / half / none), the fact
+- `readout.score.method`, beside the scale: the arithmetic (full point / half / none), the fact
   that every check was **counted on this page itself**, and the explicit limit — it rates what was
   counted and says nothing about the page's traffic or revenue, per
   [invariants.md](invariants.md#the-readout-says-what-was-counted-never-what-it-will-produce). The
@@ -179,11 +236,54 @@ This is a **different** sentence from `readout.hint`, and they must not be merge
 where the *findings* come from (measured on the page, load times a best case), this answers what the
 *score* over them means.
 
-The card is deliberately large — the number at `text-5xl`/`text-6xl`, the group bars at `h-2.5` — and
-turns to two columns only at `lg`. It is the first thing on the analysis and on the report, and it was
-previously small enough to read as a chip beside the findings rather than the summary of them.
+The card is deliberately large — the number at `text-5xl`/`text-6xl` — and turns to two columns only
+at `sm`. It is the first thing on the analysis and on the report, and it was previously small enough
+to read as a chip beside the findings rather than the summary of them.
 
-## The keyword table
+## A group is a card with its score down the left edge
+
+`components/measured-readout.tsx` renders one `DisclosureCard` per `READOUT_GROUP` in a two-column
+grid — the same shell the ranked fix cards use. The rail carries the group's score out of 100, the
+badge row carries the group's icon, its severity and the passing count, the title is the group label,
+and the body is the findings as rows.
+
+**The shell is shared and the widget is not, and that distinction is the whole of it.** A number down
+the left edge is how this report says *here is a thing with a score on it*; having one answer to that
+for a fix card and a different one for a group card was the inconsistency worth removing. But
+`ScoreIndicator` is the **1-10 impact** scale written by a model, and this is **0-100 health**
+counted by code — two scales wearing the same widget on one screen is where a reader stops trusting
+either. So each rail prints its own denominator and takes its colour from its own map
+(`READOUT_SEVERITY_CLASS` here, `impactScoreRailClass` there). `readout-score.tsx` still does not
+reuse `ScoreIndicator` at all, for the same reason.
+
+**This was six flat grids of equal-weight cells under six small labels**, which read as a
+spreadsheet: nothing separated *What the page costs to open* from *First content painted*, so the
+section could not be scanned at the level of groups at all.
+
+Two things about it are fixes rather than styling, and both are the kind that come back:
+
+- **Everything that toggles is one strip.** An earlier version put the label in a bar and the score on
+  a second row below it with both inside the `<summary>`, so two visually distinct strips shared one
+  behaviour and a reader who clicked the score row watched the card collapse for no stated reason.
+- **The grid is `items-start`.** Grid items stretch to the tallest in their row by default, so opening
+  one card grew the empty box of the card beside it.
+
+`READOUT_GROUP_ICON` lives in the component and **not** in `lib/constants.ts`, against the precedent
+of every other readout map there. Those are strings; this is a lucide component, and `lib/readout.ts`
+and `lib/score.ts` import that file while staying pure. One React import in it would drag the icon
+library into both.
+
+## The keyword table — `components/page-terms.tsx`
+
+**It is no longer inside `MeasuredReadout`.** It sits at the end of the analysis, below the four fix
+sections, in `PageTerms` — its own `PanelCard` with a heading and a paragraph saying what to take from
+it, and the generated ad groups underneath. See [analysis-ui.md](analysis-ui.md).
+
+The move is a product one rather than a layout one. The count was correct and went nowhere: four
+Yes/No columns and a reader left to join them. The heading now says the thing the table was always
+about — a term repeated fifteen times in the body and absent from the title is a term a crawler, an
+assistant and an ad have nothing to match on — and the section below it turns those same terms into
+something to spend.
 
 `lib/keywords.ts` counts the page's own words: unigrams and bigrams over `preprocessHtml(html)`,
 minus `KEYWORD_STOPWORDS` (English and Portuguese in one list, accents intact), kept only from
@@ -232,23 +332,29 @@ longer idempotent — it is the re-measure — and the `measure` rate limit is w
 cost. It spends no credit either way: a re-measure is `measurePage` and arithmetic, never a model
 call.
 
-**There is a sweep again, and a subscription is what bounds it.** The weekly cron that used to do
-this went with plans, on the reasoning that an unbounded sweep re-opening every customer's landing
-page is exactly what the backfill was forbidden from becoming. That reasoning is intact and is now
-enforced by the filter rather than by the cron's absence: `analysesDueForRemeasure` returns only
-pages owned by somebody with an active subscription, so every page it opens has been paid for. See
-[api.md](api.md).
+**There is no sweep, and the click is the whole of it.** A weekly cron has existed twice here and
+been removed twice, on a reasoning that has never changed: an unbounded sweep re-opening every
+customer's landing page is exactly what the backfill was forbidden from becoming, and bounding it
+needs something that pays for the browser time. Plans paid for it once and the monitoring
+subscription paid for it again; both are gone. What is left is the surface that was always the honest
+one -- the owner measures again when they have shipped something, which is also the only moment the
+second measurement means anything. See [api.md](api.md) and [product.md](product.md).
 
 **Below two snapshots there is no history, and the owner is now told so instead of shown nothing.**
 The sparkline and the per-finding deltas both return null on a single measurement — which is what
 almost every analysis has — so the whole history feature was built and invisible to nearly everyone
-who owned one. `MeasurePage variant="again"` takes `hasHistory` and, when there is none, names what a
-second measurement unlocks rather than rendering a bare button. Same control, different framing; the
-compact row is still what an owner with a history sees.
+who owned one. So there are two variants and the page picks between them: `again` is the bare button,
+which lives in the report header, and `trend_start` is the dashed panel naming what a second
+measurement unlocks, rendered below the readout only while `history.scores.length <= 1`.
+
+**The component no longer takes a `hasHistory` flag.** Whether there is a history is the page's
+question and only the page has the answer, and the flag made the component decide between a control
+and a section — two things that do not belong in the same slot. The button is in the header because
+re-measuring is the action an owner repeats most and it used to sit below the entire document.
 
 ## A group whose checks all passed opens closed
 
-Every group is a `<details>`. It starts open when any finding in it is `warn` or `alert`, and closed
+Every group card is a `<details>` whose `<summary>` is the bar, and nothing else. It starts open when any finding in it is `warn` or `alert`, and closed
 when they all pass; the summary carries the count either way, so a collapsed group still says "12
 checks, all passing" rather than hiding that it exists.
 
@@ -289,7 +395,12 @@ own site reads as a trick.
 
 **The trend is the owner's half of it.** `previous` and `scores` come from `readoutHistory`, which
 the page only queries when `isOwner` — a delta between two of the owner's measurements is their
-record of their own page, and it arrives with the button that adds points to it.
+record of their own page, and the button that adds points to it is in the header above.
+
+**`PageTerms` is a second mount and a separate section.** The keyword table left this component; it
+now renders last in the document, below the four fix sections, and below the `UnlockWall` on a report
+with nothing generated. That placement is deliberate: the terms are a measurement, so sitting under the wall does
+not gate them, and a reader who has not paid seeing the counted half continue past it is the point.
 
 Returns `null` when nothing was measured, so an analysis created before the columns existed has no
 section rather than an empty heading — the same contract `FlowPlaybook` has with an empty list.

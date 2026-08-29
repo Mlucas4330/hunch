@@ -1,8 +1,7 @@
 'use client'
 
 import { useI18n } from '@/components/i18n-provider'
-import { READOUT_SEVERITY_CLASS, READOUT_SEVERITY_FILL_CLASS } from '@/lib/constants'
-import { READOUT_GROUP } from '@/lib/enums'
+import { READOUT_SEVERITY_CLASS } from '@/lib/constants'
 import { formatNumber, t } from '@/lib/i18n/format'
 import { readoutScore, scoreSeverity } from '@/lib/score'
 import type { MeasuredFinding } from '@/lib/readout'
@@ -11,17 +10,18 @@ import { cn } from '@/lib/utils'
 export function ReadoutScore({ findings }: { findings: MeasuredFinding[] }) {
   const { dictionary, locale } = useI18n()
   const copy = dictionary.readout.score
-  const groups = dictionary.readout.groups
   const score = readoutScore(findings)
 
   if (score.overall === null) return null
 
   return (
     <div
-      className="flex flex-col gap-6 rounded-lg border bg-card p-5 sm:p-6 lg:flex-row lg:items-start lg:gap-8"
+      className="flex flex-col gap-4 rounded-lg border bg-card p-5 sm:flex-row sm:items-start sm:gap-8 sm:p-6"
       data-testid="readout-score"
     >
-      <div className="lg:w-64 lg:shrink-0">
+      {/* min-w-0 all the way down: a flex item defaults to min-width:auto, which refuses to shrink
+          below its content and is what pushed this row past the viewport on a phone. */}
+      <div className="shrink-0">
         <p className="panel-label text-[0.65rem] text-muted-foreground">{copy.label}</p>
         <p
           className={cn(
@@ -32,39 +32,17 @@ export function ReadoutScore({ findings }: { findings: MeasuredFinding[] }) {
           {score.overall}
           <span className="text-xl font-semibold sm:text-2xl">/100</span>
         </p>
-        <p className="mt-3 text-sm leading-snug text-muted-foreground">{copy.scale}</p>
       </div>
 
-      {/* min-w-0 all the way down: a flex or grid item defaults to min-width:auto, which refuses to
-          shrink below its content and is what pushed these rows past the viewport on a phone. */}
-      <div className="min-w-0 flex-1 space-y-4">
-        <div className="grid min-w-0 gap-3">
-          {READOUT_GROUP.map((group) => {
-            const value = score.groups[group]
-            if (value === null) return null
+      {/* Both sentences are load-bearing and neither may move into an InfoHint: this card renders on
+          the public report and on paper, where a tooltip is a click nobody makes and a print that
+          never appears. See docs/readout.md.
 
-            return (
-              <div key={group} className="flex min-w-0 items-center gap-3">
-                <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                  {groups[group]}
-                </p>
-                <div className="h-2.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:w-40">
-                  <div
-                    className={cn(
-                      'h-full rounded-full',
-                      READOUT_SEVERITY_FILL_CLASS[scoreSeverity(value)]
-                    )}
-                    style={{ width: `${value}%` }}
-                  />
-                </div>
-                <p className="w-9 shrink-0 text-right font-mono text-sm font-semibold tabular-nums">
-                  {value}
-                </p>
-              </div>
-            )
-          })}
-        </div>
-
+          **The per-group bars used to live here and are gone.** Every group now carries its own
+          score in its own card below, so the bars were the same six numbers stated twice -- and the
+          reader had to match a label in this card against a heading further down to join them. */}
+      <div className="min-w-0 flex-1 space-y-3">
+        <p className="text-sm leading-snug text-muted-foreground">{copy.scale}</p>
         <p className="text-xs leading-relaxed text-muted-foreground">
           {t(copy.method, { count: formatNumber(findings.length, locale) })}
         </p>
