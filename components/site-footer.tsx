@@ -1,10 +1,7 @@
-import { Linkedin, MessageCircle } from 'lucide-react'
+import Link from 'next/link'
+import { MessageCircle } from 'lucide-react'
 import { Wordmark } from '@/components/wordmark'
-import {
-  CONTAINER_CLASS,
-  LINKEDIN_URL,
-  WHATSAPP_URL
-} from '@/lib/constants'
+import { CONTAINER_CLASS, PRIVACY_PATH, WHATSAPP_URL } from '@/lib/constants'
 import { getDictionary } from '@/lib/i18n'
 import { t as fill } from '@/lib/i18n/format'
 import { cn } from '@/lib/utils'
@@ -30,16 +27,9 @@ export async function SiteFooter() {
           </p>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-4">
-          <a
-            href={LINKEDIN_URL}
-            target="_blank"
-            rel="noreferrer noopener"
-            aria-label={t.footer.linkedin}
-            title={t.footer.linkedin}
-            className={linkClass}
-          >
-            <Linkedin className="size-4" aria-hidden />
-          </a>
+          <Link href={PRIVACY_PATH} className={linkClass}>
+            {t.footer.privacy}
+          </Link>
           <a
             href={WHATSAPP_URL}
             target="_blank"

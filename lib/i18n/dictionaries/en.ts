@@ -28,6 +28,11 @@ export const en = {
         title: 'Credits',
         description: 'Grant credits by hand.'
       },
+      privacy: {
+        title: 'Privacy policy',
+        description:
+          'What Hunch keeps about your page and your account, for how long, and who else sees it.'
+      },
       report: {
         title: 'Conversion teardown for {host}',
         description:
@@ -97,7 +102,7 @@ export const en = {
 
   footer: {
     copyright: 'Copyright {year} Hunch. All rights reserved.',
-    linkedin: 'LinkedIn',
+    privacy: 'Privacy',
     whatsapp: 'WhatsApp'
   },
 
@@ -120,8 +125,8 @@ export const en = {
 
   landing: {
     eyebrow: 'Free. No account. Under a minute.',
-    headlineTop: 'Find out your landing page score.',
-    headlineBottom: 'Measured on your page, in under a minute.',
+    headlineTop: 'You know your landing page is not converting.',
+    headlineBottom: 'What is missing is knowing what is on it.',
     lead: 'Paste your URL. We open the page the way a visitor does, count what is actually on it, and score it out of 100. Seeing the score costs nothing and needs no account.',
     cta: 'Score my page now, free',
     ctaNote: 'No signup, no card, no install. Just your URL.',
@@ -197,21 +202,21 @@ export const en = {
 
     how: {
       eyebrow: 'How it works',
-      heading: 'Paste, score, fix.',
+      heading: 'Three steps, and none of them touch your site.',
       intro: 'The score is free and needs no account. Unlock the fixes when you want the new copy written for you.'
     },
     steps: [
       {
         label: 'Paste your URL',
-        body: 'Any public landing page. We open it in a real browser, the way a visitor does.'
+        body: 'No script to install, no login to your site, no DNS to change. Any public landing page will do, and we open it in a real browser, the way a visitor does.'
       },
       {
         label: 'Get your score',
-        body: 'Out of 100, with every row that made it: form fields, calls to action, load time, alt text, structured data.'
+        body: 'No waiting on a report from anyone. Out of 100, with every row that made it: form fields, calls to action, load time, alt text, structured data.'
       },
       {
         label: 'Unlock the fixes',
-        body: 'Ranked changes with the replacement copy already written, and a preview of it on your real page.'
+        body: 'No guessing where to start. Ranked changes with the replacement copy already written, and a preview of it on your real page.'
       }
     ],
 
@@ -269,6 +274,91 @@ export const en = {
       heading: 'Paste your URL. See your score.'
     }
   },
+  privacy: {
+    eyebrow: 'Privacy',
+    heading: 'Privacy policy',
+    updated: 'Last updated: {date}',
+    intro:
+      'What we keep, for how long, and who else sees it. Written to be checked: every line here describes something the code does.',
+    sections: [
+      {
+        title: 'Who is responsible',
+        body: [
+          'Hunch is operated by Lucas Medeiros, an individual. The channel for any request about your data is the WhatsApp link in the footer of this page.'
+        ]
+      },
+      {
+        title: 'What we do not do',
+        body: [
+          'There is no Google Analytics, no Google Tag Manager, no gtag.js, no social pixel and no behaviour tool on this site. Nothing advertising-related loads on our pages, which is why there is no cookie banner here.',
+          'We do not sell, rent or trade your data with anyone for marketing.',
+          'Two third-party resources appear in the browser, and only these: the product tour on the landing page, which runs inside a Supademo iframe, and the Mercado Pago payment form, which loads only when you open checkout.'
+        ]
+      },
+      {
+        title: 'The page you paste',
+        body: [
+          'We open the URL you submit in a browser of ours, count what is on it, and keep those measurements along with a screenshot of the page. The analysis is kept so the report keeps working and so a later measurement can show what changed.',
+          'The screenshot is deleted after 30 days.',
+          'The report is reachable through a key in the link itself. Anyone holding the link can read the report, so treat it the way you would treat any private link.'
+        ]
+      },
+      {
+        title: 'Your account',
+        body: [
+          'If you sign in, we keep the email, name and picture Google or GitHub returns. We only accept an address the provider confirms as verified, and we never store a password, because there is none here.'
+        ]
+      },
+      {
+        title: 'Your email when you ask for the report link',
+        body: [
+          'The report lets you ask for the link by email. The address is kept next to that analysis and is used to send you the link.',
+          'You can leave at any time. The row stays, marked as unsubscribed, precisely so a later submit does not quietly sign you up again.'
+        ]
+      },
+      {
+        title: 'Payment',
+        body: [
+          'Payments are processed by Mercado Pago or Stripe. We never see or store a card number.',
+          'What stays on our side is the payment reference and the credit ledger, which is what answers where every credit went.'
+        ]
+      },
+      {
+        title: 'The ad that brought you',
+        body: [
+          'If you arrived from a Google ad, the click identifier sits in a cookie of ours that no script in the browser can read, for 90 days.',
+          'It leaves here only if you buy. In that case our server sends Google Ads the click identifier and the amount paid, and nothing else. Someone who does not buy is never reported.'
+        ]
+      },
+      {
+        title: 'Cookies',
+        body: [
+          'Two, and neither is third-party: your session, which keeps you signed in, and the ad click described above.'
+        ]
+      },
+      {
+        title: 'Who the data is shared with',
+        body: [
+          'Anthropic receives the content of the analysed page, which is what makes writing the fixes possible. Mercado Pago and Stripe receive what they need to charge. Resend sends the emails. Google Ads receives the click and the amount, only when there is a purchase. And the infrastructure the product runs on hosts the database and the application.',
+          'Nobody else receives anything.'
+        ]
+      },
+      {
+        title: 'Your rights',
+        body: [
+          'Under Brazilian data protection law you can request access to your data, correction, deletion, portability, and withdrawal of a consent you gave.',
+          'Ask through the WhatsApp link in the footer of this page. We answer and comply.'
+        ]
+      },
+      {
+        title: 'Changes to this policy',
+        body: [
+          'When something here changes, the date at the top changes with it. It is written in one place in the code, so a date on screen can never disagree with the real one.'
+        ]
+      }
+    ]
+  },
+
   signIn: {
     title: 'Sign in',
     description: 'Continue with your work account',
@@ -650,9 +740,11 @@ export const en = {
         perAnalysis: 'R$147 per analysis',
         tagline: 'One page, one look at it.',
         features: [
-          'The score and every row that made it',
-          'Ranked fixes with the replacement copy written',
-          'Each line previewed on your real page'
+          'The score and every row that made it, on desktop and on a phone',
+          'What the page weighs and how long it takes to load',
+          'Ranked fixes for structure, copy, SEO and AI visibility',
+          'The replacement copy written, previewed on your real page',
+          'Ad groups written from the words counted on the page'
         ]
       },
       trio: {
@@ -661,8 +753,10 @@ export const en = {
         perAnalysis: 'R$99 per analysis',
         tagline: 'A funnel of up to three pages.',
         features: [
-          'Everything in Single, three times over',
-          'One analysis for every page in the funnel',
+          'Everything in Single, across three pages',
+          'One analysis for each step of the funnel, not just the home page',
+          'Or the same page again after you change it, to compare the two measurements',
+          'All three in one dashboard, each with its own score',
           'Credits never expire'
         ]
       }

@@ -14,7 +14,7 @@ page indexable**.
 
 ## Indexability
 
-**The indexable routes are `/`, `/blog` and the posts**, and they are exactly the entries in
+**The indexable routes are `/`, `/blog`, the posts and `/privacy`**, and they are exactly the entries in
 `app/sitemap.ts`. Everything else passes `index: false`. `app/robots.ts` disallows the same prefixes,
 importing `PROTECTED_PREFIXES` from `lib/constants.ts` so it can never drift from `middleware.ts`.
 
@@ -27,6 +27,10 @@ be published without an entry -- and cannot be published at all until it is writ
 dictionaries, because the slug is the dictionary key. `lastModified` for a post comes from
 `BLOG_POST_DATE`, which is a real publication date rather than `new Date()`: a sitemap claiming every
 post changed today is a sitemap saying nothing.
+
+`/privacy` is indexable for the same reason the blog is: it is written to be read by a stranger
+deciding whether to paste a URL, and a policy nobody can find answers nobody. Its `lastModified` is
+`PRIVACY_UPDATED` rather than `new Date()`, on the same reasoning as `BLOG_POST_DATE`.
 
 **A post's title and description are the post's own `title` and `excerpt`**, not a separate
 `metadata.pages.*` entry. They are still dictionary strings, and keeping them as one string means the

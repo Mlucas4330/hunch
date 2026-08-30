@@ -41,8 +41,13 @@ test('no hint on the analysis can push the page sideways', async ({ page }) => {
     // were and the loop ends with all four open.
     for (const section of ['flow', 'copy', 'seo', 'ai']) {
       const panel = page.getByTestId(`analysis-section-${section}`)
-      const open = await panel.locator('details').evaluate((el) => (el as HTMLDetailsElement).open)
-      if (!open) await panel.locator('summary').click()
+      // The panel's own `<details>` is the outer one; every fix card inside it is a `<details>` too,
+      // so an unqualified locator is ambiguous and Playwright refuses it. See e2e/core.spec.ts.
+      const open = await panel
+        .locator('details')
+        .first()
+        .evaluate((el) => (el as HTMLDetailsElement).open)
+      if (!open) await panel.locator('summary').first().click()
 
       const hints = page.locator('button[aria-expanded]:has(svg)')
       const count = await hints.count()

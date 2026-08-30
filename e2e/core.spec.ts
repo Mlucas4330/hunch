@@ -6,8 +6,12 @@ import { pinEnglish } from './locale'
 // start closed, and a spec should not have to know which.
 async function openSection(page: Page, section: 'flow' | 'copy' | 'seo' | 'ai') {
   const panel = page.getByTestId(`analysis-section-${section}`)
-  const open = await panel.locator('details').evaluate((el) => (el as HTMLDetailsElement).open)
-  if (!open) await panel.locator('summary').click()
+  // `.first()` is load bearing: the fix cards inside a section are `<details>` of their own, so a
+  // bare `locator('details')` matches the panel and every card in it and Playwright refuses it as
+  // ambiguous. The panel's own element is the outer one, which is first in document order.
+  const panelDetails = panel.locator('details').first()
+  const open = await panelDetails.evaluate((el) => (el as HTMLDetailsElement).open)
+  if (!open) await panel.locator('summary').first().click()
 }
 
 test.describe('core features', () => {
@@ -185,9 +189,15 @@ test.describe('core features', () => {
 
   // The hero gives this form a grid track next to the readout card, and a CTA long enough to take
   // most of it. What keeps the field usable is a container query rather than a viewport breakpoint:
-  // the button drops below it instead of sharing a row it does not fit in. See
+  // the button drops below the field instead of sharing a row it does not fit in. See
   // components/url-input-form.tsx.
-  test('keeps the hero URL field the width of its column, with the CTA below it', async ({
+  //
+  // **Both halves are asserted at the width where each one is the answer**, which is the fix for a
+  // version of this that asserted the drop at 1440 and therefore asserted the hero column's width
+  // rather than the behaviour. At 1440 the column is wider than the container query's threshold, so
+  // the two share a row and the field is still far wider than a URL needs -- that is the query
+  // working, not failing. The drop is what a column too narrow for both produces, and 380 is one.
+  test('keeps the hero URL field usable, dropping the CTA below it when the column is narrow', async ({
     browser
   }) => {
     const context = await browser.newContext({
@@ -199,11 +209,17 @@ test.describe('core features', () => {
 
     await page.goto('/')
     const form = page.locator('form').filter({ has: page.locator('input[name="url"]') }).first()
+
+    const wide = (await form.locator('input[name="url"]').boundingBox())!
+    expect(wide.width).toBeGreaterThan(400)
+
+    await page.setViewportSize({ width: 380, height: 900 })
+
     const field = (await form.locator('input[name="url"]').boundingBox())!
     const submit = (await form.locator('button[type="submit"]').boundingBox())!
 
-    expect(field.width).toBeGreaterThan(400)
     expect(submit.y).toBeGreaterThan(field.y)
+    expect(field.width).toBeGreaterThan(200)
 
     await context.close()
   })
@@ -387,8 +403,9 @@ test.describe('core features', () => {
     await openSection(anon, 'ai')
     await expect(anon.getByTestId('ai-playbook').getByTestId('ai-fix')).toHaveCount(1)
 
-    // Four sections, all about what to change.
-    await expect(anon.getByTestId('analysis-sections').locator('details')).toHaveCount(4)
+    // Four sections, all about what to change. Counted by the panels themselves rather than by
+    // `<details>`, which the fix cards inside them are too -- see openSection above.
+    await expect(anon.locator('[data-testid^="analysis-section-"]')).toHaveCount(4)
 
     await openSection(anon, 'copy')
     const card = anon.getByTestId('hypothesis-card').first()

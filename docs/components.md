@@ -177,11 +177,14 @@ just went to. It watches `usePathname()` and closes itself.
 
 ### Site footer — `components/site-footer.tsx`
 
-Wordmark, copyright line and three links on the right: LinkedIn (`LINKEDIN_URL`), WhatsApp
-(`WHATSAPP_URL`) and `CONTACT_PATH`. The first two are the founder's own channels, rendered as a
-lucide icon alone with the label carried by `aria-label` and `title`, and both open in a new tab with
-`rel="noreferrer noopener"`. Same container as everything else. Mounted in `app/(app)/layout.tsx`, so it reaches every
-app page.
+Wordmark, copyright line and two links on the right: the privacy policy (`PRIVACY_PATH`) and WhatsApp
+(`WHATSAPP_URL`). The policy is a text link because a reader looking for it is looking for the words;
+WhatsApp is the founder's own channel, rendered as a lucide icon alone with the label carried by
+`aria-label` and `title`, opening in a new tab with `rel="noreferrer noopener"`. Same container as
+everything else. Mounted in `app/(app)/layout.tsx`, so it reaches every app page.
+
+**The footer is the only place the policy is linked, and that is enough**: it is on every app page,
+which is what a policy link is for. It was a LinkedIn icon's neighbour until that link was removed.
 
 **In `app/(report)/layout.tsx` it is mounted only for a reader with a session**, alongside the
 navbar. It began as a white-label constraint that mounted it nowhere there — a global footer would

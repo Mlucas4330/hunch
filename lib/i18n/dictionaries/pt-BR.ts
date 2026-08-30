@@ -31,6 +31,11 @@ export const ptBR: Dictionary = {
         title: 'Créditos',
         description: 'Dar créditos na mão.'
       },
+      privacy: {
+        title: 'Política de privacidade',
+        description:
+          'O que o Hunch guarda da sua página e da sua conta, por quanto tempo, e com quem divide.'
+      },
       report: {
         title: 'Diagnóstico de conversão de {host}',
         description:
@@ -100,7 +105,7 @@ export const ptBR: Dictionary = {
 
   footer: {
     copyright: 'Copyright {year} Hunch. Todos os direitos reservados.',
-    linkedin: 'LinkedIn',
+    privacy: 'Privacidade',
     whatsapp: 'WhatsApp'
   },
 
@@ -120,8 +125,8 @@ export const ptBR: Dictionary = {
 
   landing: {
     eyebrow: 'Grátis. Sem conta. Em menos de um minuto.',
-    headlineTop: 'Descubra a nota da sua landing page.',
-    headlineBottom: 'Medida na sua página, em menos de um minuto.',
+    headlineTop: 'Você sabe que a sua landing page não converte.',
+    headlineBottom: 'O que falta é saber o que tem nela.',
     lead: 'Cole a URL. A gente abre a página do jeito que um visitante abre, conta o que tem nela de verdade e dá uma nota de 0 a 100. Ver a nota não custa nada e não pede cadastro.',
     cta: 'Ver minha nota agora, de graça',
     ctaNote: 'Sem cadastro, sem cartão, sem instalar nada. Só a sua URL.',
@@ -197,21 +202,21 @@ export const ptBR: Dictionary = {
 
     how: {
       eyebrow: 'Como funciona',
-      heading: 'Cole, veja a nota, corrija.',
+      heading: 'Três passos, e nenhum deles mexe no seu site.',
       intro: 'A nota é gratuita e não pede conta. Libere as correções quando quiser a copy nova escrita para você.'
     },
     steps: [
       {
         label: 'Cole a sua URL',
-        body: 'Qualquer landing page pública. A gente abre num navegador de verdade, do jeito que um visitante abre.'
+        body: 'Sem instalar script, sem login no seu site, sem mexer em DNS. Qualquer landing page pública serve, e a gente abre num navegador de verdade, do jeito que um visitante abre.'
       },
       {
         label: 'Receba a sua nota',
-        body: 'De 0 a 100, com todas as linhas que formaram ela: campos de formulário, CTAs, tempo de carregamento, alt text, dados estruturados.'
+        body: 'Sem esperar o relatório de ninguém. De 0 a 100, com todas as linhas que formaram ela: campos de formulário, CTAs, tempo de carregamento, alt text, dados estruturados.'
       },
       {
         label: 'Libere as correções',
-        body: 'Mudanças priorizadas com a copy substituta já escrita, e uma prévia dela na sua página real.'
+        body: 'Sem adivinhar por onde começar. Mudanças priorizadas com a copy substituta já escrita, e uma prévia dela na sua página real.'
       }
     ],
 
@@ -269,6 +274,91 @@ export const ptBR: Dictionary = {
       heading: 'Cole a sua URL. Veja a sua nota.'
     }
   },
+  privacy: {
+    eyebrow: 'Privacidade',
+    heading: 'Política de privacidade',
+    updated: 'Última atualização: {date}',
+    intro:
+      'O que a gente guarda, por quanto tempo e com quem divide. Escrito para ser conferido: cada linha aqui descreve algo que o código faz.',
+    sections: [
+      {
+        title: 'Quem é o responsável',
+        body: [
+          'O Hunch é operado por Lucas Medeiros, pessoa física. O canal de contato para qualquer pedido sobre os seus dados é o WhatsApp no rodapé desta página.'
+        ]
+      },
+      {
+        title: 'O que a gente não faz',
+        body: [
+          'Não tem Google Analytics, Google Tag Manager, gtag.js, pixel de rede social nem ferramenta de comportamento neste site. Nada de anúncio é carregado nas nossas páginas, e por isso não existe banner de cookie aqui.',
+          'A gente não vende, não aluga e não troca os seus dados com ninguém para marketing.',
+          'Dois recursos de terceiro aparecem no navegador, e só esses: a demonstração do produto na landing page, que roda dentro de um iframe do Supademo, e o formulário de pagamento do Mercado Pago, que só carrega quando você abre o checkout.'
+        ]
+      },
+      {
+        title: 'A página que você cola',
+        body: [
+          'A gente abre a URL que você enviou num navegador nosso, conta o que tem nela e guarda essas medições, mais um screenshot da página. A análise fica guardada para o relatório continuar funcionando e para uma medição futura conseguir mostrar o que mudou.',
+          'O screenshot é apagado depois de 30 dias.',
+          'O relatório é acessível por uma chave no próprio link. Quem tiver o link vê o relatório, então trate ele como você trataria qualquer link privado.'
+        ]
+      },
+      {
+        title: 'A sua conta',
+        body: [
+          'Se você entrar, guardamos o e-mail, o nome e a foto que o Google ou o GitHub devolvem. A gente só aceita e-mail que o provedor confirma como verificado, e nunca guarda senha, porque não existe senha aqui.'
+        ]
+      },
+      {
+        title: 'O seu e-mail quando você pede o link do relatório',
+        body: [
+          'No relatório dá para pedir o link por e-mail. O endereço fica guardado junto daquela análise e serve para te mandar o link.',
+          'Dá para sair a qualquer momento. A linha continua existindo, marcada como descadastrada, justamente para que um envio seguinte não te inscreva de novo sem querer.'
+        ]
+      },
+      {
+        title: 'Pagamento',
+        body: [
+          'Quem processa o pagamento é o Mercado Pago ou a Stripe. A gente nunca vê nem guarda número de cartão.',
+          'Do nosso lado fica a referência do pagamento e o extrato de créditos, que é o que responde para onde foi cada crédito.'
+        ]
+      },
+      {
+        title: 'O anúncio que te trouxe',
+        body: [
+          'Se você chegou por um anúncio do Google, o identificador do clique fica num cookie nosso, que o navegador não deixa nenhum script ler, por 90 dias.',
+          'Ele só sai daqui se você comprar. Nesse caso o nosso servidor envia ao Google Ads o identificador do clique e o valor pago, e nada além disso. Quem não compra nunca é reportado.'
+        ]
+      },
+      {
+        title: 'Cookies',
+        body: [
+          'Dois, e nenhum de terceiro: o da sua sessão, que mantém você logado, e o do clique de anúncio descrito acima.'
+        ]
+      },
+      {
+        title: 'Com quem os dados são compartilhados',
+        body: [
+          'A Anthropic recebe o conteúdo da página analisada, que é o que permite escrever as correções. O Mercado Pago e a Stripe recebem o necessário para cobrar. A Resend envia os e-mails. O Google Ads recebe o clique e o valor, só quando existe uma compra. E a infraestrutura onde o produto roda hospeda o banco e a aplicação.',
+          'Ninguém mais recebe nada.'
+        ]
+      },
+      {
+        title: 'Os seus direitos',
+        body: [
+          'Pela LGPD você pode pedir acesso aos seus dados, correção, exclusão, portabilidade e a revogação de um consentimento que tenha dado.',
+          'É só pedir pelo WhatsApp que está no rodapé desta página. A gente responde e cumpre.'
+        ]
+      },
+      {
+        title: 'Mudanças nesta política',
+        body: [
+          'Quando algo aqui mudar, a data no topo muda junto. Ela é escrita num lugar só do código, para não existir uma data na tela diferente da real.'
+        ]
+      }
+    ]
+  },
+
   signIn: {
     title: 'Entrar',
     description: 'Continue com sua conta de trabalho',
@@ -655,9 +745,11 @@ export const ptBR: Dictionary = {
         perAnalysis: 'R$147 por análise',
         tagline: 'Uma página, um diagnóstico dela.',
         features: [
-          'A nota e cada linha que a formou',
-          'Correções priorizadas com a copy substituta escrita',
-          'Cada linha vista na sua página real'
+          'A nota e cada linha que a formou, no desktop e no celular',
+          'Quanto a página pesa e quanto demora para carregar',
+          'Correções priorizadas de estrutura, copy, SEO e visibilidade para IA',
+          'A copy substituta escrita, vista na sua página real',
+          'Grupos de anúncio escritos com as palavras contadas na página'
         ]
       },
       trio: {
@@ -666,8 +758,10 @@ export const ptBR: Dictionary = {
         perAnalysis: 'R$99 por análise',
         tagline: 'Um funil de até três páginas.',
         features: [
-          'Tudo do Avulso, três vezes',
-          'Uma análise para cada página do funil',
+          'Tudo do Avulso, nas três páginas',
+          'Uma análise para cada etapa do funil, não só a home',
+          'Ou a mesma página de novo depois de mexer nela, para comparar as duas medições',
+          'As três no mesmo painel, cada uma com a sua nota',
           'Os créditos não expiram'
         ]
       }

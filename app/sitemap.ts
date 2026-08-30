@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { siteOrigin } from '@/lib/app-url'
-import { BLOG_PATH, BLOG_POST_DATE } from '@/lib/constants'
+import { BLOG_PATH, BLOG_POST_DATE, PRIVACY_PATH, PRIVACY_UPDATED } from '@/lib/constants'
 import { BLOG_SLUG } from '@/lib/enums'
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -18,6 +18,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: 'monthly',
       priority: 0.6
+    },
+    {
+      url: `${origin}${PRIVACY_PATH}`,
+      lastModified: new Date(PRIVACY_UPDATED),
+      changeFrequency: 'yearly',
+      priority: 0.3
     },
     ...BLOG_SLUG.map((slug) => ({
       url: `${origin}${BLOG_PATH}/${slug}`,

@@ -22,6 +22,12 @@ export const POST_SIGNIN_REDIRECT = '/dashboard'
 // Read by the nav, the sitemap and the landing's link into the AI post.
 export const BLOG_PATH = '/blog'
 
+export const PRIVACY_PATH = '/privacy'
+
+// What the page states as its own last change. A date in the copy and a date in the file would be two
+// places holding one fact, and the one nobody remembers to edit is the one the reader believes.
+export const PRIVACY_UPDATED = '2026-08-29'
+
 // Where every "buy credits" control points: the packs section on the landing page. Named once so the
 // unlock wall, the balance and the report cannot drift to three different links.
 export const CREDITS_ANCHOR = '/#credits'
@@ -111,10 +117,9 @@ export const GITHUB_EMAILS_URL = 'https://api.github.com/user/emails'
 // but for a reason nothing in the error would name.
 export const GITHUB_SCOPE = 'read:user user:email'
 
-// The founder's own channels, in the site footer. Never on a report surface -- see
+// The founder's own channel, in the site footer. Never on a report surface -- see
 // docs/components.md.
-export const LINKEDIN_URL = 'https://www.linkedin.com/in/lucas-medeiros-dev'
-
+//
 // wa.me takes the number in E.164 without the plus.
 export const WHATSAPP_NUMBER = '5551989431913'
 export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`
