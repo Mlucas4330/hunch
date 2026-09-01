@@ -56,6 +56,19 @@ export const ptBR: Dictionary = {
     loading: 'Carregando'
   },
 
+  errors: {
+    crashed: {
+      title: 'Esta página não carregou',
+      body: 'Alguma coisa quebrou enquanto montávamos esta página. Não foi nada que você fez e nada foi perdido.',
+      retry: 'Tentar de novo'
+    },
+    notFound: {
+      title: 'Não tem nada neste link',
+      body: 'O endereço pode estar incompleto, ou pode nunca ter apontado para lugar nenhum. Links de relatório são longos, então confira se ele foi copiado inteiro.',
+      home: 'Ir para a página inicial'
+    }
+  },
+
   labels: {
     section: {
       headline: 'Título',
@@ -100,7 +113,12 @@ export const ptBR: Dictionary = {
     signOut: 'Sair',
     account: 'Conta',
     languageAria: 'Idioma',
-    menuAria: 'Abrir menu'
+    menuAria: 'Abrir menu',
+    themeAria: 'Tema de cor',
+    theme: {
+      light: 'Claro',
+      dark: 'Escuro'
+    }
   },
 
   footer: {
@@ -203,7 +221,30 @@ export const ptBR: Dictionary = {
     how: {
       eyebrow: 'Como funciona',
       heading: 'Três passos, e nenhum deles mexe no seu site.',
-      intro: 'A nota é gratuita e não pede conta. Libere as correções quando quiser a copy nova escrita para você.'
+      intro: 'A nota é gratuita e não pede conta. Libere as correções quando quiser a copy nova escrita para você.',
+      stepLabel: 'Etapa {n}',
+      previews: {
+        url: {
+          placeholder: 'https://sua-landing-page.com',
+          cta: 'Ver minha nota'
+        },
+        score: {
+          label: 'Medido',
+          groups: [
+            { label: 'Estrutura', value: '42' },
+            { label: 'Credibilidade', value: '68' },
+            { label: 'Carregamento', value: '25' }
+          ],
+          outOf: '/100'
+        },
+        fix: {
+          impact: '9',
+          outOf: '/10',
+          category: 'Atrito no cadastro',
+          title: 'Corte o formulário de sete campos para três',
+          drawer: 'Como implementar'
+        }
+      }
     },
     steps: [
       {
@@ -816,6 +857,18 @@ export const ptBR: Dictionary = {
     changesFound: 'Mudanças recomendadas',
     copyWritten: 'Texto já escrito',
     testThisFirst: 'Comece por aqui',
+    startHere: {
+      eyebrow: 'Prioridade',
+      title: 'O que mudar primeiro'
+    },
+    rail: {
+      label: 'Nesta página',
+      sections: {
+        start: 'Mudar primeiro',
+        readout: 'Medições',
+        terms: 'Termos da página'
+      }
+    },
     problem: 'Problema',
     current: 'Atual',
     changeTo: 'Trocar por',

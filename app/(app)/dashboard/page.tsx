@@ -45,7 +45,7 @@ export default async function DashboardPage({
     <div className="animate-fade-up space-y-6">
       <ClaimAnalyses />
       <div className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">{t.dashboard.eyebrow}</p>
+        <p className="panel-label text-micro text-muted-foreground">{t.dashboard.eyebrow}</p>
         <div className="flex items-center gap-2">
           <h1 className="font-display text-2xl font-bold tracking-tight">{t.dashboard.title}</h1>
           <InfoHint label={t.dashboard.hintLabel}>
@@ -112,7 +112,7 @@ function Pagination({
       <PageStep href={`/dashboard?page=${page - 1}`} disabled={page === 1}>
         {copy.previous}
       </PageStep>
-      <p className="panel-label text-[0.7rem] text-muted-foreground">
+      <p className="panel-label text-micro text-muted-foreground">
         {interpolate(copy.position, { page, pages })}
       </p>
       <PageStep href={`/dashboard?page=${page + 1}`} disabled={page === pages}>

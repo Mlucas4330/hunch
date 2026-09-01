@@ -41,7 +41,7 @@ export function HypothesisCard({
             </span>
           )}
           {isTop && (
-            <span className="panel-label text-[0.6rem] text-coral">
+            <span className="panel-label text-nano text-coral">
               {dictionary.hypothesisList.testThisFirst}
             </span>
           )}

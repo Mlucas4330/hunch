@@ -142,7 +142,7 @@ function HypothesisBody({
                     read as one undifferentiated paragraph. */}
                 {recommended?.evidence && (
                   <p>
-                    <span className="panel-label text-[0.6rem] text-purple-soft">
+                    <span className="panel-label text-nano text-purple-soft">
                       {copy.evidenceMechanism}
                     </span>{' '}
                     {recommended.evidence}

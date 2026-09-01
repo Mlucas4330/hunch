@@ -54,6 +54,7 @@ export function AnalysisSections({
       {available.map((tab, index) => (
         <PanelCard
           key={tab}
+          id={tab}
           icon={ANALYSIS_SECTION_ICON[tab]}
           label={dictionary.analysis.sections[tab]}
           defaultOpen={index === 0}

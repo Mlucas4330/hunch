@@ -26,7 +26,7 @@ export default async function PrivacyPage() {
   return (
     <div className="animate-fade-up space-y-10 pb-12">
       <header className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">{privacy.eyebrow}</p>
+        <p className="panel-label text-micro text-muted-foreground">{privacy.eyebrow}</p>
         <h1 className="font-display text-3xl font-bold tracking-tight">{privacy.heading}</h1>
         <p className="font-mono text-xs text-muted-foreground">
           {fill(privacy.updated, { date: formatDate(new Date(PRIVACY_UPDATED), locale) })}

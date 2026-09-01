@@ -7,6 +7,7 @@ import type {
   RateLimitKind,
   ReadoutSeverity,
   Section,
+  Theme,
   UserRole
 } from '@/lib/enums'
 import type { PaymentProvider } from '@/lib/enums'
@@ -145,8 +146,18 @@ export const AI_OUTPUT_LANGUAGE: Record<Locale, string> = {
   'pt-BR': 'Brazilian Portuguese (pt-BR)'
 }
 
-// A UI preference, not a session: it outlives sign-out and is never tied to the user row.
-export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+// A UI preference, not a session: it outlives sign-out and is never tied to the user row. Shared by
+// the locale and the theme because they are the same kind of thing -- something the reader chose
+// about this browser, which no sign-out should undo.
+export const PREFERENCE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+
+// **Light, and not the operating system's setting.** A theme read from `prefers-color-scheme` cannot
+// be known on the server, so the first paint would be the wrong one and every surface would flash --
+// which is exactly what the cookie exists to avoid. A reader who wants dark chooses it once and the
+// choice is then a fact the server has before it renders. See docs/components.md.
+export const DEFAULT_THEME: Theme = 'light'
+
+export const THEME_COOKIE = 'theme'
 
 export const DEFAULT_MARKET: Market = 'us'
 
@@ -828,13 +839,21 @@ export const MOBILE_MIN_FONT_PX = 12
 
 // Satori parses neither oklch() nor a CSS variable, so these mirror the tokens in globals.css as
 // sRGB hex -- the only place a hex value is legitimate. Keep them in step.
+//
+// **They mirror the light tokens only, and there is no dark counterpart.** An unfurl is rendered once
+// and served to every reader, so it has no way to know anyone's theme; a card that guessed would be
+// wrong for half of them. Light is what the product looks like by default -- see DEFAULT_THEME.
+//
+// `coral` was re-derived when the token was darkened to clear 4.5:1 against the panel. That contrast
+// rule does not itself bind here, because the OG card sets its own background, but a mirror that has
+// stopped matching what it mirrors is worse than no mirror.
 export const OG_COLORS = {
   ink: '#1b1d24',
   paper: '#fbfbfd',
   rule: '#e2e2e7',
   mutedForeground: '#6c6f7d',
   purple: '#7c3aed',
-  coral: '#ef5a3f'
+  coral: '#d73e3f'
 }
 
 export const OG_IMAGE_SIZE = { width: 1200, height: 630 }
@@ -847,12 +866,18 @@ export const DEFAULT_OG_IMAGE_PATH = '/opengraph-image'
 //
 // 90rem is 1440px, one step past Tailwind's largest named container (`max-w-7xl`, 80rem). **Widening
 // it costs nothing below that width**, because `max-width` only binds above its own value -- a phone
-// and a 1366px laptop render exactly as they did, which is why there is no breakpoint here.
+// and a 1366px laptop render exactly as they did, which is why the *measure* carries no breakpoint.
+//
+// **The gutter does, and that is a separate question from the measure.** It was a flat `px-4` at
+// every width, so a 1440px page sat 16px from the edge of the glass -- the same margin a 360px phone
+// gets, where 16px is most of what there is to give. A gutter is a proportion of the room available,
+// not a constant, so it steps up with the viewport. Mobile is deliberately untouched: `px-4` still
+// holds until 640px.
 //
 // The text measures are deliberately not this number and must not be folded into it: the blog
 // article and the body paragraphs stay capped near `max-w-2xl` because that is a reading measure,
 // and a line of prose 1440px wide is unreadable however much room the layout has.
-export const CONTAINER_CLASS = 'mx-auto w-full max-w-[90rem] px-4'
+export const CONTAINER_CLASS = 'mx-auto w-full max-w-[90rem] px-4 sm:px-6 lg:px-8 xl:px-12'
 
 // Semantic token utilities from app/globals.css -- never raw Tailwind colors or hex values.
 export const SECTION_BADGE_CLASS: Record<Section, string> = {
@@ -894,6 +919,28 @@ export const SECTION_DOT_CLASS: Record<Section, string> = {
 // One channel per landing pain card, in the order dictionary.landing.pains lists them. Here rather
 // than beside the JSX because a colour class at a call site is the one thing CLAUDE.md rules out.
 export const PAIN_CHANNEL_CLASS = ['border-coral', 'border-purple', 'border-blue']
+
+// One channel per step card, in the order dictionary.landing.steps lists them. Same reason as above.
+//
+// **A tinted pill, where the pain cards use a left border, and the difference is deliberate.** The
+// two sections are adjacent on the page; giving both a coloured rule down the left edge would make
+// six cards in a row wearing one treatment, and the reader would read them as one list.
+//
+// **Decorative here, and that does not collide with severity.** `--green` means "passed" and
+// `--amber` means "look at this" in the readout, but that contract belongs to the report -- the
+// landing has never been under it, which is what PAIN_CHANNEL_CLASS above already establishes and
+// what FLOW_CATEGORY_BADGE_CLASS means by "hues repeat across the two families on purpose: they
+// never render in the same list". The three chosen here stay off the severity ramp anyway.
+//
+// **The order is a crescendo, not a rotation.** It ends on `--purple`, which is the channel the
+// featured credit pack's ribbon already wears -- and step three is the one step behind a credit. Two
+// neighbouring purples read as one colour used twice; blue into soft purple into purple reads as a
+// progression toward the thing being sold.
+export const STEP_CHANNEL_CLASS = [
+  'bg-blue/15 text-blue',
+  'bg-purple-soft/15 text-purple-soft',
+  'bg-purple/15 text-purple'
+]
 
 // Hues repeat across the two families on purpose: they never render in the same list.
 export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
@@ -941,6 +988,13 @@ export const READOUT_SCORE_THRESHOLDS = {
   alertAtOrBelow: 50
 } as const
 
+// The impact scale's ends, in one place because three things have to agree about them: the two Zod
+// schemas that bound what a model may return, and the rail that draws a fill proportional to the
+// maximum. A denominator drawn from a different number than the one the generation was held to is a
+// gauge that never reaches full, or one that overflows.
+export const IMPACT_SCORE_MIN = 1
+export const IMPACT_SCORE_MAX = 10
+
 export function impactScoreBadgeClass(score: number): string {
   if (score >= 8) return 'bg-coral/15 text-coral'
   if (score >= 5) return 'bg-amber/15 text-amber'
@@ -959,3 +1013,29 @@ export function impactScoreRailClass(score: number): string {
 export const HYPOTHESIS_EXPANDED_COUNT = 3
 // Fewer: playbook cards are the tallest thing on the page once the steps list is showing.
 export const PLAYBOOK_EXPANDED_COUNT = 2
+
+// **Three, and the number is the point.** The report already ranks everything it contains; a triage
+// block that listed ten would be the same ranking again at the top of the page, which is a second
+// copy rather than an entry point. Three is what somebody decides to do this week.
+export const START_HERE_COUNT = 3
+
+// The rail's active band: a target counts as current once it is under the sticky navbar and while
+// most of the viewport is still below it. The top inset clears the 4rem navbar plus its breathing
+// room; the bottom one is negative so a section entering from below does not steal `current` from
+// the one the reader is actually reading.
+export const RAIL_ACTIVE_MARGIN = '-96px 0px -55% 0px'
+
+// Shared across every rail item so the marker is one element moving, not several cross-fading.
+export const RAIL_LAYOUT_ID = 'report-rail-marker'
+
+// The element id of one fix card, derived from its row id so the triage block and the readout's fix
+// pointer can both address it. One function rather than a template string at three call sites,
+// because a link and its target have to agree and two of them are in different files.
+export function fixAnchor(fixId: string): string {
+  return `fix-${fixId}`
+}
+
+// How far below the sticky navbar an anchored section comes to rest. Matches RAIL_ACTIVE_MARGIN's
+// top inset: land a section somewhere the rail does not consider current and the marker jumps to the
+// neighbour the moment the scroll settles.
+export const SECTION_ANCHOR_CLASS = 'scroll-mt-24'

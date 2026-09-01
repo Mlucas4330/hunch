@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ChevronDown, type LucideIcon } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { SECTION_ANCHOR_CLASS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 /**
@@ -29,6 +30,7 @@ import { cn } from '@/lib/utils'
  * before the chevron and must stay short enough not to wrap.
  */
 export function PanelCard({
+  id,
   icon: Icon,
   label,
   trailing = null,
@@ -37,6 +39,8 @@ export function PanelCard({
   className,
   children
 }: {
+  /** Anchor target for `ReportRail`. Absent on every caller that is not a report landmark. */
+  id?: string
   icon: LucideIcon
   label: string
   trailing?: ReactNode
@@ -47,13 +51,14 @@ export function PanelCard({
 }) {
   return (
     <Card
-      className={cn('overflow-hidden break-inside-avoid', className)}
+      id={id}
+      className={cn('overflow-hidden break-inside-avoid', id && SECTION_ANCHOR_CLASS, className)}
       data-testid={testId}
     >
       <details open={defaultOpen} className="group">
         <summary className="flex list-none items-center gap-3 border-b px-4 py-3 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
           <Icon className="size-4 shrink-0" aria-hidden="true" />
-          <span className="panel-label min-w-0 flex-1 text-[0.65rem] leading-snug">{label}</span>
+          <span className="panel-label min-w-0 flex-1 text-micro leading-snug">{label}</span>
           {trailing}
           <ChevronDown
             className="size-4 shrink-0 transition-transform group-open:rotate-180"

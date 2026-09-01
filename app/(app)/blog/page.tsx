@@ -20,7 +20,7 @@ export default async function BlogIndexPage() {
   return (
     <div className="animate-fade-up space-y-16 pb-12">
       <header className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">{blog.index.eyebrow}</p>
+        <p className="panel-label text-micro text-muted-foreground">{blog.index.eyebrow}</p>
         <h1 className="font-display text-3xl font-bold tracking-tight">{blog.index.heading}</h1>
         <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{blog.index.intro}</p>
       </header>
@@ -31,7 +31,7 @@ export default async function BlogIndexPage() {
           return (
             <Card key={slug} className="relative flex flex-col">
               <CardContent className="flex flex-1 flex-col gap-3 p-5">
-                <p className="panel-label text-[0.6rem] text-muted-foreground">
+                <p className="panel-label text-nano text-muted-foreground">
                   {formatDate(new Date(BLOG_POST_DATE[slug]), locale)}
                 </p>
                 <h2 className="font-display text-lg font-semibold leading-snug tracking-tight">
@@ -40,7 +40,7 @@ export default async function BlogIndexPage() {
                   </Link>
                 </h2>
                 <p className="text-sm text-muted-foreground">{post.excerpt}</p>
-                <span className="panel-label mt-auto flex items-center gap-1.5 pt-2 text-[0.6rem] text-muted-foreground">
+                <span className="panel-label mt-auto flex items-center gap-1.5 pt-2 text-nano text-muted-foreground">
                   {blog.readMore}
                   <ArrowRight className="size-3" aria-hidden />
                 </span>

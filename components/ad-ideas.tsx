@@ -63,7 +63,7 @@ export function AdIdeas({
   return (
     <div className="space-y-4" data-testid="ad-ideas">
       <div className="space-y-1">
-        <p className="panel-label text-[0.6rem] text-muted-foreground">{copy.eyebrow}</p>
+        <p className="panel-label text-nano text-muted-foreground">{copy.eyebrow}</p>
         <div className="flex items-center gap-2">
           <h3 className="font-display text-lg font-bold tracking-tight">{copy.title}</h3>
           <span className="print:hidden">
@@ -108,7 +108,7 @@ export function AdIdeas({
 
           {written.negatives.length > 0 && (
             <div className="space-y-2 rounded-lg border border-dashed p-4">
-              <p className="panel-label text-[0.6rem] text-muted-foreground">{copy.negatives}</p>
+              <p className="panel-label text-nano text-muted-foreground">{copy.negatives}</p>
               <div className="flex flex-wrap gap-1.5">
                 {written.negatives.map((negative) => (
                   <Badge key={negative} className="bg-muted text-muted-foreground">
@@ -155,12 +155,12 @@ function Lines({
 }) {
   return (
     <div className="space-y-2">
-      <p className="panel-label text-[0.6rem] text-muted-foreground">{label}</p>
+      <p className="panel-label text-nano text-muted-foreground">{label}</p>
       <ul className="space-y-1.5">
         {lines.map((line) => (
           <li key={line} className="flex items-baseline justify-between gap-3 text-sm">
             <span className="min-w-0">{line}</span>
-            <span className="shrink-0 font-mono text-[0.7rem] tabular-nums text-muted-foreground">
+            <span className="shrink-0 font-mono text-micro tabular-nums text-muted-foreground">
               {formatNumber(line.length, locale)}/{formatNumber(ceiling, locale)}
             </span>
           </li>

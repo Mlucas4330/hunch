@@ -118,7 +118,7 @@ export function InfoHint({ label, children }: { label?: string; children: ReactN
           id={tooltipId}
           role="tooltip"
           style={{ transform: `translateX(${shift}px)` }}
-          className="absolute left-0 top-6 z-50 block w-max max-w-[min(18rem,calc(100vw-2rem))] rounded-md border border-border bg-card p-3 text-xs leading-relaxed text-muted-foreground shadow-md"
+          className="absolute left-0 top-6 z-50 block w-max max-w-[min(18rem,calc(100vw-2rem))] rounded-md border border-border bg-card p-3 text-xs leading-relaxed text-muted-foreground shadow-elev-3"
         >
           {children}
         </span>

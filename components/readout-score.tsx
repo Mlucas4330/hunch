@@ -22,11 +22,17 @@ export function ReadoutScore({ findings }: { findings: MeasuredFinding[] }) {
       {/* min-w-0 all the way down: a flex item defaults to min-width:auto, which refuses to shrink
           below its content and is what pushed this row past the viewport on a phone. */}
       <div className="shrink-0">
-        <p className="panel-label text-[0.65rem] text-muted-foreground">{copy.label}</p>
+        <p className="panel-label text-micro text-muted-foreground">{copy.label}</p>
+        {/* `bg-transparent` deliberately overrides the tint that `READOUT_SEVERITY_CLASS` carries,
+            and `cn` resolves the conflict in favour of the later class. The tint is not removed --
+            it moves to the pseudo-element that `animate-score-settle` fills, drawn from
+            `currentColor`, which is the foreground half of the same severity class. `isolate` keeps
+            that pseudo-element behind the digits and in front of the card. See app/globals.css. */}
         <p
           className={cn(
-            'mt-2 inline-block rounded-md px-3 py-1 font-display text-5xl font-bold tabular-nums sm:text-6xl',
-            READOUT_SEVERITY_CLASS[scoreSeverity(score.overall)]
+            'animate-score-settle relative isolate mt-2 inline-block rounded-md px-3 py-1 font-display text-5xl font-bold tabular-nums sm:text-6xl',
+            READOUT_SEVERITY_CLASS[scoreSeverity(score.overall)],
+            'bg-transparent'
           )}
         >
           {score.overall}

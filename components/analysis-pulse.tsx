@@ -65,7 +65,7 @@ export function AnalysisPulse({ initial }: { initial: Pulse }) {
         <AnalysisSphere entries={data.leaderboard} label={copy.leaderboard.sphereLabel} />
 
         <div className="space-y-3">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">
+          <p className="panel-label text-micro text-muted-foreground">
             {copy.leaderboard.topLabel}
           </p>
           <ol className="space-y-3">
@@ -73,7 +73,7 @@ export function AnalysisPulse({ initial }: { initial: Pulse }) {
               <li key={entry.domain} className="space-y-1.5">
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="flex min-w-0 items-baseline gap-2">
-                    <span className="panel-label text-[0.7rem] text-muted-foreground">
+                    <span className="panel-label text-micro text-muted-foreground">
                       {String(i + 1).padStart(2, '0')}
                     </span>
                     <span className="truncate font-mono text-xs">{entry.domain}</span>

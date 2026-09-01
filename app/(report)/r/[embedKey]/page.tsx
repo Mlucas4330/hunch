@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button'
 import { MeasuredReadout } from '@/components/measured-readout'
 import { MeasurePage } from '@/components/measure-page'
 import { PageTerms } from '@/components/page-terms'
+import { ReportRail } from '@/components/report-rail'
+import { StartHere } from '@/components/start-here'
 import { getCurrentUser } from '@/lib/current-user'
 import {
   competitorFor,
@@ -28,9 +30,10 @@ import {
 } from '@/lib/analyses'
 import { EMPTY_HISTORY } from '@/lib/snapshots'
 import { hasReadout, readout } from '@/lib/readout'
-import { PLAYBOOK_EXPANDED_COUNT } from '@/lib/constants'
+import { PLAYBOOK_EXPANDED_COUNT, SECTION_ANCHOR_CLASS } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 import type { FlowFix } from '@/db/schema'
-import type { PlaybookSection } from '@/lib/enums'
+import { REPORT_SECTION, type PlaybookSection } from '@/lib/enums'
 import { dictionaryFor, getDictionary, getLocale, type Dictionary } from '@/lib/i18n'
 import { formatDate, t as fill } from '@/lib/i18n/format'
 import { displayHost } from '@/lib/host'
@@ -102,16 +105,28 @@ export default async function ReportPage({
   // Titles only, keyed by the finding each one answers, so a measured number can point at what was
   // written for it. Empty on every analysis with nothing generated, which is what keeps the readout
   // free of an affordance that would read as a paywall tease -- see docs/invariants.md.
+  // Id as well as title now, so the pointer under a measured number is a link to the card that
+  // answers it rather than a repetition of its name.
   const fixTitles = Object.fromEntries(
     [...fixesByFinding(analysis.flowFixes)].map(([finding, list]) => [
       finding,
-      list.map((fix) => fix.title)
+      list.map((fix) => ({ id: fix.id, title: fix.title }))
     ])
   )
   const counts = {
     changes: analysis.hypotheses.length + analysis.flowFixes.length,
     ready: analysis.hypotheses.filter((hypothesis) => hypothesis.target === 'auto').length,
     structural: analysis.flowFixes.length
+  }
+
+  // One object, read by `AnalysisSections` to decide which panels exist and by the rail to decide
+  // which entries it may offer. Two counts of the same four lists would be two answers to the same
+  // question the first time one of them was touched.
+  const sectionCounts = {
+    flow: fixes.flow.length,
+    copy: analysis.hypotheses.length,
+    seo: visibility.seo.length,
+    ai: visibility.ai.length
   }
 
   // The trend is two measurements of the same page subtracted, and re-measuring is what adds a
@@ -135,6 +150,16 @@ export default async function ReportPage({
       <MeasuringNotice t={t} url={analysis.url} />
     )
   }
+
+  // What the rail may offer, decided by the same conditions that render each block below and in the
+  // order REPORT_SECTION declares. Never the whole enum: a rail entry for a section this report does
+  // not have is a link to nothing. See components/report-rail.tsx.
+  const railSections = REPORT_SECTION.filter((section) => {
+    if (section === 'start') return generated && analysis.flowFixes.length > 0
+    if (section === 'readout') return true
+    if (section === 'terms') return Boolean(analysis.keywords?.terms.length)
+    return generated && sectionCounts[section] > 0
+  })
 
   return (
     <div className="animate-fade-up space-y-8">
@@ -167,66 +192,74 @@ export default async function ReportPage({
         </div>
       )}
 
-      <div className="space-y-4">
-        <MeasuredReadout
-          input={readoutFor(analysis)}
-          previous={history.previous}
-          {...competitorFor(analysis)}
-          scores={history.scores}
-          fixes={fixTitles}
-        />
-        {/* The button itself is in the header now, where the owner reaches it without scrolling the
-            whole document first. What is left here is the panel for the owner who has never pressed
-            it: below two snapshots there is no sparkline and no delta anywhere, so the history is
-            built and invisible unless something names it. See docs/readout.md. */}
-        {isOwner && !hasHistory && (
-          <MeasurePage analysisId={analysis.id} variant="trend_start" />
-        )}
+      {/* **The rail is a sibling of the document, not a wrapper around it.** Everything below keeps
+          the vertical rhythm it had; the rail takes a fixed column beside it above `lg` and does not
+          exist below that. `min-w-0` on the content column is load-bearing rather than defensive: the
+          keyword table and the `break-all` URLs will push a grid track past the viewport otherwise,
+          which is the failure docs/components.md describes. */}
+      <div className="grid gap-8 lg:grid-cols-[11rem_minmax(0,1fr)]">
+        <ReportRail sections={railSections} />
+
+        <div className="min-w-0 space-y-8">
+          {generated && <StartHere fixes={analysis.flowFixes} />}
+
+          <div id="readout" className={cn(SECTION_ANCHOR_CLASS, 'space-y-4')}>
+            <MeasuredReadout
+              input={readoutFor(analysis)}
+              previous={history.previous}
+              {...competitorFor(analysis)}
+              scores={history.scores}
+              fixes={fixTitles}
+            />
+            {/* The button itself is in the header now, where the owner reaches it without scrolling
+                the whole document first. What is left here is the panel for the owner who has never
+                pressed it: below two snapshots there is no sparkline and no delta anywhere, so the
+                history is built and invisible unless something names it. See docs/readout.md. */}
+            {isOwner && !hasHistory && (
+              <MeasurePage analysisId={analysis.id} variant="trend_start" />
+            )}
+          </div>
+
+          {/* Below the readout, never above it, and never in front of it: the numbers are not behind
+              this and must not become so -- see docs/invariants.md. Offered only to a reader who is
+              not the owner, because an owner reaches this report from their dashboard and already
+              has a durable way back to it. For an anonymous reader the link lives in one browser's
+              localStorage and nowhere else, which is what makes the offer worth taking. */}
+          {!isOwner && <WatchPageForm embedKey={embedKey} />}
+
+          {generated ? (
+            <AnalysisSections
+              counts={sectionCounts}
+              panels={{
+                flow: fixPanel(fixes.flow, 'flow'),
+                seo: fixPanel(visibility.seo, 'seo'),
+                ai: fixPanel(visibility.ai, 'ai'),
+                copy: (
+                  <HypothesisList
+                    hypotheses={analysis.hypotheses}
+                    embedKey={analysis.embedKey}
+                    isOwner={isOwner}
+                  />
+                )
+              }}
+            />
+          ) : (
+            <UnlockWall embedKey={embedKey} />
+          )}
+
+          {/* **Last in the document, below the tabs, and below the wall on a report with nothing
+              generated.** The terms are a measurement, so they are free like the rest of the readout
+              and sitting under the wall does not gate them -- it shows a reader who has not paid
+              that the counted half keeps going. What the owner can do here is ask for the ad groups;
+              everyone else reads the table. See docs/readout.md. */}
+          <PageTerms
+            keywords={analysis.keywords}
+            analysisId={analysis.id}
+            isOwner={isOwner}
+            adIdeas={analysis.adIdeas}
+          />
+        </div>
       </div>
-
-      {/* Below the readout, never above it, and never in front of it: the numbers are not behind
-          this and must not become so -- see docs/invariants.md. Offered only to a reader who is not
-          the owner, because an owner reaches this report from their dashboard and already has a
-          durable way back to it. For an anonymous reader the link lives in one browser's
-          localStorage and nowhere else, which is what makes the offer worth taking. */}
-      {!isOwner && <WatchPageForm embedKey={embedKey} />}
-
-      {generated ? (
-        <AnalysisSections
-          counts={{
-            flow: fixes.flow.length,
-            copy: analysis.hypotheses.length,
-            seo: visibility.seo.length,
-            ai: visibility.ai.length
-          }}
-          panels={{
-            flow: fixPanel(fixes.flow, 'flow'),
-            seo: fixPanel(visibility.seo, 'seo'),
-            ai: fixPanel(visibility.ai, 'ai'),
-            copy: (
-              <HypothesisList
-                hypotheses={analysis.hypotheses}
-                embedKey={analysis.embedKey}
-                isOwner={isOwner}
-              />
-            )
-          }}
-        />
-      ) : (
-        <UnlockWall embedKey={embedKey} />
-      )}
-
-      {/* **Last in the document, below the tabs, and below the wall on a report with nothing
-          generated.** The terms are a measurement, so they are free like the rest of the readout and
-          sitting under the wall does not gate them -- it shows a reader who has not paid that the
-          counted half keeps going. What the owner can do here is ask for the ad groups; everyone
-          else reads the table. See docs/readout.md. */}
-      <PageTerms
-        keywords={analysis.keywords}
-        analysisId={analysis.id}
-        isOwner={isOwner}
-        adIdeas={analysis.adIdeas}
-      />
     </div>
   )
 }
@@ -268,7 +301,7 @@ function ReportHeader({
         <Wordmark />
       )}
       <div className="text-right">
-        <p className="panel-label text-[0.65rem] text-muted-foreground">{t.report.teardown}</p>
+        <p className="panel-label text-micro text-muted-foreground">{t.report.teardown}</p>
         <p className="font-display text-sm font-medium">{t.report.plan}</p>
       </div>
     </header>
@@ -278,7 +311,7 @@ function ReportHeader({
 function SummaryCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-card p-4">
-      <p className="panel-label text-[0.6rem] text-muted-foreground">{label}</p>
+      <p className="panel-label text-nano text-muted-foreground">{label}</p>
       <p className="mt-1 font-display text-xl font-semibold tabular-nums">{value}</p>
     </div>
   )
@@ -287,7 +320,7 @@ function SummaryCell({ label, value }: { label: string; value: string }) {
 function MeasuringNotice({ t, url }: { t: Dictionary; url: string }) {
   return (
     <div className="space-y-4" data-testid="measuring">
-      <p className="panel-label text-[0.7rem] text-muted-foreground">{t.report.teardown}</p>
+      <p className="panel-label text-micro text-muted-foreground">{t.report.teardown}</p>
       <h1 className="text-balance font-display text-2xl font-bold tracking-tight">
         {t.report.measuringHeading}
       </h1>

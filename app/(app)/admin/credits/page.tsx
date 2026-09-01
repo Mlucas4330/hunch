@@ -43,7 +43,7 @@ export default async function AdminCreditsPage() {
   return (
     <div className="animate-fade-up space-y-6">
       <div className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">{t.admin.eyebrow}</p>
+        <p className="panel-label text-micro text-muted-foreground">{t.admin.eyebrow}</p>
         <h1 className="font-display text-2xl font-bold tracking-tight">{copy.title}</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">{copy.subtitle}</p>
       </div>
@@ -57,7 +57,7 @@ export default async function AdminCreditsPage() {
       </Card>
 
       <section className="space-y-3">
-        <h2 className="panel-label text-[0.7rem] text-muted-foreground">{copy.historyTitle}</h2>
+        <h2 className="panel-label text-micro text-muted-foreground">{copy.historyTitle}</h2>
 
         {grants.length === 0 ? (
           <p className="text-sm text-muted-foreground">{copy.historyEmpty}</p>

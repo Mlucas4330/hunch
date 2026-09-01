@@ -1,5 +1,6 @@
 'use client'
 
+import type { CSSProperties } from 'react'
 import {
   Bot,
   FileCode,
@@ -14,10 +15,16 @@ import { InfoHint } from '@/components/info-hint'
 import { ReadoutScore } from '@/components/readout-score'
 import { ReadoutTrend } from '@/components/readout-trend'
 import { RichText } from '@/components/rich-text'
+import { SectionLink } from '@/components/section-link'
 import { Badge } from '@/components/ui/badge'
 import { useI18n } from '@/components/i18n-provider'
 import { competitorValues } from '@/lib/competitor'
-import { BYTES_PER_MEGABYTE, MS_PER_SECOND, READOUT_SEVERITY_CLASS } from '@/lib/constants'
+import {
+  BYTES_PER_MEGABYTE,
+  fixAnchor,
+  MS_PER_SECOND,
+  READOUT_SEVERITY_CLASS
+} from '@/lib/constants'
 import { READOUT_GROUP } from '@/lib/enums'
 import { formatDecimal, formatNumber, t } from '@/lib/i18n/format'
 import {
@@ -81,8 +88,13 @@ export function MeasuredReadout({
    * A plain object rather than a Map because it crosses the server boundary. Empty for every analysis
    * with nothing generated -- which is every free one -- and that is what keeps this from becoming a
    * paywall tease inside the one section that is never gated. See docs/invariants.md.
+   *
+   * **The id travels with the title so the pointer can be a link.** It was the title alone, printed
+   * as text: the reader was told the name of the card that answers this number and then had to find
+   * it themselves, several sections down, inside a panel that may be closed. Naming a destination
+   * without offering it is most of the way to not having one.
    */
-  fixes?: Partial<Record<ReadoutFinding, string[]>>
+  fixes?: Partial<Record<ReadoutFinding, { id: string; title: string }[]>>
   className?: string
 }) {
   const { dictionary, locale } = useI18n()
@@ -97,7 +109,7 @@ export function MeasuredReadout({
   return (
     <section className={cn('space-y-4', className)} data-testid="measured-readout">
       <div className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">{copy.eyebrow}</p>
+        <p className="panel-label text-micro text-muted-foreground">{copy.eyebrow}</p>
         <div className="flex items-center gap-2">
           <h2 className="font-display text-xl font-bold tracking-tight">{copy.title}</h2>
           <span className="print:hidden">
@@ -127,7 +139,7 @@ export function MeasuredReadout({
           opening one card grew the empty box of the one beside it. Each card is now its own
           height. */}
       <div className="grid items-start gap-4 md:grid-cols-2">
-        {READOUT_GROUP.map((group) => {
+        {READOUT_GROUP.map((group, index) => {
           const rows = measured.findings.filter((finding) => finding.group === group)
           const value = score.groups[group]
           if (rows.length === 0 || value === null) return null
@@ -148,6 +160,12 @@ export function MeasuredReadout({
               title={copy.groups[group]}
               defaultOpen={wrong > 0}
               testId="readout-group"
+              // `index` is the group's position in READOUT_GROUP, not its position among the cards
+              // that survived the filter above. That is the right one: the delay should follow the
+              // fixed reading order of the groups, so a report missing one group does not restagger
+              // the rest into a different rhythm than the report beside it.
+              className="animate-stagger-in"
+              style={{ '--index': index } as CSSProperties}
               score={
                 <span
                   className={cn(
@@ -159,7 +177,7 @@ export function MeasuredReadout({
                   <span className="text-xl font-semibold leading-none">{value}</span>
                   {/* The denominator is what keeps this from reading as the 1-10 impact rail three
                       cards further down the same page. */}
-                  <span className="text-[0.65rem] leading-none opacity-70" aria-hidden>
+                  <span className="text-micro leading-none opacity-70" aria-hidden>
                     /100
                   </span>
                 </span>
@@ -170,7 +188,7 @@ export function MeasuredReadout({
                   <Badge className={READOUT_SEVERITY_CLASS[severity]}>
                     {copy.score.severity[severity]}
                   </Badge>
-                  <span className="font-mono text-[0.7rem] tabular-nums text-muted-foreground">
+                  <span className="font-mono text-micro tabular-nums text-muted-foreground">
                     {wrong > 0
                       ? t(copy.groupWrong, { wrong, total: rows.length })
                       : t(copy.groupOk, { total: rows.length })}
@@ -196,7 +214,7 @@ export function MeasuredReadout({
                             saying what. This states our own boundary and predicts nothing -- it may
                             never grow into what the number costs. See docs/readout.md. */}
                         {finding.criterion && (
-                          <p className="font-mono text-[0.65rem] leading-snug text-muted-foreground/70">
+                          <p className="font-mono text-micro leading-snug text-muted-foreground/70">
                             {renderCriterion(finding, copy, locale)}
                           </p>
                         )}
@@ -211,7 +229,7 @@ export function MeasuredReadout({
                           {renderValue(finding, copy, locale)}
                         </p>
                         {moved.has(finding.id) && (
-                          <span className="font-mono text-[0.7rem] tabular-nums text-muted-foreground">
+                          <span className="font-mono text-micro tabular-nums text-muted-foreground">
                             {renderDelta(moved.get(finding.id) ?? 0, finding.unit, copy, locale)}
                           </span>
                         )}
@@ -222,11 +240,19 @@ export function MeasuredReadout({
                         with its steps and its reasoning, is still the one in the tab below -- this
                         is the pointer, not a second copy of it. */}
                     {fixes[finding.id]?.length ? (
-                      <p
-                        className="text-[0.7rem] leading-snug text-purple"
-                        data-testid="finding-fix"
-                      >
-                        {copy.fixLabel} {fixes[finding.id]!.join(' / ')}
+                      <p className="text-micro leading-snug text-purple" data-testid="finding-fix">
+                        {copy.fixLabel}{' '}
+                        {fixes[finding.id]!.map((fix, index) => (
+                          <span key={fix.id}>
+                            {index > 0 && <span aria-hidden> / </span>}
+                            <SectionLink
+                              target={fixAnchor(fix.id)}
+                              className="underline decoration-purple/40 underline-offset-2 hover:decoration-purple"
+                            >
+                              {fix.title}
+                            </SectionLink>
+                          </span>
+                        ))}
                       </p>
                     ) : null}
 
@@ -234,7 +260,7 @@ export function MeasuredReadout({
                         not a verdict: two pages differ, and nothing here says the difference
                         causes anything. See docs/invariants.md. */}
                     {theirs?.has(finding.id) && (
-                      <p className="truncate font-mono text-[0.7rem] tabular-nums text-muted-foreground">
+                      <p className="truncate font-mono text-micro tabular-nums text-muted-foreground">
                         {competitorHost}{' '}
                         <span className="text-foreground">
                           {renderValue(theirs.get(finding.id)!, copy, locale)}

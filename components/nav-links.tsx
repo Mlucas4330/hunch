@@ -39,7 +39,7 @@ export function NavLinks({ signedIn, admin }: { signedIn: boolean; admin: boolea
             href={link.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'panel-label rounded-sm text-[0.7rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              'panel-label rounded-sm text-micro transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
             )}
           >

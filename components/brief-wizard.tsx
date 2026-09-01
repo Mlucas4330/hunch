@@ -68,14 +68,14 @@ export function BriefWizard({
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">
+          <p className="panel-label text-micro text-muted-foreground">
             {t(copy.briefWizard.step, { step: step + 1, total })}
           </p>
           {step > 0 && (
             <button
               type="button"
               onClick={() => goTo(step - 1)}
-              className="panel-label text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground"
+              className="panel-label text-micro text-muted-foreground transition-colors hover:text-foreground"
             >
               {copy.briefWizard.back}
             </button>

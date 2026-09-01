@@ -24,7 +24,7 @@ export function GrantCreditsForm({ defaultEmail }: { defaultEmail: string }) {
     <form action={action} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
         <label className="block space-y-1">
-          <span className="panel-label text-[0.7rem] text-muted-foreground">{copy.emailLabel}</span>
+          <span className="panel-label text-micro text-muted-foreground">{copy.emailLabel}</span>
           <Input
             name="email"
             type="email"
@@ -36,7 +36,7 @@ export function GrantCreditsForm({ defaultEmail }: { defaultEmail: string }) {
         </label>
 
         <label className="block space-y-1">
-          <span className="panel-label text-[0.7rem] text-muted-foreground">
+          <span className="panel-label text-micro text-muted-foreground">
             {copy.creditsLabel}
           </span>
           <Input

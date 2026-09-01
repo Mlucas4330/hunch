@@ -80,6 +80,91 @@ Baseline, so it is still silently inert in Firefox.
 The wrapper level `.animate-fade-up` on each page is untouched by any of that. It fires once on mount
 and never hid anything, which is why it never had a failure mode to begin with.
 
+### The animation library was installed, measured, and removed
+
+`motion` was added on a deliberate call to build the report rail's active marker as a `layoutId`
+shared element and the copy button's icon swap as an `AnimatePresence` exchange. Both were argued as
+cases CSS cannot express. **Both turned out not to be, and the measurement is what settled it.**
+
+- **The rail marker.** The claim was that two positions in a list are two different DOM nodes. That is
+  true in general and false here: rail rows are a fixed `--rail-row` height by construction, so the
+  marker's position is `index * row` and a `transform` transition covers it exactly.
+- **The icon swap.** The claim was that the outgoing icon must stay mounted while it leaves. It does
+  -- so both icons stay mounted, stacked in one grid cell, cross-fading. Nothing ever unmounts.
+- **Layout animations need `domMax`, not `domAnimation`.** That detail is what turned an argued ~18kB
+  into a measured **42kB gzipped**, and took `/r/[embedKey]`'s first load from 139kB to 179kB.
+
+Forty kilobytes for two effects that CSS does, on the product that charges people to be told their
+page is heavy. The dependency is gone; `.animate-stagger-in`, `.animate-score-settle` and
+`.animate-navbar-lift` in `app/globals.css` are what replaced the plan that needed it.
+
+**The rule this leaves.** Entrance and reveal are CSS, permanently, for the SSR reason above. A
+library may still be the answer for something genuinely beyond CSS -- but the bar is a measurement
+against a working CSS attempt, not an argument made before either was written.
+
+### Scrollspy — `components/report-rail.tsx`
+
+The report rail binds an `IntersectionObserver`, and **it is not the scroll reveal above coming back**.
+That one hid elements and revealed them, which is why its two halves could get out of step and leave
+content invisible for good. This one hides nothing: every target is mounted and painted whether the
+observer runs or not, and all it reads is which section is in view. The failure mode is "no row is
+highlighted", and the rail is a list of working anchors either way. Do not remove it by analogy.
+
+`lib/anchor.ts` is the other half. Almost everything worth linking to in the report sits inside a
+`<details>` -- a fix card is two deep -- and a closed `<details>` gives its content no box, so a plain
+`href="#id"` scrolls to a zero-height element and the reader arrives nowhere. `revealAnchor` opens
+every ancestor first, then scrolls. `components/section-link.tsx` is the `<a>` that calls it, and it
+stays a real anchor so it works without JavaScript.
+
+## Elevation and theme
+
+**Three levels, two shadows each.** `--elev-1` (resting card), `--elev-2` (hover, the hero card),
+`--elev-3` (anything floating: dialog, dropdown, tooltip, toast) are exposed through `@theme inline`
+as `shadow-elev-1..3`. Each is a short tight contact shadow plus a long diffuse ambient one, because
+one blurred shadow is what a default looks like. The third layer is `--sheen`, a hairline of light on
+the top edge, which is most of what makes a card read as a plate on the paper rather than a drawn
+rectangle.
+
+**Shadows derive from `--shade`, never from `--ink`.** `--ink` is the foreground and inverts with the
+theme, so a shadow mixed from it would light every panel with a white halo in dark mode. A shadow is
+the absence of light in both themes.
+
+**Dark mode is a block of variables and nothing else.** No component changed when it landed, because
+no component holds a colour -- every map in `lib/constants.ts` is token utilities like
+`bg-coral/15 text-coral`. Three relationships invert rather than darken: `--panel` must be *lighter*
+than `--paper` or the elevation reads as a hole; `--grid` flips direction and shrinks in amplitude,
+because the same lightness difference reads twice as loud on a dark ground; and the signal channels
+need *more* lightness, not less.
+
+The theme is a cookie read on the server in `lib/theme.ts` and stamped on `<html>` in
+`app/layout.tsx`, mirroring `getLocale()` exactly. That is why there is no flash and no inline script:
+the server already knows. `prefers-color-scheme` is deliberately not consulted -- the server cannot
+read it, so it would reintroduce the flash the cookie exists to prevent.
+
+**Printing works because the dark block sits inside `@media screen`.** The print block forces
+`print-color-adjust: exact` so the signal channels survive onto paper, which would have printed a dark
+report as a black page. Scoped to the screen, paper never sees the overrides and falls through to the
+light `:root` -- so the light palette is written once and there is no second copy to drift.
+
+## Accident screens — `components/error-screen.tsx`
+
+There were none. A thrown render or a bad `embedKey` got Next's stock black-on-white page — on the
+one URL the product asks people to share, which is long, opaque, and routinely truncated by whatever
+chat client it was pasted into. One shell, three mounts:
+
+- **`app/not-found.tsx`** is a Server Component, so it awaits the dictionary directly. It builds its
+  own navbar, footer and `I18nProvider`, because a root `not-found.tsx` renders inside
+  `app/layout.tsx` alone — neither route group's layout runs, so nothing else would supply them.
+- **`app/(app)/error.tsx` and `app/(report)/error.tsx`** are per-group rather than one at the root,
+  and that is what buys the chrome: a boundary inside a group renders as that group's layout's child,
+  so the navbar, the footer and the provider are all still there and the reader keeps a way out. A
+  root `error.tsx` would replace them and have no dictionary to read. Both log the error, which the
+  boundary otherwise swallows.
+
+`errors.notFound.body` deliberately does not guess *why*. A link goes stale, gets truncated, or was
+never valid, and nothing here can tell which — "this report was deleted" would be a claim about
+something nobody checked.
+
 ## Loading shells — `components/route-skeleton.tsx`
 
 Every page is a dynamic Server Component, so without a `loading.tsx` the browser holds the previous
@@ -114,7 +199,7 @@ scrolls sideways on a phone. `e2e/free-analysis.spec.ts` asserts it for the repo
 
 ### One container — `CONTAINER_CLASS`
 
-`mx-auto w-full max-w-[90rem] px-4` in `lib/constants.ts`, read by the navbar, `app/(app)/layout.tsx`,
+`mx-auto w-full max-w-[90rem] px-4 sm:px-6 lg:px-8 xl:px-12` in `lib/constants.ts`, read by the navbar, `app/(app)/layout.tsx`,
 `app/(report)/layout.tsx` and the site footer. **Every surface is the same measure**, so the wordmark
 lines up with the content under it and `/r` is not a different width from `/analyses`. The report
 sets no width of its own; it inherits the app container.
@@ -126,7 +211,13 @@ made everywhere.
 
 90rem is 1440px, up from 64rem. **Nothing below 1440px of viewport is affected** — `max-width` binds
 only above its own value, so phones and 1366px laptops render exactly as before and no breakpoint is
-involved.
+involved in the *measure*.
+
+**The gutter is the other half, and it is a separate question with a different answer.** It was a
+flat `px-4` at every width: the same 16px on a 1440px desktop that a 360px phone gets, where 16px is
+most of the room there is. A gutter is a proportion of the space available rather than a constant, so
+it steps — 16px, then 24px at `sm`, 32px at `lg`, 48px at `xl`. Mobile is deliberately unchanged:
+`px-4` still holds up to 640px, so nothing verified at 360px moved.
 
 **The reading measures are a separate number and stay one.** The blog article and the body paragraphs
 cap near `max-w-2xl` *inside* this container, because a line of prose 1440px wide is unreadable

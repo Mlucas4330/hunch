@@ -44,7 +44,7 @@ what was counted, and no surface says what a change will produce — see
 | Framework  | Next.js App Router + TypeScript                                   |
 | Auth       | NextAuth + Google, optionally GitHub                               |
 | Scraping   | Puppeteer (self-hosted)                                           |
-| Styles     | Shadcn                                                            |
+| Styles     | Tailwind v4 tokens + Shadcn primitives, light and dark            |
 | AI         | Claude API + Vercel AI SDK structured outputs                     |
 | Database   | Postgres + Drizzle ORM                                            |
 | Storage    | AI JSON output in Postgres; variant screenshots on a local volume |

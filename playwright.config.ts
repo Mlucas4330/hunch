@@ -26,6 +26,10 @@ export default defineConfig({
   // Playwright's 30s default assumes a built app. These run against `next dev`, where the first hit
   // on a route still pays for its compile even with the warm-up in auth.setup.ts.
   timeout: 60_000,
+  // The same cost lands on individual assertions, and 5s is under it: the first POST to /api/leads
+  // and the first client navigation into /r/ both compile before they answer, so the expectation
+  // waiting on them fails while the request is still in flight.
+  expect: { timeout: 20_000 },
   use: {
     baseURL,
     trace: 'retain-on-failure'

@@ -31,7 +31,7 @@ export function RankedListHeader({
   return (
     <div className="flex flex-wrap items-end justify-between gap-2">
       <div className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">{eyebrow}</p>
+        <p className="panel-label text-micro text-muted-foreground">{eyebrow}</p>
         <div className="flex items-center gap-2">
           <h2 className="text-balance font-display text-xl font-bold tracking-tight">{title}</h2>
           <span className="print:hidden">

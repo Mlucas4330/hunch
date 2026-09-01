@@ -1,11 +1,13 @@
 'use client'
 
+import type { CSSProperties } from 'react'
 import { CardDrawers } from '@/components/card-drawers'
 import { DisclosureCard } from '@/components/disclosure-card'
 import { FlowCategoryBadge } from '@/components/flow-category-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
 import { RankedListHeader } from '@/components/ranked-list-header'
 import { useI18n } from '@/components/i18n-provider'
+import { fixAnchor } from '@/lib/constants'
 import type { FlowFix } from '@/db/schema'
 import type { PlaybookSection } from '@/lib/enums'
 import { cn } from '@/lib/utils'
@@ -41,11 +43,16 @@ export function FlowPlaybook({
         {ordered.map((fix, index) => (
           <DisclosureCard
             key={fix.id}
+            id={fixAnchor(fix.id)}
             title={fix.title}
             testId={`${section}-fix`}
             defaultOpen={expandFrom === undefined || index < expandFrom}
             badge={<FlowCategoryBadge category={fix.category} />}
             score={<ScoreIndicator score={fix.impactScore} />}
+            // A ranked list should read as ranked while it arrives. The delay comes from the row's
+            // own position, which is the same fact the order already carries. See app/globals.css.
+            className="animate-stagger-in"
+            style={{ '--index': index } as CSSProperties}
           >
             <FlowFixBody fix={fix} section={section} />
           </DisclosureCard>

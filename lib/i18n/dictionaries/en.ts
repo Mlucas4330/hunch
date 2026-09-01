@@ -53,6 +53,25 @@ export const en = {
     loading: 'Loading'
   },
 
+  // The two screens a reader reaches by accident. Both name what happened and offer the one thing
+  // that helps, because an error that only apologises leaves the reader with nothing to do.
+  //
+  // `notFound.body` avoids guessing why: a report link goes stale, gets truncated by a chat client,
+  // or was never valid, and this cannot tell which. Saying "this report was deleted" would be a
+  // claim about something we did not check.
+  errors: {
+    crashed: {
+      title: 'This page did not load',
+      body: 'Something broke while putting this page together. Nothing you did caused it and nothing was lost.',
+      retry: 'Try again'
+    },
+    notFound: {
+      title: 'There is nothing at this link',
+      body: 'The address may be incomplete, or it may never have pointed anywhere. Report links are long, so check that the whole thing was copied.',
+      home: 'Go to the home page'
+    }
+  },
+
   labels: {
     section: {
       headline: 'Headline',
@@ -97,7 +116,12 @@ export const en = {
     signOut: 'Sign out',
     account: 'Account',
     languageAria: 'Language',
-    menuAria: 'Open menu'
+    menuAria: 'Open menu',
+    themeAria: 'Colour theme',
+    theme: {
+      light: 'Light',
+      dark: 'Dark'
+    }
   },
 
   footer: {
@@ -203,7 +227,38 @@ export const en = {
     how: {
       eyebrow: 'How it works',
       heading: 'Three steps, and none of them touch your site.',
-      intro: 'The score is free and needs no account. Unlock the fixes when you want the new copy written for you.'
+      intro: 'The score is free and needs no account. Unlock the fixes when you want the new copy written for you.',
+      stepLabel: 'Step {n}',
+
+      // The illustration inside each step card: a small reproduction of the screen that step
+      // produces, built in CSS from these strings the way `heroCard` above is.
+      //
+      // **The numbers are stand-ins for a picture of an interface, and they may never become a
+      // claim.** A score, an impact of 9, a group at 42 -- these say "this is the shape of what you
+      // get", exactly as `heroCard.score` has always done. Nothing here may say what a change will
+      // produce; see docs/invariants.md.
+      previews: {
+        url: {
+          placeholder: 'https://your-landing-page.com',
+          cta: 'Get my score'
+        },
+        score: {
+          label: 'Measured',
+          groups: [
+            { label: 'Structure', value: '42' },
+            { label: 'Credibility', value: '68' },
+            { label: 'Load', value: '25' }
+          ],
+          outOf: '/100'
+        },
+        fix: {
+          impact: '9',
+          outOf: '/10',
+          category: 'Signup friction',
+          title: 'Cut the form from seven fields to three',
+          drawer: 'How to ship it'
+        }
+      }
     },
     steps: [
       {
@@ -811,6 +866,23 @@ export const en = {
     changesFound: 'Changes recommended',
     copyWritten: 'Copy already written',
     testThisFirst: 'Start here',
+    // The triage block deliberately does not reuse `testThisFirst` above. That badge marks one
+    // hypothesis inside the copy list, and two different things on one page saying "Start here"
+    // is two answers to the same question.
+    startHere: {
+      eyebrow: 'Priority',
+      title: 'What to change first'
+    },
+    rail: {
+      label: 'On this page',
+      // Only the three landmarks that are not analysis sections. The other four take their names
+      // from `analysis.sections`, where the panel bars already read them.
+      sections: {
+        start: 'Change first',
+        readout: 'Measurements',
+        terms: 'Page terms'
+      }
+    },
     problem: 'Problem',
     current: 'Current',
     changeTo: 'Change to',

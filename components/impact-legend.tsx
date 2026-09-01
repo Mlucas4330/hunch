@@ -21,7 +21,7 @@ export function ImpactLegend() {
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className="panel-label text-[0.6rem] text-muted-foreground">
+      <span className="panel-label text-nano text-muted-foreground">
         {dictionary.score.impact}
       </span>
       <InfoHint label={dictionary.score.hintLabel}>

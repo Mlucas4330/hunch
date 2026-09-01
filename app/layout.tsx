@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { Geist, Space_Grotesk, IBM_Plex_Mono } from 'next/font/google'
 import { getDictionary, getLocale } from '@/lib/i18n'
+import { getTheme } from '@/lib/theme'
 import { siteOrigin } from '@/lib/app-url'
+import { cn } from '@/lib/utils'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
@@ -37,10 +39,20 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale()
 
+  // Resolved on the server and stamped on <html> before anything paints, which is the whole of why
+  // there is no theme flash and no inline script. See lib/theme.ts.
+  const theme = await getTheme()
+
   return (
     <html
       lang={locale}
-      className={`scroll-smooth ${geist.variable} ${spaceGrotesk.variable} ${plexMono.variable}`}
+      className={cn(
+        'scroll-smooth',
+        theme === 'dark' && 'dark',
+        geist.variable,
+        spaceGrotesk.variable,
+        plexMono.variable
+      )}
     >
       <body className="flex min-h-screen flex-col font-sans antialiased">{children}</body>
     </html>

@@ -256,6 +256,15 @@ either. So each rail prints its own denominator and takes its colour from its ow
 (`READOUT_SEVERITY_CLASS` here, `impactScoreRailClass` there). `readout-score.tsx` still does not
 reuse `ScoreIndicator` at all, for the same reason.
 
+**The denominator was half an answer, and the shape is the other half.** A denominator is *read*; the
+shape is what gets *scanned*, and the two rails were the same solid tinted block four cards apart. So
+the impact rail now fills from the bottom in proportion to itself — a gauge with a level — while the
+health rail stays a plate. The fill is `bg-current`, taking its band colour from the same map as the
+numeral, so nothing about which scale is which was written twice. `IMPACT_SCORE_MAX` in
+`lib/constants.ts` is shared with the two Zod schemas that bound what a model may return, because a
+gauge drawn against a different maximum than the generation was held to either never fills or
+overflows.
+
 **This was six flat grids of equal-weight cells under six small labels**, which read as a
 spreadsheet: nothing separated *What the page costs to open* from *First content painted*, so the
 section could not be scanned at the level of groups at all.
@@ -373,6 +382,12 @@ one click away instead of thirty lines of scroll.
 A finding cell renders the **title** of any generated fix whose `flow_fixes.finding` names it, from
 `fixesByFinding`. The full card -- steps, reasoning, evidence -- stays in its tab; this is a pointer,
 never a second copy.
+
+**The pointer is a link, and it had to become one.** As plain text it named a destination without
+offering it: the reader was told which card answers this number and then had to find it themselves,
+several sections down, inside a panel that may be closed. `fixesByFinding` therefore hands over
+`{ id, title }` rather than the title alone, and `SectionLink` opens whatever `<details>` stand in
+front of the target before scrolling -- see [components.md](components.md).
 
 **It is empty on every analysis with nothing generated**, which is every free one, and that is
 deliberate rather than incidental: an affordance that appeared here and led nowhere would be a

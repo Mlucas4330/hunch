@@ -36,7 +36,7 @@ export async function AccountMenu({ user }: { user: AccountUser }) {
           <span className="max-w-[8rem] truncate">{label}</span>
         </>
       }
-      panelClassName="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md border bg-card p-3 shadow-sm group-open:animate-pop-in"
+      panelClassName="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md border bg-card p-3 shadow-elev-3 group-open:animate-pop-in"
     >
       <AccountPanel user={user} />
     </Dropdown>

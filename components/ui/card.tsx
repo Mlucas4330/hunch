@@ -4,7 +4,10 @@ import { cn } from '@/lib/utils'
 function Card({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
-      className={cn('rounded-lg border bg-card text-card-foreground transition-[border-color,box-shadow,transform] duration-150 ease-out', className)}
+      className={cn(
+        'rounded-lg border bg-card text-card-foreground shadow-elev-1 transition-[border-color,box-shadow,transform] duration-150 ease-out',
+        className
+      )}
       {...props}
     />
   )

@@ -124,7 +124,7 @@ export function VariantPreview({
 
   return (
     <div className="space-y-1" data-testid="variant-preview">
-      <p className="panel-label text-[0.6rem] text-muted-foreground">
+      <p className="panel-label text-nano text-muted-foreground">
         {dictionary.report.appliedToYourPage}
       </p>
 
@@ -207,10 +207,10 @@ export function VariantPreview({
           </label>
 
           <div className="flex justify-between">
-            <p className="panel-label text-[0.6rem] text-muted-foreground">
+            <p className="panel-label text-nano text-muted-foreground">
               {dictionary.report.compareBefore}
             </p>
-            <p className="panel-label text-[0.6rem] text-muted-foreground">
+            <p className="panel-label text-nano text-muted-foreground">
               {dictionary.report.compareAfter}
             </p>
           </div>

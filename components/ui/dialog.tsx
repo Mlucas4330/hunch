@@ -94,7 +94,7 @@ export function Dialog({
         aria-modal="true"
         aria-label={title}
         data-testid="dialog"
-        className="animate-fade-up relative my-auto w-full max-w-md rounded-lg border bg-card p-5 shadow-sm"
+        className="animate-fade-up relative my-auto w-full max-w-md rounded-lg border bg-card p-5 shadow-elev-3"
       >
         <div className="flex items-start justify-between gap-4 pb-4">
           <h2 className="font-display text-lg font-bold tracking-tight">{title}</h2>

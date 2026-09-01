@@ -25,7 +25,7 @@ export function ReadoutTrend({ points }: { points: ScorePoint[] }) {
 
   return (
     <div className="space-y-1" data-testid="readout-trend">
-      <p className="panel-label text-[0.6rem] text-muted-foreground">{copy.title}</p>
+      <p className="panel-label text-nano text-muted-foreground">{copy.title}</p>
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="h-12 w-full max-w-xs"

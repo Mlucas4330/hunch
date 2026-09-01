@@ -107,7 +107,7 @@ export function MeasurePage({
   return (
     <section className="space-y-4" data-testid="measure-page">
       <div className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">{copy.eyebrow}</p>
+        <p className="panel-label text-micro text-muted-foreground">{copy.eyebrow}</p>
         <div className="flex items-center gap-2">
           <h2 className="font-display text-xl font-bold tracking-tight">{copy.title}</h2>
           <InfoHint label={copy.hintLabel}>

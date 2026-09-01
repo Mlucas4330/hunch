@@ -5,7 +5,13 @@ import { pinEnglish } from './locale'
 // its own bar and never closes another. Idempotent on purpose: `flow` starts open and the rest
 // start closed, and a spec should not have to know which.
 async function openSection(page: Page, section: 'flow' | 'copy' | 'seo' | 'ai') {
-  const panel = page.getByTestId(`analysis-section-${section}`)
+  await openPanel(page, `analysis-section-${section}`)
+}
+
+// The same move for any `PanelCard`, which `page-terms` is too -- it starts closed now, like the
+// sections. See docs/report.md.
+async function openPanel(page: Page, testId: string) {
+  const panel = page.getByTestId(testId)
   // `.first()` is load bearing: the fix cards inside a section are `<details>` of their own, so a
   // bare `locator('details')` matches the panel and every card in it and Playwright refuses it as
   // ambiguous. The panel's own element is the outer one, which is first in document order.
@@ -423,7 +429,13 @@ test.describe('core features', () => {
 
     // The terms below the tabs are a measurement, so a stranger reads them like the rest of the
     // readout. Only the ad groups written off them are the owner's. See docs/invariants.md.
+    //
+    // **Opening the panel is not a concession on that.** It starts closed like the four sections
+    // above it, and what this asserts is that the table is *there* for a reader with no session --
+    // one click, no wall, no sign-in. Gating is about who may reach a measurement, not how many
+    // clicks it takes the same reader to expand it.
     await expect(anon.getByTestId('page-terms')).toBeVisible()
+    await openPanel(anon, 'page-terms')
     await expect(anon.getByTestId('keyword-table')).toBeVisible()
 
     await context.close()

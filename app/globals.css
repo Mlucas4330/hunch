@@ -1,6 +1,10 @@
 @import 'tailwindcss';
 
 :root {
+  /* Native chrome follows the theme too: scrollbars, the date picker, and the range input that
+     drives the variant preview wipe. Without it a dark report scrolls in a white scrollbar. */
+  color-scheme: light;
+
   /* Instrument surface -- neutral chrome. Saturated color lives only in the signal channels. */
   --ink: oklch(0.2 0.02 264);
   --paper: oklch(0.985 0.003 264);
@@ -21,17 +25,144 @@
   --primary-foreground: var(--paper);
   --destructive: oklch(0.58 0.22 27);
   --destructive-foreground: oklch(0.99 0 0);
-  --radius: 0.375rem;
+  --radius: 0.5rem;
 
-  /* Signal channels -- referenced by lib/constants.ts badge/score/section maps. */
+  /* Elevation.
+   *
+   * **Two shadows per level, never one.** A single blurred shadow is what a default looks like: the
+   * card reads as a rectangle with grey behind it. A short tight contact shadow plus a long diffuse
+   * ambient one is how a real object sits on a surface, and it is most of the difference between
+   * this looking made and looking generated.
+   *
+   * `--sheen` is the third layer: a hairline of light along the top edge, which is what turns a drawn
+   * rectangle into a plate resting on the paper.
+   *
+   * **It is `transparent` in light mode, and that is the honest value rather than an omission.**
+   * `--panel` is already pure white there, the lightest surface in the palette, so nothing can catch
+   * light on top of it -- a white inset line on a white card is a rule that renders as nothing. In
+   * light the plate comes entirely from the two shadows and the hairline border. Dark mode is where
+   * the sheen has room to work, because the panel sits well below white.
+   *
+   * Mixed from `--shade` and written as a colour token rather than rgba() so no call site holds a
+   * colour. See CLAUDE.md.
+   *
+   * **`--shade` exists instead of reusing `--ink`, and that is the whole reason dark mode works.**
+   * `--ink` is the foreground, so it inverts: deriving the shadow from it would light every panel in
+   * dark mode with a white halo. A shadow is always the absence of light, in both themes, so it gets
+   * its own token that gets darker rather than flipping. */
+  --shade: oklch(0.2 0.03 264);
+  --sheen: transparent;
+  --elev-1:
+    inset 0 1px 0 0 var(--sheen),
+    0 1px 2px -1px color-mix(in oklch, var(--shade) 9%, transparent),
+    0 2px 6px -2px color-mix(in oklch, var(--shade) 5%, transparent);
+  --elev-2:
+    inset 0 1px 0 0 var(--sheen),
+    0 2px 4px -2px color-mix(in oklch, var(--shade) 11%, transparent),
+    0 6px 16px -4px color-mix(in oklch, var(--shade) 9%, transparent);
+  --elev-3:
+    inset 0 1px 0 0 var(--sheen),
+    0 4px 8px -4px color-mix(in oklch, var(--shade) 14%, transparent),
+    0 16px 40px -8px color-mix(in oklch, var(--shade) 16%, transparent);
+
+  /* One report rail row. Fixed rather than content-sized, which is what makes the active marker's
+     position `index * row` instead of a measurement -- see components/report-rail.tsx. */
+  --rail-row: 1.75rem;
+
+  /* Signal channels -- referenced by lib/constants.ts badge/score/section maps.
+   *
+   * **Every one of these clears 4.5:1 against `--panel`, and four of them had to be darkened to get
+   * there.** They are not decoration: `READOUT_SEVERITY_CLASS` and `impactScoreRailClass` render them
+   * as `text-*` at `text-micro`, so a channel that fails contrast is a severity the reader cannot
+   * read. `--amber` was the worst at **2.54:1**, which fails even the large-text floor, and it is the
+   * colour of every warning in the readout.
+   *
+   * Hue and chroma are untouched -- only lightness moved, by the smallest step that clears the bar:
+   * amber 0.72 -> 0.57 (2.54 -> 4.56), coral 0.66 -> 0.59 (3.40 -> 4.52), green 0.62 -> 0.545
+   * (3.40 -> 4.57), blue 0.60 -> 0.57 (4.00 -> 4.53). Purple, neutral and red already passed.
+   *
+   * The dark block below is measured against its own `--panel` and clears 6:1 on all seven, which is
+   * why its values are lighter rather than darker. **Any channel added or retuned here has to be
+   * checked against both panels**, and the answer is a ratio, not a look. */
   --purple: oklch(0.55 0.2 295);
   --purple-soft: oklch(0.68 0.13 295);
-  --coral: oklch(0.66 0.19 25);
-  --amber: oklch(0.72 0.16 75);
-  --blue: oklch(0.6 0.18 255);
+  --coral: oklch(0.59 0.19 25);
+  --amber: oklch(0.57 0.16 75);
+  --blue: oklch(0.57 0.18 255);
   --neutral: oklch(0.55 0.02 264);
-  --green: oklch(0.62 0.16 150);
+  --green: oklch(0.545 0.16 150);
   --red: oklch(0.58 0.22 27);
+}
+
+/*
+ * Dark mode.
+ *
+ * **Only the variables above are redefined. Not one component changes**, because no component in the
+ * app holds a colour -- the badge, severity, section and channel maps in lib/constants.ts are all
+ * token utilities like `bg-coral/15 text-coral`. That is the return on the rule in CLAUDE.md, and it
+ * is why this is a block of variables rather than a pass over fifty files.
+ *
+ * Three things genuinely invert rather than darken, and each was a bug on the way here:
+ *
+ * 1. **`--panel` must be lighter than `--paper`.** In light the panel is pure white on faintly grey
+ *    paper; keeping that relation in dark (panel darker than the page) makes the elevation above
+ *    read as a hole rather than a plate. The surface comes forward in both themes.
+ * 2. **`--grid` moves the other way and by far less.** The graph paper is darker than the page in
+ *    light and lighter in dark, and the same lightness difference reads roughly twice as loud
+ *    against a dark ground -- so the amplitude shrinks or the whole app looks like a spreadsheet.
+ * 3. **The signal channels need more lightness, not less.** They are read as text at full strength
+ *    over a 15% fill of themselves, and the light-mode values sit too dark to clear the panel.
+ *
+ * The class is set on <html> from a cookie in app/layout.tsx, mirroring how the locale is resolved,
+ * so the server renders the right theme and there is no flash. See docs/components.md.
+ *
+ * **Wrapped in `@media screen`, which is the whole of how printing works.** The print block below
+ * forces `print-color-adjust: exact` so the signal channels survive onto paper, and that would have
+ * printed a dark report as a black page. Scoping the overrides to the screen means paper simply
+ * never sees them and falls through to the light `:root` above -- so the light palette is written
+ * once and there is no second copy of it here to drift.
+ */
+@media screen {
+  :root.dark {
+    color-scheme: dark;
+
+    --ink: oklch(0.94 0.006 264);
+    --paper: oklch(0.16 0.012 264);
+    --panel: oklch(0.205 0.013 264);
+    --rule: oklch(0.29 0.012 264);
+    --grid: oklch(0.196 0.012 264);
+
+    --muted: oklch(0.25 0.012 264);
+    --muted-foreground: oklch(0.7 0.015 264);
+    --destructive: oklch(0.64 0.2 27);
+
+    /* Darker than any surface it falls on, and stronger, because a shadow over a dark ground has
+       less contrast to spend. The sheen inverts in strength rather than in colour: still light,
+       barely. */
+    --shade: oklch(0 0 0);
+    --sheen: oklch(1 0 0 / 0.045);
+    --elev-1:
+      inset 0 1px 0 0 var(--sheen),
+      0 1px 2px -1px color-mix(in oklch, var(--shade) 40%, transparent),
+      0 2px 6px -2px color-mix(in oklch, var(--shade) 28%, transparent);
+    --elev-2:
+      inset 0 1px 0 0 var(--sheen),
+      0 2px 4px -2px color-mix(in oklch, var(--shade) 45%, transparent),
+      0 6px 16px -4px color-mix(in oklch, var(--shade) 38%, transparent);
+    --elev-3:
+      inset 0 1px 0 0 var(--sheen),
+      0 4px 8px -4px color-mix(in oklch, var(--shade) 50%, transparent),
+      0 16px 40px -8px color-mix(in oklch, var(--shade) 55%, transparent);
+
+    --purple: oklch(0.72 0.16 295);
+    --purple-soft: oklch(0.79 0.11 295);
+    --coral: oklch(0.74 0.16 25);
+    --amber: oklch(0.81 0.14 75);
+    --blue: oklch(0.72 0.15 255);
+    --neutral: oklch(0.68 0.02 264);
+    --green: oklch(0.74 0.15 150);
+    --red: oklch(0.7 0.19 27);
+  }
 }
 
 @theme inline {
@@ -51,6 +182,16 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 1px);
   --radius-sm: calc(var(--radius) - 2px);
+
+  --shadow-elev-1: var(--elev-1);
+  --shadow-elev-2: var(--elev-2);
+  --shadow-elev-3: var(--elev-3);
+
+  /* The instrument labels came in three arbitrary sizes -- 0.7rem, 0.65rem and 0.6rem -- written as
+     bracket values at roughly forty call sites, doing two jobs between them. Two named steps, so a
+     label is chosen rather than nudged. */
+  --text-micro: 0.6875rem;
+  --text-nano: 0.625rem;
 
   --font-sans: var(--font-geist);
   --font-display: var(--font-space-grotesk);
@@ -92,6 +233,19 @@ summary::-webkit-details-marker {
   display: none;
 }
 
+/* Keyboard focus, set once for everything that does not draw its own.
+ *
+ * An `outline` rather than a Tailwind ring on purpose: the ring utilities are a `box-shadow`, so
+ * anything already carrying `focus-visible:ring-*` (Button, PanelCard's summary, DisclosureCard's
+ * summary) pairs it with `focus-visible:outline-none` and keeps its own treatment. This rule is what
+ * covers the rest -- links, inputs, the disclosure bars, the rail -- which previously fell back to
+ * whatever the browser drew and was invisible on a dark panel. */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 /* Anything that reacts to the pointer settles at the same speed, so the app has one tempo instead of
    a different one per component. */
 a,
@@ -124,6 +278,16 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* **A `.numeral` and a `.display-heading` class were written here and removed before shipping**, and
+   the reason is worth keeping. Both were meant to fix an inconsistency that turned out not to exist:
+   a sweep found `tracking-tight` already on every display heading in the app, and the only two
+   exceptions were numbers, which must not take it or `text-balance` anyway. `tabular-nums` is
+   likewise already a Tailwind utility applied where figures need to line up.
+
+   What they would have added was a second idiom for something the call sites already say one way,
+   which is the failure CLAUDE.md's no-repetition rule is about. A shared class earns its place when
+   it removes a repetition; neither of these did. */
+
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -133,6 +297,41 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/*
+ * The score arrives.
+ *
+ * **The digits are never animated, and that is a correctness rule rather than a taste one.** The
+ * obvious treatment is counting up from zero, and it cannot be done here: this number is server
+ * rendered, so the HTML would ship `0`, and this page is crawled, printed and read by people with
+ * JavaScript disabled. Every one of those would be handed a landing page scored zero. Starting the
+ * count after hydration instead only trades that for a visible jump from the real number back to
+ * zero.
+ *
+ * So the value is correct in the first frame and in every frame after it, and what moves is the
+ * severity ground behind it: the tinted plate fills from the bottom, the way the impact gauge does.
+ * Nothing about the reading is uncertain while it plays.
+ */
+@keyframes score-settle {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.animate-score-settle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background-color: currentColor;
+  opacity: 0.12;
+  transform-origin: bottom;
+  animation: score-settle 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes pop-in {
@@ -149,6 +348,25 @@ body {
 
 .animate-fade-up {
   animation: fade-up 0.4s ease-out both;
+}
+
+/*
+ * A list that arrives in order rather than all at once.
+ *
+ * **Deliberately CSS and deliberately not the animation library.** docs/components.md records why an
+ * entrance animation must never come from `motion`: it server-renders `initial`, so `opacity: 0`
+ * ships inside the HTML and the content is invisible until hydration. That objection is about
+ * revealing, and it applies to exactly this. The library earns its place on layout and spring, which
+ * CSS cannot do -- not here.
+ *
+ * The call site sets `--index` on each child in an inline style; nothing keeps time in JavaScript.
+ * The delay is capped so a long list does not make its last card arrive a second and a half late:
+ * past the cap the tail lands together, which is the right answer anyway -- the stagger is there to
+ * suggest order, not to be counted.
+ */
+.animate-stagger-in {
+  animation: fade-up 0.4s ease-out both;
+  animation-delay: min(calc(var(--index, 0) * 45ms), 360ms);
 }
 
 .animate-pop-in {
@@ -265,17 +483,54 @@ details[open]::details-content {
   animation: hero-shine 6s ease-in-out infinite;
 }
 
+/*
+ * The navbar lifts off the page once it is no longer sitting on it.
+ *
+ * At the very top the bar is part of the page and needs no edge; scrolled, it is a thing floating
+ * over content and the elevation is what says so. Driven by a scroll-progress timeline rather than a
+ * listener, so there is no scroll handler, no state, and no re-render per frame anywhere in the app.
+ *
+ * `animation-range` ends after a short distance, so the shadow is fully present within the first
+ * scroll gesture rather than fading in across the whole document.
+ *
+ * Progressive enhancement, exactly like the `::details-content` transition above: browsers without
+ * scroll-driven animations simply keep the flat bar the `sticky` header has always had. Nothing is
+ * conditional on support and nothing is hidden without it.
+ */
+@supports (animation-timeline: scroll()) {
+  @keyframes navbar-lift {
+    to {
+      box-shadow: var(--elev-2);
+      border-bottom-color: var(--color-border);
+    }
+  }
+
+  .animate-navbar-lift {
+    animation: navbar-lift linear both;
+    animation-timeline: scroll();
+    animation-range: 0 6rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
   .animate-fade-up,
+  .animate-stagger-in,
   .animate-pop-in,
   .animate-shimmer,
   .animate-hero-shine::after,
+  .animate-score-settle::before,
   details[open] > *:not(summary) {
     animation: none;
+  }
+
+  /* The stagger is a delay as well as an animation, and `animation: none` does not clear it. Left
+     set, a reduced-motion reader gets no movement and still waits for the card. */
+  .animate-stagger-in {
+    animation-delay: 0ms;
   }
 
   details::details-content {
@@ -298,5 +553,36 @@ details[open]::details-content {
     background-image: none;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  /*
+   * **Everything in the document prints, whether or not it was open on screen.**
+   *
+   * Progressive disclosure is an answer to a screen, where the reader can click. Paper has no click,
+   * so a closed `<details>` on paper is content that has simply been deleted from the deliverable --
+   * and this report is deliberately printable. Three of the four analysis panels start closed, every
+   * readout group whose checks all passed starts closed, and `PageTerms` starts closed, so without
+   * this a printed report is mostly headings.
+   *
+   * `::details-content` is what the UA collapses; the two properties below are the two halves of that
+   * collapse. The transition is cleared as well, or the first paint of the print job can catch the
+   * content mid-animation at zero height.
+   */
+  details::details-content {
+    block-size: auto !important;
+    content-visibility: visible !important;
+    overflow: visible !important;
+    transition: none !important;
+  }
+
+  /* The pre-`::details-content` fallback: browsers that collapse by not rendering the children. */
+  details > *:not(summary) {
+    display: block !important;
+    animation: none !important;
+  }
+
+  /* The chevron says "click to open" and there is nothing to click on paper. */
+  summary svg {
+    display: none !important;
   }
 }

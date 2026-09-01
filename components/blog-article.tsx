@@ -17,7 +17,7 @@ export function BlogArticle({
   return (
     <article className="mx-auto max-w-2xl space-y-8">
       <header className="space-y-4">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">
+        <p className="panel-label text-micro text-muted-foreground">
           {formatDate(date, locale)}
         </p>
         <h1 className="font-display text-3xl font-bold leading-tight tracking-tight sm:text-4xl">

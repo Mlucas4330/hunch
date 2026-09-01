@@ -113,7 +113,39 @@ worth asserting, which is the opposite of what the wrapper was added for.
   reader; that stage is gone entirely, so there is nothing to exclude. See
   [analysis-ui.md](analysis-ui.md).
 - Then `PageTerms` — the terms counted on the page, and the ad groups the owner can have written off
-  them.
+  them. **It starts closed now.** It was open on the reasoning that nothing is buried by the last
+  block on the page, which stopped being the argument once the rail existed: open it is a ten by six
+  table plus four ad-group cards with a character counter on every line, the largest single thing in
+  the document, expanded for every reader whether or not they came for it. It was open because it was
+  unreachable; the rail makes it reachable in one click from anywhere.
+
+  **Closing it exposed a print bug that predated it**, and `@media print` in `app/globals.css` now
+  fixes the general case: every `<details>` prints open. Progressive disclosure answers a screen,
+  where the reader can click; on paper a closed panel is content deleted from the deliverable. Three
+  of the four analysis panels already started closed, as does every readout group whose checks all
+  passed — so a printed report was mostly headings before this, and `PageTerms` would have been the
+  next thing lost.
+
+### The rail and the triage block
+
+Two additions that carry no new information and exist entirely to make the rest of it navigable.
+
+- **`components/report-rail.tsx`** — a sticky column of anchors above `lg`, marking the section in
+  view. `REPORT_SECTION` in `lib/enums.ts` is its order, and the four middle values are spread from
+  `ANALYSIS_TAB` rather than retyped, so a rail can never offer a section the page does not render.
+  The page builds the list from the same conditions that decide each block; the rail never derives it.
+  The scrollspy and the anchor-reveal helper are documented in [components.md](components.md).
+- **`components/start-here.tsx`** — the three highest-impact fixes, linking to their own cards. It is
+  a **re-presentation and never a new claim**: each row is an existing `flow_fixes` row with its own
+  title, badge and impact number. Nothing is summarised or re-scored, and **no predicted outcome may
+  ever appear in it** — a block called "what to change first" is exactly where that sentence wants to
+  be written, and [invariants.md](invariants.md) forbids it on every surface. It renders only when
+  `generated` is true, so a free report gets the `UnlockWall` and the readout grows no affordance that
+  reads as a tease.
+- **The readout's fix pointer is a link.** It was the title of the answering fix printed as text: the
+  reader was told the name of a card and left to find it several sections down, possibly inside a
+  closed panel. `fixAnchor()` in `lib/constants.ts` is the one place the id is derived, because a link
+  and its target live in different files and have to agree.
 - **Nothing is gated by plan today.** The wall was an email capture for an agency's lead magnet, and
   it went with the waitlist. What replaces it is `UnlockWall` — log in, buy credits — shown when
   `generated` is false. `gate()`, `Gated` and `BlurredRow` were removed rather than left behind as a

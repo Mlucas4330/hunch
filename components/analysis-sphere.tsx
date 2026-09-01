@@ -200,7 +200,7 @@ export function AnalysisSphere({ entries, label }: { entries: PublicScore[]; lab
             chipRefs.current[i] = node
           }}
           className={cn(
-            'absolute left-0 top-0 flex items-center gap-1.5 whitespace-nowrap rounded-sm border border-border px-1.5 py-0.5 font-mono text-xs shadow-sm',
+            'absolute left-0 top-0 flex items-center gap-1.5 whitespace-nowrap rounded-sm border border-border px-1.5 py-0.5 font-mono text-xs shadow-elev-1',
             READOUT_SEVERITY_CLASS[scoreSeverity(entry.score)]
           )}
         >

@@ -31,7 +31,7 @@ export function ReportCover({
       <div aria-hidden className="h-1 w-16 rounded-full bg-purple" />
 
       <div className="space-y-1">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">{t.report.teardown}</p>
+        <p className="panel-label text-micro text-muted-foreground">{t.report.teardown}</p>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-balance font-display text-3xl font-bold tracking-tight">{host}</h1>
           {hint}
@@ -47,7 +47,7 @@ export function ReportCover({
         {counts ? fill(t.report.summaryBody, counts) : t.report.summaryMeasured}
       </p>
 
-      <p className="panel-label text-[0.65rem] text-muted-foreground">
+      <p className="panel-label text-micro text-muted-foreground">
         {fill(t.report.dated, { date: generated })}
       </p>
     </section>

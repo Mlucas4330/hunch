@@ -76,6 +76,29 @@ page in one click, and the only thing here anyone shares unprompted.
 
   The steps used to be two tracks side by side (`lg:grid-cols-2`), the second being "make the report
   yours" — that half went with white-label, and one path is what a self-serve funnel has.
+
+  **The steps are cards that show the screen each one produces** (`components/landing-steps.tsx`),
+  two up and the third across the full measure. They were three columns of prose — a number, a
+  hairline, a heading, a paragraph — under a `ProductDemo` that renders nothing whenever
+  `SUPADEMO_DEMO_ID` is unset, which is most environments. So the one section whose job is to *show*
+  what the reader is about to get described it in words and showed nothing. The third step gets the
+  wide card because it is the one behind a credit, and it sets its text beside its picture rather
+  than above it.
+
+  **The illustrations are CSS, and that is a decision with four reasons rather than a preference.** A
+  screenshot of a light screen is broken in dark mode; there is no `public/`, no `images` config and
+  no `img-src` for a new host in the CSP, so a screenshot is infrastructure rather than design; three
+  images of UI on the page that sells "your page is too heavy" argues against itself; and the pattern
+  already existed — `HeroReadout` is a CSS reproduction of the real readout card, fed by dictionary
+  strings. Each preview is `aria-hidden`: it is a picture of an interface, not one, and the step's own
+  heading and body say the same thing in words directly above it.
+
+  Step two shows the **per-group rails, deliberately not the big score** — `HeroReadout` already puts
+  `47/100` at `text-7xl` one section above on the same screen, so repeating it would be one picture
+  twice. Numbers in the previews are stand-ins exactly as `heroCard.score` is, and **may never become
+  a claim about what a change produces**; see [invariants.md](invariants.md). Pill colours come from
+  `STEP_CHANNEL_CLASS`, which ends on `--purple` — the channel the featured credit pack already wears
+  — because the last step is the one being sold.
 - The three pains (`landing.pains`) are the page owner's, not an auditor's: not knowing which part is
   losing people, tools that disagree with each other, and an AI that writes advice about a page it
   never opened. That last one names the real alternative the reader will have already tried. They sit
@@ -126,6 +149,17 @@ page in one click, and the only thing here anyone shares unprompted.
   `FAQPage` JSON-LD **from the same array**, so the answer a reader opens and the answer a crawler
   quotes cannot drift. The last question is load-bearing: it is where the page says out loud that it
   will not predict a lift, because nobody measured one.
+
+  **Two columns above `lg`: the heading anchors on the left, the questions run down the right.**
+  Stacked, a row stretched the full 1440px measure, and a question set in a line that long is one
+  nobody scans — the eye has no left edge to come back to. The split is `lg` and not `md` on purpose:
+  on a tablet two columns leave each question a pocket-width column with more wrapping than words, so
+  one column is the default and the split is the exception. The rows themselves did not change, which
+  is what keeps this off the report surfaces that share `DisclosureCard`. `min-w-0` on the list column
+  and `self-start` beside the heading's `sticky` are both load-bearing — see
+  [components.md](components.md). The JSON-LD `<script>` sits **outside** the grid: it is
+  `display: none` so it lays out nothing either way, but an invisible item among the columns is a trap
+  for the next edit.
 - `landing.ctaNote` sits under both CTA buttons and states the price of clicking: no signup, no card,
   no install. It is a fact about the product, and it is the closest this page comes to urgency —
   **there is no countdown, no scarcity count and no "N spots left"**, because none of those would be
@@ -321,6 +355,11 @@ stranded with no route to it.
   readout card — a viewport breakpoint cannot tell those apart, and `sm:flex-row` left the field at
   200px on every desktop from 1024 to 1920 with the CTA taking the rest. Below the threshold the
   button drops under the field, which is the mobile shape. Covered by `e2e/core.spec.ts`.
+- **Each URL field owns its own error.** There was one shared message slot: a malformed competitor URL
+  printed at the bottom of the form — below the pending strip and below the brief disclosure — and set
+  `aria-invalid` on the *page* URL input, so a screen reader was told the wrong field was wrong. The
+  competitor message now renders under the competitor field, tied to it by `aria-describedby`, and
+  replaces that field's hint rather than stacking below it.
 - A collapsible `<details>` "Add business details (optional)" holding `components/brief-wizard.tsx`:
   four questions, one screen each, answered by **tapping an option**. Who lands here, what you sell
   them, what they should do, what stops them. Selecting advances on its own, a segmented bar shows
@@ -375,7 +414,16 @@ decide.
   measurement. An analysis with nothing measured shows `MeasurePage` alone to the owner and a
   read-only `MeasuringNotice` to everyone else. See [readout.md](readout.md).
 - **`PageTerms` closes the document**, below the four sections: the terms counted on the page and,
-  for the owner, the ad groups written off them. See below.
+  for the owner, the ad groups written off them. It starts **closed** — see [report.md](report.md).
+- **A sticky rail runs beside the document above `lg`**, and a triage block opens it. Both exist
+  because a generated report is roughly fifteen sections and near a hundred discrete numbers on one
+  scroll, with no table of contents and no answer to "of all this, what do I do first". Neither adds
+  information: the rail names sections that already render, and `StartHere` re-presents the three
+  highest-impact fixes that are already ranked below. The structural rules for both — and the
+  prohibition on `StartHere` ever predicting an outcome — are in [report.md](report.md).
+- **The document sits in a two-column grid**, and the content column carries `min-w-0`. That is not
+  defensive: the keyword table and the `break-all` URLs push a grid track past the viewport without
+  it. See [components.md](components.md).
 
 ### Four sections — `components/analysis-sections.tsx`, over the `ANALYSIS_TAB` enum
 

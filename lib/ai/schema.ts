@@ -9,6 +9,8 @@ import {
   AD_HEADLINES_PER_GROUP,
   AD_NEGATIVES_MAX,
   AD_TERMS_PER_GROUP_MAX,
+  IMPACT_SCORE_MAX,
+  IMPACT_SCORE_MIN,
   PLAYBOOK_MAX,
   PLAYBOOK_MIN,
   PLAYBOOK_STEPS_MAX,
@@ -29,7 +31,7 @@ export const HypothesisSchema = z.object({
   problem: z.string(),
   current_copy: z.string(),
   variants: z.array(VariantSchema).length(1),
-  impact_score: z.number().int().min(1).max(10),
+  impact_score: z.number().int().min(IMPACT_SCORE_MIN).max(IMPACT_SCORE_MAX),
   rationale: z.string()
 })
 
@@ -45,7 +47,7 @@ const fixFields = {
   title: z.string(),
   problem: z.string(),
   steps: z.array(z.string()).min(2).max(PLAYBOOK_STEPS_MAX),
-  impact_score: z.number().int().min(1).max(10),
+  impact_score: z.number().int().min(IMPACT_SCORE_MIN).max(IMPACT_SCORE_MAX),
   evidence: z.string(),
   /**
    * Which measured finding this fix answers, or null when no measurement backs it.

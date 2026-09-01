@@ -6,6 +6,7 @@ import { AnalysisPulse } from '@/components/analysis-pulse'
 import { CreditPacks } from '@/components/credit-packs'
 import { UrlInputForm } from '@/components/url-input-form'
 import { LandingFaq } from '@/components/landing-faq'
+import { LandingSteps } from '@/components/landing-steps'
 import { ProductDemo } from '@/components/product-demo'
 import { SwipeTrack } from '@/components/swipe-track'
 import {
@@ -49,7 +50,7 @@ export default async function LandingPage() {
     <div className="animate-fade-up space-y-24 pb-12">
       <section id="top" className="grid items-center gap-10 scroll-mt-20 pt-6 lg:grid-cols-[1fr_1.15fr]">
         <div className="space-y-6">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">{d.landing.eyebrow}</p>
+          <p className="panel-label text-micro text-muted-foreground">{d.landing.eyebrow}</p>
           <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
             {d.landing.headlineTop}
             <span className="block text-muted-foreground">{d.landing.headlineBottom}</span>
@@ -66,7 +67,7 @@ export default async function LandingPage() {
 
           <Link
             href="#how"
-            className="panel-label inline-block text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground"
+            className="panel-label inline-block text-micro text-muted-foreground transition-colors hover:text-foreground"
           >
             {d.landing.howItWorksLink}
           </Link>
@@ -85,24 +86,13 @@ export default async function LandingPage() {
           picture of the three steps above it, and a page of unrelated blocks is what this ordering
           is getting away from. */}
       <section id="how" className="space-y-10 scroll-mt-20">
-        <header className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">{d.landing.how.eyebrow}</p>
+        <header className="space-y-3">
+          <p className="panel-label text-micro text-muted-foreground">{d.landing.how.eyebrow}</p>
           <h2 className="font-display text-2xl font-bold tracking-tight">{d.landing.how.heading}</h2>
-          <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.landing.how.intro}</p>
+          <p className="max-w-2xl text-sm text-muted-foreground">{d.landing.how.intro}</p>
         </header>
 
-        <ol className="grid gap-6 sm:grid-cols-3">
-          {d.landing.steps.map((step, i) => (
-            <li key={i} className="space-y-3">
-              <span className="panel-label text-sm text-muted-foreground">
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <div className="h-px bg-border" />
-              <h3 className="font-display text-base font-semibold tracking-tight">{step.label}</h3>
-              <p className="text-sm text-muted-foreground">{step.body}</p>
-            </li>
-          ))}
-        </ol>
+        <LandingSteps copy={d.landing.how} steps={d.landing.steps} />
 
         <ProductDemo copy={d.landing.demo} />
       </section>
@@ -114,8 +104,8 @@ export default async function LandingPage() {
           actually means. The points are list items rather than Cards on purpose -- the page had five
           different card treatments, and cutting one is worth more here than another bordered box. */}
       <section id="ai" className="space-y-10 scroll-mt-20">
-        <header className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">
+        <header className="space-y-3">
+          <p className="panel-label text-micro text-muted-foreground">
             {d.landing.reality.eyebrow}
           </p>
           <h2 className="font-display text-2xl font-bold tracking-tight">
@@ -162,7 +152,7 @@ export default async function LandingPage() {
 
           <Link
             href={`${BLOG_PATH}/${AI_POST_SLUG}`}
-            className="panel-label inline-block text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground"
+            className="panel-label inline-block text-micro text-muted-foreground transition-colors hover:text-foreground"
           >
             {d.landing.aiSearch.link}
           </Link>
@@ -171,14 +161,14 @@ export default async function LandingPage() {
 
       {showPulse && (
         <section className="space-y-10">
-          <header className="space-y-1">
-            <p className="panel-label text-[0.7rem] text-muted-foreground">
+          <header className="space-y-3">
+            <p className="panel-label text-micro text-muted-foreground">
               {d.landing.leaderboard.eyebrow}
             </p>
             <h2 className="font-display text-2xl font-bold tracking-tight">
               {d.landing.leaderboard.heading}
             </h2>
-            <p className="max-w-2xl pt-1 text-sm text-muted-foreground">
+            <p className="max-w-2xl text-sm text-muted-foreground">
               {d.landing.leaderboard.intro}
             </p>
           </header>
@@ -186,11 +176,11 @@ export default async function LandingPage() {
         </section>
       )}
 
-      <section className="space-y-6" id="credits">
-        <header className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">{d.credits.eyebrow}</p>
+      <section className="space-y-10" id="credits">
+        <header className="space-y-3">
+          <p className="panel-label text-micro text-muted-foreground">{d.credits.eyebrow}</p>
           <h2 className="font-display text-2xl font-bold tracking-tight">{d.credits.heading}</h2>
-          <p className="max-w-2xl pt-1 text-sm text-muted-foreground">{d.credits.body}</p>
+          <p className="max-w-2xl text-sm text-muted-foreground">{d.credits.body}</p>
         </header>
         <CreditPacks
           signedIn={Boolean(session?.user)}
@@ -232,13 +222,13 @@ function HeroReadout({ dictionary }: { dictionary: Dictionary }) {
   const { heroCard } = dictionary.landing
 
   return (
-    <Card className="animate-pop-in animate-hero-shine shadow-md">
+    <Card className="animate-pop-in animate-hero-shine shadow-elev-2">
       <div className="flex items-center justify-between border-b px-5 py-3">
         <span className="font-mono text-xs text-muted-foreground">{heroCard.domain}</span>
       </div>
       <CardContent className="space-y-6 p-6">
         <div className="space-y-1">
-          <p className="panel-label text-[0.7rem] text-muted-foreground">{heroCard.scoreLabel}</p>
+          <p className="panel-label text-micro text-muted-foreground">{heroCard.scoreLabel}</p>
           <p className="font-display text-7xl font-bold tabular-nums tracking-tight">
             {heroCard.score}
             <span className="text-3xl text-muted-foreground">{heroCard.outOf}</span>

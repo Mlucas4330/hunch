@@ -93,14 +93,14 @@ export function CreditPacks({
             )}
           >
             {featured && (
-              <span className="panel-label absolute -top-2.5 left-5 rounded-sm bg-purple px-2 py-0.5 text-[0.6rem] text-primary-foreground">
+              <span className="panel-label absolute -top-2.5 left-5 rounded-sm bg-purple px-2 py-0.5 text-nano text-primary-foreground">
                 {copy.mostChosen}
               </span>
             )}
 
             <CardContent className="flex flex-1 flex-col gap-4 p-5">
               <div className="space-y-1">
-                <p className="panel-label text-[0.65rem] text-muted-foreground">{label.name}</p>
+                <p className="panel-label text-micro text-muted-foreground">{label.name}</p>
                 <p className="font-display text-3xl font-bold tracking-tight">{label.price}</p>
                 <p className="font-mono text-xs text-muted-foreground">{label.perAnalysis}</p>
               </div>

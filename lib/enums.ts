@@ -17,6 +17,12 @@ export type PaymentProvider = (typeof PAYMENT_PROVIDER)[number]
 export const LOCALE = ['en', 'pt-BR'] as const
 export type Locale = (typeof LOCALE)[number]
 
+// The two palettes in app/globals.css. A UI-only enum -- it is not a Postgres value and is never
+// stored on a row, because the theme belongs to a browser rather than to a person: the same account
+// reading a report on a laptop and a phone can reasonably want different answers.
+export const THEME = ['light', 'dark'] as const
+export type Theme = (typeof THEME)[number]
+
 // The blog posts, in render order. A slug is the URL segment and the dictionary key at once, so a
 // post added here fails typecheck until it is written in both locales. See docs/seo.md.
 export const BLOG_SLUG = ['what-is-seo', 'what-is-copy', 'ai-is-the-new-google'] as const
@@ -53,6 +59,20 @@ export type RouteSkeleton = (typeof ROUTE_SKELETON)[number]
 // The four "what to change" tabs -- see docs/product.md.
 export const ANALYSIS_TAB = ['flow', 'copy', 'seo', 'ai'] as const
 export type AnalysisTab = (typeof ANALYSIS_TAB)[number]
+
+// The anchorable landmarks of the report, top to bottom. Each value is an element `id` on the page
+// and the key `ReportRail` labels itself from.
+//
+// **The four in the middle are spread from ANALYSIS_TAB rather than retyped**, because they are the
+// same four sections and a rail listing a section the page does not render -- or missing one it does
+// -- is the exact failure a hand-kept copy produces the first time a tab is added.
+//
+// `start` and `terms` bracket them: the triage block that opens the document and the counted terms
+// that close it. The cover is not here on purpose. It is the top of the page, so an anchor to it is
+// what the browser already does, and a rail entry pointing at the thing directly above the rail
+// reads as furniture. See docs/report.md.
+export const REPORT_SECTION = ['start', 'readout', ...ANALYSIS_TAB, 'terms'] as const
+export type ReportSection = (typeof REPORT_SECTION)[number]
 
 // The second layer inside an open card. An open card shows the decision -- the rewritten line, or
 // the sentence naming the problem -- and everything that argues for it sits behind one of these.

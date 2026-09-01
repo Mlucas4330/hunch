@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Link2 } from 'lucide-react'
+import { Check, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/components/i18n-provider'
 import { cn } from '@/lib/utils'
@@ -60,7 +60,33 @@ export function CopyReportLink({
       className={cn('h-8 flex-wrap px-2 text-xs', className)}
       data-testid="copy-report-link"
     >
-      <Link2 aria-hidden className="h-3.5 w-3.5" />
+      {/* **The glyph turns over into a check when the copy lands.**
+       *
+       * This confirmation is worth the trouble specifically because the clipboard gives none of its
+       * own: the entire signal that the click worked is this button changing, and a word swapping in
+       * place is the change readers most often miss.
+       *
+       * **Both icons stay mounted and cross-fade**, rather than one replacing the other. Swapping
+       * them would need the outgoing node kept alive while it leaves -- the case that argues for an
+       * animation library -- and stacking them in a fixed-size box costs one grid cell and no
+       * dependency. `grid` with both children in the same cell rather than absolute positioning, so
+       * the button still sizes itself from the icon. */}
+      <span className="grid h-3.5 w-3.5 shrink-0 place-items-center [&>*]:col-start-1 [&>*]:row-start-1">
+        <Link2
+          aria-hidden
+          className={cn(
+            'h-3.5 w-3.5 transition-[opacity,transform] duration-150 ease-out',
+            state === 'copied' ? 'scale-50 opacity-0' : 'scale-100 opacity-100'
+          )}
+        />
+        <Check
+          aria-hidden
+          className={cn(
+            'h-3.5 w-3.5 transition-[opacity,transform] duration-150 ease-out',
+            state === 'copied' ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+          )}
+        />
+      </span>
       {label}
     </Button>
   )

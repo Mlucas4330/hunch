@@ -87,7 +87,7 @@ export function AnalysisPulseToast({
         // content, which on a 375px screen is a box with no room for the sentence inside it. Pinning
         // both edges below `sm` lets it use the screen; above `sm` it goes back to sitting in the
         // corner out of the way.
-        'animate-fade-up fixed bottom-4 left-4 right-4 z-40 flex items-start gap-3 overflow-hidden rounded-lg border bg-card py-2.5 pl-4 pr-2 shadow-lg',
+        'animate-fade-up fixed bottom-4 left-4 right-4 z-40 flex items-start gap-3 overflow-hidden rounded-lg border bg-card py-2.5 pl-4 pr-2 shadow-elev-3',
         'sm:right-auto sm:max-w-sm'
       )}
     >

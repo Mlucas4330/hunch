@@ -15,6 +15,10 @@ import {
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import { cn } from '@/lib/utils'
 
+// Ties the competitor field to its own message via `aria-describedby`, so the error is announced
+// with the input rather than as a loose alert somewhere else in the form.
+const COMPETITOR_ERROR_ID = 'competitor-url-error'
+
 const PHASE_SCHEDULE: { at: number; phase: number }[] = [
   { at: 4000, phase: 1 },
   { at: 46000, phase: 2 },
@@ -93,7 +97,15 @@ export function UrlInputForm({
   // Parsed once from the string the column holds, so a brief written before the form had fields
   // opens in the form rather than disappearing behind it. See lib/brief.ts.
   const [brief, setBrief] = useState(() => parseBrief(defaultBrief))
+  // **Two error slots, because there are two fields.**
+  //
+  // There was one, shared. A malformed competitor URL therefore printed its message at the bottom of
+  // the form -- below the pending strip and below the brief disclosure, a long way from the field
+  // that caused it -- and set `aria-invalid` on the *other* input, so a screen reader was told the
+  // page URL was wrong when it was fine. `error` is now the form's own outcome (the submit, the
+  // route, the wait) and `competitorError` belongs to that field and renders under it.
   const [error, setError] = useState<string | null>(null)
+  const [competitorError, setCompetitorError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [phase, setPhase] = useState(0)
   const [elapsed, setElapsed] = useState(0)
@@ -101,6 +113,7 @@ export function UrlInputForm({
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+    setCompetitorError(null)
 
     let parsed: URL
     try {
@@ -117,7 +130,7 @@ export function UrlInputForm({
       try {
         competitor = new URL(competitorUrl.trim())
       } catch {
-        setError(dictionary.urlForm.errorInvalidCompetitor)
+        setCompetitorError(dictionary.urlForm.errorInvalidCompetitor)
         return
       }
     }
@@ -197,7 +210,7 @@ export function UrlInputForm({
         <div className="space-y-1">
           <label
             htmlFor="competitorUrl"
-            className="panel-label text-[0.6rem] text-muted-foreground"
+            className="panel-label text-nano text-muted-foreground"
           >
             {dictionary.urlForm.competitorLabel}
           </label>
@@ -210,15 +223,23 @@ export function UrlInputForm({
             onChange={(e) => setCompetitorUrl(e.target.value)}
             disabled={pending || blocked}
             className="font-mono"
+            aria-invalid={competitorError ? true : undefined}
+            aria-describedby={competitorError ? COMPETITOR_ERROR_ID : undefined}
           />
-          <p className="text-xs text-muted-foreground">{dictionary.urlForm.competitorHint}</p>
+          {competitorError ? (
+            <p id={COMPETITOR_ERROR_ID} role="alert" className="text-xs text-destructive">
+              {competitorError}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">{dictionary.urlForm.competitorHint}</p>
+          )}
         </div>
       )}
 
       {pending && (
         <div className="space-y-2" role="status" aria-live="polite">
           <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/50 px-3 py-2">
-            <span className="panel-label text-[0.7rem] text-muted-foreground">
+            <span className="panel-label text-micro text-muted-foreground">
               {dictionary.urlForm.phases[phase]}
             </span>
             <span className="font-mono text-xs tabular-nums text-muted-foreground">

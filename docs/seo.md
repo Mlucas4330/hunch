@@ -61,6 +61,13 @@ with the page it describes is worse than none.
 It follows the cookie locale like everything else here, so the indexed copy is the `DEFAULT_LOCALE`
 one, per the section above.
 
+**The component has no `'use client'`, and that is what puts the schema and every answer in the
+initial HTML.** The section became a two-column layout and the rows stayed native `<details>`
+precisely so this stayed true — an accordion driven by `useState` would ship the questions and leave
+the answers to hydration, and a crawler that does not run the bundle would index a page of headings.
+The `<script>` is a sibling of the grid rather than a child of it; that is a readability call, not a
+behavioural one, since `script` lays out nothing either way.
+
 The same rule the rest of the product runs on applies to the answers: a question may say what the
 product counts and what a credit buys, and may not answer with a lift, a benchmark or a conversion
 figure. The last item exists to say that out loud. See [invariants.md](invariants.md).

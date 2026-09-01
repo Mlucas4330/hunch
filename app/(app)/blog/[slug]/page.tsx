@@ -45,7 +45,7 @@ export default async function BlogPostPage({ params }: Params) {
     <div className="animate-fade-up space-y-12 pb-12">
       <Link
         href={BLOG_PATH}
-        className="panel-label flex items-center gap-1.5 text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground"
+        className="panel-label flex items-center gap-1.5 text-micro text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-3" aria-hidden />
         {blog.backToIndex}
@@ -58,7 +58,7 @@ export default async function BlogPostPage({ params }: Params) {
       />
 
       <div className="mx-auto max-w-2xl space-y-4 border-t pt-8">
-        <p className="panel-label text-[0.7rem] text-muted-foreground">{blog.postsLabel}</p>
+        <p className="panel-label text-micro text-muted-foreground">{blog.postsLabel}</p>
         <ul className="space-y-2">
           {others.map((other) => (
             <li key={other}>

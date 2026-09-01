@@ -37,7 +37,7 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
               value={option}
               aria-current={active ? 'true' : undefined}
               className={cn(
-                'panel-label rounded-sm px-1.5 py-0.5 text-[0.6rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'panel-label rounded-sm px-1.5 py-0.5 text-nano transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 active
                   ? 'bg-foreground text-background'
                   : 'text-muted-foreground hover:text-foreground'

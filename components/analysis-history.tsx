@@ -50,7 +50,7 @@ export function AnalysisHistory({
         return (
           <Card
             key={analysis.id}
-            className="relative flex flex-col hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-sm focus-within:-translate-y-0.5 focus-within:border-foreground/20"
+            className="relative flex flex-col hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-elev-2 focus-within:-translate-y-0.5 focus-within:border-foreground/20"
           >
             <CardContent className="flex flex-1 flex-col gap-3 p-4">
               <Link
@@ -105,7 +105,7 @@ export function AnalysisHistory({
               <p className="break-all font-mono text-xs text-muted-foreground">{analysis.url}</p>
 
               <div className="mt-auto space-y-2">
-                <div className="panel-label flex items-center gap-2 text-[0.65rem] text-muted-foreground">
+                <div className="panel-label flex items-center gap-2 text-micro text-muted-foreground">
                   <span>{analysis.date}</span>
                   <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-border" />
                   <span className="truncate">{analysis.market}</span>

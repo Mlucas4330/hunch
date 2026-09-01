@@ -21,8 +21,12 @@ import type { PageKeywords } from '@/lib/keywords'
  * a heading that says what to take from it, with the ad groups written off those same terms
  * underneath -- so the count leads somewhere instead of being a table the reader interprets alone.
  *
- * It starts open, unlike the four analysis sections above it: it is the last thing on the page, so
- * nothing is buried by it, and a reader who never scrolls this far is not helped by it being closed.
+ * **It starts closed now, like the sections above it.** The old reasoning was that nothing is buried
+ * by the last block on the page -- true, and beside the point once the rail exists. What it costs
+ * open is a ten by six table and up to four ad groups, each line carrying its own character counter,
+ * always expanded at the foot of a document that already asks a lot: the single largest thing on the
+ * page, shown to every reader whether or not they came for it. The rail names it, so a reader who
+ * wants it can reach it in one click from anywhere; before, it was open because it was unreachable.
  */
 export function PageTerms({
   keywords,
@@ -44,9 +48,9 @@ export function PageTerms({
 
   return (
     <PanelCard
+      id="terms"
       icon={Tags}
       label={copy.eyebrow}
-      defaultOpen
       testId="page-terms"
       className={className}
     >

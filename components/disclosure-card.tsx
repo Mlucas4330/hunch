@@ -1,30 +1,40 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { SECTION_ANCHOR_CLASS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 export function DisclosureCard({
+  id,
   score,
   badge,
   title,
   defaultOpen,
   className,
+  style,
   testId,
   children
 }: {
+  /** Anchor target, so a fix card can be linked to from the triage block and from the readout. */
+  id?: string
   /** The impact rail. Omitted on a row that has no score, like the landing FAQ. */
   score?: ReactNode
   badge?: ReactNode
   title: string
   defaultOpen?: boolean
   className?: string
+  /** Carries `--index` for the staggered arrival. See app/globals.css. */
+  style?: CSSProperties
   testId?: string
   children: ReactNode
 }) {
   return (
     <Card
+      id={id}
+      style={style}
       className={cn(
         'overflow-hidden break-inside-avoid transition-colors focus-within:border-foreground/20',
+        id && SECTION_ANCHOR_CLASS,
         className
       )}
       data-testid={testId}

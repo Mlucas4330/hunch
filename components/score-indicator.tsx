@@ -1,6 +1,10 @@
 'use client'
 
-import { impactScoreBadgeClass, impactScoreRailClass } from '@/lib/constants'
+import {
+  IMPACT_SCORE_MAX,
+  impactScoreBadgeClass,
+  impactScoreRailClass
+} from '@/lib/constants'
 import { useI18n } from '@/components/i18n-provider'
 import { t } from '@/lib/i18n/format'
 import { cn } from '@/lib/utils'
@@ -30,7 +34,7 @@ export function ScoreIndicator({
     return (
       <span
         className={cn(
-          'rounded-sm px-1.5 py-0.5 font-mono text-[0.7rem] font-semibold tabular-nums',
+          'rounded-sm px-1.5 py-0.5 font-mono text-micro font-semibold tabular-nums',
           impactScoreBadgeClass(score)
         )}
         aria-label={aria}
@@ -44,14 +48,31 @@ export function ScoreIndicator({
   return (
     <span
       className={cn(
-        'flex w-14 shrink-0 flex-col items-center justify-center border-r font-mono tabular-nums',
+        'relative flex w-14 shrink-0 flex-col items-center justify-center overflow-hidden border-r font-mono tabular-nums',
         impactScoreRailClass(score)
       )}
       aria-label={aria}
     >
-      <span className="text-xl font-semibold leading-none">{score}</span>
-      <span className="text-[0.65rem] leading-none opacity-70" aria-hidden>
-        /10
+      {/* **A gauge with a level, where the health rail beside it is a solid plate.**
+       *
+       * The two rails were the same widget: a fixed-width tinted block with a big number and a small
+       * denominator, one saying 87 out of 100 and one saying 9 out of 10, four cards apart on the
+       * same screen. docs/readout.md names that as where a reader stops trusting either number, and
+       * printing the denominators was only half an answer -- a denominator is read, and the shape is
+       * what is scanned.
+       *
+       * So impact fills from the bottom in proportion to itself and health stays a plate. The bar is
+       * `bg-current`, so it takes the band colour from `impactScoreRailClass` like the numeral does
+       * and no colour is written here. It is `aria-hidden` because it is the same fact as the label
+       * already on the wrapper. */}
+      <span
+        className="pointer-events-none absolute inset-x-0 bottom-0 bg-current opacity-15"
+        style={{ height: `${(score / IMPACT_SCORE_MAX) * 100}%` }}
+        aria-hidden
+      />
+      <span className="relative text-xl font-semibold leading-none">{score}</span>
+      <span className="relative text-micro leading-none opacity-70" aria-hidden>
+        /{IMPACT_SCORE_MAX}
       </span>
     </span>
   )
