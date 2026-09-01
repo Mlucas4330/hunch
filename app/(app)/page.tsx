@@ -6,6 +6,7 @@ import { AnalysisPulse } from '@/components/analysis-pulse'
 import { CreditPacks } from '@/components/credit-packs'
 import { UrlInputForm } from '@/components/url-input-form'
 import { LandingFaq } from '@/components/landing-faq'
+import { LandingSchema } from '@/components/landing-schema'
 import { LandingSteps } from '@/components/landing-steps'
 import { ProductDemo } from '@/components/product-demo'
 import { SwipeTrack } from '@/components/swipe-track'
@@ -67,7 +68,7 @@ export default async function LandingPage() {
 
           <Link
             href="#how"
-            className="panel-label inline-block text-micro text-muted-foreground transition-colors hover:text-foreground"
+            className="panel-label inline-block text-micro text-muted-foreground transition-colors hover:text-foreground max-sm:inline-flex max-sm:min-h-11 max-sm:items-center"
           >
             {d.landing.howItWorksLink}
           </Link>
@@ -152,7 +153,7 @@ export default async function LandingPage() {
 
           <Link
             href={`${BLOG_PATH}/${AI_POST_SLUG}`}
-            className="panel-label inline-block text-micro text-muted-foreground transition-colors hover:text-foreground"
+            className="panel-label inline-block text-micro text-muted-foreground transition-colors hover:text-foreground max-sm:inline-flex max-sm:min-h-11 max-sm:items-center"
           >
             {d.landing.aiSearch.link}
           </Link>
@@ -203,6 +204,12 @@ export default async function LandingPage() {
           </CardContent>
         </Card>
       </section>
+
+      {/* Last, and never first. `space-y-24` spaces siblings with `:not([hidden]) ~ :not([hidden])`,
+          which a `<script>` satisfies -- put at the top it would push the hero down by six rem
+          without rendering anything itself. Here the rule targets the script, and a `display: none`
+          element generates no box for the margin to apply to. Same trap LandingFaq notes. */}
+      <LandingSchema dictionary={d} />
     </div>
   )
 }

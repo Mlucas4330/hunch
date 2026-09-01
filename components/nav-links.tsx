@@ -38,8 +38,13 @@ export function NavLinks({ signedIn, admin }: { signedIn: boolean; admin: boolea
             key={link.href}
             href={link.href}
             aria-current={active ? 'page' : undefined}
+            // Below `sm` these render stacked inside the mobile menu, where they were 24px tall --
+            // under the 44px `captureMobile` counts, so the app's own navigation was a finding on
+            // every page. `min-h` plus centring rather than padding: the row grows to the thumb
+            // without the text drifting off its baseline. The desktop bar above `md` is untouched.
             className={cn(
               'panel-label rounded-sm text-micro transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              'max-sm:flex max-sm:min-h-11 max-sm:items-center',
               active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
             )}
           >

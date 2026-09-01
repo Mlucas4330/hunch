@@ -42,8 +42,12 @@ export async function ThemeToggle({ theme }: { theme: Theme }) {
               value={option}
               aria-current={active ? 'true' : undefined}
               title={t.nav.theme[option]}
+              // The icon stays `size-3.5`; the box around it grows. `p-1` gave a 22px control, half
+              // of what a thumb needs, and enlarging the glyph instead would have put a pair of
+              // oversized icons in a bar drawn around small ones. On a phone the segmented pair is
+              // 88px wide, which is what a two-way control costs when both halves are tappable.
               className={cn(
-                'rounded-sm p-1 transition-colors',
+                'flex items-center justify-center rounded-sm p-1 transition-colors max-sm:size-11',
                 active ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'
               )}
             >

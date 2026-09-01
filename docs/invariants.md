@@ -293,6 +293,14 @@ The consequence to hold onto: **an owned analysis can contain nothing generated.
 after signing in hands over the row without the paid half ever having been bought, so the analysis
 surface renders the unlock wall rather than four empty tabs. There is one surface to say that of now
 — it was two, and they disagreed about the predicate — see [report.md](report.md).
+
+**Since the readout is committed before the generation starts, "owned and nothing generated" is now
+two situations rather than one**, and the surface has to tell them apart: a generation in flight gets
+placeholders that fill themselves, and a claimed free run gets the wall. The row is identical in both,
+so the job is asked — and only about whether work is happening. **Ownership is still what says the
+paid half was bought**, which is why an ownerless row is never treated as generating no matter what
+its job says: an anonymous run's job is briefly `running` after the measurement lands, and reading
+that as a pending generation would promise a stranger fixes nobody paid for.
 Buying credits does not retroactively generate anything — the reader runs the URL again with a credit
 in hand.
 

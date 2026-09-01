@@ -62,6 +62,19 @@ export interface PageElement {
 export interface PageStructure {
   hasOauth: boolean
   oauthProviders: string[]
+  /**
+   * Whether anything on the page offers a way in at all -- a sign in link, a create-account button.
+   *
+   * **Separate from `hasOauth`, because they answer different questions.** `hasOauth` says the page
+   * offers Google or GitHub; this says the page has an account to offer them *for*. Without it the
+   * readout could not tell "signs you in, but only with email" from "does not sign anybody in", and
+   * asked both the same question -- so a page whose only form is a search box or a URL field was told
+   * it lacks social sign in. See docs/readout.md.
+   *
+   * Optional for the reason every late field here is optional: a row measured before this existed has
+   * none, and `undefined` means "not measured" rather than "the page has no way in".
+   */
+  hasAuthEntry?: boolean
   formCount: number
   formFieldCount: number
   hasFaq: boolean
@@ -95,6 +108,22 @@ export interface PageStructure {
   hasPhysicalAddress?: boolean
   hasPhone?: boolean
   hasSocialLinks?: boolean
+}
+
+/**
+ * One first-level block of the page, with the heading that introduces it.
+ *
+ * The set is exactly what `sectionCount` counts -- the visible children of `main` -- rather than a
+ * second definition of "section" living beside the first. There was no reason to invent one, and two
+ * definitions of the same noun drift the moment either is touched.
+ *
+ * Its job is to let the prompt drop the MIDDLE of a page that will not fit instead of its tail. A
+ * character truncation always amputates pricing, FAQ and footer, which is precisely where objections
+ * and proof live -- so the model was reliably blind to the part of a long page it most needed.
+ */
+export interface PageSection {
+  heading: string | null
+  text: string
 }
 
 export interface PageSeo {
@@ -167,6 +196,9 @@ export interface ScrapedPage {
   seo: PageSeo
   performance: PagePerformance
   mobile: PageMobile
+  // Optional for the reason every late field on PageStructure is: nothing measured before this
+  // existed has it, and `undefined` means "not measured" rather than "the page had none".
+  sections?: PageSection[]
 }
 
 export class ScrapeError extends Error {
@@ -360,6 +392,7 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
         headingsMax: SEO_HEADINGS_MAX,
         headingMaxChars: SEO_HEADING_MAX_CHARS
       })
+      const sections = await page.evaluate(captureSections)
       const performance = await page.evaluate(capturePerformance, {
         lcpFlushMs: SCRAPE_LCP_FLUSH_MS
       })
@@ -384,7 +417,7 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
         ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
       })
 
-      return { url, html, elements, structure, seo, performance, mobile }
+      return { url, html, elements, structure, seo, performance, mobile, sections }
     } catch (error) {
       throw new ScrapeError(`Failed to scrape ${url}`, { cause: error })
     } finally {
@@ -826,6 +859,41 @@ function captureElements(options: {
   return out
 }
 
+/**
+ * The page broken into its first-level blocks, so the prompt can drop the middle of a long one.
+ *
+ * `main`'s visible children, which is the same set `captureStructure` counts as `sectionCount` --
+ * said once there and once here rather than defined twice with a chance to disagree. A page with no
+ * `<main>` falls back to `body` exactly as that function does.
+ *
+ * The heading is the first one INSIDE the block, and it is what names a dropped section in the
+ * coverage note the prompt carries. A block with no heading reports `null` rather than borrowing the
+ * previous one, because a borrowed heading would tell the model a section was about something nobody
+ * measured it to be about.
+ */
+function captureSections(): PageSection[] {
+  const main = document.querySelector('main') ?? document.body
+
+  function isVisible(el: Element): boolean {
+    const rect = el.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) return false
+    const style = getComputedStyle(el)
+    return style.visibility !== 'hidden' && style.display !== 'none'
+  }
+
+  function clean(value: string | null | undefined): string {
+    return (value || '').replace(/\s+/g, ' ').trim()
+  }
+
+  return Array.from(main.children)
+    .filter(isVisible)
+    .map((section) => ({
+      heading: clean(section.querySelector('h1, h2, h3, h4, h5, h6')?.textContent) || null,
+      text: clean(section.textContent)
+    }))
+    .filter((section) => section.text.length > 0)
+}
+
 function captureStructure(options: {
   oauthProviders: Record<string, string[]>
   patterns: typeof STRUCTURE_PATTERNS
@@ -857,10 +925,15 @@ function captureStructure(options: {
 
   const clickables = Array.from(document.querySelectorAll('a, button')).filter(isVisible)
 
+  // One pass, two answers. The auth test was already being run here to decide which controls could
+  // carry a provider name; it simply was not recorded, so nothing downstream could tell a page with
+  // no account from a page with an account and no Google button.
+  let hasAuthEntry = false
   const providers = new Set<string>()
   for (const el of clickables) {
     const text = label(el)
     if (!matchesAny(text, patterns.auth)) continue
+    hasAuthEntry = true
     for (const [provider, needles] of Object.entries(oauthProviders)) {
       if (matchesAny(text, needles)) providers.add(provider)
     }
@@ -968,6 +1041,7 @@ function captureStructure(options: {
 
   return {
     hasOauth: providers.size > 0,
+    hasAuthEntry,
     oauthProviders: Array.from(providers),
     formCount: forms.length,
     formFieldCount: fields.length,
@@ -1247,6 +1321,14 @@ export function resolveTarget(currentCopy: string, elements: PageElement[]): Res
   return { selector: near[0].el.selector, mode: 'auto', text: near[0].el.text }
 }
 
+/**
+ * The page's readable text, with the markup taken out.
+ *
+ * It used to end in `.slice(0, 8000)` with no caller aware of it and no doc mentioning it, which is
+ * how a long page reached every prompt as its own top third. The budget now belongs to whoever is
+ * building a prompt -- see composePageText in lib/page-text.ts -- and this function's only job is to
+ * flatten.
+ */
 export function preprocessHtml(html: string): string {
   const text = html
     .replace(/<head[\s\S]*?<\/head>/gi, '')
@@ -1266,5 +1348,5 @@ export function preprocessHtml(html: string): string {
     .replace(/\n\s*\n\s*\n+/g, '\n\n')
     .trim()
 
-  return text.slice(0, 8000)
+  return text
 }

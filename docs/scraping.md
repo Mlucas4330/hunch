@@ -79,8 +79,9 @@ a link inside a sentence is prose rather than something anyone aims a thumb at.
 
 A flat record: `hasOauth`, `formFieldCount`, `hasFaq`, `hasPricing`, `hasTestimonials`, `hasVideo`,
 `hasStickyCta`, `bodyLinkCount`, `aboveFoldCtaCount`, `navLinkCount`, `sectionCount`, `wordCount`,
-plus what the form asks for (`requiredFieldCount`, `fieldsWithoutLabel`, `formSteps`, `hasSubmit`,
-`hasClientValidation`, `deadCtaCount`) and what the page offers as a reason to believe it (`hasCnpj`,
+plus whether the page signs anybody in at all (`hasAuthEntry`), what the form asks for
+(`requiredFieldCount`, `fieldsWithoutLabel`, `formSteps`, `hasSubmit`, `hasClientValidation`,
+`deadCtaCount`) and what the page offers as a reason to believe it (`hasCnpj`,
 `testimonialWithAttributionCount`, `clientLogoCount`, `trustBadgeCount`, `hasPrivacyPolicy`,
 `hasTerms`, `hasPhysicalAddress`, `hasPhone`, `hasSocialLinks`).
 
@@ -91,6 +92,29 @@ and none of the keys. `undefined` there means *not measured*, which is a differe
 zero is a real and common answer for most of them. Reporting a finding of zero for a page nobody
 counted it on reports unknown as negative, which
 [invariants.md](invariants.md#unknown-is-never-reported-as-negative) forbids outright.
+
+### `hasAuthEntry` is a different question from `hasOauth`
+
+`hasOauth` says the page offers Google or GitHub. `hasAuthEntry` says the page has an account to offer
+them **for** — any sign in link, any create-account button. Both come off the same pass over the
+clickables, from the `STRUCTURE_PATTERNS.auth` test that was already being run to decide which
+controls could carry a provider name; it simply was not recorded.
+
+Without it the readout could not tell "signs you in, but only with email" from "signs nobody in", and
+put the same question to both. A page whose only form is a search box, a newsletter field or a URL
+analyser was told it lacks social sign in — see [readout.md](readout.md).
+
+**`STRUCTURE_PATTERNS.auth` was English only, and it was the only key in that object that was.** Its
+neighbours all carry Portuguese, and `hasOauth` is computed from nothing else, so on any page written
+in Portuguese it was false by construction: every Brazilian landing page with a form was told it has
+no social sign in whether or not it does. `DEFAULT_LOCALE` is `pt-BR`, so that was the main market
+rather than an edge case. `continuar com` is in the list for the same reason `continue with` is — it
+is how the button is labelled, and without it "Continuar com Google" matched no provider.
+
+The list accepts one known collision: `entrar` is a substring of "entrar em contato", so a contact
+link reads as an authentication entry. That costs at most one finding asked of a page that cannot
+answer it; dropping the term costs the most common Portuguese word for signing in, which is the bug
+being fixed.
 
 **The form is read, never operated.** Steps, required fields and missing labels all come off the DOM.
 Nothing clicks, types or submits: sending a stranger's form would write a fake lead into their CRM
@@ -131,8 +155,24 @@ An unparseable JSON-LD block is **skipped rather than thrown**: a broken block i
 reason to lose the scrape.
 
 `PageStructure` is deliberately left alone by this — its contract is "what the page DOES", so metadata
-there would be tokens no playbook rule reads. `generateVisibility` is handed `PageSeo` plus exactly two
-`PageStructure` fields (`hasFaq`, `wordCount`).
+there would be tokens no playbook rule reads. `generateVisibility` is handed `PageSeo`, the composed
+page text, and the `PageStructure` counts that describe the whole page (`hasFaq`, `hasPricing`,
+`wordCount`, `headingCount`, `sectionCount`) — see [ai-pipeline.md](ai-pipeline.md).
+
+## `PageSection` — the page in first-level blocks
+
+`captureSections` returns the visible children of `main` (or `body`), each with its first heading and
+its text. **The set is exactly what `sectionCount` counts**, reused rather than redefined: two
+definitions of "section" drift the moment either is touched.
+
+It exists so a prompt that cannot carry the whole page can drop the **middle** rather than the tail.
+A block with no heading reports `null` rather than borrowing the previous one — a borrowed heading
+would tell the model a section is about something nobody measured it to be about. Optional on
+`ScrapedPage` for the reason every late `PageStructure` field is optional: a row measured before this
+existed has none, and `undefined` means "not measured".
+
+`preprocessHtml` no longer truncates. It flattens, and the budget belongs to the prompt builder —
+see [ai-pipeline.md](ai-pipeline.md).
 
 ## `PagePerformance` — what the page cost to load
 

@@ -147,6 +147,12 @@ export type CreditReason = (typeof CREDIT_REASON)[number]
 export const JOB_STATUS = ['queued', 'running', 'ready', 'unavailable'] as const
 export type JobStatus = (typeof JOB_STATUS)[number]
 
+// The two that mean the work has not finished and has not given up. The report surface reads them to
+// tell "this analysis is generating right now" apart from "nobody ever bought a generation for it",
+// which the row alone cannot distinguish -- both are an owned row with no hypotheses. See
+// docs/report.md.
+export const JOB_IN_FLIGHT: readonly JobStatus[] = ['queued', 'running']
+
 // Abuse gates. Windows live in RATE_LIMITS, so a kind added here fails typecheck until it is given
 // one.
 export const RATE_LIMIT_KIND = [

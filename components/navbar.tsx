@@ -24,7 +24,9 @@ export async function Navbar() {
     // across a surface that has none. See app/globals.css.
     <header className="animate-navbar-lift sticky top-0 z-40 border-b border-b-transparent bg-paper/80 backdrop-blur print:hidden">
       <nav className={cn(CONTAINER_CLASS, 'flex h-16 items-center justify-between gap-3')}>
-        <Link href="/" aria-label={t.nav.homeAria}>
+        {/* The bar is `h-16`, so the room is already there -- the link just was not claiming it, and
+            a 28px box in a 64px bar is a tap target the metric counts and a thumb misses. */}
+        <Link href="/" aria-label={t.nav.homeAria} className="flex min-h-11 items-center">
           <Wordmark />
         </Link>
 

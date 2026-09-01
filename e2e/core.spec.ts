@@ -131,7 +131,11 @@ test.describe('core features', () => {
     await menu.locator('summary').click()
     await expect(menu).toHaveJSProperty('open', true)
 
-    await phone.mouse.click(120, 600)
+    // x=20, nao x=120. O painel tem 256px ancorados a direita, entao numa tela de 375 ele comeca em
+    // x=103 -- e o clique antigo so caia fora dele porque o menu era curto o bastante para terminar
+    // acima de y=600. Com os itens em 44px o painel desceu e o clique passou a cair dentro dele.
+    // Uma coordenada a esquerda da borda esquerda esta fora em qualquer altura.
+    await phone.mouse.click(20, 600)
     await expect(menu).toHaveJSProperty('open', false)
 
     await menu.locator('summary').click()

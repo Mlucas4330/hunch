@@ -19,12 +19,6 @@ import { cn } from '@/lib/utils'
 // with the input rather than as a loose alert somewhere else in the form.
 const COMPETITOR_ERROR_ID = 'competitor-url-error'
 
-const PHASE_SCHEDULE: { at: number; phase: number }[] = [
-  { at: 4000, phase: 1 },
-  { at: 46000, phase: 2 },
-  { at: 160000, phase: 3 }
-]
-
 type Started = { embedKey: string; owned: boolean }
 
 type Progress = { measured: boolean; generated: boolean }
@@ -45,11 +39,18 @@ function remember(embedKey: string): void {
 }
 
 /**
- * Polls until the half this caller is entitled to exists: the readout for everyone, the generated
- * fixes as well when the analysis has an owner. Gives up on the wall clock rather than a retry count,
- * because what matters is how long the reader has been staring at a spinner.
+ * Polls until the page has been measured, and then leaves.
+ *
+ * **It used to wait for `generated` when the analysis had an owner, and that was the whole problem.**
+ * `runAnalysis` now stores the readout the moment the scrape returns, so `measured` turns true about
+ * twenty seconds in for everybody -- and the score is the half the reader can check against their own
+ * site, which makes it the worst possible thing to sit on. The fixes carry on generating and the
+ * report screen fills itself in; see app/(report)/r/[embedKey]/page.tsx.
+ *
+ * Gives up on the wall clock rather than a retry count, because what matters is how long the reader
+ * has been staring at a spinner.
  */
-async function waitForAnalysis(embedKey: string, owned: boolean): Promise<boolean> {
+async function waitForAnalysis(embedKey: string): Promise<boolean> {
   const deadline = Date.now() + ANALYSIS_WAIT_MAX_MS
 
   while (Date.now() < deadline) {
@@ -60,7 +61,7 @@ async function waitForAnalysis(embedKey: string, owned: boolean): Promise<boolea
       if (!res.ok) continue
 
       const progress: Progress = await res.json()
-      if (owned ? progress.generated : progress.measured) return true
+      if (progress.measured) return true
     } catch {
       // A dropped poll is not a verdict: the worker still holds the job.
     }
@@ -107,7 +108,6 @@ export function UrlInputForm({
   const [error, setError] = useState<string | null>(null)
   const [competitorError, setCompetitorError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [phase, setPhase] = useState(0)
   const [elapsed, setElapsed] = useState(0)
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -136,11 +136,9 @@ export function UrlInputForm({
     }
 
     setPending(true)
-    setPhase(0)
     setElapsed(0)
     const startedAt = Date.now()
     const ticker = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000)
-    const phaseTimers = PHASE_SCHEDULE.map((step) => setTimeout(() => setPhase(step.phase), step.at))
 
     try {
       const res = await fetch('/api/analyses', {
@@ -161,10 +159,10 @@ export function UrlInputForm({
 
       // The route answers 202 with a key, not a finished analysis: the work is on the queue and the
       // wait belongs to the worker now. What is left here is asking until it lands.
-      const { embedKey, owned }: Started = await res.json()
+      const { embedKey }: Started = await res.json()
       remember(embedKey)
 
-      const done = await waitForAnalysis(embedKey, owned)
+      const done = await waitForAnalysis(embedKey)
       if (!done) {
         setError(dictionary.urlForm.errorGeneric)
         return
@@ -177,7 +175,6 @@ export function UrlInputForm({
       setError(dictionary.urlForm.errorGeneric)
     } finally {
       clearInterval(ticker)
-      phaseTimers.forEach(clearTimeout)
       setPending(false)
     }
   }
@@ -189,21 +186,32 @@ export function UrlInputForm({
     // `sm:flex-row` put a full length CTA beside the URL field and left the field at 200px on every
     // desktop from 1024 to 1920. A container query asks the question that actually matters.
     <form onSubmit={onSubmit} className="@container space-y-3">
-      <div className="flex flex-col gap-2 @md:flex-row">
-        <Input
-          name="url"
-          type="url"
-          placeholder={dictionary.urlForm.urlPlaceholder}
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          disabled={pending || blocked}
-          className="font-mono"
-          aria-invalid={error ? true : undefined}
-          required
-        />
-        <Button type="submit" disabled={pending || blocked} className="shrink-0">
-          {pending ? dictionary.urlForm.analyzing : (submitLabel ?? dictionary.urlForm.analyze)}
-        </Button>
+      {/* The label the competitor field below has always had, on the field that actually matters.
+          It was a placeholder alone, which our own readout counts as a field without a label -- and
+          `labelled()` in lib/scrape.ts says why in a sentence: a placeholder disappears the moment
+          the visitor types, so the field they are halfway through has nothing next to it saying what
+          it wanted. An `aria-label` would have satisfied the count and left that half unfixed. */}
+      <div className="space-y-1">
+        <label htmlFor="url" className="panel-label text-nano text-muted-foreground">
+          {dictionary.urlForm.urlLabel}
+        </label>
+        <div className="flex flex-col gap-2 @md:flex-row">
+          <Input
+            id="url"
+            name="url"
+            type="url"
+            placeholder={dictionary.urlForm.urlPlaceholder}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            disabled={pending || blocked}
+            className="font-mono"
+            aria-invalid={error ? true : undefined}
+            required
+          />
+          <Button type="submit" disabled={pending || blocked} className="shrink-0">
+            {pending ? dictionary.urlForm.analyzing : (submitLabel ?? dictionary.urlForm.analyze)}
+          </Button>
+        </div>
       </div>
 
       {showBrief && (
@@ -240,7 +248,7 @@ export function UrlInputForm({
         <div className="space-y-2" role="status" aria-live="polite">
           <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/50 px-3 py-2">
             <span className="panel-label text-micro text-muted-foreground">
-              {dictionary.urlForm.phases[phase]}
+              {dictionary.urlForm.measuring}
             </span>
             <span className="font-mono text-xs tabular-nums text-muted-foreground">
               {formatElapsed(elapsed)}

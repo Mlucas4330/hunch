@@ -118,6 +118,37 @@ highlighted", and the rail is a list of working anchors either way. Do not remov
 every ancestor first, then scrolls. `components/section-link.tsx` is the `<a>` that calls it, and it
 stays a real anchor so it works without JavaScript.
 
+## Everything tappable clears 44px on a phone
+
+`captureMobile` counts any control whose box is under `MOBILE_TAP_TARGET_MIN_PX` on either axis, and
+any element rendering text under `MOBILE_MIN_FONT_PX`. Run against our own landing page it counted
+twenty of the first and twenty four of the second — **we were failing the measurement we sell**, and
+almost all of it came from shared primitives rather than from one screen.
+
+Fixed at the source, `max-sm:` only, so nothing about the desktop scale moves:
+
+- **`Button` and `Input`.** `h-10` is 40px and `size="sm"` is 36px; both are under the line. Every
+  size now clears 44 on a phone. That was seven of the twenty on its own, and it fixes every page in
+  the app at once.
+- **The type scale.** `--text-micro` is 11px and `--text-nano` is 10px, both under the 12px floor,
+  across seventy five call sites. `app/globals.css` collapses the two steps to `0.75rem` under
+  `sm`. It is written against the **utilities**, not the custom properties: `@theme inline` inlines
+  the value into the generated class, so redefining `--text-micro` in a media query changes nothing.
+  Unlayered, so it outranks `@layer utilities` without a specificity fight.
+- **The dot is the mark, the button is the target.** `SwipeTrack`'s pagination dots were 8px squares.
+  The button takes the 44px and draws the same 8px dot inside it. The gap went with it: 44px targets
+  spaced by another 8 would run the row to 148px, and pulling them back with negative margins would
+  overlap the hit areas — trading a target that is too small for one that activates its neighbour.
+- **Icon-only controls grow their box, never their glyph.** The theme toggle's icons stay `size-3.5`;
+  the buttons around them go to `size-11`. Enlarging the glyph would put oversized icons in a bar
+  drawn around small ones.
+- **Standalone links get `min-h`, not padding.** Nav items, footer links and the two `inline-block`
+  links on the landing page centre their text in a 44px box, so the row grows without the baseline
+  drifting.
+
+Note what is deliberately **not** covered: `captureMobile` excludes `display: inline`, because a link
+inside a sentence is prose and not a tap target. None of the above touches those.
+
 ## Elevation and theme
 
 **Three levels, two shadows each.** `--elev-1` (resting card), `--elev-2` (hover, the hero card),

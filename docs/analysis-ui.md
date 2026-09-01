@@ -379,9 +379,17 @@ stranded with no route to it.
 
 ### Analysis loader
 
-Skeleton cards while `POST /api/analyses` is pending, with a four-phase progress label from
-`dictionary.urlForm.phases` paced by `PHASE_SCHEDULE` to the real pipeline: scraping -> reading the
-head and timing the load -> writing the new copy -> saving results.
+One label and a running clock while `POST /api/analyses` is pending, and the wait is now short: the
+form leaves as soon as the page has been **measured**, which is about twenty seconds, rather than
+waiting for the generation.
+
+**It used to be four phases from `dictionary.urlForm.phases`, paced by `PHASE_SCHEDULE`, and they
+were `setTimeout` calls.** "Writing the new copy" appeared at forty six seconds whatever was actually
+happening, and nothing in the component read any state. Both are gone. The elapsed counter stays,
+because it measures a real clock.
+
+The rest of the wait moved to where there is something to put beside it — the report screen, under
+the reader's own score. See [report.md](report.md).
 
 ### There is no usage gate
 

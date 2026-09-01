@@ -411,6 +411,17 @@ export const CREDIT_PACKS = [
 
 export type CreditPackId = (typeof CREDIT_PACKS)[number]['id']
 
+// What `amountBrl` is denominated in, said once so the structured data on the landing page and the
+// price the reader sees cannot disagree about it. ADS_CONVERSION_CURRENCY holds the same code for a
+// different reason -- what a conversion is worth to Google -- and is left where it is rather than
+// aliased here, because a constant declared four hundred lines below it cannot be its initialiser.
+export const CREDIT_PACK_CURRENCY = 'BRL'
+
+// schema.org vocabulary, not our words: the enumeration value for a business tool and the operating
+// system a web app runs on. See docs/seo.md.
+export const SCHEMA_APPLICATION_CATEGORY = 'BusinessApplication'
+export const SCHEMA_OPERATING_SYSTEM = 'Web'
+
 // The two ids that reach `credit_transactions.provider` and `payment_events.provider`. Here rather
 // than beside each adapter so a client component can name one without importing a server module.
 export const STRIPE_PROVIDER: PaymentProvider = 'stripe'
@@ -765,21 +776,38 @@ export const AD_DESCRIPTIONS_PER_GROUP = 2
 export const AD_TERMS_PER_GROUP_MAX = 6
 export const AD_NEGATIVES_MAX = 12
 
+// How much of the page's own text a prompt may carry.
+//
+// It was 8000, written as a bare `.slice` at the end of `preprocessHtml` and mentioned in no doc, so
+// every prompt in the product silently received the top third of a long page and was never told. At
+// roughly four characters a token this is about 12k tokens against a 200k window, and the cost of a
+// generation call is dominated by its 16k of output either way -- the old number was not buying
+// anything. See docs/ai-pipeline.md.
+export const PROMPT_TEXT_MAX_CHARS = 48_000
+
+// How many sections at the end of a page are protected when the middle has to be dropped. Pricing,
+// FAQ and the closing call to action live there, which is exactly what a tail truncation used to
+// throw away first.
+export const PROMPT_SECTIONS_KEEP_TAIL = 3
+
 // Both languages in one list, like STRUCTURE_PATTERNS: the page's language is not known until the
 // scrape, and a Portuguese stopword is never an English keyword. Accents kept -- pt-BR needs them.
 export const KEYWORD_STOPWORDS = [
-  'a', 'about', 'after', 'all', 'also', 'an', 'and', 'any', 'are', 'as', 'at', 'be', 'been', 'but',
-  'by', 'can', 'do', 'does', 'for', 'from', 'get', 'has', 'have', 'how', 'if', 'in', 'into', 'is',
-  'it', 'its', 'just', 'like', 'make', 'may', 'more', 'most', 'no', 'not', 'now', 'of', 'on', 'one',
-  'only', 'or', 'other', 'our', 'out', 'over', 'own', 'see', 'so', 'some', 'than', 'that', 'the',
-  'their', 'them', 'then', 'there', 'these', 'they', 'this', 'to', 'up', 'us', 'use', 'was', 'we',
-  'what', 'when', 'which', 'who', 'why', 'will', 'with', 'you', 'your',
-  'ao', 'aos', 'as', 'até', 'com', 'como', 'da', 'das', 'de', 'dele', 'dela', 'deles', 'do', 'dos',
-  'e', 'ele', 'ela', 'eles', 'em', 'entre', 'era', 'essa', 'esse', 'esta', 'este', 'eu', 'foi',
-  'isso', 'já', 'la', 'lhe', 'mais', 'mas', 'me', 'mesmo', 'meu', 'muito', 'na', 'nas', 'nao',
-  'não', 'nem', 'no', 'nos', 'nós', 'num', 'numa', 'o', 'os', 'ou', 'para', 'pela', 'pelo', 'por',
-  'porque', 'qual', 'quando', 'que', 'quem', 'se', 'sem', 'ser', 'seu', 'seus', 'só', 'sua', 'suas',
-  'também', 'te', 'tem', 'ter', 'teu', 'todo', 'todos', 'tu', 'um', 'uma', 'voce', 'você', 'vocês'
+  'a', 'about', 'after', 'all', 'also', 'always', 'an', 'and', 'any', 'are', 'as', 'at', 'be',
+  'been', 'before', 'but', 'by', 'can', 'do', 'does', 'each', 'for', 'from', 'get', 'has', 'have',
+  'here', 'how', 'if', 'in', 'into', 'is', 'it', 'its', 'just', 'like', 'make', 'may', 'more',
+  'most', 'no', 'not', 'now', 'of', 'on', 'one', 'only', 'or', 'other', 'our', 'out', 'over', 'own',
+  'see', 'so', 'some', 'still', 'than', 'that', 'the', 'their', 'them', 'then', 'there', 'these',
+  'they', 'this', 'to', 'up', 'us', 'use', 'was', 'we', 'what', 'when', 'where', 'which', 'who',
+  'why', 'will', 'with', 'you', 'your',
+  'agora', 'ainda', 'antes', 'ao', 'aos', 'aqui', 'as', 'assim', 'até', 'cada', 'com', 'como', 'da',
+  'das', 'de', 'dela', 'dele', 'deles', 'depois', 'do', 'dos', 'e', 'ela', 'ele', 'eles', 'em',
+  'entre', 'era', 'essa', 'esse', 'esta', 'este', 'eu', 'foi', 'gente', 'isso', 'já', 'la', 'lhe',
+  'mais', 'mas', 'me', 'mesmo', 'meu', 'muito', 'na', 'nao', 'nas', 'não', 'nem', 'no', 'nos',
+  'nossa', 'nosso', 'nós', 'num', 'numa', 'o', 'onde', 'os', 'ou', 'outra', 'outras', 'outro',
+  'outros', 'para', 'pela', 'pelo', 'por', 'porque', 'qual', 'qualquer', 'quando', 'que', 'quem',
+  'se', 'sem', 'sempre', 'ser', 'seu', 'seus', 'só', 'sobre', 'sua', 'suas', 'também', 'te', 'tem',
+  'ter', 'teu', 'toda', 'todas', 'todo', 'todos', 'tu', 'um', 'uma', 'voce', 'você', 'vocês'
 ]
 
 // Detection patterns, not domain values -- matched case-insensitively.
@@ -796,8 +824,29 @@ export const OAUTH_PROVIDER_PATTERNS: Record<string, string[]> = {
 
 // Matched case-insensitively against element text, headings or iframe sources. A provider name
 // alone is never social sign in, so `auth` has to match on the same control.
+//
+// **`auth` was English only, and it was the one key here that was.** Its neighbours all carry
+// Portuguese (`perguntas`, `preco`, `planos`, `depoimentos`); this one did not, and it is the only
+// thing `hasOauth` is computed from. So on any page written in Portuguese `hasOauth` was false by
+// construction, and every Brazilian landing page with a form was told it has no social sign in
+// whether or not it does. DEFAULT_LOCALE is pt-BR and the product is sold to Brazilian founders, so
+// that was a false negative on the main market rather than an edge case -- our own page has "Entrar"
+// and was counted as having nothing. See docs/readout.md.
+//
+// `continuar com` is here for the same reason `continue with` is: it is how the OAuth button is
+// labelled, and without it "Continuar com Google" matched no provider.
+//
+// **Known collision, accepted deliberately: `entrar` is a substring of "entrar em contato".** A
+// contact link therefore reads as an authentication entry, which costs at most one finding asked of a
+// page that cannot answer it. Dropping the term instead costs the single most common Portuguese word
+// for signing in, which is the bug this is fixing. `pricing` already carries the same kind of
+// looseness with `price` inside `pricing`.
 export const STRUCTURE_PATTERNS = {
-  auth: ['sign in', 'signin', 'sign up', 'signup', 'log in', 'login', 'continue with', 'register'],
+  auth: [
+    'sign in', 'signin', 'sign up', 'signup', 'log in', 'login', 'continue with', 'register',
+    'entrar', 'acessar', 'cadastrar', 'cadastre', 'criar conta', 'minha conta', 'fazer login',
+    'continuar com'
+  ],
   faq: ['faq', "faq's", 'frequently asked', 'common questions', 'questions', 'perguntas'],
   pricing: ['pricing', 'plans', 'price', 'preco', 'precos', 'planos'],
   testimonials: ['testimonial', 'customers say', 'loved by', 'what our', 'reviews', 'depoimentos'],

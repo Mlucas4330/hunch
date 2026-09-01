@@ -50,6 +50,35 @@ const readoutRules = () => `- Every finding below was counted on THIS page by co
   problem.`
 
 /**
+ * What a prompt may conclude from not having been shown something.
+ *
+ * Shared for the same reason `marketRules` and `competitorRules` are: the risk is identical wherever
+ * a page's text reaches a model, and three wordings of it would drift. It is the robots.txt rule --
+ * unknown is never reported as negative -- applied to the one place it was being broken silently,
+ * by a `.slice`.
+ *
+ * **This is the rule our own report broke.** Handed metadata and no body text, the visibility prompt
+ * told us to publish a price that has been in our served HTML since the packs existed, and to offer
+ * a cancellation guarantee for a subscription this product does not sell. Neither was a bad
+ * inference from what it was given; both were assertions about a page it had never read.
+ *
+ * The product half is stated separately from the content half on purpose. "Do not claim the page
+ * lacks something" does not by itself stop a model inventing a business model, and a made up pricing
+ * structure reads as a much more confident error than a missing section does.
+ */
+const evidenceRules = () => `- You may only say what the page does or does not SAY on the basis of
+  text you were actually given. If a coverage note tells you part of the page was left out, treat
+  everything about that part as unknown: never report it as missing, never describe what it contains,
+  and never recommend adding something that may already be in it.
+- The same holds for what you were never given at all. Counts you receive are about the WHOLE page,
+  including any part not shown, so a count saying the page has pricing or an FAQ settles the question
+  even when you cannot see it.
+- NEVER invent how this product is sold. Subscriptions, free trials, refunds, cancellation terms and
+  money back guarantees are facts about a business, and you have none unless the page's text or the
+  founder's own details state them. A guarantee recommended for a product that has no subscription is
+  not a weak fix, it is a fix about a different company.`
+
+/**
  * The rules that come with a competitor page, shared by every prompt that receives one.
  *
  * Shared for the same reason `marketRules` is: the risk is identical in all of them and must not end
@@ -180,6 +209,7 @@ Rules:
   shows.
 - The ${language} and no-dash rules above apply to problem and rationale too. The only exception is
   current_copy, which must quote the page's exact characters.
+${evidenceRules()}
 ${marketRules(market)}${competitorHost ? `\n${competitorRules(competitorHost)}` : ''}`
 
 export const playbookPrompt = (
@@ -225,6 +255,10 @@ Rules:
   steps, objections for unanswered questions and guarantees, trust for proof and credibility,
   pricing_clarity for what things cost, page_structure for order and what is above the fold, mobile
   for what the page does wrong in a phone viewport, and performance for what the page costs to load.
+- A form is not a signup. A page may collect an email for a newsletter, a query for a search, or a URL
+  for a tool, and the readout counts all three as a form. NEVER recommend anything about accounts,
+  authentication or social sign in unless the readout shows this page actually has a way to sign in:
+  offering Google login to a page that creates no accounts is a fix for somebody else's product.
 - mobile and performance are measured, so a fix in either MUST name the finding it answers. They are
   the two things this report used to count and then have nothing to say about. Keep them concrete and
   inside the founder's own control: a step is "serve the hero image at the size it renders" or "set a
@@ -244,6 +278,7 @@ Rules:
   product. Never invent facts about the product, its pricing, or its customers.
 - impact_score is an integer from 1 to 10.
 ${readoutRules()}
+${evidenceRules()}
 ${marketRules(market)}${competitorHost ? `\n${competitorRules(competitorHost)}` : ''}
 
 ${writingRules(language)}`
@@ -294,10 +329,14 @@ Rules:
   crawler reaching or indexing the page at all (robots.txt, robots meta, canonical), metadata for what
   the page declares about itself (title, description, Open Graph, lang), structured_data for JSON-LD
   and machine readable markup, and ai_answerability for whether the page states in plain readable text
-  what the product is, who it is for, what it costs, and what questions it answers.
+  what the product is, who it is for, what it costs, and what questions it answers. Judge that
+  against the page text you were given and the counts beside it, never against a guess: that text is
+  what a crawler receives, so if the price is in it then the price is already machine readable and
+  there is nothing there to fix.
 - Treat any business details from the founder as ground truth. Never invent facts about the product.
 - impact_score is an integer from 1 to 10.
 ${readoutRules()}
+${evidenceRules()}
 ${marketRules(market)}
 
 ${writingRules(language)}`

@@ -39,10 +39,13 @@ import { displayHost } from '@/lib/host'
 import { detectMarket } from '@/lib/market'
 import { fetchCrawlerAccess, type CrawlerAccess } from '@/lib/robots'
 import { extractKeywords, type PageKeywords } from '@/lib/keywords'
+import { composePageText, coverageNote, type ComposedPageText } from '@/lib/page-text'
+import { promptElements } from '@/lib/prompt-elements'
 import {
   type PageElement,
   type PageMobile,
   type PagePerformance,
+  type PageSection,
   type PageSeo,
   type PageStructure,
   preprocessHtml,
@@ -54,8 +57,6 @@ import { measuredFindings, type MeasuredFinding } from '@/lib/readout'
 import type { HypothesisTarget, Locale, Market, ReadoutGroup } from '@/lib/enums'
 
 const MODEL = 'claude-sonnet-4-6'
-
-const MAX_PROMPT_ELEMENTS = 150
 
 export type AnalyzedHypothesis = HypothesisOutput & {
   selector: string | null
@@ -115,7 +116,26 @@ export async function measureCompetitor(url: string): Promise<CompetitorMeasurem
   return { url, structure, seo, performance, mobile, keywords: keywordsFor(html, seo) }
 }
 
-export async function measurePage(url: string): Promise<PageMeasurement> {
+/**
+ * Everything one scrape produced: the columns a row stores, and the raw material a generation needs.
+ *
+ * The two used to be inseparable because `analyzeLandingPage` measured and generated in one call and
+ * handed back a finished analysis. That is what made an owned run write nothing for three minutes --
+ * see lib/run-analysis.ts. Splitting the return is what lets the measurement be persisted the moment
+ * it exists, which is roughly twenty seconds in.
+ */
+export type MeasuredPage = PageMeasurement & {
+  html: string
+  elements: PageElement[]
+  sections?: PageSection[]
+  /**
+   * Detected here rather than at row creation because this is the first moment `lang` is known, and
+   * `lang` is the stronger of the two signals. See docs/invariants.md.
+   */
+  market: Market
+}
+
+export async function measurePage(url: string): Promise<MeasuredPage> {
   if (process.env.E2E_FIXTURES === '1') {
     return {
       structure: FIXTURE_STRUCTURE,
@@ -123,20 +143,42 @@ export async function measurePage(url: string): Promise<PageMeasurement> {
       performance: FIXTURE_PERFORMANCE,
       crawlerAccess: FIXTURE_CRAWLER_ACCESS,
       keywords: FIXTURE_KEYWORDS,
-      mobile: FIXTURE_MOBILE
+      mobile: FIXTURE_MOBILE,
+      html: '',
+      elements: [],
+      sections: [],
+      market: detectMarket({ url, lang: FIXTURE_SEO.lang })
     }
   }
 
-  const [{ html, structure, seo, performance, mobile }, crawlerAccess] = await Promise.all([
-    scrapePage(url),
-    fetchCrawlerAccess(url)
-  ])
+  const [{ html, elements, structure, seo, performance, mobile, sections }, crawlerAccess] =
+    await Promise.all([scrapePage(url), fetchCrawlerAccess(url)])
 
-  return { structure, seo, performance, crawlerAccess, mobile, keywords: keywordsFor(html, seo) }
+  return {
+    structure,
+    seo,
+    performance,
+    crawlerAccess,
+    mobile,
+    keywords: keywordsFor(html, seo),
+    html,
+    elements,
+    sections,
+    market: detectMarket({ url, lang: seo.lang })
+  }
 }
 
-export async function analyzeLandingPage(
+/**
+ * The paid half, run against a page that has already been measured and already been written down.
+ *
+ * **The competitor scrape lives here rather than beside the page scrape**, which is a change from
+ * when this was one function. It is only ever read by a prompt, so measuring it before the readout
+ * is stored would hold the reader's score behind a second browser slot for a page that is not even
+ * theirs.
+ */
+export async function generateFromMeasurement(
   url: string,
+  measured: MeasuredPage,
   options: AnalyzeOptions = {}
 ): Promise<AnalysisResult> {
   const locale = options.locale ?? DEFAULT_LOCALE
@@ -176,23 +218,17 @@ export async function analyzeLandingPage(
 
   const startedAt = Date.now()
 
-  // **Three independent waits, taken together.** `fetchCrawlerAccess` used to run after the scrape
-  // and depended on nothing in it, so it spent its whole budget in series for no reason. The
-  // competitor scrape joins them: `scrapePage` waits for its own browser slot, and the drain is
-  // serial, so an analysis holds at most two of SCRAPE_MAX_CONCURRENT_PAGES.
-  const [
-    { html, elements, structure, seo, performance, mobile },
-    crawlerAccess,
-    competitor
-  ] = await Promise.all([
-    scrapePage(url),
-    fetchCrawlerAccess(url),
-    options.competitorUrl ? measureCompetitor(options.competitorUrl) : Promise.resolve(null)
-  ])
+  const { html, elements, structure, seo, performance, mobile, sections, crawlerAccess, keywords, market } =
+    measured
 
-  const content = preprocessHtml(html)
-  const market = detectMarket({ url, lang: seo.lang })
-  const keywords = keywordsFor(html, seo)
+  // The reader's own page is already measured and already stored. This is the only page still to
+  // fetch, and it waits on its own browser slot -- which is exactly why it is no longer taken
+  // together with theirs. See docs/invariants.md.
+  const competitor = options.competitorUrl ? await measureCompetitor(options.competitorUrl) : null
+
+  // The page's text, cut to a budget that is stated rather than hidden at the end of the flattener,
+  // and carrying the account of whatever had to go. See lib/page-text.ts.
+  const pageText = composePageText({ sections, fallback: preprocessHtml(html) })
   const measuredAt = Date.now()
 
   const competitorHost = competitor ? displayHost(competitor.url) : null
@@ -208,8 +244,24 @@ export async function analyzeLandingPage(
     ? `\n\nBusiness details from the founder (use these real facts to write finished copy):\n\n${options.brief}`
     : ''
 
-  const elementList = elements
-    .slice(0, MAX_PROMPT_ELEMENTS)
+  // Counted over the WHOLE page, including any part the text budget could not carry. It is here so
+  // that a model reading a cut page still knows the page has pricing and an FAQ, instead of
+  // concluding from silence that it has neither -- the failure docs/invariants.md forbids.
+  const structureSection = `\n\nCounted over the whole page, including any part left out of the text
+above (JSON):\n${JSON.stringify(
+    {
+      hasPricing: structure.hasPricing,
+      hasFaq: structure.hasFaq,
+      hasTestimonials: structure.hasTestimonials,
+      headingCount: structure.headingCount,
+      sectionCount: structure.sectionCount,
+      wordCount: structure.wordCount
+    },
+    null,
+    2
+  )}`
+
+  const elementList = promptElements(elements)
     .map(
       (e) =>
         `<${e.tag}> "${e.text}" (max ${variantWordBudget(wordCount(e.text))} words, max ${e.capacity} characters${e.emphasized ? ', styled fragment' : ''})`
@@ -240,7 +292,7 @@ export async function analyzeLandingPage(
       schema: AnalysisOutputSchema,
       maxTokens: 16000,
       system: systemPrompt(AI_OUTPUT_LANGUAGE[locale], MARKET_NAME[market], competitorHost),
-      prompt: `Landing page copy:\n\n${content}${elementsSection}${briefSection}${competitorSection}`
+      prompt: `Landing page copy:\n\n${pageText.text}${coverageNote(pageText)}${structureSection}${elementsSection}${briefSection}${competitorSection}`
     }),
     generatePlaybook({
       structure,
@@ -258,6 +310,7 @@ export async function analyzeLandingPage(
       findings: findingsFor(['declared', 'crawler_access']),
       crawlerAccess,
       keywords,
+      pageText,
       founderBrief: options.brief ?? null,
       locale,
       market
@@ -383,6 +436,17 @@ export type VisibilityInput = {
   findings: MeasuredFinding[]
   crawlerAccess: CrawlerAccess
   keywords: PageKeywords
+  /**
+   * The page's own readable text, and what of it had to be left out.
+   *
+   * **This call had none of it, and that is what produced the invented findings.** The prompt asks
+   * for `ai_answerability` -- whether the page states in plain readable text what the product is,
+   * who it is for and what it costs -- against a payload of metadata, counts and robots.txt. The
+   * model was asked to judge a body it had never been given, and it filled the gap: our own report
+   * told us to publish a price that has been in the served HTML all along, and to add a cancellation
+   * guarantee for a subscription this product does not sell. See docs/ai-pipeline.md.
+   */
+  pageText: ComposedPageText
   founderBrief: string | null
   locale: Locale
   market: Market
@@ -395,8 +459,18 @@ export async function generateVisibility(input: VisibilityInput): Promise<Visibi
 
   const sections = [
     `Metadata readout of the page (JSON):\n${JSON.stringify(input.seo, null, 2)}`,
+    `The page's own readable text. This is what a crawler and a language model receive from it, so
+judge what the page does and does not SAY against this and never against anything else:\n${
+      input.pageText.text
+    }${coverageNote(input.pageText)}`,
     `Readable content on the page (JSON):\n${JSON.stringify(
-      { hasFaq: input.structure.hasFaq, wordCount: input.structure.wordCount },
+      {
+        hasFaq: input.structure.hasFaq,
+        hasPricing: input.structure.hasPricing,
+        wordCount: input.structure.wordCount,
+        headingCount: input.structure.headingCount,
+        sectionCount: input.structure.sectionCount
+      },
       null,
       2
     )}`,

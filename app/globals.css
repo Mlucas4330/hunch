@@ -512,6 +512,29 @@ details[open]::details-content {
   }
 }
 
+/**
+ * The two label steps collapse into one on a phone, and this product is the reason.
+ *
+ * `captureMobile` counts every element rendering below MOBILE_MIN_FONT_PX as a finding, and
+ * `--text-micro` is 11px and `--text-nano` is 10px -- so our own landing page failed the measurement
+ * we sell, twenty four times, at the seventy five call sites those two steps have between them. The
+ * fix belongs here rather than at any of them: the sizes are a scale, and a scale is adjusted once.
+ *
+ * Written against the utilities instead of the custom properties because `@theme inline` inlines the
+ * value into the generated class -- redefining `--text-micro` in a media query would change nothing.
+ * Unlayered on purpose: `@import 'tailwindcss'` puts the originals in `@layer utilities`, and
+ * anything outside a layer outranks them without needing a specificity fight.
+ *
+ * The breakpoint is Tailwind's own `sm`, so the type scale turns over where every other responsive
+ * decision in the app already does, rather than at a number invented for this rule.
+ */
+@media (width < 40rem) {
+  .text-micro,
+  .text-nano {
+    font-size: 0.75rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

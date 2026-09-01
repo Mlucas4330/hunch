@@ -145,7 +145,7 @@ export const ptBR: Dictionary = {
     eyebrow: 'Grátis. Sem conta. Em menos de um minuto.',
     headlineTop: 'Você sabe que a sua landing page não converte.',
     headlineBottom: 'O que falta é saber o que tem nela.',
-    lead: 'Cole a URL. A gente abre a página do jeito que um visitante abre, conta o que tem nela de verdade e dá uma nota de 0 a 100. Ver a nota não custa nada e não pede cadastro.',
+    lead: 'O Hunch abre a sua landing page do jeito que um visitante abre, conta o que tem nela de verdade e dá uma nota de 0 a 100, com as correções priorizadas e a copy substituta já escrita. Cole a URL. Ver a nota não custa nada e não pede cadastro.',
     cta: 'Ver minha nota agora, de graça',
     ctaNote: 'Sem cadastro, sem cartão, sem instalar nada. Só a sua URL.',
     howItWorksLink: 'Como funciona',
@@ -448,17 +448,13 @@ export const ptBR: Dictionary = {
   },
 
   urlForm: {
-    phases: [
-      'Lendo sua página...',
-      'Lendo o head e cronometrando o carregamento...',
-      'Escrevendo a copy nova...',
-      'Salvando resultados...'
-    ],
+    measuring: 'Abrindo a sua página e contando o que tem nela...',
+    urlLabel: 'URL da sua landing page',
     urlPlaceholder: 'https://sua-landing-page.com',
     analyze: 'Analisar',
     analyzing: 'Analisando...',
     waitNote:
-      'Isso costuma levar de 2 a 3 minutos. Mantenha esta aba aberta enquanto lemos a página, medimos e escrevemos a copy nova.',
+      'Leva menos de um minuto. Mantenha esta aba aberta: assim que a nota estiver pronta a gente te leva até ela, e as correções continuam sendo escritas na própria tela do relatório.',
     briefSummary: 'Adicionar detalhes do negócio (opcional)',
     briefIntro: 'Quatro toques. São eles que transformam a copy reescrita de um modelo cheio de [placeholders] em linhas que dá para publicar.',
     briefWizard: {
@@ -620,7 +616,7 @@ export const ptBR: Dictionary = {
       }
     },
     findings: {
-      form_fields: 'Campos no formulário de cadastro',
+      form_fields: 'Campos no formulário',
       required_fields: 'Campos obrigatórios no formulário',
       fields_without_label: 'Campos sem label',
       form_steps: 'Etapas até conseguir enviar o formulário',
@@ -843,6 +839,10 @@ export const ptBR: Dictionary = {
   },
 
   report: {
+    generating: {
+      eyebrow: 'Ainda sendo escrito',
+      note: 'A sua nota aí em cima já está fechada. As correções e a copy substituta estão sendo escritas agora e aparecem aqui sozinhas -- dá para sair desta página e voltar depois.'
+    },
     backToTestIdeas: 'Voltar para a análise',
     teardown: 'Análise de conversão',
     measuringHeading: 'Medindo esta página...',

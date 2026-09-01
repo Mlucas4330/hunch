@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { ReportCover } from '@/components/report-cover'
 import { Wordmark } from '@/components/wordmark'
 import { UnlockWall } from '@/components/unlock-wall'
+import { GeneratingSections } from '@/components/generating-sections'
 import { WatchPageForm } from '@/components/watch-page-form'
 import { HypothesisList } from '@/components/hypothesis-list'
 import { FlowPlaybook } from '@/components/flow-playbook'
@@ -19,6 +20,7 @@ import { PageTerms } from '@/components/page-terms'
 import { ReportRail } from '@/components/report-rail'
 import { StartHere } from '@/components/start-here'
 import { getCurrentUser } from '@/lib/current-user'
+import { isGenerating } from '@/lib/run-analysis'
 import {
   competitorFor,
   fixesByFinding,
@@ -87,17 +89,32 @@ export default async function ReportPage({
   const user = await getCurrentUser()
   const isOwner = user !== null && analysis.userId === user.id
 
-  // Three shapes, and they are the free/paid cut made visible.
+  // Four shapes, and they are the free/paid cut made visible.
   //
   // 1. Nothing measured yet: the job is still on the queue. The form waits for this before it
   //    navigates, so a reader only lands here by opening the link early or reloading mid-run.
-  // 2. Measured, nothing generated: nobody has spent a credit on it. Score and readout in full,
-  //    then the wall.
-  // 3. Generated: the whole document.
+  // 2. Measured, nothing generated, nothing running: nobody has spent a credit on it. Score and
+  //    readout in full, then the wall.
+  // 3. Measured, generation in flight: this is where a paying reader now lands, about twenty
+  //    seconds in. Score and readout in full, then the four sections as placeholders that fill
+  //    themselves. See lib/run-analysis.ts for why the readout is committed before the generation.
+  // 4. Generated: the whole document.
+  //
+  // **Two and three are the same row.** Postgres cannot tell "the Sonnet calls are running" from
+  // "the owner claimed a free run and never bought a generation", so the job is asked -- and only
+  // about that. See `isGenerating`.
   //
   // The readout is never gated in any of them, for the reason in docs/readout.md.
   const measured = hasReadout(readout(readoutFor(analysis)))
   const generated = analysis.hypotheses.length > 0 || analysis.flowFixes.length > 0
+  // **`userId` first, and it is not a shortcut.** An ownerless run finishes by committing the
+  // measurement and returning, and the worker writes `ready` to the job a moment after that -- so
+  // there is a window where a free analysis is measured, its job still says `running`, and the reader
+  // has just been navigated here by the form. Asking the job alone would show that reader four
+  // placeholders for fixes nobody bought and nothing will ever write. Ownership is what says a
+  // generation was paid for; the job only says whether it is still happening.
+  const generating =
+    !generated && analysis.userId !== null && (await isGenerating(analysis.id))
 
   const fixes = splitFixes(analysis.flowFixes)
   const visibility = splitVisibility(analysis.flowFixes)
@@ -243,6 +260,8 @@ export default async function ReportPage({
                 )
               }}
             />
+          ) : generating ? (
+            <GeneratingSections />
           ) : (
             <UnlockWall embedKey={embedKey} />
           )}

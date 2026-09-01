@@ -37,9 +37,35 @@ owner's click**, at `POST /api/analyses/[id]/measure`. See [product.md](product.
 
 ### `POST /api/analyses`
 
-Chain: rate limit -> guard both URLs -> (Puppeteer scrape ‖ robots.txt ‖ competitor scrape) ->
-preprocess HTML -> detect market -> Claude (hypotheses + playbook + visibility audit in parallel) ->
-persist.
+Chain: rate limit -> guard both URLs -> (Puppeteer scrape ‖ robots.txt) -> detect market ->
+**persist the measurement** -> compose page text -> (competitor scrape ‖ Claude: hypotheses +
+playbook + visibility audit, in parallel) -> persist the generation.
+
+**The two writes are two writes, and that is the point.** `runAnalysis` used to call one function
+that scraped and generated and committed everything in a single transaction at the end, so
+`analyses.structure` stayed null for the whole run. `analysisProgress` therefore reported `measured`
+and `generated` turning true at the same instant for an owned analysis, and **the person who had paid
+waited minutes for the score that the anonymous visitor got in twenty seconds** — against the rule
+that [the readout is never gated](invariants.md#the-free-half-is-what-code-counted-the-paid-half-is-what-a-model-wrote).
+
+`measurePage` now runs for every analysis, its result is committed with the `page_snapshots` row, and
+only then does an owned run continue into `generateFromMeasurement`. Three consequences:
+
+- **The client navigates on `measured`.** `waitForAnalysis` no longer waits for `generated`, so the
+  reader reaches `/r/<embedKey>` with their score while the fixes are still being written. See
+  [report.md](report.md) for the third state that renders there.
+- **A generation failure is survivable.** `AnalysisOutputSchema`'s `.min(5)` still does not degrade
+  and the credit is still refunded, but the readout is already committed — so the failure is "you
+  have your score and your credit is back" rather than three minutes of spinner ending in an error
+  screen.
+- **The measurement write is skipped when the row already has one.** A requeued job re-measures (it
+  needs the page in memory to generate), and inserting a second `page_snapshots` row would put a
+  bogus entry in the history the trend subtracts across. The columns keep the first measurement so
+  the stored readout and the newest snapshot stay the same measurement.
+
+The competitor scrape moved into the generation half deliberately: only a prompt ever reads it, and
+measuring it first would hold the reader's own score behind a second browser slot for a page that is
+not theirs.
 
 ```json
 {

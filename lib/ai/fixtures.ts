@@ -12,6 +12,10 @@ import type { PageKeywords } from '@/lib/keywords'
 
 export const FIXTURE_STRUCTURE: PageStructure = {
   hasOauth: false,
+  // The fixture playbook recommends offering Google login, so the fixture page has to be one that
+  // signs people in at all -- otherwise the readout correctly declines to ask the question and the
+  // fix hangs off a finding nobody emitted. See lib/readout.ts.
+  hasAuthEntry: true,
   oauthProviders: [],
   formCount: 1,
   formFieldCount: 6,

@@ -16,11 +16,16 @@ const buttonVariants = cva(
         ghost: 'hover:bg-muted',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
       },
+      // **Every size clears 44px on a phone, and none of them did.** `captureMobile` counts any
+      // control whose box is under MOBILE_TAP_TARGET_MIN_PX on either axis, and 40px and 36px are
+      // both under it -- so the product's own buttons were a standing mobile finding on every page
+      // that used them, ours included. The desktop sizes are untouched: a mouse hits 36px fine and
+      // the scale is what the layout was drawn against. `lg` already cleared it.
       size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-9 px-3',
+        default: 'h-10 px-4 py-2 max-sm:h-11',
+        sm: 'h-9 px-3 max-sm:h-11',
         lg: 'h-11 px-8',
-        icon: 'h-10 w-10'
+        icon: 'h-10 w-10 max-sm:size-11'
       }
     },
     defaultVariants: {

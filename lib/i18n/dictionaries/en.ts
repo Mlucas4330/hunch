@@ -151,7 +151,7 @@ export const en = {
     eyebrow: 'Free. No account. Under a minute.',
     headlineTop: 'You know your landing page is not converting.',
     headlineBottom: 'What is missing is knowing what is on it.',
-    lead: 'Paste your URL. We open the page the way a visitor does, count what is actually on it, and score it out of 100. Seeing the score costs nothing and needs no account.',
+    lead: 'Hunch opens your landing page the way a visitor does, counts what is actually on it, and scores it out of 100, with ranked fixes and the replacement copy already written. Paste your URL. Seeing the score costs nothing and needs no account.',
     cta: 'Score my page now, free',
     ctaNote: 'No signup, no card, no install. Just your URL.',
     howItWorksLink: 'How it works',
@@ -462,16 +462,12 @@ export const en = {
   },
 
   urlForm: {
-    phases: [
-      'Scraping your page...',
-      'Reading the head and timing the load...',
-      'Writing the new copy...',
-      'Saving results...'
-    ],
+    measuring: 'Opening your page and counting what is on it...',
+    urlLabel: 'Your landing page URL',
     urlPlaceholder: 'https://your-landing-page.com',
     analyze: 'Analyze',
     analyzing: 'Analyzing...',
-    waitNote: 'This usually takes 2 to 3 minutes. Keep this tab open while we scrape the page, measure it, and write the new copy.',
+    waitNote: 'This takes under a minute. Keep this tab open: as soon as the score is ready we take you to it, and the fixes carry on being written on the report itself.',
     briefSummary: 'Add business details (optional)',
     briefIntro: 'Four taps. They are what turns the rewritten copy from a template with [placeholders] into lines you can ship.',
     briefWizard: {
@@ -631,7 +627,7 @@ export const en = {
       }
     },
     findings: {
-      form_fields: 'Signup form fields',
+      form_fields: 'Form fields',
       required_fields: 'Fields the form makes mandatory',
       fields_without_label: 'Fields with no label',
       form_steps: 'Steps before the form can be sent',
@@ -852,6 +848,10 @@ export const en = {
   },
 
   report: {
+    generating: {
+      eyebrow: 'Still being written',
+      note: 'Your score above is final. The fixes and the replacement copy are being written now and appear here on their own -- you can leave this page and come back to it.'
+    },
     backToTestIdeas: 'Back to the analysis',
     teardown: 'Conversion teardown',
     measuringHeading: 'Measuring this page...',

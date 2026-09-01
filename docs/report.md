@@ -78,6 +78,32 @@ the one thing the report must never claim by accident.
 `ReportCover` takes `counts: ReportCoverCounts | null` for exactly this: no counts, no count
 sentence, `report.summaryMeasured` instead. Covered by `e2e/free-analysis.spec.ts`.
 
+## A generation in flight is a third state, and the row cannot see it
+
+A reader who has paid now lands here **about twenty seconds in**, as soon as the page has been
+measured — `runAnalysis` commits the readout before it calls a single model, and the form navigates on
+`measured` rather than on `generated`. See [api.md](api.md).
+
+So `generated: false` covers two different situations that are **identical in Postgres**: an owned row
+whose Sonnet calls are running right now, and an owned row whose owner claimed a free run and never
+bought a generation. The first should show placeholders that fill themselves; the second must show the
+`UnlockWall`, because nothing is coming.
+
+`isGenerating` in `lib/run-analysis.ts` asks the job, which is the thing that knows: `queued` or
+`running` means in flight. This does not contradict the rule that the durable **result** is read from
+the row — "there is work happening right now" is precisely what a job exists to answer and what a row
+deliberately does not record.
+
+**Redis down answers false and the reader gets the wall.** That is the right way round: a wall on a
+report that is quietly still working is fixed by reloading, and a placeholder that will never fill is
+not.
+
+`components/generating-sections.tsx` renders the four `ANALYSIS_TAB` sections by name, each with a
+shimmering placeholder, and polls `router.refresh()` at `JOB_POLL_INTERVAL_MS` until the server
+component comes back with the real sections. Naming them is what makes a half-filled report read as
+deliberate rather than as one that failed to load. No percentage bar: nothing measures a percentage,
+and a bar that advances on its own is the timer this replaced wearing a different hat.
+
 ## The page — `app/(report)/r/[embedKey]/page.tsx`
 
 Read by someone who may never have opened the app, so nothing here may 404 loudly or leak whether an

@@ -89,7 +89,16 @@ export function SwipeTrack({
       </ul>
 
       <div className="flex items-center justify-between gap-4 sm:hidden">
-        <div className="flex items-center gap-2">
+        {/* **The dot is the mark, the button is the target.** These were 8px squares -- the smallest
+            controls in the app and a fifth of the 44px a thumb needs. Growing the dot would have put
+            three heavy circles under a card that is deliberately quiet, so the button takes the
+            44px and draws the same 8px dot inside it.
+
+            The gap goes with it. Forty four pixel targets spaced by another eight would run the row
+            to 148px, and pulling them back together with negative margins would overlap the hit
+            areas -- which trades a target that is too small for one that activates its neighbour.
+            Butted up against each other they are exactly as wide as they are tappable. */}
+        <div className="flex items-center">
           {children.map((_, i) => (
             <button
               key={i}
@@ -97,11 +106,16 @@ export function SwipeTrack({
               onClick={() => scrollTo(i)}
               aria-label={copy.goTo.replace('{index}', String(i + 1))}
               aria-current={i === active || undefined}
-              className={cn(
-                'h-2 w-2 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                i === active ? 'bg-foreground' : 'bg-border'
-              )}
-            />
+              className="flex size-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  'h-2 w-2 rounded-full transition-colors',
+                  i === active ? 'bg-foreground' : 'bg-border'
+                )}
+              />
+            </button>
           ))}
         </div>
 

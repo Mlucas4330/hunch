@@ -11,6 +11,11 @@ Never use hardcoded values for strings, values, types and etc. Check `lib/enums.
 Don't add unicode symbols anywhere. Emojis are allowed everywhere.
 Keep documentation up to date after changing code.
 
+## Skills
+
+* **`humanizer`**: Always use this skill for every task in this project. Do not skip it.
+* **`design-taste-frontend`**: Use this skill whenever the task involves frontend/UI/UX, visual design, styling, components, layouts, or other user-facing interface work.
+
 ## Invariants
 
 @docs/invariants.md

@@ -142,7 +142,20 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
           )
         )
       )
-      out.push(presence('no_social_signin', 'structure', structure.hasOauth))
+      // **Asked only of a page that has an account to sign into**, the same shape as the CNPJ and the
+      // testimonial-attribution findings below: a question put to a page that cannot answer it is not
+      // a finding, it is an accusation. `formCount > 0` alone is not that question -- a search box, a
+      // newsletter field and a URL analyser are all forms, and this product's own landing page was
+      // told it lacks Google sign in when it creates no accounts at all.
+      //
+      // `hasOauth` first, and the order preserves rows measured before `hasAuthEntry` existed: OAuth
+      // present proves authentication exists, so those still report exactly as they always did. An
+      // older row without it drops the finding rather than emitting `false`, because "we never
+      // measured whether this page signs anybody in" is not "this page has no social sign in". See
+      // docs/invariants.md.
+      if (structure.hasOauth || structure.hasAuthEntry === true) {
+        out.push(presence('no_social_signin', 'structure', structure.hasOauth))
+      }
 
       // Read from the DOM, never by filling the form in: submitting a stranger's form would write a
       // fake lead into their CRM every time somebody ran an analysis. See docs/scraping.md.

@@ -43,6 +43,40 @@ neutral about the direction, true of all of them. **When a finding is added to a
 group's label before shipping it.** The form findings that landed later pass the same test: a
 mandatory field, an unlabelled one and a button that links nowhere are all things a visitor runs into.
 
+## A finding's own label is a claim too, and one of them was false
+
+The rule above is about a group's label. The same test applies one level down, and `form_fields`
+failed it: it read *"Signup form fields"* / *"Campos no formulário de cadastro"* while the only thing
+gating the whole form block is `structure.formCount > 0`.
+
+**A form is not a signup.** A search box, a newsletter field and a URL analyser are all forms, and
+nothing in the scrape distinguishes them. This product's own landing page is the third kind, so its
+report said *"Campos no formulário de cadastro: 1"* about a page that creates no accounts — the
+count was right and the noun around it was invented, which is the same failure as a number nobody
+measured, in a different part of speech. The label now says only "form".
+
+`no_social_signin` was the worse half, because a wrong label misinforms and a wrong question accuses.
+It is now asked only of a page that signs somebody in:
+
+```
+if (structure.hasOauth || structure.hasAuthEntry === true)
+```
+
+Same shape as `no_cnpj` and `testimonial_attribution` below — a question put to a page that cannot
+answer it is not a finding. The order matters and preserves history: `hasOauth` true proves
+authentication exists whenever the row was measured, so old rows report exactly as they always did,
+while an old row without it drops the finding rather than emitting `false`. "We never measured whether
+this page signs anybody in" is not "this page has no social sign in".
+
+**The pattern list behind it was English only**, which made this a false negative on the main market
+rather than a nuance — see [scraping.md](scraping.md). Fixing that changes `hasOauth` for pages in
+Portuguese, which changes which findings are emitted, which changes `readoutScore`. `page_snapshots`
+freezes each score at write time so the trend already drawn is untouched, but a page re-measured after
+this may step. **Nothing anywhere may present that as the page improving**: what changed is this code,
+and attributing a movement to a cause is what
+[invariants.md](invariants.md#a-delta-is-arithmetic-between-two-measurements-never-a-result-attributed-to-a-change)
+forbids.
+
 ## The `crawler_access` group
 
 `crawler_access` is what the product actually measured about being found by an AI: which of
@@ -308,6 +342,19 @@ such number would be invented, exactly like a number in `evidence`. See
 Three findings fall out of the leading term (`term_in_title`, `term_in_h1`,
 `term_in_meta_description`) and are emitted **only when there is a leading term** — a page with nothing
 to read must not collect three warns about a word it never had.
+
+**The stoplist is load bearing and was incomplete in Portuguese.** Run against our own landing page
+the table's third entry was `gente` — `a gente` is how a Brazilian page says "we" — followed by `cada`.
+Both outranked every term that describes the product. The list holds function words and deliberately
+not verbs: a page that keeps saying `abre` is a page about opening something, and dropping that would
+be an editorial judgement rather than a count.
+
+**A leading term absent from the title is sometimes a true negative that is not worth acting on.** On
+our own page the term is `página` and the title says `landing page`, in English, because
+[pt-BR keeps the technical term in English](invariants.md#pt-br-is-a-rewrite-not-a-translation). The
+✗ is literally correct and the recommendation behind it is close to worthless. This is left alone on
+purpose: matching `página` to `page` means a synonym table, and a synonym table is a judgement in a
+column whose entire credibility is that it is a count.
 
 The terms also reach `generateVisibility` so a `seo` or `ai_answerability` fix can say **where** to put
 one. The prompt carries the same prohibition the copy does.

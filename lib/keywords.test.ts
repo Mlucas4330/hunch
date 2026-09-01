@@ -38,6 +38,20 @@ test('stopwords are dropped in both languages, and accents survive', () => {
   assert.ok(found.includes('preços'))
 })
 
+// "a gente" is how a Brazilian page says "we", and it outcounted every real term on our own landing
+// page before it was listed. The verbs it arrived with are deliberately not here: the list holds
+// function words, and a page that keeps saying "abre" is a page about opening something.
+test('the everyday Portuguese function words are not themes', () => {
+  const terms = termsFor(repeat('a gente abre cada página sempre', 4)).map((t) => t.term)
+
+  for (const stopword of ['gente', 'cada', 'sempre']) {
+    assert.equal(terms.includes(stopword), false, `${stopword} carries no topic`)
+  }
+
+  assert.ok(terms.includes('página'))
+  assert.ok(terms.includes('abre'), 'a verb the page repeats is still something it talks about')
+})
+
 test('a phrase never starts or ends on a stopword', () => {
   const terms = termsFor(repeat('the landing page for teams', 3)).map((t) => t.term)
 

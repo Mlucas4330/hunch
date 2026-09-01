@@ -22,6 +22,48 @@ The prompts are the core IP and iterate carefully. Everything they may **not** s
 
 Strip scripts, styles and meta tags; extract semantic text only.
 
+### The text budget is stated, and truncation is declared
+
+`preprocessHtml` used to end in `.slice(0, 8000)`. No caller knew, no doc said so, and the effect was
+that every prompt in the product received the top third of a long page and was told nothing about the
+rest. That is not a size limit, it is an undeclared blind spot: a model handed the first third of a
+page will report that the pricing is missing, that there is no FAQ, that nothing says what the product
+costs — which is
+[unknown reported as negative](invariants.md#unknown-is-never-reported-as-negative), committed by a
+`slice`. Our own report did exactly this to our own page.
+
+Three pieces now:
+
+- **`PROMPT_TEXT_MAX_CHARS`** (48k) in `lib/constants.ts`. `preprocessHtml` only flattens; whoever
+  builds a prompt owns the budget.
+- **`composePageText`** in `lib/page-text.ts` assembles the text from `PageSection[]` and drops from
+  the **middle** when it will not fit, keeping the opening and the last `PROMPT_SECTIONS_KEEP_TAIL`
+  blocks. Pricing, FAQ and the closing call to action live at the bottom of a landing page, and a
+  tail truncation throws away exactly the part a conversion audit needs. A row measured before
+  `captureSections` existed has no sections and falls back to a flat cut.
+- **`coverageNote`** appends what was left out, by heading, plus the instruction that makes the
+  naming useful: never state the page lacks something you were not shown. Nothing is appended when
+  everything fit — a note that appears every time is a note nobody reads.
+
+The counts that back this up are measured over the **whole** page and travel beside the text, so
+`hasPricing` and `hasFaq` settle the question even for a section the budget could not carry.
+
+### `evidenceRules` is shared by all three prompts
+
+Beside `marketRules` and `competitorRules` in `lib/ai/prompt.ts`, and for the same reason: the risk
+is identical wherever page content reaches a model and three wordings of it would drift. It carries
+two halves that fail differently — what may be concluded from missing text, and the ban on inventing
+how the product is sold. The second is not implied by the first, and it is the one that produced a
+recommendation to add a cancellation guarantee to a product with no subscription.
+
+### Elements are chosen by what they are, not where they sit
+
+`captureElements` returns in document order, so the old `.slice(0, MAX_PROMPT_ELEMENTS)` kept the top
+of the page. On a long page the closing call to action was element four hundred and no variant could
+ever be written for it. `promptElements` in `lib/prompt-elements.ts` admits every heading and every
+`a`/`button` first, fills the rest with body copy, and **sorts back into document order** — priority
+decides what survives, never what order the model reads.
+
 ```
 H1: ...
 Subheadline: ...
@@ -270,8 +312,16 @@ what a faster page will produce. Same rule as everywhere else, see [invariants.m
 ## 5. Visibility audit — `generateVisibility`
 
 A third `generateObject` in the same `Promise.all`, also resolving to `[]` on any failure. Fed
-`PageSeo`, two `PageStructure` fields, the `fetchCrawlerAccess` result from
-[scraping.md](scraping.md), and the measured `PageKeywords` terms.
+`PageSeo`, the composed page text, several `PageStructure` fields, the `fetchCrawlerAccess` result
+from [scraping.md](scraping.md), and the measured `PageKeywords` terms.
+
+**The page text is a late addition and it fixed a real class of invented finding.** This call had
+none of it while its `ai_answerability` category asked whether the page states in plain readable text
+what the product is, who it is for and **what it costs** — a judgement about a body the model had
+never been given. It filled the gap: run against our own landing page it told us to publish a price
+that has been in the served HTML since the packs existed, and to add a cancellation guarantee for a
+subscription the product does not sell. Neither was a bad inference from what it had; both were
+assertions about a page it could not read.
 
 The keyword block exists so a fix can name **where** to put a term the page already uses. Its prompt
 line states the prohibition inline — these are the page's own words, never search volume and never a

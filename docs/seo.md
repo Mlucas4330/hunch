@@ -51,7 +51,7 @@ The locale is a cookie with no route segment, so `en` and `pt-BR` are genuinely 
 `alternates.languages` would be a lie to crawlers; the cookie-less render (`DEFAULT_LOCALE`) is what
 gets indexed. **Do not add hreflang without first giving the locales real URLs.**
 
-## The one piece of structured data — `FAQPage`
+## Structured data — `FAQPage` and `SoftwareApplication`
 
 `components/landing-faq.tsx` emits `FAQPage` JSON-LD on `/`, and it is **generated from
 `dictionary.landing.faq.items`**, the same array the visible rows render from. Written out by hand
@@ -71,6 +71,34 @@ behavioural one, since `script` lays out nothing either way.
 The same rule the rest of the product runs on applies to the answers: a question may say what the
 product counts and what a credit buys, and may not answer with a lift, a benchmark or a conversion
 figure. The last item exists to say that out loud. See [invariants.md](invariants.md).
+
+### `SoftwareApplication` — what the product is and what it charges
+
+`components/landing-schema.tsx`, server rendered on `/` for the same reason `LandingFaq` is. The FAQ
+schema describes seven answers and says nothing about the thing being sold; this names the product,
+its category, and its prices.
+
+**`offers` is built off `CREDIT_PACKS`**, never typed out, for the reason `components/credit-packs.tsx`
+gives about the dictionary: a price edited in one place and not the other is a page that lies about
+what it costs, and structured data that lies is worse than none, because a crawler quotes it without
+a reader ever seeing it. `name` and `description` come from the dictionary, so the schema is in the
+same language as the page around it.
+
+No `aggregateRating` and no `review`: nobody has left one. No subscription and no `priceValidUntil`:
+the packs are one-off purchases with no expiry, and inventing either would describe a product we do
+not sell.
+
+**The `<script>` is the last child of the page's `space-y-24` container, and that placement is load
+bearing.** That utility spaces siblings with `:not([hidden]) ~ :not([hidden])`, which a `<script>`
+satisfies — placed first it would push the hero down by six rem while rendering nothing itself. Last,
+the rule targets the script, and a `display: none` element generates no box for the margin to apply
+to.
+
+Our own audit asked for this twice, once as a `SoftwareApplication` and once as machine-readable
+pricing, and **the second half was wrong**: the prices have always been in the served HTML, because
+`CreditPacks` is a client component that Next still renders on the server. What was missing was the
+markup naming them as prices. See [ai-pipeline.md](ai-pipeline.md) for the prompt fix that stopped
+the invented half.
 
 ## Open Graph images
 
