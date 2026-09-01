@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
 import { useI18n } from '@/components/i18n-provider'
+import { fireConfetti } from '@/components/confetti'
 import { Button } from '@/components/ui/button'
 import {
   MERCADOPAGO_APPROVED,
@@ -70,6 +71,14 @@ export function MercadoPagoBrick({ pack, amount }: { pack: CreditPackId; amount:
   useEffect(() => {
     if (window.MercadoPago) setLoaded(true)
   }, [])
+
+  // **Approved only.** Pix and boleto come back pending, and the credit has not landed yet -- a
+  // celebration there would claim a payment that has not cleared. In an effect rather than in
+  // `onSubmit` so the burst is tied to the state the reader is looking at, and fires once per
+  // outcome however many times this re-renders.
+  useEffect(() => {
+    if (outcome?.status === MERCADOPAGO_APPROVED) void fireConfetti()
+  }, [outcome?.status])
 
   useEffect(() => {
     if (!loaded || !window.MercadoPago || controller.current) return

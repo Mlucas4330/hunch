@@ -100,7 +100,9 @@ page is heavy. The dependency is gone; `.animate-stagger-in`, `.animate-score-se
 
 **The rule this leaves.** Entrance and reveal are CSS, permanently, for the SSR reason above. A
 library may still be the answer for something genuinely beyond CSS -- but the bar is a measurement
-against a working CSS attempt, not an argument made before either was written.
+against a working CSS attempt, not an argument made before either was written. `canvas-confetti` is the one
+that has cleared it since, and only because of where it is loaded from — see
+[Confetti](#confetti--componentsconfettitsx).
 
 ### Scrollspy — `components/report-rail.tsx`
 
@@ -578,6 +580,35 @@ from the second open onwards and leaves the reader on `credits.mercadopago.loadi
 reload. It checks `window.MercadoPago` on mount instead, and `<Script>` carries an `onError` so an SDK
 that never arrives at all reads as `credits.mercadopago.failed` rather than as loading forever. Both
 are covered by `e2e/checkout-brick.spec.ts`, which stubs the SDK at its own URL.
+
+An approved payment also fires [the confetti](#confetti--componentsconfettitsx); a pending one does
+not, for the reason recorded there.
+
+## Confetti — `components/confetti.tsx`
+
+`fireConfetti()`, called from two places: the Brick when a payment comes back approved, and the
+operator form when a grant succeeds.
+
+**It fires on approval and nowhere else.** A Pix or a boleto comes back pending — the money has not
+moved and no credit has landed — so a burst there would tell the reader a payment cleared when it has
+not. That is the same kind of claim [invariants.md](invariants.md) keeps off every other surface, and
+a full screen animation is the loudest place it could be made.
+
+**A dependency, after `motion` was measured and removed**, and not a reversal of that call. The
+objection there was 42kB on the first load of a product that charges people to be told their page is
+heavy; here the import is dynamic and reached only once a payment has been approved, so no screen's
+initial bundle changes and the only person who ever downloads it has just bought something.
+
+**The colours are read off the theme, never written down.** `canvas-confetti` parses hex and the
+tokens are `oklch`, so the conversion is done by the thing that already knows how: assigning to a
+canvas `fillStyle` and reading it back gives `#rrggbb`. A copy of the palette here would be wrong in
+dark mode on the day it was written and wrong everywhere the first time a token was retuned. The
+assignment is made over two different starting colours because an unparseable value is *ignored*
+rather than rejected — one starting colour would hand back black and the confetti would come out
+black instead of falling back to the library's own palette.
+
+`prefers-reduced-motion: reduce` skips the burst entirely, like every other animation in this file.
+The approval message is untouched: it is the part that carries the information.
 
 ## Credit packs — `components/credit-packs.tsx`
 

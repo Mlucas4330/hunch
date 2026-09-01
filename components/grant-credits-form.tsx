@@ -1,9 +1,10 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { SubmitButton } from '@/components/submit-button'
 import { useI18n } from '@/components/i18n-provider'
+import { fireConfetti } from '@/components/confetti'
 import { grantCreditsAction, type GrantState } from '@/lib/actions/credits'
 import { ADMIN_GRANT_MAX } from '@/lib/constants'
 import { cn } from '@/lib/utils'
@@ -19,6 +20,12 @@ export function GrantCreditsForm({ defaultEmail }: { defaultEmail: string }) {
   const { dictionary } = useI18n()
   const copy = dictionary.admin.credits
   const [state, action] = useActionState<GrantState, FormData>(grantCreditsAction, null)
+
+  // The action returns a fresh object per submit, so two grants in a row burst twice -- which is the
+  // point: the confirmation is a small green line, and the operator's eye is on the form, not on it.
+  useEffect(() => {
+    if (state?.ok) void fireConfetti()
+  }, [state])
 
   return (
     <form action={action} className="space-y-4">

@@ -484,6 +484,30 @@ export const MERCADOPAGO_LOCALE: Record<Locale, string> = {
   'pt-BR': 'pt-BR'
 }
 
+// The burst that answers a payment going through -- see components/confetti.tsx.
+//
+// It is the one dependency this app pays a download for, so it is only ever fetched after somebody
+// has paid, and the numbers it needs live here rather than in the component: a burst is a shape
+// decision like PULSE_SPHERE above, not a mechanism.
+export const CONFETTI_PARTICLE_COUNT = 70
+export const CONFETTI_SPREAD = 70
+
+// Fired from just above the middle of the screen rather than from the top edge, so the pieces are
+// already in view at the first frame instead of falling into it.
+export const CONFETTI_ORIGIN_Y = 0.4
+
+// Two bursts, one from each side, with this much between them. A single one reads as an accident of
+// the page; two read as an answer to what the reader just did.
+export const CONFETTI_BURST_DELAY_MS = 180
+export const CONFETTI_ORIGIN_X = [0.35, 0.65]
+
+// The pieces take the product's own colours, read off the theme at the moment they are fired, which
+// is what keeps them right in both light and dark without a second palette.
+export const CONFETTI_TOKENS = ['--purple', '--green', '--amber', '--blue', '--coral']
+
+// Over the Dialog's backdrop, which is z-50 -- the Brick fires this from inside it.
+export const CONFETTI_Z_INDEX = 100
+
 // Which pack the section marks as the one most buyers take. A constant rather than a literal, since
 // the component needs the same answer twice -- for the border and for the button variant.
 export const FEATURED_CREDIT_PACK: CreditPackId = 'trio'
