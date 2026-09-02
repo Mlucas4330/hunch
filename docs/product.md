@@ -67,7 +67,9 @@ what was counted, and no surface says what a change will produce — see
 
 **Decide**
 
-- Browse ranked hypotheses, each with one AI-recommended replacement line
+- Browse the lines that were judged not to be doing their job, each with a verdict on the line as it
+  stands and one AI-recommended replacement. A page whose lines mostly work comes back with a short
+  list rather than a padded one
 - Ask for two alternate options per idea, written on demand from the analysis screen
 - See the recommended copy rendered onto a screenshot of the real page before handing it over
 

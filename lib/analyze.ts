@@ -40,7 +40,7 @@ import { detectMarket } from '@/lib/market'
 import { fetchCrawlerAccess, type CrawlerAccess } from '@/lib/robots'
 import { extractKeywords, type PageKeywords } from '@/lib/keywords'
 import { composePageText, coverageNote, type ComposedPageText } from '@/lib/page-text'
-import { promptElements } from '@/lib/prompt-elements'
+import { promptElements, resolveTarget } from '@/lib/prompt-elements'
 import {
   type PageElement,
   type PageMobile,
@@ -49,7 +49,6 @@ import {
   type PageSeo,
   type PageStructure,
   preprocessHtml,
-  resolveTarget,
   scrapePage
 } from '@/lib/scrape'
 import { variantCharBudget, variantWordBudget, wordCount } from '@/lib/text'
@@ -198,13 +197,25 @@ export async function generateFromMeasurement(
 
     const analysis = fixtureAnalysis(locale)
     const fixtureMarket = detectMarket({ url, lang: FIXTURE_SEO.lang })
-    const fixtureElements: PageElement[] = analysis.hypotheses.map((h, i) => ({
-      text: h.current_copy,
-      selector: `[data-hunch-fixture="${i}"]`,
-      tag: 'p',
-      capacity: variantCharBudget(h.current_copy),
-      emphasized: false
-    }))
+    // Every fixture element is built from a hypothesis's own `current_copy`, so the fixtures always
+    // walk the happy path of `resolveTarget`. This withholds the first one: the model quoted a line
+    // that is on no element, and `resolveTargets` drops that card. It is the only way that path is
+    // reachable without a real model, and it is the path that deletes something the reader paid for,
+    // so it does not get to be the untested one.
+    //
+    // **Keyed on the URL rather than on an env var**, because the e2e web server is started once with
+    // a fixed environment and every spec already separates its own scenario by URL. Still inside the
+    // fixture branch, so nothing deployed can reach it whatever anybody types.
+    const unquoted = url.includes('hunch-e2e-unquoted')
+    const fixtureElements: PageElement[] = analysis.hypotheses
+      .slice(unquoted ? 1 : 0)
+      .map((h, i) => ({
+        text: h.current_copy,
+        selector: `[data-hunch-fixture="${i}"]`,
+        tag: 'p',
+        capacity: variantCharBudget(h.current_copy),
+        emphasized: false
+      }))
     fixtureElements.push({
       text: 'Start free trial',
       selector: '[data-ab-goal]',
@@ -335,18 +346,7 @@ above (JSON):\n${JSON.stringify(
     })
   ])
 
-  console.info('[analyze] timings (ms)', {
-    measure: measuredAt - startedAt,
-    generation: Date.now() - measuredAt,
-    total: Date.now() - startedAt,
-    market,
-    robots: crawlerAccess.status,
-    competitor: competitorHost,
-    playbookFixes: playbook.length,
-    visibilityFixes: visibility.length
-  })
-
-  return resolveTargets({
+  const result = resolveTargets({
     output: object,
     elements,
     playbook,
@@ -360,6 +360,26 @@ above (JSON):\n${JSON.stringify(
     market,
     competitor
   })
+
+  // **After `resolveTargets`, so `copyIdeas` is what the reader will actually see.** Logging it above
+  // would report what the model returned, which is a different number from what survives the check on
+  // the way back -- and the gap between the two is the only signal there is that the model is quoting
+  // the page rather than paraphrasing it. `playbookFixes` and `visibilityFixes` were already here;
+  // copy was the one of the three nothing counted.
+  console.info('[analyze] timings (ms)', {
+    measure: measuredAt - startedAt,
+    generation: Date.now() - measuredAt,
+    total: Date.now() - startedAt,
+    market,
+    robots: crawlerAccess.status,
+    competitor: competitorHost,
+    copyIdeas: result.hypotheses.length,
+    copyDropped: object.hypotheses.length - result.hypotheses.length,
+    playbookFixes: playbook.length,
+    visibilityFixes: visibility.length
+  })
+
+  return result
 }
 
 /**
@@ -445,7 +465,7 @@ export async function generatePlaybook(input: PlaybookInput): Promise<FlowFixOut
   const sections = [
     `Structural readout of the page (JSON):\n${JSON.stringify(input.structure, null, 2)}`,
     `The same page in a phone viewport (JSON):\n${JSON.stringify(input.mobile, null, 2)}`,
-    `What the page cost to load (JSON). These were measured from a datacentre, so they are a floor a real visitor never beats -- never present one as what a visitor experiences:\n${JSON.stringify(input.performance, null, 2)}`,
+    `What the page cost to load (JSON). These were measured from a datacentre, so they are a floor a real visitor never beats. Never present one as what a visitor experiences:\n${JSON.stringify(input.performance, null, 2)}`,
     findingsSection(input.findings)
   ]
 
@@ -745,15 +765,34 @@ function resolveTargets(input: {
     mobile,
     market,
     competitor,
-    hypotheses: output.hypotheses.map((h) => {
+    hypotheses: output.hypotheses.flatMap((h) => {
       const resolved = resolveTarget(h.current_copy, elements)
-      h.variants.forEach((v) => warnOverLength(h.section, resolved.text ?? h.current_copy, v.copy))
-      return {
-        ...h,
-        current_copy: resolved.text ?? h.current_copy,
-        selector: resolved.selector,
-        target: resolved.mode
+
+      // **A quote that is on no element is a line the model wrote, and the card renders it struck
+      // through as what the page says today.** The prompt requires it verbatim off the element list
+      // and cannot enforce that, and Zod sees a plain string -- the same hole `groundTerms` closes for
+      // ad terms, closed the same way and for the same reason: on the way back, in code.
+      //
+      // The cost is real and worth naming: a usable rewrite is thrown away over a transcription slip.
+      // `resolveTarget` already matches approximately, so nothing here is dropped for punctuation, and
+      // the alternative is showing somebody a sentence attributed to their own page that is not on it.
+      if (!resolved.found) {
+        console.warn('[analyze] hypothesis dropped, current_copy is on no element', {
+          section: h.section,
+          currentCopy: h.current_copy
+        })
+        return []
       }
+
+      h.variants.forEach((v) => warnOverLength(h.section, resolved.text ?? h.current_copy, v.copy))
+      return [
+        {
+          ...h,
+          current_copy: resolved.text ?? h.current_copy,
+          selector: resolved.selector,
+          target: resolved.mode
+        }
+      ]
     })
   }
 }

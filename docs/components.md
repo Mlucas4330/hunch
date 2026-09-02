@@ -431,9 +431,21 @@ rather than as three pieces of text one of which happens to be boxed; the open o
 ground, never whether it is a button.
 
 **What an open card shows is the decision.** The rewritten line, or the sentence naming the problem.
-Everything that argues for it — the rationale, the screenshot, the alternates, the steps — is a
-labelled control the reader can press. One panel at a time, because they answer different questions
-and reading two at once was never what anyone wanted; the height is the whole reason this exists.
+Everything that argues for it — the verdict on the current line, the rationale, the screenshot, the
+alternates, the steps — is a labelled control the reader can press. One panel at a time, because they
+answer different questions and reading two at once was never what anyone wanted; the height is the
+whole reason this exists.
+
+**The "why" drawer opens on `assessment`, above `rationale`, and both carry a label.** They are three
+different claims — what the line already does, why the replacement is better, and the CRO mechanism it
+uses — and unprefixed they read as one paragraph, which is the reason `evidence` got a label in the
+first place. `assessment` is what answers *why are you touching this line at all*, so it goes first.
+It is nullable, and a hypothesis written before the field existed renders the drawer exactly as it
+always was rather than a label over nothing. See [ai-pipeline.md](ai-pipeline.md).
+
+Putting the verdict permanently under the struck-through line was the other option, and it is where it
+belongs spatially. It stays in the drawer because a third always-visible sentence undoes the trimming
+this component exists to hold.
 
 - **A drawer with nullish `content` renders no button.** That is how the preview disappears for a
   manual hypothesis and the alternates disappear for a reader who does not own the analysis — the

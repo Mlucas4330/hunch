@@ -99,19 +99,75 @@ const VariantSchema = z.object({
 
 const HypothesisSchema = z.object({
     section: z.enum(SECTIONS).catch(SECTION_FALLBACK),
-    problem: z.string(),
     current_copy: z.string(),
+    assessment: z.string(),
+    problem: z.string(),
     variants: z.array(VariantSchema).length(1),
     impact_score: z.number().int().min(1).max(10),
     rationale: z.string()
 })
 
 const AnalysisOutputSchema = z.object({
-    hypotheses: z.array(HypothesisSchema).min(1).max(8)
+    hypotheses: z.array(HypothesisSchema).max(HYPOTHESES_MAX)
 })
 
 const AlternateVariantsSchema = z.object({ variants: z.array(VariantSchema).length(2) })
 ```
+
+### The key order of a hypothesis is behaviour, not formatting
+
+A structured output is written in the order its fields are declared, so the object above is the shape
+of a judgement: **quote the line, say what it already does, name what it still leaves undone, and only
+then write the replacement.** `problem` used to be first, which had the model naming a defect before
+it had transcribed the line the defect was in.
+
+Nothing at runtime complains if someone sorts these alphabetically, and the analysis would go back to
+arguing before it had looked. `lib/ai/schema.test.ts` asserts the order for that reason, and it is the
+only thing that would catch the change.
+
+### A quoted line is checked against the page, and an unmatched one drops the card
+
+`current_copy` must be the verbatim text of one element from the list the prompt was handed. The
+prompt says so, Zod sees a plain string, and the card renders that quote **struck through as what the
+page says today** — so a paraphrase, or two elements merged, is generated text presented as a
+measurement, which [invariants.md](invariants.md) forbids.
+
+`resolveTargets` in `lib/analyze.ts` therefore drops any hypothesis whose quote matches no element,
+with a `console.warn` naming it. **It is the same check `groundTerms` runs on ad terms**, in the same
+place and for the same stated reason: the prompt asks and cannot guarantee, so the guarantee is made
+on the way back. The cost is real — a usable rewrite is lost to a transcription slip — and the
+alternative is telling somebody their page says something it does not.
+
+**`found` and `mode` answer different questions and are allowed to disagree.**
+`resolveTarget` in `lib/prompt-elements.ts` decides `found` by containment: a quote that is a
+substring of an element, or contains one, is on the page. Only then does `TARGET_MATCH_MAX_WORD_RATIO`
+decide whether the two are close enough in length to point a selector at, and failing that gives
+`manual`. Deciding both with the ratio would call a four-word quote of a six-word heading "not on this
+page", and now that a missing quote deletes the card it would delete a real one.
+
+So `manual` still means exactly what it always meant — we cannot point at it — and it covers a line
+the page says twice, an ambiguous near match, and a fragment too short to swap. What it no longer
+covers is a line that is not there.
+
+It lives in `lib/prompt-elements.ts` beside `promptElements` because the two are one round trip: the
+element list leaves through one and comes back through the other. Both import from `lib/scrape.ts`
+**type-only**, for the reason `lib/competitor.ts` documents — a value import pulls puppeteer in, and
+that is also what makes these testable.
+
+### `assessment` is the half of the comparison that was never asked for
+
+The prompt defined `problem` as one sentence naming the gap, and **nothing anywhere invited the model
+to say what the current line gets right.** A brief asking only for faults produces only faults: a line
+already doing its job had no way to survive the pass, so every element that got looked at came back
+rewritten. That is how a founder who had just followed this product's own advice was told to undo it.
+
+It is a field rather than an instruction because a judgement that is not written down cannot be
+checked, by the reader or by us. `assessmentRules()` states the outcome it exists to make possible:
+**if the verdict is that the line is doing its job, there is no finding and the element is dropped.**
+
+It renders in the "why" drawer above `rationale`, labelled, for the reason `evidence` is labelled —
+see [components.md](components.md). The column is nullable: rows written before the field existed have
+none, and null renders as no verdict rather than as a label over nothing.
 
 **No prompt asks for an effort score.** It was removed from both schemas, from all three prompts and
 from the two columns, because a model that has read one page cannot know what applying a change costs
@@ -119,9 +175,25 @@ on someone else's stack — see
 [analysis-ui.md](analysis-ui.md#nothing-shows-an-effort-score-anywhere). Ranking is `impact_score`
 alone.
 
-**Worth watching, and not measurable from here:** asking for implementation cost may have been helping
-the model calibrate `impact_score` by forcing the tradeoff. If the ranking starts looking flat, this
-is the change to suspect.
+### `impactScoreRules()` says what the number measures
+
+The three prompts used to carry the identical line `impact_score is an integer from 1 to 10` and
+nothing else: a range, never a meaning. With no definition the number drifts to the **importance of
+the thing being changed**, so an h1 scores high for being an h1 and a debatable rewrite of the hero
+outranks a small correction that is certainly right. An 8 beside a replacement its own author would
+not ship is that drift, not a miscalculation.
+
+The shared helper says it is the gain from making *this* change, that a marginal improvement scores
+low wherever it sits, and — the clause that ties it to the ceilings — that an item scoring low because
+it barely gains anything **should not be returned at all**. Calibration alone would only relabel the
+padding with low numbers.
+
+Shared by all three generators for the reason `marketRules` and `evidenceRules` are: one rule, three
+callers, so a later edit cannot leave three wordings behind.
+
+This also closes a question that stood open here: asking for implementation cost may have been helping
+calibrate `impact_score` by forcing the tradeoff, and nothing replaced it when the effort score was
+removed. Something does now.
 
 ```typescript
 
@@ -188,7 +260,7 @@ category files a fix under the wrong heading, which is a visible claim about wha
 **The score bounds deliberately do NOT degrade.** Those catch an analysis that is genuinely wrong (a
 page that did not render, a model refusal) and must keep rejecting.
 
-**The hypothesis floor was 5, and moving it to 1 is the one place that reasoning was applied in the
+**The hypothesis floor was 5, and removing it is the one place that reasoning was applied in the
 wrong spot.** Five was a promise about what a credit buys, enforced by a schema that can only see one
 of the three generation calls. All three run in one `Promise.all`; the playbook and the visibility
 audit already swallow a failure into an empty list. So a fourth hypothesis coming back short rejected
@@ -199,28 +271,57 @@ with it — tokens already spent, work already done, thrown away over one line.
 checked afterwards over everything that came back: **nothing at all** is what refunds, which is what
 "paid for a call and got nothing" always meant. See [api.md](api.md) and [report.md](report.md).
 
-**The visibility audit has no minimum**, unlike the playbook. Every page has room to convert better, so
-`PLAYBOOK_MIN` asks for something always available; a page can genuinely have no discoverability
-problem left, and a floor would buy an invented finding to fill the quota. `FlowPlaybook` renders
-nothing for an empty list, so `[]` is a correct answer.
+**There is no floor at all now, not a floor of one**, and that is the prompt's rule rather than a
+concession to it. A page whose lines are doing their job should come back with the ones that are not
+and nothing else, and on a page where that set is empty a floor of one buys exactly one invented
+finding. It also has to be zero to stay honest downstream: the unmatched-quote check above can empty
+the list on its own, after the parse, whatever the schema demanded.
 
-## 3. Hypotheses — `systemPrompt`
+**Only the playbook has a minimum**, and the other two deliberately do not. Every page has room to
+convert better, so `PLAYBOOK_MIN` asks for something always available; a page can genuinely have no
+discoverability problem left and genuinely have lines that are already working, and a floor there
+would buy an invented finding to fill the quota. `FlowPlaybook` renders nothing for an empty list, and
+`AnalysisSections` drops a tab whose count is zero, so a short list is a correct answer on both.
 
-Focus: grounding every hypothesis and variant in what the page itself shows, specificity of claims, CTA
-strength, social proof quality, value proposition clarity, friction reduction. Return 5-8 hypotheses
-ranked by impact descending, each with **one** evidence-bearing variant — the single challenger it
-most recommends testing.
+## 3. Copy — `systemPrompt`
 
-**Every hypothesis is a single-element text swap.** The prompt used to route structural ideas into a
+**It assesses the page's lines and replaces the ones that are not doing their job**, and that framing
+is the load-bearing part. The prompt used to open with *"Produce 5-8 high-leverage A/B test
+hypotheses"*, ask for *"the single challenger you most recommend testing"*, and have `rationale`
+explain *"why the variants should win"* — **written for a stage this product no longer has.** The live
+A/B test was removed (see [product.md](product.md)) and the visible strings were cleaned of its
+vocabulary; the prompt was not.
+
+A hypothesis generator is *supposed* to emit many cheap candidates, because in a test funnel the
+experiment does the judging afterwards. With no experiment, nothing judged: the model was generator
+and judge at once and instructed only as a generator. The quota then had to be filled, so on a page
+whose lines had already been tightened the last few slots went to rewriting lines that worked.
+
+The prompt now gives it the criterion instead of the quota: a line is doing its job when you can name
+what it makes the visitor understand, and failing when you can name what it leaves them to work out.
+That is the same test `evidence` already applied to a rewrite, promoted to a gatekeeper. A replacement
+that is merely *different* — another angle, another tone, fewer words for their own sake — is not a
+finding, and the page that has already been worked on is where that temptation is strongest.
+
+Focus: specificity of claims, CTA strength, social proof quality, value proposition clarity, friction
+reduction. Ranked by impact descending, at most `HYPOTHESES_MAX`, each with **one** evidence-bearing
+variant. **No minimum** — see the schema notes above and `assessment`.
+
+**Every finding is a single-element text swap.** The prompt used to route structural ideas into a
 hypothesis whose rationale began `"Manual change:"`; that convention is gone. Structural ideas are
-flow fixes now, and `systemPrompt` explicitly instructs the model to drop such an idea and spend the
-slot on a copy change rather than smuggling it in. **Do not reintroduce a structural escape hatch.**
+flow fixes now, and `systemPrompt` explicitly instructs the model to drop such an idea rather than
+smuggling it in. **Do not reintroduce a structural escape hatch.**
 
 ### Only one variant is generated during the analysis
 
-Generation is output-token-bound, and three variants across 5-8 hypotheses meant writing up to 24
+Generation is output-token-bound, and three variants across a full list meant writing up to 24
 copy + evidence pairs while the analysis screen shows only `variants[0]`. The alternates are written
 on demand when someone opens the run-a-test screen, which keeps them off the critical path.
+
+**`alternateVariantsPrompt` keeps its fixed quota of two, on purpose.** The no-padding rule above does
+not apply to it and must not be extended there for symmetry: the reader has already accepted that
+hypothesis and clicked asking for other angles on it, so two is what was asked for rather than a list
+being filled out.
 
 `variantCopyRules(language)` in `lib/ai/prompt.ts` is shared by both prompts so an alternate obeys
 exactly the same copy rules as the recommendation. `writingRules(language)` sits one level below,
@@ -400,6 +501,31 @@ route reads that stored value. See
 
 The typographic rule restricts **punctuation only** — see
 [invariants.md](invariants.md#pt-br-is-a-rewrite-not-a-translation).
+
+## 7b. Voice
+
+`writingRules` says which language and which punctuation. `voiceRules` says how a sentence is built,
+and it is a separate fragment for that reason: the two get edited for different reasons, and one
+combined block is how an edit to the punctuation rule silently rewrites the style one. Both are
+appended together at all four sites, so every prompt that writes prose carries both.
+
+What it forbids is the set of habits that make a sentence read as machine written and that no other
+rule here catches: sales language and inflated importance, a participle clause bolted onto a fact to
+fake a mechanism, three of something because three sounds finished, "not just X but Y", clipped
+negative endings, filler, and a closing line of encouragement. The superlative rule in
+`adIdeasPrompt` and the no-invented-number rule in `variantCopyRules` already cover their own ground
+and are not repeated.
+
+**`evidence` is the field this exists for.** It asks for a CRO mechanism in one sentence, and a
+participle ("ensuring the visitor understands the offer") is the cheapest way to produce something
+mechanism-shaped that argues nothing.
+
+The habits are named rather than listed as English words on purpose. Half of these analyses are
+written in Portuguese, and a blocklist of English adjectives would leave `aprimorar` and `garantir`
+untouched.
+
+Nothing tests this. The effect only shows up in model output, so a change here is checked by running
+an analysis in both locales and reading the fields.
 
 ## 8. The call
 

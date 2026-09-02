@@ -141,6 +141,20 @@ it now waits for the disclosure's height transition to settle before it measures
 CI-only failure by pointing `DATABASE_URL` at a fresh database and running `npm run db:migrate` into it
 first; a suite that only passes on a populated one is a suite that will fail on the next push.
 
+**The other CI-only difference is the font, and it cannot be reproduced that way.** Linux resolves the
+font stack differently from a laptop, so any text renders to a different width there. That reaches a
+layout assertion through whatever sits next to the text: the hero row is
+`[field flexible][button shrink-0]`, so the field's width is the row minus the CTA's rendered label,
+and `expect(field.width).toBeGreaterThan(400)` was really asserting that "Score my page now, free"
+renders under about 198px. It failed at 398.5 against an identical 606.5px row, with nothing on the
+page changed.
+
+So **measure against the layout, never against a pixel count a font can move**. Assert what the test is
+named for — that two elements share a row, that one drops below the other — and express size relative
+to the container, which leaves a hundred pixels of margin where a fixed threshold left one and a half.
+A bare number is safe only where it is a real minimum with real headroom, like the field staying above
+200px at a 380px viewport.
+
 ### Two projects
 
 **`chromium`** is the product suite: it signs in through the credentials hatch and drives real routes.

@@ -350,7 +350,7 @@ test('social sign in is asked only of a page that hosts the sign in itself', () 
   assert.equal(
     find(noAccount, 'form_fields')?.value,
     1,
-    'the form itself is still counted -- only the claim about accounts goes'
+    'the form itself is still counted, only the claim about accounts goes'
   )
 })
 

@@ -584,9 +584,15 @@ It is true for a flow fix too, from the other direction: "add a Q&A block" costs
 sprint depending on the site, and the model cannot tell which.
 
 The one real cost difference the product **can** state is **auto vs manual** on a copy hypothesis, and
-code decides it after generation: `resolveTarget` (`lib/scrape.ts`) matches `current_copy` against the
-scraped elements and persists the verdict to `hypotheses.target`. The model could not have known it.
-That fact is carried by the *Manual setup* badge, which is its single carrier.
+code decides it after generation: `resolveTarget` (`lib/prompt-elements.ts`) matches `current_copy`
+against the scraped elements and persists the verdict to `hypotheses.target`. The model could not have
+known it. That fact is carried by the *Manual setup* badge, which is its single carrier.
+
+**`manual` means we cannot point at the line, and it no longer covers a line that is not there.** A
+hypothesis quoting text on no element is dropped before it is ever stored — see
+[ai-pipeline.md](ai-pipeline.md). What still lands on the badge is a line the page says twice, an
+ambiguous near match, and a fragment too short to swap safely: all of them real copy off the reader's
+own page, none of them pointable without guessing which occurrence was meant.
 
 `effort_score` is gone end to end — all three prompts, both Zod schemas and both `effort_score` columns.
 See [ai-pipeline.md](ai-pipeline.md).

@@ -4,7 +4,7 @@ import { CREDIT_PACKS } from '@/lib/constants'
 const apiKey = process.env.STRIPE_SECRET_KEY
 
 if (!apiKey) {
-  console.warn('STRIPE_SECRET_KEY is not set -- checkout and the webhook cannot work')
+  console.warn('STRIPE_SECRET_KEY is not set, so checkout and the webhook cannot work')
 }
 
 export const stripe = new Stripe(apiKey || 'sk_test_placeholder', {

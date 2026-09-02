@@ -170,7 +170,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Link the pricing question straight to the pricing section'
       ],
       impact_score: 7,
-      evidence: 'Reference pages resolve pricing and cancellation questions on the page itself.'
+      evidence:
+        'The page sends the visitor elsewhere to learn what the trial costs and how to leave it, and answering on the page removes that exit.'
     },
     {
       category: 'decision_load',
@@ -195,7 +196,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Keep the label identical to the hero button so it reads as one path'
       ],
       impact_score: 5,
-      evidence: 'Reference pages repeat one action rather than offering several competing ones.'
+      evidence:
+        'The visitor reaches the end of the pricing table with no action in view, so acting means scrolling back to find one.'
     }
   ],
   'pt-BR': [
@@ -386,6 +388,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         problem:
           'The headline describes the product category instead of the outcome the visitor wants.',
         current_copy: 'The all-in-one platform for modern teams',
+        assessment:
+          'The headline names the audience and the breadth of the product, so the visitor knows who it is for.',
         variants: [
           {
             emphasis: null,
@@ -402,6 +406,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         section: 'cta',
         problem: 'The primary CTA is generic and adds friction by implying a long commitment.',
         current_copy: 'Get started',
+        assessment:
+          'The button says an action is available and nothing else about it.',
         variants: [
           {
             emphasis: null,
@@ -419,6 +425,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         problem:
           'Social proof is a vague logo strip with no credibility or relevance to the buyer.',
         current_copy: 'Trusted by teams everywhere',
+        assessment:
+          'The line claims other teams already use the product.',
         variants: [
           {
             emphasis: null,
@@ -435,6 +443,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         section: 'pricing',
         problem: 'Pricing leads with the highest tier, anchoring visitors on cost before value.',
         current_copy: 'Enterprise - $99/user/mo',
+        assessment:
+          'The line states a real price and who it is for.',
         variants: [
           {
             emphasis: null,
@@ -451,6 +461,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         section: 'features',
         problem: 'Features are listed as capabilities, not benefits the buyer cares about.',
         current_copy: 'Real-time sync, API access, role-based permissions',
+        assessment:
+          'The list names three things the product can do, accurately.',
         variants: [
           {
             emphasis: null,
@@ -467,6 +479,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         section: 'subheadline',
         problem: 'The subheadline repeats the headline instead of handling the next objection.',
         current_copy: 'Built for teams that move fast',
+        assessment:
+          'The subheadline restates the audience the headline already named.',
         variants: [
           {
             emphasis: null,
@@ -487,6 +501,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         problem:
           'O título descreve a categoria do produto em vez do resultado que o visitante quer.',
         current_copy: 'The all-in-one platform for modern teams',
+        assessment:
+          'O título nomeia o público e a abrangência do produto, então o visitante sabe para quem ele é.',
         variants: [
           {
             emphasis: null,
@@ -503,6 +519,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         section: 'cta',
         problem: 'A chamada principal é genérica e cria atrito ao sugerir um compromisso longo.',
         current_copy: 'Get started',
+        assessment:
+          'O botão diz que existe uma ação disponível e nada mais sobre ela.',
         variants: [
           {
             emphasis: null,
@@ -519,6 +537,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         section: 'social_proof',
         problem: 'A prova social é vaga e não traz credibilidade nem relevância para o comprador.',
         current_copy: 'Trusted by teams everywhere',
+        assessment:
+          'A linha afirma que outros times já usam o produto.',
         variants: [
           {
             emphasis: null,
@@ -535,6 +555,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         section: 'pricing',
         problem: 'Os planos começam pelo mais caro, ancorando o visitante no custo antes do valor.',
         current_copy: 'Enterprise - $99/user/mo',
+        assessment:
+          'A linha informa um preço real e para quem ele vale.',
         variants: [
           {
             emphasis: null,
@@ -552,6 +574,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         problem:
           'Os recursos aparecem como capacidades, não como benefícios que interessam ao comprador.',
         current_copy: 'Real-time sync, API access, role-based permissions',
+        assessment:
+          'A lista nomeia com precisão três coisas que o produto faz.',
         variants: [
           {
             emphasis: null,
@@ -568,6 +592,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         section: 'subheadline',
         problem: 'O subtítulo repete o título em vez de tratar a próxima objeção.',
         current_copy: 'Built for teams that move fast',
+        assessment:
+          'O subtítulo repete o público que o título já nomeou.',
         variants: [
           {
             emphasis: null,
@@ -645,33 +671,33 @@ const AD_IDEAS: Record<Locale, AdIdeas> = {
         terms: ['workspace', 'teams', 'modern teams'],
         headlines: [
           'Um workspace para o time',
-          'Seu time, um workspace so',
+          'Seu time, um workspace só',
           'Feito para times modernos',
-          'Comece seu workspace gratis',
+          'Comece seu workspace grátis',
           'O workspace que o time usa'
         ],
         descriptions: [
           'Um workspace onde seu time planeja, escreve e entrega sem trocar de ferramenta.',
-          'Configuracao em minutos. Sem cartao para comecar, e o time entra no mesmo dia.'
+          'Configuração em minutos. Sem cartão para começar, e o time entra no mesmo dia.'
         ]
       },
       {
-        theme: 'Precos e onboarding',
+        theme: 'Preços e onboarding',
         terms: ['pricing', 'onboarding'],
         headlines: [
-          'Precos na propria pagina',
-          'Veja o preco, sem reuniao',
+          'Preços na própria página',
+          'Veja o preço, sem reunião',
           'Onboarding de uma sentada',
-          'Precos simples, sem surpresa',
+          'Preços simples, sem surpresa',
           'Comece o onboarding hoje'
         ],
         descriptions: [
-          'O preco esta na pagina, entao voce decide antes de alguem pedir uma reuniao.',
-          'O onboarding leva o time pela configuracao, do primeiro convite ao primeiro projeto.'
+          'O preço está na página, então você decide antes de alguém pedir uma reunião.',
+          'O onboarding leva o time pela configuração, do primeiro convite ao primeiro projeto.'
         ]
       }
     ],
-    negatives: ['curso', 'vaga', 'salario', 'template', 'download gratis', 'tutorial']
+    negatives: ['curso', 'vaga', 'salário', 'template', 'download grátis', 'tutorial']
   }
 }
 

@@ -150,6 +150,10 @@ export const hypotheses = pgTable('hypotheses', {
     .notNull()
     .references(() => analyses.id, { onDelete: 'cascade' }),
   section: sectionEnum('section').notNull(),
+  // What the line already does for the visitor, written before the replacement was. Nullable because
+  // every row generated before the field existed has none, and null renders as no verdict rather
+  // than as an empty one -- same treatment as `variants.evidence`. See docs/ai-pipeline.md.
+  assessment: text('assessment'),
   problem: text('problem').notNull(),
   currentCopy: text('current_copy').notNull(),
   impactScore: integer('impact_score').notNull(),

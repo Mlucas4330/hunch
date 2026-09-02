@@ -1,6 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { AdIdeasSchema, FlowFixSchema, PlaybookOutputSchema, VisibilityFixSchema } from './schema'
+import {
+  AdIdeasSchema,
+  AnalysisOutputSchema,
+  FlowFixSchema,
+  HypothesisSchema,
+  PlaybookOutputSchema,
+  VisibilityFixSchema
+} from './schema'
 import { AD_DESCRIPTION_MAX_CHARS, AD_HEADLINE_MAX_CHARS } from '@/lib/constants'
 
 // The first tests of the AI layer. They exist for one reason: **every field here is filled by a
@@ -17,6 +24,22 @@ const FIX = {
   impact_score: 9,
   evidence: 'Every account created today costs the visitor a password.',
   finding: 'no_social_signin'
+}
+
+const HYPOTHESIS = {
+  section: 'subheadline',
+  current_copy: 'Built for teams that move fast',
+  assessment: 'The subheadline restates the audience the headline already named.',
+  problem: 'It leaves the setup question the visitor is about to ask unanswered.',
+  variants: [
+    {
+      copy: 'Set up in [setup time]. No migration, no training.',
+      evidence: 'The current line repeats the audience, and the rewrite answers the next objection.',
+      emphasis: null
+    }
+  ],
+  impact_score: 4,
+  rationale: 'Handling the top objection where it appears keeps momentum toward the CTA.'
 }
 
 test('a fix carries the finding it answers', () => {
@@ -135,4 +158,38 @@ test('an empty negatives list is a valid answer, because padding one is inventin
 
 test('one group is not a campaign, so the set rejects below the minimum', () => {
   assert.throws(() => AdIdeasSchema.parse({ ...AD_IDEAS, groups: [AD_GROUP] }))
+})
+
+// **The key order below is behaviour, not formatting.** A structured output is written in the order
+// the fields are declared, so this order is what makes the model quote the line, judge it, and name
+// the gap before a replacement exists to defend. Nothing at runtime would complain if someone sorted
+// these alphabetically or moved `problem` back to the front, and the analysis would quietly go back
+// to naming a defect before transcribing the line it is in. This test is the only thing that would.
+test('a hypothesis is judged before it is rewritten, and the field order is what does it', () => {
+  assert.deepEqual(Object.keys(HypothesisSchema.shape), [
+    'section',
+    'current_copy',
+    'assessment',
+    'problem',
+    'variants',
+    'impact_score',
+    'rationale'
+  ])
+})
+
+test('assessment is required, because a verdict left to the instructions cannot be checked', () => {
+  const { assessment, ...withoutVerdict } = HYPOTHESIS
+
+  assert.ok(HypothesisSchema.safeParse(HYPOTHESIS).success)
+  assert.equal(HypothesisSchema.safeParse(withoutVerdict).success, false)
+  assert.equal(assessment.length > 0, true)
+})
+
+// **No floor at all**, which is the rule and not an oversight: on a page whose lines are doing their
+// job, a floor of one buys exactly one invented finding. It also has to hold for `resolveTargets`,
+// which drops a hypothesis quoting a line that is on no element and can empty the list on its own.
+// See the schema's own comment and docs/ai-pipeline.md.
+test('no lines worth changing is a valid answer, and so is one', () => {
+  assert.ok(AnalysisOutputSchema.safeParse({ hypotheses: [HYPOTHESIS] }).success)
+  assert.ok(AnalysisOutputSchema.safeParse({ hypotheses: [] }).success)
 })

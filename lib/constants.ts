@@ -646,6 +646,11 @@ export const FIT_TOLERANCE_PX = 1
 // The recommendation plus its two alternates, which are written on demand. See docs/ai-pipeline.md.
 export const VARIANTS_PER_HYPOTHESIS = 3
 
+// A ceiling and deliberately no floor, for the reason VISIBILITY_MAX has none: a page whose lines are
+// already doing their job should return three rewrites rather than three plus five of padding. There
+// was a floor of five, and it was what bought the padding. See docs/ai-pipeline.md.
+export const HYPOTHESES_MAX = 8
+
 // Bounded because a founder acts on a short list, and the playbook shares the generation budget.
 export const PLAYBOOK_MIN = 3
 

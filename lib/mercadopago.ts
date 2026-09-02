@@ -16,7 +16,7 @@ const API_ORIGIN = 'https://api.mercadopago.com'
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
 
 if (!accessToken) {
-  console.warn('MERCADOPAGO_ACCESS_TOKEN is not set -- payments and the webhook cannot work')
+  console.warn('MERCADOPAGO_ACCESS_TOKEN is not set, so payments and the webhook cannot work')
 }
 
 /**

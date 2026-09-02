@@ -199,6 +199,7 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
           ranked.map((h) => ({
             analysisId: analysis.id,
             section: h.section,
+            assessment: h.assessment,
             problem: h.problem,
             currentCopy: h.current_copy,
             impactScore: h.impact_score,

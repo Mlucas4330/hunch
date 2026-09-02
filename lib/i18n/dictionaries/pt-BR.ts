@@ -147,7 +147,7 @@ export const ptBR: Dictionary = {
     headlineBottom: 'O que falta é saber o que tem nela.',
     lead: 'O Hunch abre a sua landing page do jeito que um visitante abre, conta o que tem nela de verdade e dá uma nota de 0 a 100, com as correções priorizadas e a copy substituta já escrita. Cole a URL. Ver a nota não custa nada e não pede cadastro.',
     cta: 'Ver minha nota agora, de graça',
-    ctaNote: 'Sem cadastro, sem cartão, sem instalar nada. Só a sua URL.',
+    ctaNote: 'Só a sua URL. A gente não pede cadastro, nem cartão, nem instalar nada.',
     howItWorksLink: 'Como funciona',
 
     heroCard: {
@@ -253,11 +253,11 @@ export const ptBR: Dictionary = {
       },
       {
         label: 'Receba a sua nota',
-        body: 'Sem esperar o relatório de ninguém. De 0 a 100, com todas as linhas que formaram ela: campos de formulário, CTAs, tempo de carregamento, alt text, dados estruturados.'
+        body: 'De 0 a 100, com todas as linhas que formaram ela: campos de formulário, CTAs, tempo de carregamento, alt text, dados estruturados. Ninguém escreve um relatório para você e ninguém manda depois.'
       },
       {
         label: 'Libere as correções',
-        body: 'Sem adivinhar por onde começar. Mudanças priorizadas com a copy substituta já escrita, e uma prévia dela na sua página real.'
+        body: 'Mudanças priorizadas com a copy substituta já escrita, e uma prévia dela na sua página real. A ordem é o que diz por onde começar.'
       }
     ],
 
@@ -740,6 +740,7 @@ export const ptBR: Dictionary = {
     manualSetup: 'Configuração manual',
     testThisFirst: 'Comece por aqui',
     evidenceMechanism: 'O mecanismo',
+    assessmentLabel: 'A linha hoje',
     placeholderWarning:
       'Contém [placeholders] - substitua pelos dados reais antes de entregar.',
     previewLabel: 'Na sua página',
@@ -841,8 +842,8 @@ export const ptBR: Dictionary = {
   report: {
     generating: {
       eyebrow: 'Ainda sendo escrito',
-      note: 'A sua nota aí em cima já está fechada. As correções e a copy substituta estão sendo escritas agora e aparecem aqui sozinhas -- dá para sair desta página e voltar depois.',
-      stalled: 'Está demorando mais que o normal. O trabalho continua na fila -- recarregue a página para conferir.'
+      note: 'A sua nota aí em cima já está fechada. As correções e a copy substituta estão sendo escritas agora e aparecem aqui sozinhas, então dá para sair desta página e voltar depois.',
+      stalled: 'Está demorando mais que o normal. O trabalho continua na fila. Recarregue a página para conferir.'
     },
     failed: {
       heading: 'As correções não vieram',

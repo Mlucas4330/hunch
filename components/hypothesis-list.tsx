@@ -136,10 +136,21 @@ function HypothesisBody({
             label: dictionary.report.whyThisWorks,
             content: (
               <>
+                {/* The verdict first, because it is what answers "why are you touching this line at
+                    all". Null on every hypothesis written before the field existed, and then the
+                    drawer is exactly what it always was rather than a label over nothing. */}
+                {hypothesis.assessment && (
+                  <p>
+                    <span className="panel-label text-nano text-purple-soft">
+                      {copy.assessmentLabel}
+                    </span>{' '}
+                    {hypothesis.assessment}
+                  </p>
+                )}
                 <p>{hypothesis.rationale}</p>
                 {/* Two different things, marked apart on purpose: `rationale` argues why the
-                    challenger wins, `evidence` names the CRO mechanism it uses. Unprefixed they
-                    read as one undifferentiated paragraph. */}
+                    replacement is better, `evidence` names the CRO mechanism it uses. Unprefixed
+                    they read as one undifferentiated paragraph. */}
                 {recommended?.evidence && (
                   <p>
                     <span className="panel-label text-nano text-purple-soft">

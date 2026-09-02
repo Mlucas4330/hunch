@@ -30,12 +30,10 @@ import {
   SCRAPE_VIEWPORT_MOBILE,
   SEO_HEADING_MAX_CHARS,
   SEO_HEADINGS_MAX,
-  TARGET_MATCH_MAX_WORD_RATIO,
   TRUST_PATTERNS,
   VARIANT_GROWTH_LINES
 } from '@/lib/constants'
 import { assertPublicUrl, isPublicUrl } from '@/lib/url-guard'
-import { wordCount } from '@/lib/text'
 import { log } from '@/lib/log'
 
 export interface PageElement {
@@ -187,14 +185,6 @@ export interface PagePerformance {
   transferredBytes: number | null
   requestCount: number
   domNodeCount: number
-}
-
-export type TargetMode = 'auto' | 'manual'
-
-export interface ResolvedTarget {
-  selector: string | null
-  mode: TargetMode
-  text: string | null
 }
 
 export interface ScrapedPage {
@@ -1304,36 +1294,6 @@ async function capturePerformance(options: { lcpFlushMs: number }): Promise<Page
     requestCount: resources.length,
     domNodeCount: document.getElementsByTagName('*').length
   }
-}
-
-function normalize(value: string): string {
-  return value.replace(/\s+/g, ' ').trim().toLowerCase()
-}
-
-export function resolveTarget(currentCopy: string, elements: PageElement[]): ResolvedTarget {
-  const manual: ResolvedTarget = { selector: null, mode: 'manual', text: null }
-  const target = normalize(currentCopy)
-  if (!target) return manual
-
-  const exact = elements.filter((e) => normalize(e.text) === target)
-  if (exact.length === 1) return { selector: exact[0].selector, mode: 'auto', text: exact[0].text }
-  if (exact.length > 1) return manual
-
-  const targetWords = wordCount(target)
-  const near = elements
-    .map((e) => ({ el: e, norm: normalize(e.text) }))
-    .filter(({ norm }) => norm.includes(target) || target.includes(norm))
-    .map(({ el, norm }) => {
-      const words = wordCount(norm)
-      const ratio = Math.max(words, targetWords) / Math.max(1, Math.min(words, targetWords))
-      return { el, ratio }
-    })
-    .filter(({ ratio }) => ratio <= TARGET_MATCH_MAX_WORD_RATIO)
-    .sort((a, b) => a.ratio - b.ratio)
-
-  if (near.length === 0) return manual
-  if (near.length > 1 && near[0].ratio === near[1].ratio) return manual
-  return { selector: near[0].el.selector, mode: 'auto', text: near[0].el.text }
 }
 
 /**

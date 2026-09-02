@@ -153,7 +153,7 @@ export const en = {
     headlineBottom: 'What is missing is knowing what is on it.',
     lead: 'Hunch opens your landing page the way a visitor does, counts what is actually on it, and scores it out of 100, with ranked fixes and the replacement copy already written. Paste your URL. Seeing the score costs nothing and needs no account.',
     cta: 'Score my page now, free',
-    ctaNote: 'No signup, no card, no install. Just your URL.',
+    ctaNote: 'Just your URL. We do not ask for a signup, a card, or an install.',
     howItWorksLink: 'How it works',
 
     heroCard: {
@@ -267,11 +267,11 @@ export const en = {
       },
       {
         label: 'Get your score',
-        body: 'No waiting on a report from anyone. Out of 100, with every row that made it: form fields, calls to action, load time, alt text, structured data.'
+        body: 'Out of 100, with every row that made it: form fields, calls to action, load time, alt text, structured data. Nobody writes it up for you and nobody sends it later.'
       },
       {
         label: 'Unlock the fixes',
-        body: 'No guessing where to start. Ranked changes with the replacement copy already written, and a preview of it on your real page.'
+        body: 'Ranked changes with the replacement copy already written, and a preview of it on your real page. The ranking is what tells you where to start.'
       }
     ],
 
@@ -751,6 +751,7 @@ export const en = {
     manualSetup: 'Manual setup',
     testThisFirst: 'Start here',
     evidenceMechanism: 'The mechanism',
+    assessmentLabel: 'The line today',
     placeholderWarning: 'Has [placeholders] - replace them with the real details before you hand this over.',
     previewLabel: 'On your page',
     otherOptions: 'Other options',
@@ -850,8 +851,8 @@ export const en = {
   report: {
     generating: {
       eyebrow: 'Still being written',
-      note: 'Your score above is final. The fixes and the replacement copy are being written now and appear here on their own -- you can leave this page and come back to it.',
-      stalled: 'This is taking longer than usual. The work is still queued -- reload the page to check on it.'
+      note: 'Your score above is final. The fixes and the replacement copy are being written now and appear here on their own, so you can leave this page and come back to it.',
+      stalled: 'This is taking longer than usual. The work is still queued. Reload the page to check on it.'
     },
     failed: {
       heading: 'The fixes did not come through',

@@ -220,8 +220,22 @@ test.describe('core features', () => {
     await page.goto('/')
     const form = page.locator('form').filter({ has: page.locator('input[name="url"]') }).first()
 
+    // **Both measured against the row rather than against a pixel count.** The row is
+    // `[field flexible][button shrink-0]`, so the field's width is whatever the CTA's rendered text
+    // leaves behind, and a fixed threshold on the field is really a threshold on how wide that text
+    // renders. `> 400` failed CI at 398.5: same 606.5px row, same layout, a button 7.7px wider
+    // because Linux resolves the font stack differently. Nothing about the page had changed.
+    //
+    // Sharing the row is the behaviour this half is named for and it was never asserted, only proxied
+    // by the width. Both are checked now, and the size claim is the one that survives a font: the
+    // field is the majority of the row, with about a hundred pixels of margin instead of one and a
+    // half.
+    const wideRow = (await form.locator('input[name="url"]').locator('..').boundingBox())!
     const wide = (await form.locator('input[name="url"]').boundingBox())!
-    expect(wide.width).toBeGreaterThan(400)
+    const wideSubmit = (await form.locator('button[type="submit"]').boundingBox())!
+
+    expect(wideSubmit.y).toBe(wide.y)
+    expect(wide.width).toBeGreaterThan(wideRow.width / 2)
 
     await page.setViewportSize({ width: 380, height: 900 })
 

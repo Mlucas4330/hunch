@@ -83,6 +83,7 @@ hypotheses
 - id             (uuid, PK)
 - analysis_id    (FK -> analyses.id)
 - section        (enum: SECTIONS)
+- assessment     (text, nullable: what the line already does, written before the replacement was)
 - problem        (text)
 - current_copy   (text)
 - impact_score   (int, 1-10)

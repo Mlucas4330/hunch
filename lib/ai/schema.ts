@@ -9,6 +9,7 @@ import {
   AD_HEADLINES_PER_GROUP,
   AD_NEGATIVES_MAX,
   AD_TERMS_PER_GROUP_MAX,
+  HYPOTHESES_MAX,
   IMPACT_SCORE_MAX,
   IMPACT_SCORE_MIN,
   PLAYBOOK_MAX,
@@ -26,10 +27,22 @@ export const VariantSchema = z.object({
   emphasis: z.string().nullable()
 })
 
+/**
+ * **The key order is behaviour, not house style. Do not sort these.**
+ *
+ * A structured output is written in the order its fields are declared, so this object is the shape of
+ * a judgement: quote the line, say what it already does, name what it still leaves undone, and only
+ * then write the replacement. A model that has not yet composed `assessment` has nothing to weigh the
+ * rewrite against, and one that writes `problem` first argues before it has looked.
+ *
+ * Nothing at runtime would complain if someone alphabetised them. `schema.test.ts` asserts the order
+ * for that reason, and docs/ai-pipeline.md carries why each field is where it is.
+ */
 export const HypothesisSchema = z.object({
   section: z.enum(SECTIONS).catch(SECTION_FALLBACK),
-  problem: z.string(),
   current_copy: z.string(),
+  assessment: z.string(),
+  problem: z.string(),
   variants: z.array(VariantSchema).length(1),
   impact_score: z.number().int().min(IMPACT_SCORE_MIN).max(IMPACT_SCORE_MAX),
   rationale: z.string()
@@ -47,12 +60,16 @@ export const HypothesisSchema = z.object({
  *
  * What a credit buys is now checked where it can see everything that came back — see the refund in
  * lib/run-analysis.ts, which triggers on nothing at all being generated rather than on this floor.
- * One is still a floor rather than none, because an empty array is not an answer.
  *
- * `.max(8)` stays: it is a ceiling on cost and length, which is a different job.
+ * **There is no floor, and that is the prompt's rule rather than a concession.** A page whose lines
+ * are doing their job should come back with the ones that are not and nothing else, and on a page
+ * where that set is empty a floor of one buys exactly one invented finding. It also has to be zero to
+ * be honest downstream: `resolveTargets` drops a hypothesis whose `current_copy` is on no element, so
+ * an empty list is a shape this pipeline already produces and already renders — `AnalysisSections`
+ * omits a tab with no rows. `HYPOTHESES_MAX` is a ceiling on cost and length, which is a different job.
  */
 export const AnalysisOutputSchema = z.object({
-  hypotheses: z.array(HypothesisSchema).min(1).max(8)
+  hypotheses: z.array(HypothesisSchema).max(HYPOTHESES_MAX)
 })
 
 export const AlternateVariantsSchema = z.object({
