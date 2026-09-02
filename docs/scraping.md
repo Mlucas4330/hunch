@@ -27,8 +27,10 @@ target: an app whose API backend cold-started held a 13-character "Carregando...
 past `networkidle2`, and full scrapes of it ranged 8.6s to 11.2s across runs.
 
 Without the wait, a slow page reaches generation as a spinner and the model correctly refuses to
-invent hypotheses about it — which surfaces as `AnalysisOutputSchema`'s `min(5)` rejecting the output
-**after** a full Sonnet call, i.e. an opaque `500`. `screenshotVariant` shares the wait for the same
+invent hypotheses about it — **after** a full Sonnet call, so the tokens are spent either way. That
+used to surface as an opaque `500`, because a schema floor of five hypotheses rejected the output and
+threw; it now surfaces as an analysis with little or nothing in it, and a credit back if all three
+calls came up empty. Cheaper to be wrong about, and no less wrong. `screenshotVariant` shares the wait for the same
 reason: a selector looked up before paint reads as stale and costs the report its preview.
 
 **The preview freezes motion and scrolls before it shoots.** Both belong to the pair rather than to the
@@ -79,7 +81,7 @@ a link inside a sentence is prose rather than something anyone aims a thumb at.
 
 A flat record: `hasOauth`, `formFieldCount`, `hasFaq`, `hasPricing`, `hasTestimonials`, `hasVideo`,
 `hasStickyCta`, `bodyLinkCount`, `aboveFoldCtaCount`, `navLinkCount`, `sectionCount`, `wordCount`,
-plus whether the page signs anybody in at all (`hasAuthEntry`), what the form asks for
+plus whether the page is where you sign in (`hasAuthForm`), what the form asks for
 (`requiredFieldCount`, `fieldsWithoutLabel`, `formSteps`, `hasSubmit`, `hasClientValidation`,
 `deadCtaCount`) and what the page offers as a reason to believe it (`hasCnpj`,
 `testimonialWithAttributionCount`, `clientLogoCount`, `trustBadgeCount`, `hasPrivacyPolicy`,
@@ -93,16 +95,21 @@ zero is a real and common answer for most of them. Reporting a finding of zero f
 counted it on reports unknown as negative, which
 [invariants.md](invariants.md#unknown-is-never-reported-as-negative) forbids outright.
 
-### `hasAuthEntry` is a different question from `hasOauth`
+### `hasAuthForm` is a different question from `hasOauth`
 
-`hasOauth` says the page offers Google or GitHub. `hasAuthEntry` says the page has an account to offer
-them **for** — any sign in link, any create-account button. Both come off the same pass over the
-clickables, from the `STRUCTURE_PATTERNS.auth` test that was already being run to decide which
-controls could carry a provider name; it simply was not recorded.
+`hasOauth` says the page offers Google or GitHub. `hasAuthForm` says **this page is where you sign
+in** — as opposed to a page that merely links to one. Both come off the same pass over the clickables,
+from the `STRUCTURE_PATTERNS.auth` test that was already being run to decide which controls could
+carry a provider name; it simply was not recorded.
 
-Without it the readout could not tell "signs you in, but only with email" from "signs nobody in", and
-put the same question to both. A page whose only form is a search box, a newsletter field or a URL
-analyser was told it lacks social sign in — see [readout.md](readout.md).
+It is true when an auth-labelled control sits inside a `<form>`, when a visible password field exists,
+or when a provider was detected. Any of the three means the credentials are collected here.
+
+**`closest('form')` is the whole distinction, and the first version of this field got it wrong.** It
+started as "is there a way in from this page at all", which is satisfied by a header link — and a
+header link points at a URL this analysis never opened. Our own report then recommended adding social
+login to a product whose sign in page has offered Google and GitHub all along. A navigation link is an
+anchor loose in a header; the real control submits something. See [readout.md](readout.md).
 
 **`STRUCTURE_PATTERNS.auth` was English only, and it was the only key in that object that was.** Its
 neighbours all carry Portuguese, and `hasOauth` is computed from nothing else, so on any page written

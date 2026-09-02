@@ -66,8 +66,13 @@
     0 16px 40px -8px color-mix(in oklch, var(--shade) 16%, transparent);
 
   /* One report rail row. Fixed rather than content-sized, which is what makes the active marker's
-     position `index * row` instead of a measurement -- see components/report-rail.tsx. */
-  --rail-row: 1.75rem;
+     position `index * row` instead of a measurement -- see components/report-rail.tsx.
+
+     **Tall enough for two lines, because it has to be.** It was 1.75rem, which is one line, and the
+     row is a fixed height rather than a minimum -- so "Termos da página" wrapped, overflowed its own
+     box and sat on top of the entry above it. The rail is a narrow column and any label long enough
+     to wrap does the same, so the fix is the row, not the wording. */
+  --rail-row: 2.5rem;
 
   /* Signal channels -- referenced by lib/constants.ts badge/score/section maps.
    *

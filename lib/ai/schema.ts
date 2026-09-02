@@ -35,8 +35,24 @@ export const HypothesisSchema = z.object({
   rationale: z.string()
 })
 
+/**
+ * **The floor is 1, and it used to be 5.**
+ *
+ * Five was a promise about what a credit buys, enforced in the wrong place. The three generation
+ * calls run in one `Promise.all` and the other two never throw — they degrade to an empty list — so a
+ * fourth hypothesis coming back short rejected this object, rejected the whole `Promise.all`, and
+ * threw away up to eight flow fixes and six visibility fixes that had already finished and already
+ * cost their tokens. That is not "paid for a call and got nothing"; it is most of a report discarded
+ * over one line.
+ *
+ * What a credit buys is now checked where it can see everything that came back — see the refund in
+ * lib/run-analysis.ts, which triggers on nothing at all being generated rather than on this floor.
+ * One is still a floor rather than none, because an empty array is not an answer.
+ *
+ * `.max(8)` stays: it is a ceiling on cost and length, which is a different job.
+ */
 export const AnalysisOutputSchema = z.object({
-  hypotheses: z.array(HypothesisSchema).min(5).max(8)
+  hypotheses: z.array(HypothesisSchema).min(1).max(8)
 })
 
 export const AlternateVariantsSchema = z.object({

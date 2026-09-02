@@ -227,9 +227,12 @@ Four rules hold the money side together:
   retry then answers `duplicate` and the paid credit is lost for good — so the Mercado Pago route
   releases its claim before answering `500`.
 - **Spend before the work, refund if the work fails.** The other order hands out a free analysis
-  whenever something crashes between the two, and nothing afterwards can tell which happened.
-  `AnalysisOutputSchema`'s `.min(5)` deliberately does not degrade, so "paid for a Sonnet call and got
-  nothing" is a real path.
+  whenever something crashes between the two, and nothing afterwards can tell which happened. "Paid
+  for a Sonnet call and got nothing" is a real path, so the refund is real too — and **what counts as
+  failing is nothing being generated at all**, measured over all three calls once they have returned.
+  It used to be a schema floor of five hypotheses, which could only see one of the three: a short set
+  of copy took a finished playbook and a finished audit down with it. The rule never changed; where it
+  was enforced did. See [ai-pipeline.md](ai-pipeline.md).
 - **The balance is never in the JWT.** A token lives `SESSION_MAX_AGE_SECONDS`, so a balance stamped
   into one is stale the instant something is bought or spent — free credit in one direction, credit
   that looks vanished in the other. Read from the row per request, exactly as the role is.

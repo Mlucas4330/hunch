@@ -118,6 +118,18 @@ highlighted", and the rail is a list of working anchors either way. Do not remov
 every ancestor first, then scrolls. `components/section-link.tsx` is the `<a>` that calls it, and it
 stays a real anchor so it works without JavaScript.
 
+## The report rail is a fixed row height, so its labels have to fit one
+
+`--rail-row` in `app/globals.css` is what makes the active marker's position `index * row` instead of
+a measurement — see `components/report-rail.tsx`. Because the row is a fixed **height** rather than a
+minimum, a label too long for it does not push the next entry down: it overflows and sits on top of
+it. "Termos da página" wrapped and did exactly that.
+
+The row is now tall enough for two lines and the label is clamped to two, on a `<span>` inside the
+anchor rather than on the anchor itself — `line-clamp` sets `display: -webkit-box`, which would
+replace the `flex` doing the vertical centring. Any label long enough to wrap does the same thing, so
+the fix belongs to the row and not to the wording.
+
 ## Everything tappable clears 44px on a phone
 
 `captureMobile` counts any control whose box is under `MOBILE_TAP_TARGET_MIN_PX` on either axis, and
@@ -333,6 +345,18 @@ header** — that surface has no navbar and is read signed-out by someone who ma
 is deliberately shared: a number down the left edge is how this report says *here is a thing with a
 score on it*, and having two answers to that on one page was the actual inconsistency. **The widget
 is deliberately not shared** — see the note in [readout.md](readout.md#a-group-is-a-card-with-its-score-down-the-left-edge).
+
+### `summaryClassName` levels a row of cards without stretching the grid
+
+Opt in, and only the readout uses it. Its six group cards sit in a two column grid that is
+`items-start` **on purpose** — stretching would make opening one card grow the closed box beside it —
+so nothing external sets their height and the content has to agree on its own.
+
+Two things were disagreeing: a group name that wrapped to a second line, and a severity badge long
+enough ("Precisa de trabalho") to push the count beside it onto one. Reserving a minimum on the column
+that holds both covers them together, and the obvious fix — dropping `items-start` — is the older bug
+coming back. It is a minimum rather than a clamp, and off by default: the landing FAQ uses this same
+component for questions that legitimately run to three lines.
 
 **The score is a rail down the left edge, and that replaced five things.** The header used to be a
 mono rank, a coloured pill, a coral flag and the word IMPACT next to ten meter bars next to `9/10`,

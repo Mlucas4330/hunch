@@ -9,6 +9,7 @@ export function DisclosureCard({
   score,
   badge,
   title,
+  summaryClassName,
   defaultOpen,
   className,
   style,
@@ -21,6 +22,20 @@ export function DisclosureCard({
   score?: ReactNode
   badge?: ReactNode
   title: string
+  /**
+   * Applied to the column holding the badge row and the title, for a caller whose cards sit side by
+   * side and must not be different heights.
+   *
+   * The readout renders six of these in a two column grid, and the grid is `items-start` on purpose --
+   * stretching would make opening one card grow the closed box beside it. So the height has to come
+   * from the content, and **two separate things were setting it**: a group name that wrapped to a
+   * second line, and a severity badge long enough to push the count beside it onto one. Reserving
+   * the column covers both with one knob instead of chasing them separately.
+   *
+   * A minimum, never a clamp, and opt-in rather than default: the landing FAQ uses this same
+   * component for questions that legitimately run to three lines and must be free to grow.
+   */
+  summaryClassName?: string
   defaultOpen?: boolean
   className?: string
   /** Carries `--index` for the staggered arrival. See app/globals.css. */
@@ -56,7 +71,7 @@ export function DisclosureCard({
          */}
         <summary className="flex list-none items-stretch rounded-lg hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
           {score}
-          <div className="flex min-w-0 flex-1 flex-col gap-1 p-4">
+          <div className={cn('flex min-w-0 flex-1 flex-col gap-1 p-4', summaryClassName)}>
             {badge && <div className="flex flex-wrap items-center gap-2">{badge}</div>}
             {/* Free to wrap, in both states: it owns the row now. `text-pretty` keeps a one-word
                 last line from happening. */}

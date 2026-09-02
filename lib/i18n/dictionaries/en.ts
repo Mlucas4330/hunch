@@ -850,7 +850,13 @@ export const en = {
   report: {
     generating: {
       eyebrow: 'Still being written',
-      note: 'Your score above is final. The fixes and the replacement copy are being written now and appear here on their own -- you can leave this page and come back to it.'
+      note: 'Your score above is final. The fixes and the replacement copy are being written now and appear here on their own -- you can leave this page and come back to it.',
+      stalled: 'This is taking longer than usual. The work is still queued -- reload the page to check on it.'
+    },
+    failed: {
+      heading: 'The fixes did not come through',
+      body: 'Your score above stands and is yours to keep. The written half did not finish, so the credit went back to your balance and nothing was charged for this run.',
+      cta: 'Run the page again'
     },
     backToTestIdeas: 'Back to the analysis',
     teardown: 'Conversion teardown',

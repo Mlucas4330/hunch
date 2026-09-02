@@ -53,11 +53,14 @@ only then does an owned run continue into `generateFromMeasurement`. Three conse
 
 - **The client navigates on `measured`.** `waitForAnalysis` no longer waits for `generated`, so the
   reader reaches `/r/<embedKey>` with their score while the fixes are still being written. See
-  [report.md](report.md) for the third state that renders there.
-- **A generation failure is survivable.** `AnalysisOutputSchema`'s `.min(5)` still does not degrade
-  and the credit is still refunded, but the readout is already committed — so the failure is "you
-  have your score and your credit is back" rather than three minutes of spinner ending in an error
-  screen.
+  [report.md](report.md) for the five states that render there.
+- **A generation failure is survivable, and rarer than it was.** The credit comes back when
+  **nothing** was generated — not when one of the three calls fell short. A short set of copy
+  hypotheses now ships alongside the flow and visibility fixes instead of taking them down with it;
+  see [ai-pipeline.md](ai-pipeline.md). When the refund does happen the readout is already committed,
+  so it is "you have your score and your credit is back" rather than three minutes of spinner ending
+  in an error screen. It is also *visible*: `credit_transactions` carries a `refund` against the
+  analysis, and that is what the report reads to show what happened instead of the unlock wall.
 - **The measurement write is skipped when the row already has one.** A requeued job re-measures (it
   needs the page in memory to generate), and inserting a second `page_snapshots` row would put a
   bogus entry in the history the trend subtracts across. The columns keep the first measurement so
@@ -145,6 +148,22 @@ see [analysis-ui.md](analysis-ui.md#paging).
 ### `GET /api/analyses/[id]`
 
 One analysis with all hypotheses. `404` if not found **or not owned**.
+
+### `GET /api/analyses?embedKey=`
+
+Progress for one analysis, readable by whoever holds the key — the anonymous caller who started it has
+nothing else to identify themselves with. It answers `id`, `owned`, `measured`, `generated` and
+`state`.
+
+**`state` is what a caller should switch on**, and it is why the poll can stop. The booleans say what
+has landed and never why nothing more is coming, so a client watching them could not tell a generation
+still running from one that threw an hour ago — it just kept asking. It comes from `analysisStateFor`,
+the same helper the report renders from, so the screen and the poll cannot disagree about a row. The
+values are `ANALYSIS_STATE`: `measuring`, `generating`, `failed`, `ready`, `locked`. See
+[report.md](report.md).
+
+Three columns and one hypothesis, no session: cheap enough to poll at `JOB_POLL_INTERVAL_MS`, which is
+what `components/generating-sections.tsx` does instead of re-rendering the whole report route.
 
 ### `POST /api/analyses/[id]/measure`
 

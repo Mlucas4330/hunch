@@ -107,7 +107,7 @@ const HypothesisSchema = z.object({
 })
 
 const AnalysisOutputSchema = z.object({
-    hypotheses: z.array(HypothesisSchema).min(5).max(8)
+    hypotheses: z.array(HypothesisSchema).min(1).max(8)
 })
 
 const AlternateVariantsSchema = z.object({ variants: z.array(VariantSchema).length(2) })
@@ -185,8 +185,19 @@ one bad string would empty an entire tab **with no error anywhere**. Degrading c
 `lib/ai/schema.test.ts` pins this, and `category` is deliberately left rejecting beside it — a wrong
 category files a fix under the wrong heading, which is a visible claim about what was audited.
 
-**The score bounds and `.min(5).max(8)` deliberately do NOT degrade.** Those catch an analysis that is
-genuinely wrong (a page that did not render, a model refusal) and must keep rejecting.
+**The score bounds deliberately do NOT degrade.** Those catch an analysis that is genuinely wrong (a
+page that did not render, a model refusal) and must keep rejecting.
+
+**The hypothesis floor was 5, and moving it to 1 is the one place that reasoning was applied in the
+wrong spot.** Five was a promise about what a credit buys, enforced by a schema that can only see one
+of the three generation calls. All three run in one `Promise.all`; the playbook and the visibility
+audit already swallow a failure into an empty list. So a fourth hypothesis coming back short rejected
+this object, rejected the whole `Promise.all`, and discarded a finished playbook and a finished audit
+with it — tokens already spent, work already done, thrown away over one line.
+
+`generateHypotheses` now degrades the same way its two siblings always have, and what a credit buys is
+checked afterwards over everything that came back: **nothing at all** is what refunds, which is what
+"paid for a call and got nothing" always meant. See [api.md](api.md) and [report.md](report.md).
 
 **The visibility audit has no minimum**, unlike the playbook. Every page has room to convert better, so
 `PLAYBOOK_MIN` asks for something always available; a page can genuinely have no discoverability

@@ -153,6 +153,19 @@ export type JobStatus = (typeof JOB_STATUS)[number]
 // docs/report.md.
 export const JOB_IN_FLIGHT: readonly JobStatus[] = ['queued', 'running']
 
+// Where one analysis stands, as far as anything outside the worker can tell.
+//
+// **One name instead of the four booleans the report was switching on.** `measured`, `generated`,
+// ownership and "is a job in flight" are not independent -- most of their sixteen combinations cannot
+// happen -- and every surface deriving its own answer from them is how the two analysis routes came
+// to disagree about `generated` before they were merged into one. See docs/report.md.
+//
+// `failed` is the one that had no representation at all: a generation that threw refunded the credit
+// and left a row indistinguishable from one nobody ever paid for, so the reader was shown the unlock
+// wall and asked to buy a credit they had just had returned.
+export const ANALYSIS_STATE = ['measuring', 'generating', 'failed', 'ready', 'locked'] as const
+export type AnalysisState = (typeof ANALYSIS_STATE)[number]
+
 // Abuse gates. Windows live in RATE_LIMITS, so a kind added here fails typecheck until it is given
 // one.
 export const RATE_LIMIT_KIND = [

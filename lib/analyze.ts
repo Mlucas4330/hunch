@@ -184,6 +184,18 @@ export async function generateFromMeasurement(
   const locale = options.locale ?? DEFAULT_LOCALE
 
   if (process.env.E2E_FIXTURES === '1') {
+    // **The failure path, on demand.** Everything downstream of a generation that throws -- the
+    // refund, the rethrow, the job going `unavailable`, the report showing that instead of the unlock
+    // wall -- had no way to be exercised, so it was the one path in this product that had never run.
+    // Nested inside the fixture branch on purpose: it cannot fire unless E2E_FIXTURES is already on,
+    // so no production deploy can reach it however this variable is set.
+    // `throw` is a generation that crashed; `empty` is one that answered with nothing. They reach the
+    // refund by different routes -- the `catch` and the "nothing was generated" check -- and both are
+    // supposed to end on the same screen, so both need to be walkable.
+    if (process.env.E2E_FAIL_GENERATION === 'throw') {
+      throw new Error('E2E: generation failed on purpose')
+    }
+
     const analysis = fixtureAnalysis(locale)
     const fixtureMarket = detectMarket({ url, lang: FIXTURE_SEO.lang })
     const fixtureElements: PageElement[] = analysis.hypotheses.map((h, i) => ({
@@ -200,11 +212,18 @@ export async function generateFromMeasurement(
       capacity: variantCharBudget('Start free trial'),
       emphasized: false
     })
+    // `empty` is nothing from any of the three, the only condition that still refunds a credit.
+    // `copy` is the case this whole arrangement exists for: the copy call came back with nothing and
+    // the other two are full, so the reader gets a report without the copy tab and pays for it.
+    const mode = process.env.E2E_FAIL_GENERATION
+    const barren = mode === 'empty'
+    const noCopy = barren || mode === 'copy'
+
     return resolveTargets({
-      output: analysis,
+      output: noCopy ? { hypotheses: [] } : analysis,
       elements: fixtureElements,
-      playbook: fixturePlaybook(locale),
-      visibility: fixtureVisibility(locale),
+      playbook: barren ? [] : fixturePlaybook(locale),
+      visibility: barren ? [] : fixtureVisibility(locale),
       structure: FIXTURE_STRUCTURE,
       seo: FIXTURE_SEO,
       performance: FIXTURE_PERFORMANCE,
@@ -286,12 +305,11 @@ above (JSON):\n${JSON.stringify(
   const findingsFor = (groups: ReadoutGroup[]) =>
     findings.filter((finding) => groups.includes(finding.group))
 
-  const [{ object }, playbook, visibility] = await Promise.all([
-    generateObject({
-      model: anthropic(MODEL),
-      schema: AnalysisOutputSchema,
-      maxTokens: 16000,
-      system: systemPrompt(AI_OUTPUT_LANGUAGE[locale], MARKET_NAME[market], competitorHost),
+  const [object, playbook, visibility] = await Promise.all([
+    generateHypotheses({
+      locale,
+      market,
+      competitorHost,
       prompt: `Landing page copy:\n\n${pageText.text}${coverageNote(pageText)}${structureSection}${elementsSection}${briefSection}${competitorSection}`
     }),
     generatePlaybook({
@@ -362,6 +380,42 @@ function findingsSection(findings: MeasuredFinding[]): string {
   }))
 
   return `Findings already counted on this page and already shown to the reader (JSON). The "finding" field of every fix you write must be one of these ids, or null:\n${JSON.stringify(compact, null, 2)}`
+}
+
+/**
+ * The copy hypotheses, and **the only one of the three that used to be able to fail the analysis.**
+ *
+ * `generatePlaybook` and `generateVisibility` have always swallowed a failure into an empty list, on
+ * the reasoning that a missing tab is better than a lost report. This call sat in the same
+ * `Promise.all` without that treatment, so anything it threw rejected all three — discarding a flow
+ * playbook and a visibility audit that had finished, and whose tokens were already spent.
+ *
+ * It degrades the same way now. What a credit is worth is decided afterwards, over everything that
+ * came back, rather than by whichever generator threw first: see the refund in lib/run-analysis.ts.
+ */
+async function generateHypotheses(input: {
+  locale: Locale
+  market: Market
+  competitorHost: string | null
+  prompt: string
+}): Promise<AnalysisOutput> {
+  try {
+    const { object } = await generateObject({
+      model: anthropic(MODEL),
+      schema: AnalysisOutputSchema,
+      maxTokens: 16000,
+      system: systemPrompt(
+        AI_OUTPUT_LANGUAGE[input.locale],
+        MARKET_NAME[input.market],
+        input.competitorHost
+      ),
+      prompt: input.prompt
+    })
+    return object
+  } catch (error) {
+    console.error('[analyze] hypothesis generation failed', error)
+    return { hypotheses: [] }
+  }
 }
 
 export type PlaybookInput = {

@@ -142,18 +142,23 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
           )
         )
       )
-      // **Asked only of a page that has an account to sign into**, the same shape as the CNPJ and the
+      // **Asked only of a page that actually signs people in**, the same shape as the CNPJ and the
       // testimonial-attribution findings below: a question put to a page that cannot answer it is not
-      // a finding, it is an accusation. `formCount > 0` alone is not that question -- a search box, a
-      // newsletter field and a URL analyser are all forms, and this product's own landing page was
-      // told it lacks Google sign in when it creates no accounts at all.
+      // a finding, it is an accusation. `formCount > 0` is not that question -- a search box, a
+      // newsletter field and a URL analyser are all forms.
       //
-      // `hasOauth` first, and the order preserves rows measured before `hasAuthEntry` existed: OAuth
-      // present proves authentication exists, so those still report exactly as they always did. An
-      // older row without it drops the finding rather than emitting `false`, because "we never
-      // measured whether this page signs anybody in" is not "this page has no social sign in". See
-      // docs/invariants.md.
-      if (structure.hasOauth || structure.hasAuthEntry === true) {
+      // Nor is "there is a sign in link somewhere on it". That was this guard's first version and it
+      // was still wrong: a landing page whose header says `Entrar` sends the visitor to a different
+      // URL, and **this analysis never opened that URL**. Recommending social login off the back of it
+      // is a fix for a page nobody measured -- which is exactly what our own report did to a product
+      // whose sign in page has offered Google and GitHub all along.
+      //
+      // `hasOauth` first, and the order preserves rows measured before `hasAuthForm` existed: OAuth
+      // present proves the credentials are collected here, so those still report exactly as they
+      // always did. An older row without it drops the finding rather than emitting `false`, because
+      // "we never measured whether this page signs anybody in" is not "this page has no social sign
+      // in". See docs/invariants.md.
+      if (structure.hasOauth || structure.hasAuthForm === true) {
         out.push(presence('no_social_signin', 'structure', structure.hasOauth))
       }
 

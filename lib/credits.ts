@@ -200,9 +200,9 @@ export async function spendCredit(
 /**
  * Puts a spent credit back when the work it paid for could not be delivered.
  *
- * This exists because `AnalysisOutputSchema` has a `.min(5)` that deliberately does **not** degrade,
- * so a model that returns four hypotheses throws away a generation call that was already paid for.
- * That is the right call for correctness and the wrong outcome for a customer, so the credit returns.
+ * Called from two places in lib/run-analysis.ts and no others: the `catch` around the generation, and
+ * the check that nothing at all came back from it. A short set of copy hypotheses is **not** one of
+ * them any more — that used to throw and refund, discarding a finished playbook and audit with it.
  */
 export async function refundCredit(userId: string, analysisId: string): Promise<void> {
   await db.transaction(async (tx) => {
@@ -218,6 +218,35 @@ export async function refundCredit(userId: string, analysisId: string): Promise<
       analysisId
     })
   })
+}
+
+/**
+ * Whether a generation for this analysis was paid for and then given back.
+ *
+ * **The ledger is already the record of the failure, so nothing new records it.** `refundCredit`
+ * above runs from exactly one place — the `catch` around the generation in lib/run-analysis.ts — so a
+ * `refund` row against an analysis exists if and only if that generation threw. A column saying the
+ * same thing would be a second source of truth about money, which is what docs/invariants.md keeps
+ * out of this file.
+ *
+ * It matters that this is durable rather than read off the job: `JOB_TTL_MS` is ten minutes, and a
+ * reader who opens the link an hour later deserves the same answer as one who never closed the tab.
+ *
+ * Reading it also makes the screen's claim true by construction. The surface says the credit came
+ * back, and it only says so because the row recording that it came back is right here — if
+ * `refundCredit` had itself failed there would be no row and the reader would not be told a refund
+ * happened that did not.
+ */
+export async function wasRefunded(analysisId: string): Promise<boolean> {
+  const row = await db.query.creditTransactions.findFirst({
+    where: and(
+      eq(creditTransactions.analysisId, analysisId),
+      eq(creditTransactions.reason, 'refund' satisfies CreditReason)
+    ),
+    columns: { id: true }
+  })
+
+  return row !== undefined
 }
 
 /**

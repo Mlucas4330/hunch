@@ -70,11 +70,22 @@ push goes live: Railway ships whatever is on `main` and fails a deploy only if t
 - **`PUPPETEER_SKIP_DOWNLOAD` must stay unset locally**, where `npm run dev`, the e2e suite and
   `preview:screenshot` all launch Chrome in-process. Production sets it; see
   [deployment.md](deployment.md).
+- **`E2E_FAIL_GENERATION=1` makes the generation throw on purpose**, so the path after a failure can
+  actually be walked: the credit refunded, the job going `unavailable`, and the report showing what
+  happened instead of the unlock wall. It is **nested inside the `E2E_FIXTURES` branch** of
+  `generateFromMeasurement`, so it cannot fire unless fixtures are already on and no production deploy
+  can reach it however the variable is set. See [report.md](report.md).
 
 ## The unit suite — `npm test`
 
-Node's built-in runner, driven through `tsx` (no test framework). Today `lib/market.test.ts`,
-`lib/url-guard.test.ts` and `lib/readout.test.ts`, colocated with the functions they cover.
+Node's built-in runner, driven through `tsx` (no test framework). Colocated with the functions they
+cover: `lib/market.test.ts`, `lib/url-guard.test.ts`, `lib/readout.test.ts`, `lib/keywords.test.ts`,
+`lib/page-text.test.ts`, `lib/prompt-elements.test.ts` and `lib/analysis-state.test.ts`.
+
+`lib/analysis-state.test.ts` is worth singling out: the function it covers decides which of five
+things the report renders, from five booleans whose interesting combinations are all failure-shaped —
+an ownerless row with a live job, a refund and a running job at once. Pure by design so those can be
+written as a table instead of a fixture.
 
 **All three exist because `E2E_FIXTURES=1` replaces the entire pipeline before a page is ever scraped**,
 so the e2e suite reaches neither market detection, nor the SSRF guard, nor the measured readout.

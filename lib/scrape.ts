@@ -63,18 +63,27 @@ export interface PageStructure {
   hasOauth: boolean
   oauthProviders: string[]
   /**
-   * Whether anything on the page offers a way in at all -- a sign in link, a create-account button.
+   * Whether **this page is where you sign in**, rather than a page that links to one.
    *
-   * **Separate from `hasOauth`, because they answer different questions.** `hasOauth` says the page
-   * offers Google or GitHub; this says the page has an account to offer them *for*. Without it the
-   * readout could not tell "signs you in, but only with email" from "does not sign anybody in", and
-   * asked both the same question -- so a page whose only form is a search box or a URL field was told
-   * it lacks social sign in. See docs/readout.md.
+   * **The distinction is the whole value of the field, and getting it wrong is how this was wrong
+   * twice.** `hasOauth` says the page offers Google or GitHub. This says the page hosts the
+   * authentication at all -- so the readout can tell "signs you in, but only with email" from "signs
+   * nobody in" from "merely has a link to a sign in page somewhere else".
+   *
+   * A landing page with `Entrar` in its navigation is the third. The sign in flow lives on another
+   * URL that this analysis never opened, so **nothing here knows whether that flow offers social
+   * login**, and asking the question produces a fix for a page nobody measured. Our own report did
+   * exactly that: it recommended adding social login to a product whose sign in page has had Google
+   * and GitHub all along.
+   *
+   * True when an auth-labelled control sits inside a `<form>` (which is how a real sign in action is
+   * built, including next-auth's), when there is a visible password field, or when a provider was
+   * detected -- any of the three means the credentials are collected *here*.
    *
    * Optional for the reason every late field here is optional: a row measured before this existed has
-   * none, and `undefined` means "not measured" rather than "the page has no way in".
+   * none, and `undefined` means "not measured" rather than "this page signs nobody in".
    */
-  hasAuthEntry?: boolean
+  hasAuthForm?: boolean
   formCount: number
   formFieldCount: number
   hasFaq: boolean
@@ -926,14 +935,17 @@ function captureStructure(options: {
   const clickables = Array.from(document.querySelectorAll('a, button')).filter(isVisible)
 
   // One pass, two answers. The auth test was already being run here to decide which controls could
-  // carry a provider name; it simply was not recorded, so nothing downstream could tell a page with
-  // no account from a page with an account and no Google button.
-  let hasAuthEntry = false
+  // carry a provider name; it simply was not recorded, so nothing downstream could tell a page that
+  // signs people in from a page that merely has a form.
+  //
+  // `closest('form')` is what separates the sign in *action* from a link to the sign in *page*. A
+  // navigation link is an anchor loose in a header; the real control submits something.
+  let authInForm = false
   const providers = new Set<string>()
   for (const el of clickables) {
     const text = label(el)
     if (!matchesAny(text, patterns.auth)) continue
-    hasAuthEntry = true
+    if (el.closest('form')) authInForm = true
     for (const [provider, needles] of Object.entries(oauthProviders)) {
       if (matchesAny(text, needles)) providers.add(provider)
     }
@@ -1041,7 +1053,10 @@ function captureStructure(options: {
 
   return {
     hasOauth: providers.size > 0,
-    hasAuthEntry,
+    hasAuthForm:
+      authInForm ||
+      providers.size > 0 ||
+      fields.some((el) => el.tagName === 'INPUT' && (el as HTMLInputElement).type === 'password'),
     oauthProviders: Array.from(providers),
     formCount: forms.length,
     formFieldCount: fields.length,

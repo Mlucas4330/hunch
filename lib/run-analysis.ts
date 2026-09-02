@@ -2,30 +2,50 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { analyses, flowFixes, hypotheses, pageSnapshots, variants } from '@/db/schema'
 import { generateFromMeasurement, measurePage } from '@/lib/analyze'
-import { refundCredit } from '@/lib/credits'
+import { refundCredit, wasRefunded } from '@/lib/credits'
 import { jobId, jobRef, readJob, type RunOutcome } from '@/lib/queue'
-import { JOB_IN_FLIGHT } from '@/lib/enums'
+import { analysisState } from '@/lib/analysis-state'
+import { JOB_IN_FLIGHT, type AnalysisState } from '@/lib/enums'
 import { snapshotValues } from '@/lib/snapshots'
 
 export const ANALYSIS_JOB_KIND = 'analysis'
 
 /**
- * Whether a generation is in flight for this analysis right now.
+ * Where one analysis stands, for whoever is about to render it.
  *
- * **The row cannot answer this and must not be asked to.** An owned analysis with no hypotheses is
- * two different situations that look identical in Postgres: one whose Sonnet calls are running, and
- * one whose owner claimed a free run and never bought a generation. The report surface has to tell
- * them apart -- one gets a placeholder that will fill in, the other gets the unlock wall -- and the
- * job is exactly the thing that knows. The durable RESULT still comes from the row, which is the
- * rule `analysisProgress` below follows and this does not contradict.
+ * **Three sources, and each answers the only question it can.** The durable result is the row. "Is
+ * work happening right now" is the job, which is the one thing that knows and the one thing the row
+ * deliberately does not record. "Did the generation fail" is the credit ledger, because a refund is
+ * written from exactly one place and outlives the job's ten minute TTL. `analysisState` puts them in
+ * order; see lib/analysis-state.ts for why that order is what it is.
  *
- * Redis down means no job, so this answers false and the surface falls back to the wall. That is the
- * right way round: a wall on a report that is quietly still working is recoverable by reloading, and
- * a placeholder that will never fill is not.
+ * **The two reads are paid for only when they can change the answer.** A row that is not measured, or
+ * already generated, or ownerless is settled before either of them runs -- which matters because this
+ * is on the report's render path and the client polls it.
+ *
+ * Redis down means no job, so `running` is false and an analysis genuinely still working reads as
+ * `locked`. That is the right way round: a wall on a report that is quietly still going is fixed by
+ * reloading, and a placeholder that will never fill is not.
  */
-export async function isGenerating(analysisId: string): Promise<boolean> {
-  const job = await readJob(jobId(ANALYSIS_JOB_KIND, analysisId))
-  return job !== null && JOB_IN_FLIGHT.includes(job.status)
+export async function analysisStateFor(facts: {
+  id: string
+  measured: boolean
+  generated: boolean
+  owned: boolean
+}): Promise<AnalysisState> {
+  const settled = analysisState({ ...facts, running: false, refunded: false })
+  if (settled !== 'locked' || !facts.owned) return settled
+
+  const [job, refunded] = await Promise.all([
+    readJob(jobId(ANALYSIS_JOB_KIND, facts.id)),
+    wasRefunded(facts.id)
+  ])
+
+  return analysisState({
+    ...facts,
+    running: job !== null && JOB_IN_FLIGHT.includes(job.status),
+    refunded
+  })
 }
 
 /**
@@ -54,7 +74,15 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
       structure: true,
       competitorUrl: true
     },
-    with: { hypotheses: { columns: { id: true }, limit: 1 } }
+    with: {
+      hypotheses: { columns: { id: true }, limit: 1 },
+      // **Both lists, because a report can now have one and not the other.** The copy call degrades
+      // to empty instead of failing the analysis, so an owned row with flow fixes and no hypotheses
+      // is a finished report -- and a guard counting only hypotheses would let a requeued job
+      // regenerate it and insert a second set of fixes beside the first. Same predicate the report
+      // surface uses for `generated`. See docs/report.md.
+      flowFixes: { columns: { id: true }, limit: 1 }
+    }
   })
 
   if (!analysis) return { ok: false }
@@ -67,7 +95,8 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
   // run is complete once the page was measured, an owned one only once the generation landed. An
   // owned row that was measured but never generated is a crash between the two, and redoing it is
   // exactly right. The credit is not at stake either way -- it is spent by the route, not here.
-  if (analysis.structure !== null && (!analysis.userId || analysis.hypotheses.length > 0)) {
+  const alreadyGenerated = analysis.hypotheses.length > 0 || analysis.flowFixes.length > 0
+  if (analysis.structure !== null && (!analysis.userId || alreadyGenerated)) {
     return { ok: true }
   }
 
@@ -110,13 +139,9 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
 
   if (!analysis.userId) return { ok: true }
 
-  // The credit was spent before the job was queued, so a generation that throws has to give it back.
-  // `AnalysisOutputSchema` has a `.min(5)` that deliberately does not degrade, which makes "paid for a
-  // Sonnet call and got nothing" a real path rather than a theoretical one. See docs/api.md.
-  //
-  // It is a much better failure than it was: the readout above is already committed, so the reader
-  // keeps the score and the credit comes back, instead of watching a spinner for three minutes and
-  // being handed an error screen.
+  // The credit was spent before the job was queued, so work that cannot be delivered has to give it
+  // back. The readout above is already committed either way, so the reader keeps their score whatever
+  // happens here.
   let output
   try {
     output = await generateFromMeasurement(analysis.url, measurement, {
@@ -128,8 +153,27 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
       competitorUrl: analysis.competitorUrl
     })
   } catch (error) {
+    // A real exception: the network, the process, something that never got as far as an answer.
     await refundCredit(analysis.userId, analysis.id)
     throw error
+  }
+
+  // **What a credit buys, checked over everything that came back.**
+  //
+  // This used to be a schema floor: `AnalysisOutputSchema` required five hypotheses and rejecting
+  // that threw, which is how the refund was reached. The floor was in the wrong place. All three
+  // generators run in one `Promise.all` and the other two degrade to an empty list, so a fourth
+  // hypothesis coming back short discarded a finished flow playbook and a finished visibility audit
+  // along with it -- tokens already spent, work already done, thrown away over one line.
+  //
+  // Nothing at all is the honest condition, and it is what "paid for a call and got nothing" always
+  // meant. `ok: false` rather than a throw: the queue reads that as `unavailable`, which lib/queue.ts
+  // defines as work that cannot succeed for this input -- true here, and not a crash worth logging as
+  // one. Either way the reader lands on the same screen, because the report reads the refund from the
+  // ledger and not from how the job ended. See docs/report.md.
+  if (output.hypotheses.length + output.playbook.length + output.visibility.length === 0) {
+    await refundCredit(analysis.userId, analysis.id)
+    return { ok: false }
   }
 
   const ranked = [...output.hypotheses].sort((a, b) => b.impact_score - a.impact_score)
@@ -145,33 +189,38 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
       .set({ competitor: output.competitor })
       .where(eq(analyses.id, analysis.id))
 
-    const rows = await tx
-      .insert(hypotheses)
-      .values(
-        ranked.map((h) => ({
-          analysisId: analysis.id,
-          section: h.section,
-          problem: h.problem,
-          currentCopy: h.current_copy,
-          impactScore: h.impact_score,
-          rationale: h.rationale,
-          selector: h.selector,
-          target: h.target
-        }))
-      )
-      .returning()
+    // Guarded, like `rankedFixes` below and for a reason that is new: the copy call now degrades to
+    // an empty list instead of failing the analysis, so "flow fixes but no hypotheses" is a report
+    // that can exist -- and an insert with no values is not a no-op, it is invalid SQL.
+    if (ranked.length) {
+      const rows = await tx
+        .insert(hypotheses)
+        .values(
+          ranked.map((h) => ({
+            analysisId: analysis.id,
+            section: h.section,
+            problem: h.problem,
+            currentCopy: h.current_copy,
+            impactScore: h.impact_score,
+            rationale: h.rationale,
+            selector: h.selector,
+            target: h.target
+          }))
+        )
+        .returning()
 
-    await tx.insert(variants).values(
-      rows.flatMap((row, i) =>
-        ranked[i].variants.map((variant, position) => ({
-          hypothesisId: row.id,
-          copy: variant.copy,
-          evidence: variant.evidence,
-          emphasis: variant.emphasis,
-          position
-        }))
+      await tx.insert(variants).values(
+        rows.flatMap((row, i) =>
+          ranked[i].variants.map((variant, position) => ({
+            hypothesisId: row.id,
+            copy: variant.copy,
+            evidence: variant.evidence,
+            emphasis: variant.emphasis,
+            position
+          }))
+        )
       )
-    )
+    }
 
     const rankedFixes = [
       ...[...output.playbook]
@@ -204,23 +253,37 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
 }
 
 /**
- * What the client polls for. Read off the row rather than the job, because the row is the durable
- * answer and the job only exists while the work is in flight — the same rule the screenshot status
- * follows. `measured` is what unlocks the readout; `generated` is what unlocks the fixes.
+ * What the client polls for. `measured` is what unlocks the readout; `generated` is what unlocks the
+ * fixes; `state` is what the caller should actually switch on.
+ *
+ * **`state` is here so the poll can stop.** The booleans say what has landed and never why nothing
+ * more is coming, so a client watching them had no way to tell a generation still running from one
+ * that threw an hour ago -- it just kept asking. The report renders from this same helper, so the
+ * screen and the poll cannot disagree about the same row.
  */
 export async function analysisProgress(embedKey: string) {
   const analysis = await db.query.analyses.findFirst({
     where: eq(analyses.embedKey, embedKey),
     columns: { id: true, userId: true, structure: true },
-    with: { hypotheses: { columns: { id: true }, limit: 1 } }
+    with: {
+      hypotheses: { columns: { id: true }, limit: 1 },
+      flowFixes: { columns: { id: true }, limit: 1 }
+    }
   })
 
   if (!analysis) return null
 
-  return {
+  const facts = {
     id: analysis.id,
     owned: analysis.userId !== null,
     measured: analysis.structure !== null,
-    generated: analysis.hypotheses.length > 0
+    // **Both lists, and the same predicate the page uses.** Counting only hypotheses was safe while
+    // the copy call could not come back empty; now it can, and a report with flow fixes and no copy
+    // would have this endpoint answering `generating` forever while the screen rendered the finished
+    // document -- so `GeneratingSections` would poll until its deadline over a report already on
+    // screen. See docs/report.md.
+    generated: analysis.hypotheses.length > 0 || analysis.flowFixes.length > 0
   }
+
+  return { ...facts, state: await analysisStateFor(facts) }
 }

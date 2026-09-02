@@ -1,39 +1,84 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/components/i18n-provider'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { JOB_POLL_INTERVAL_MS } from '@/lib/constants'
-import { ANALYSIS_TAB } from '@/lib/enums'
+import { ANALYSIS_WAIT_MAX_MS, JOB_POLL_INTERVAL_MS } from '@/lib/constants'
+import { ANALYSIS_TAB, type AnalysisState } from '@/lib/enums'
+
+type Progress = { state: AnalysisState }
 
 /**
  * What stands where the four fix sections will be, while they are still being written.
  *
  * **This is the wait, moved off the form and into the report.** It used to be a spinner on the
  * landing page in front of an empty screen, driven by three `setTimeout` calls that announced
- * "writing the new copy" at forty six seconds whatever was actually happening. The reader now
- * arrives here as soon as the page has been measured, with their score above this block, and these
- * are the four things still coming -- named, so a half filled report reads as deliberate rather than
- * as one that failed to load.
+ * "writing the new copy" at forty six seconds whatever was actually happening. The reader now arrives
+ * here as soon as the page has been measured, with their score above this block, and these are the
+ * four things still coming -- named, so a half filled report reads as deliberate rather than as one
+ * that failed to load.
  *
- * The sections are named from ANALYSIS_TAB in its own order, so this cannot fall out of step with
- * what AnalysisSections renders when the generation lands.
- *
- * `router.refresh()` re-runs the server component, which is what swaps this for the real thing. It
- * polls at JOB_POLL_INTERVAL_MS, the same beat the form used, and stops itself on unmount -- the
- * refresh that finally finds hypotheses renders a tree without this component in it.
+ * The sections come from ANALYSIS_TAB in its own order, so this cannot fall out of step with what
+ * AnalysisSections renders when the generation lands.
  */
-export function GeneratingSections() {
+export function GeneratingSections({ embedKey }: { embedKey: string }) {
   const { dictionary } = useI18n()
   const router = useRouter()
   const copy = dictionary.report.generating
+  const [stalled, setStalled] = useState(false)
 
+  /**
+   * **Polls the progress endpoint, and refreshes the route exactly once.**
+   *
+   * It was `setInterval(router.refresh)`, which re-ran the whole server component every two seconds:
+   * `loadReport` with its joins, the current user, the readout history, and a Redis read. That is a
+   * heavy render to ask for two hundred times, and it had a second cost that was worse than the
+   * first -- the state was recomputed from a transient signal on every pass, so a momentary Redis
+   * blip dropped the page to the unlock wall and the next pass brought this back. It flickered
+   * between "still writing" and "buy a credit".
+   *
+   * `GET /api/analyses?embedKey=` answers the same question off three columns, needs no session, and
+   * is the endpoint the URL form already polls. One `router.refresh()` happens when there is
+   * something new to render.
+   *
+   * **It also stops.** A job nothing ever finishes used to be polled until the component unmounted;
+   * now the deadline is the same wall clock the form waits on, and running out swaps the note rather
+   * than continuing to ask.
+   */
   useEffect(() => {
-    const timer = setInterval(() => router.refresh(), JOB_POLL_INTERVAL_MS)
-    return () => clearInterval(timer)
-  }, [router])
+    let cancelled = false
+    const deadline = Date.now() + ANALYSIS_WAIT_MAX_MS
+
+    const timer = setInterval(async () => {
+      if (Date.now() > deadline) {
+        setStalled(true)
+        clearInterval(timer)
+        return
+      }
+
+      try {
+        const res = await fetch(`/api/analyses?embedKey=${embedKey}`)
+        if (!res.ok) return
+
+        const { state }: Progress = await res.json()
+        if (cancelled || state === 'generating') return
+
+        // Anything else is terminal for this component: the fixes landed, or the generation failed
+        // and the credit went back. Both are rendered by the server, so one refresh replaces this.
+        clearInterval(timer)
+        router.refresh()
+      } catch {
+        // A dropped poll is not a verdict -- the worker still holds the job. Try again next tick.
+      }
+    }, JOB_POLL_INTERVAL_MS)
+
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [embedKey, router])
 
   return (
     <div className="space-y-4" role="status" aria-busy data-testid="generating-sections">
@@ -57,7 +102,7 @@ export function GeneratingSections() {
         </Card>
       ))}
 
-      <p className="text-sm text-muted-foreground">{copy.note}</p>
+      <p className="text-sm text-muted-foreground">{stalled ? copy.stalled : copy.note}</p>
     </div>
   )
 }

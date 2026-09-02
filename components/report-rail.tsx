@@ -113,7 +113,14 @@ export function ReportRail({ sections }: { sections: ReportSection[] }) {
                   current ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                {labelFor(section, dictionary)}
+                {/* **The clamp is on the span, not on the anchor.** `line-clamp` sets
+                    `display: -webkit-box`, which would replace the `flex` above and lose the vertical
+                    centring. It has to be here because the row height is fixed rather than a minimum:
+                    a label longer than the row would otherwise overflow onto the entry above instead
+                    of pushing it down, which is what "Termos da página" was doing. */}
+                <span className="line-clamp-2 leading-tight">
+                  {labelFor(section, dictionary)}
+                </span>
               </a>
             </li>
           )

@@ -329,21 +329,22 @@ test('a page with no form reports nothing about one, but still reports dead link
   assert.equal(find(noForm, 'dead_ctas')?.value, 2)
 })
 
-// A form is not a signup. A search box, a newsletter field and a URL analyser are all forms, and this
-// product's own landing page is the third -- it was being told it lacks Google sign in while creating
-// no accounts at all. See docs/readout.md.
-test('social sign in is asked only of a page that signs anybody in', () => {
+// A form is not a signup, and a link to a sign in page is not a sign in page. A search box, a
+// newsletter field and a URL analyser are all forms; a header that says "Entrar" points at a URL this
+// analysis never opened. Our own landing page is both, and was told it lacks Google sign in while
+// the sign in page it links to has offered Google and GitHub all along. See docs/readout.md.
+test('social sign in is asked only of a page that hosts the sign in itself', () => {
   const noAccount = findingsFor({
-    structure: { formCount: 1, formFieldCount: 1, hasOauth: false, hasAuthEntry: false }
+    structure: { formCount: 1, formFieldCount: 1, hasOauth: false, hasAuthForm: false }
   })
   const signsIn = findingsFor({
-    structure: { formCount: 1, formFieldCount: 3, hasOauth: false, hasAuthEntry: true }
+    structure: { formCount: 1, formFieldCount: 3, hasOauth: false, hasAuthForm: true }
   })
 
   assert.equal(
     find(noAccount, 'no_social_signin'),
     undefined,
-    'a form is not an account, and a page with no account cannot answer this'
+    'a form is not a signup, and a link to one is not a signup either'
   )
   assert.equal(find(signsIn, 'no_social_signin')?.severity, 'warn')
   assert.equal(
@@ -353,7 +354,7 @@ test('social sign in is asked only of a page that signs anybody in', () => {
   )
 })
 
-test('a page measured before hasAuthEntry existed keeps the finding only when OAuth proves it', () => {
+test('a page measured before hasAuthForm existed keeps the finding only when OAuth proves it', () => {
   const oldWithOauth = findingsFor({
     structure: { formCount: 1, hasOauth: true, oauthProviders: ['google'] }
   })
@@ -491,9 +492,9 @@ test('a finding with two bad ends reports a band, not a ceiling', () => {
 })
 
 test('a presence finding carries no criterion, because the label already names the bad answer', () => {
-  // `hasAuthEntry` so the page is one the social sign in question can be put to at all -- see the
+  // `hasAuthForm` so the page is one the social sign in question can be put to at all -- see the
   // test below.
-  const findings = findingsFor({ structure: { hasOauth: false, hasAuthEntry: true } })
+  const findings = findingsFor({ structure: { hasOauth: false, hasAuthForm: true } })
 
   assert.equal(find(findings, 'no_social_signin')?.criterion, null)
   assert.equal(find(findings, 'no_faq')?.criterion, null)

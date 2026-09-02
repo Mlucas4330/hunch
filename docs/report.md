@@ -78,31 +78,93 @@ the one thing the report must never claim by accident.
 `ReportCover` takes `counts: ReportCoverCounts | null` for exactly this: no counts, no count
 sentence, `report.summaryMeasured` instead. Covered by `e2e/free-analysis.spec.ts`.
 
-## A generation in flight is a third state, and the row cannot see it
+## Five states, one helper, and three of them are the same row
 
 A reader who has paid now lands here **about twenty seconds in**, as soon as the page has been
 measured — `runAnalysis` commits the readout before it calls a single model, and the form navigates on
 `measured` rather than on `generated`. See [api.md](api.md).
 
-So `generated: false` covers two different situations that are **identical in Postgres**: an owned row
-whose Sonnet calls are running right now, and an owned row whose owner claimed a free run and never
-bought a generation. The first should show placeholders that fill themselves; the second must show the
-`UnlockWall`, because nothing is coming.
+That leaves `generated: false` covering three situations that are **identical in Postgres**:
 
-`isGenerating` in `lib/run-analysis.ts` asks the job, which is the thing that knows: `queued` or
-`running` means in flight. This does not contradict the rule that the durable **result** is read from
-the row — "there is work happening right now" is precisely what a job exists to answer and what a row
-deliberately does not record.
+| State | The row | What decides it |
+| --- | --- | --- |
+| `generating` | owned, measured, empty | a job in flight |
+| `failed` | owned, measured, empty | a `refund` row in the ledger |
+| `locked` | owned, measured, empty | neither |
 
-**Redis down answers false and the reader gets the wall.** That is the right way round: a wall on a
-report that is quietly still working is fixed by reloading, and a placeholder that will never fill is
-not.
+`analysisState` in `lib/analysis-state.ts` is the pure function that orders those tests, and
+`analysisStateFor` in `lib/run-analysis.ts` pays for the two reads only once a row reaches the
+ambiguous middle. **Both this page and `GET /api/analyses` go through it**, so the screen and the
+client polling it cannot come to different conclusions about the same row — which is exactly what the
+two analysis routes used to do about `generated` before they were merged.
+
+Three orderings in that function are load bearing:
+
+- **Ownership before the job.** An anonymous run commits its measurement and returns, and the queue
+  writes the job's terminal status a moment later — so the job still says `running` exactly when the
+  form navigates the reader here. Asking the job first would show a stranger four placeholders for
+  fixes nobody bought.
+- **A refund before a running job.** `refundCredit` commits before `runAnalysis` rethrows, so both are
+  briefly true; read the other way round a failed analysis would show as generating for the length of
+  that gap and for the whole of any retry.
+- **Redis down means `running` is false**, so an analysis that is genuinely still working reads as
+  `locked`. That is the right way round: a wall on a report still going is fixed by reloading, and a
+  placeholder that will never fill is not.
+
+### `failed` exists because the alternative was asking for money back
+
+A generation that throws refunds the credit and leaves a row byte for byte identical to a claimed free
+run — so the reader who had paid, waited and been refunded was shown the `UnlockWall` and a button to
+buy a credit. **Telling somebody to buy the thing they were just given back** is the worst sentence
+available at that moment, and it was the only one the report had.
+
+**The ledger is the record, and nothing new was added to hold it.** `refundCredit` runs from exactly
+one `catch`, so a `refund` row against an analysis exists if and only if that generation threw — see
+`wasRefunded` in `lib/credits.ts`. It being durable is the point: `JOB_TTL_MS` is ten minutes, and
+someone opening the link an hour later gets the same answer as someone who never closed the tab.
+
+It also makes the screen's claim true by construction. `components/generation-failed.tsx` says the
+credit came back, and it only renders because the row recording that it came back was found. Had
+`refundCredit` itself failed there would be no row, the state would not be `failed`, and nothing would
+be on screen claiming a refund that never happened. What it does **not** say is why: nothing here
+knows, and naming a cause we did not observe is the invention the rest of the product refuses.
+
+### A report can arrive without its copy tab
+
+`generated` is `hypotheses.length > 0 || flowFixes.length > 0`, and the `||` earns its keep now that
+the copy call degrades to an empty list instead of failing the analysis — see
+[ai-pipeline.md](ai-pipeline.md). A report with flow and visibility fixes and no copy is a finished
+report, and `AnalysisSections` already renders it correctly without being told: it filters on
+`counts[tab] > 0`, so the tab is simply absent rather than empty.
+
+**Two other places counted only hypotheses and had to be taught the same predicate**, because both
+were safe only while a copy shortfall took everything else down with it:
+
+- `analysisProgress` — otherwise the endpoint answers `generating` forever on a report the page has
+  already rendered, and `GeneratingSections` polls until its deadline over a finished document.
+- the idempotency guard in `runAnalysis` — otherwise a requeued job regenerates a copy-less analysis
+  and inserts a second set of flow fixes beside the first, which is the duplication that guard exists
+  to prevent.
+
+### The wait polls the endpoint, not the route
 
 `components/generating-sections.tsx` renders the four `ANALYSIS_TAB` sections by name, each with a
-shimmering placeholder, and polls `router.refresh()` at `JOB_POLL_INTERVAL_MS` until the server
-component comes back with the real sections. Naming them is what makes a half-filled report read as
-deliberate rather than as one that failed to load. No percentage bar: nothing measures a percentage,
-and a bar that advances on its own is the timer this replaced wearing a different hat.
+shimmering placeholder. Naming them is what makes a half-filled report read as deliberate rather than
+as one that failed to load.
+
+It was `setInterval(router.refresh)`, which re-ran this whole server component every two seconds —
+`loadReport` with its joins, the current user, the readout history and a Redis read — and had a worse
+second cost: the state was recomputed from a transient signal on every pass, so a momentary Redis blip
+dropped the page to the wall and the next pass brought the placeholder back. **It flickered between
+"still writing" and "buy a credit".**
+
+Now it polls `GET /api/analyses?embedKey=`, which answers off three columns and needs no session, and
+calls `router.refresh()` exactly once when the state stops being `generating`. It also **stops**: the
+deadline is `ANALYSIS_WAIT_MAX_MS`, the same wall clock the URL form waits on, and running out swaps
+the note rather than continuing to ask.
+
+No percentage bar anywhere: nothing measures a percentage, and a bar that advances on its own is the
+timer this replaced wearing a different hat.
 
 ## The page — `app/(report)/r/[embedKey]/page.tsx`
 

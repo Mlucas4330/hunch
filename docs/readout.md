@@ -56,14 +56,22 @@ count was right and the noun around it was invented, which is the same failure a
 measured, in a different part of speech. The label now says only "form".
 
 `no_social_signin` was the worse half, because a wrong label misinforms and a wrong question accuses.
-It is now asked only of a page that signs somebody in:
+It is now asked only of a page that hosts the sign in itself:
 
 ```
-if (structure.hasOauth || structure.hasAuthEntry === true)
+if (structure.hasOauth || structure.hasAuthForm === true)
 ```
 
 Same shape as `no_cnpj` and `testimonial_attribution` below — a question put to a page that cannot
-answer it is not a finding. The order matters and preserves history: `hasOauth` true proves
+answer it is not a finding.
+
+**`hasAuthForm`, not "has a sign in link", and the difference is a second bug that hid behind the
+first.** The guard's first version asked whether anything on the page offered a way in, which a header
+saying `Entrar` satisfies — and that header points at a URL **this analysis never opened**. So the
+report went on recommending social login for a product whose sign in page has offered Google and
+GitHub all along: a fix written about a page nobody measured, which is the failure
+[invariants.md](invariants.md) exists to prevent, one link removed. `hasAuthForm` asks whether the
+credentials are collected *here*. See [scraping.md](scraping.md). The order matters and preserves history: `hasOauth` true proves
 authentication exists whenever the row was measured, so old rows report exactly as they always did,
 while an old row without it drops the finding rather than emitting `false`. "We never measured whether
 this page signs anybody in" is not "this page has no social sign in".

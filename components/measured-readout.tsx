@@ -136,8 +136,14 @@ export function MeasuredReadout({
           own denominator and takes its colour from its own map. See docs/readout.md.
 
           `items-start` is load-bearing: grid items stretch to the tallest in their row by default, so
-          opening one card grew the empty box of the one beside it. Each card is now its own
-          height. */}
+          opening one card grew the empty box of the one beside it. Each card is now its own height.
+
+          **Which is why the closed cards are levelled at their content instead of at the grid.** They
+          were arriving at different heights, and the tempting fix -- dropping `items-start` -- is the
+          bug above coming back. Two things differed: whether the group's name wrapped to a second
+          line, and whether the severity badge was long enough to push the count beside it onto one.
+          Reserving the column covers both, and the grid is still told to stretch nothing. See
+          `summaryClassName` on DisclosureCard. */}
       <div className="grid items-start gap-4 md:grid-cols-2">
         {READOUT_GROUP.map((group, index) => {
           const rows = measured.findings.filter((finding) => finding.group === group)
@@ -158,6 +164,11 @@ export function MeasuredReadout({
             <DisclosureCard
               key={group}
               title={copy.groups[group]}
+              // Enough room reserved for the worst of the six: a two line group name under a
+              // severity badge long enough ("Precisa de trabalho") to push the count onto a second
+              // line beside it. A minimum rather than a clamp, so a locale that needs more grows
+              // instead of clipping. See the note on the grid below.
+              summaryClassName="min-h-36"
               defaultOpen={wrong > 0}
               testId="readout-group"
               // `index` is the group's position in READOUT_GROUP, not its position among the cards

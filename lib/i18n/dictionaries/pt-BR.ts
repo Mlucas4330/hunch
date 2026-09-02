@@ -841,7 +841,13 @@ export const ptBR: Dictionary = {
   report: {
     generating: {
       eyebrow: 'Ainda sendo escrito',
-      note: 'A sua nota aí em cima já está fechada. As correções e a copy substituta estão sendo escritas agora e aparecem aqui sozinhas -- dá para sair desta página e voltar depois.'
+      note: 'A sua nota aí em cima já está fechada. As correções e a copy substituta estão sendo escritas agora e aparecem aqui sozinhas -- dá para sair desta página e voltar depois.',
+      stalled: 'Está demorando mais que o normal. O trabalho continua na fila -- recarregue a página para conferir.'
+    },
+    failed: {
+      heading: 'As correções não vieram',
+      body: 'A sua nota aí em cima continua valendo e é sua. A metade escrita não terminou, então o crédito voltou para o seu saldo e nada foi cobrado por esta rodada.',
+      cta: 'Rodar a página de novo'
     },
     backToTestIdeas: 'Voltar para a análise',
     teardown: 'Análise de conversão',
