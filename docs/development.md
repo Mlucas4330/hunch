@@ -29,7 +29,36 @@ npm run preview:screenshot -- https://foo.com "h1" out-dir   # url, selector, ou
 
 npm run seed:pulse                                           # plant domains for the landing board
 npm run seed:pulse -- --clear                                # and take them out again
+
+npx tsx --env-file=.env scripts/rewrite-stats.mts            # score the copy generator
+npx tsx --env-file=.env scripts/rewrite-stats.mts --by-run   # one block per run
+
+npx tsx --env-file=.env scripts/brief-ab.mts <url> brief.json 2   # the brief arm, against no brief
 ```
+
+`rewrite-stats` is how a change to the copy prompt is judged. **It reads only what has already been
+generated** — no model, no credit, no network — and reports the properties of a rewrite that hold
+across pages: word reuse, permutations, ceiling overflow, unmeasured claims in `rationale`,
+placeholders. It scores **the oldest variant of each hypothesis**, which is what the model first recommended: the
+generation writes exactly one and the alternates arrive later, so choosing a different one reorders
+the list without moving what is being scored. Whether the recommendation is still the chosen line is
+reported separately, over hypotheses that have alternates at all.
+
+It also reports the **acceptance rate** off `verdict`, which is the one line there that
+is a judgement rather than a shape, and the one the others exist to be compared against. That rate is
+over decided rows only: a null verdict is nobody having looked yet, never a no. It covers `flow_fixes`
+too, so the playbook and the visibility audit are no longer the halves nothing ever scored. It exists because the alternative is somebody's opinion of somebody else's landing page,
+and there the page's owner is right and we are not. Read `permutation` as the only defect and the rest
+as rates to compare; a single run is noisy enough that a small movement means nothing. Fixture runs are
+excluded, which matters because most analyses in a development database are fixture runs. See
+[ai-pipeline.md](ai-pipeline.md).
+
+`brief-ab` is the same measurement on generations that do not exist yet, and it is the one script here
+that **spends tokens**. It scrapes the page once and generates from that single measurement several
+times per arm, so the two differ by the brief alone. Its useful column is the last one: how many
+rewrites say a word that only the brief carried, which is the thing word reuse turned out not to
+measure. The JSON is the four `BRIEF_FIELD` answers, and it is worth nothing unless it carries facts
+the page does not. See [ai-pipeline.md](ai-pipeline.md).
 
 `seed:pulse` exists because **the landing board counts domains, not analyses**. Every test run measures
 `example.com`, `publicLeaderboard` keeps one entry per domain, and one entry is below
@@ -39,8 +68,9 @@ removes exactly those. **Local only.** The board's entire claim is that every ch
 measured, so planting rows anywhere real is the one thing it must never do — see
 [invariants.md](invariants.md#the-public-board-carries-a-domain-and-a-score-and-nothing-else).
 
-The first three are the gates and can go red. `preview:screenshot` **is not a test** — it asserts
-nothing, cannot fail, and is not in CI, which is why it is not named like one.
+The first three are the gates and can go red. `preview:screenshot`, `rewrite-stats` and `brief-ab`
+**are not tests** — they assert nothing, cannot fail, and are not in CI, which is why neither is named like one.
+`rewrite-stats` reports numbers for a person to compare; nothing about it is pass or fail.
 
 `.github/workflows/ci.yml` is the only thing running `typecheck`, `npm test` and the e2e suite before a
 push goes live: Railway ships whatever is on `main` and fails a deploy only if the build itself fails.
@@ -80,7 +110,8 @@ push goes live: Railway ships whatever is on `main` and fails a deploy only if t
 
 Node's built-in runner, driven through `tsx` (no test framework). Colocated with the functions they
 cover: `lib/market.test.ts`, `lib/url-guard.test.ts`, `lib/readout.test.ts`, `lib/keywords.test.ts`,
-`lib/page-text.test.ts`, `lib/prompt-elements.test.ts` and `lib/analysis-state.test.ts`.
+`lib/page-text.test.ts`, `lib/prompt-elements.test.ts`, `lib/rewrite-stats.test.ts` and
+`lib/analysis-state.test.ts`.
 
 `lib/analysis-state.test.ts` is worth singling out: the function it covers decides which of five
 things the report renders, from five booleans whose interesting combinations are all failure-shaped —

@@ -16,6 +16,7 @@ import {
   SCRAPE_ALLOWED_RESOURCE_TYPES,
   SCRAPE_ASSET_READY_TIMEOUT_MS,
   SCRAPE_LCP_FLUSH_MS,
+  PAGE_LINKS_MAX,
   SCRAPE_MAX_CONCURRENT_PAGES,
   SCRAPE_MAX_RESPONSE_BYTES,
   SCRAPE_PAINT_SETTLE_MS,
@@ -187,6 +188,18 @@ export interface PagePerformance {
   domNodeCount: number
 }
 
+/**
+ * One same-origin link off the page, kept for `pickNeighbours` in lib/site-pages.ts.
+ *
+ * `captureSeo` already walked `a[href]` to count these and threw the hrefs away. The count answers
+ * "is this page connected to the rest of the site"; the list answers "which other pages of this
+ * business exist", which is the raw material a generation needs and never a number the reader sees.
+ */
+export interface PageLink {
+  href: string
+  text: string
+}
+
 export interface ScrapedPage {
   url: string
   html: string
@@ -198,6 +211,8 @@ export interface ScrapedPage {
   // Optional for the reason every late field on PageStructure is: nothing measured before this
   // existed has it, and `undefined` means "not measured" rather than "the page had none".
   sections?: PageSection[]
+  // Optional for the same reason `sections` is: nothing scraped before this existed carries it.
+  links?: PageLink[]
 }
 
 export class ScrapeError extends Error {
@@ -392,6 +407,7 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
         headingMaxChars: SEO_HEADING_MAX_CHARS
       })
       const sections = await page.evaluate(captureSections)
+      const links = await page.evaluate(captureLinks, { max: PAGE_LINKS_MAX })
       const performance = await page.evaluate(capturePerformance, {
         lcpFlushMs: SCRAPE_LCP_FLUSH_MS
       })
@@ -416,9 +432,44 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
         ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
       })
 
-      return { url, html, elements, structure, seo, performance, mobile, sections }
+      return { url, html, elements, structure, seo, performance, mobile, sections, links }
     } catch (error) {
       throw new ScrapeError(`Failed to scrape ${url}`, { cause: error })
+    } finally {
+      await releaseBrowser(browser, page)
+    }
+  })
+}
+
+/**
+ * One page opened for its words and for nothing else.
+ *
+ * **A neighbour page is material, never a measurement**, so everything `scrapePage` does that feeds a
+ * number is skipped here: no structure, no SEO, no performance, and above all no phone pass, which is
+ * a full second page load with the cache cleared. The reader waits for these, and what the generation
+ * needs from them is the text.
+ *
+ * Guarded like every other outbound URL, and it takes its own browser slot. See docs/scraping.md.
+ */
+export async function scrapePageText(url: string): Promise<{ sections: PageSection[]; html: string }> {
+  const target = await assertPublicUrl(url)
+
+  return withBrowserSlot(SCRAPE_QUEUE_MAX_WAIT_MS, async () => {
+    const browser = await launchBrowser()
+    let page: Page | null = null
+
+    try {
+      page = await openGuardedPage(browser)
+      await page.setViewport(SCRAPE_VIEWPORT)
+      await page.goto(target.href, {
+        waitUntil: 'networkidle2',
+        timeout: SCRAPE_NAVIGATION_TIMEOUT_MS
+      })
+      await settlePage(page)
+
+      return { sections: await page.evaluate(captureSections), html: await page.content() }
+    } catch (error) {
+      throw new ScrapeError(`Failed to read ${url}`, { cause: error })
     } finally {
       await releaseBrowser(browser, page)
     }
@@ -870,6 +921,45 @@ function captureElements(options: {
  * previous one, because a borrowed heading would tell the model a section was about something nobody
  * measured it to be about.
  */
+/**
+ * Every same-origin link, with the words that pointed at it.
+ *
+ * Deliberately dumb: it collects and does not choose. Which of these is worth opening is decided in
+ * lib/site-pages.ts, where it can be tested without a browser.
+ */
+function captureLinks(options: { max: number }): PageLink[] {
+  const origin = location.origin
+  const seen = new Set<string>()
+  const links: PageLink[] = []
+
+  for (const anchor of Array.from(document.querySelectorAll('a[href]'))) {
+    const raw = anchor.getAttribute('href') || ''
+    if (!raw || raw.startsWith('#')) continue
+
+    let resolved: URL
+    try {
+      resolved = new URL(raw, origin)
+    } catch {
+      continue
+    }
+
+    if (resolved.origin !== origin) continue
+
+    // A fragment is the same page, and the query string is usually a campaign tag rather than a
+    // different document. Both are dropped before the deduplication so one page counts once.
+    resolved.hash = ''
+    resolved.search = ''
+    const href = resolved.href
+    if (seen.has(href)) continue
+
+    seen.add(href)
+    links.push({ href, text: (anchor.textContent || '').replace(/\s+/g, ' ').trim() })
+    if (links.length >= options.max) break
+  }
+
+  return links
+}
+
 function captureSections(): PageSection[] {
   const main = document.querySelector('main') ?? document.body
 

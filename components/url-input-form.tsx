@@ -74,7 +74,8 @@ export function UrlInputForm({
   defaultBrief = '',
   blocked = false,
   submitLabel,
-  showBrief = true
+  showBrief = true,
+  briefRequired = false
 }: {
   defaultBrief?: string
   blocked?: boolean
@@ -90,6 +91,15 @@ export function UrlInputForm({
    * take a URL and quietly ignore it.
    */
   showBrief?: boolean
+  /**
+   * Whether this reader has a credit to spend, which is the only case where the four answers are
+   * the price rather than an offer.
+   *
+   * **It opens the disclosure and changes the wording, and it never blocks the submit.** A reader
+   * with a credit and no brief still gets their score, because gating a measurement of somebody's
+   * own page is the one thing no surface may do. The route decides what was actually bought.
+   */
+  briefRequired?: boolean
 }) {
   const { dictionary } = useI18n()
   const router = useRouter()
@@ -259,12 +269,14 @@ export function UrlInputForm({
       )}
 
       {showBrief && (
-        <details className="rounded-md border border-border px-3 py-2">
+        <details open={briefRequired} className="rounded-md border border-border px-3 py-2">
           <summary className="rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            {dictionary.urlForm.briefSummary}
+            {briefRequired ? dictionary.urlForm.briefSummaryRequired : dictionary.urlForm.briefSummary}
           </summary>
           <div className="space-y-3 pt-3">
-            <p className="text-xs text-muted-foreground">{dictionary.urlForm.briefIntro}</p>
+            <p className="text-xs text-muted-foreground">
+              {briefRequired ? dictionary.urlForm.briefIntroRequired : dictionary.urlForm.briefIntro}
+            </p>
             <BriefWizard
               value={brief}
               onChange={setBrief}

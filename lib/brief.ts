@@ -83,3 +83,17 @@ export function parseBrief(text: string): BriefParts {
 export function briefIsEmpty(parts: BriefParts): boolean {
   return BRIEF_FIELD.every((field) => !parts[field].trim())
 }
+
+/**
+ * Whether every question has an answer, which is what a credit now buys.
+ *
+ * **All four or none, and the middle is deliberately not a mode.** A partial brief was measurably
+ * the same as no brief at all: the arm that has always run reused the page's own vocabulary and said
+ * nothing the page did not already say, because there was nothing else in front of it to say.
+ *
+ * It cannot check that an answer is true, and nothing can. What it checks is that somebody was asked.
+ * See docs/analysis-ui.md.
+ */
+export function briefIsComplete(parts: BriefParts): boolean {
+  return BRIEF_FIELD.every((field) => parts[field].trim().length > 0)
+}

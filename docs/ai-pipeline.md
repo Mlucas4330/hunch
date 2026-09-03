@@ -1,6 +1,7 @@
 # AI pipeline
 
-Three `generateObject` calls in one `Promise.all` — hypotheses, playbook, visibility audit. `lib/ai/`.
+Three `generateObject` calls in one `Promise.all` — hypotheses, playbook, visibility audit — then a
+fourth over the rewrites alone, which may only remove them. `lib/ai/`.
 
 **There is still no web-search step, and there never will be one.** It used to run a Haiku call with
 the `web_search` tool before generation, and it was roughly half the cost of an analysis: search is
@@ -73,8 +74,116 @@ Testimonial: ...
 Pricing: ...
 ```
 
-A founder `brief`, when present, is appended to the generation prompt so variants use real facts and
-come back finished rather than as `[placeholder]` templates.
+A founder `brief`, when present, is appended to the generation prompt so variants use real facts.
+
+**It is what a credit is spent on, and that came out of a measurement rather than a preference.**
+`analyses.brief` was null in every real analysis this product had ever run, so half of
+`variantCopyRules` had never executed once. Scraping one page and generating from that single
+measurement twice with a brief and twice without put the two arms side by side:
+
+| | no brief | with brief |
+| --- | --- | --- |
+| rewrites saying a word only the brief carried | 0% | 55% |
+| mean word reuse from the line being replaced | 41% | 52% |
+| uses a `[placeholder]` | 0% | 0% |
+
+The arm with no brief reshuffles the page's own vocabulary, because that vocabulary is the only thing
+in front of it. The arm with one opens on the objection the founder named and puts facts in the copy
+that the page did not carry.
+
+Two things in that table are worth keeping for the next person who changes this prompt. **Word reuse
+is not a measure of specificity and reads backwards**: using a brief fact means keeping the product's
+nouns and adding the differentiator, so the better arm reuses *more*. And **the "write a template with
+[placeholders]" mode described by `variantCopyRules` does not exist in practice** -- it is 0% in the
+arm that is supposed to produce it. Without facts the model does not ask for them, it goes vague,
+which is the failure no rule in the prompt forbids.
+
+### A second round is not a second draw
+
+The alternates call used to receive the recommended line and nothing else, so asking again was a
+fresh sample from the same distribution and round three could hand back round one. It now receives
+**every line already written for that element**, and the prompt says those were seen and not used, so
+repeating one is a wasted slot.
+
+A reader can also point a round in a direction: `VARIANT_TONE` is a closed list, and
+`VARIANT_TONE_INSTRUCTION` in `lib/constants.ts` is what the prompt actually reads. **Every entry
+constrains form and none of them states a fact**, which is the whole reason it is an enum. A free
+text field would let "say we are the best in Brazil" arrive as an instruction, and the only defence
+would be a written rule, which is what has held nothing here.
+
+**Rounds are capped and counted over the model's own rows.** `roundsLeft` in `lib/variant-rounds.ts`
+is called by the route and by the card, so the button the reader sees and the answer the route gives
+cannot drift. Writing your own line costs no round: that is not asking the model for another one, and
+charging for it would penalise the thing most worth encouraging.
+
+### The second pass can only take rewrites away
+
+The copy call assesses a line, decides it is failing, writes the replacement, scores its own work and
+justifies it, all in one response. Those jobs conflict: a model that has just written a replacement is
+the worst available judge of whether it was needed. It is not a theoretical conflict -- one response
+carried an `assessment` saying the CTA removed the cost objection and a variant that deleted the word
+"free".
+
+So judging is a separate call. `critiquePrompt` receives the page and the numbered rewrites and
+answers with `CritiqueSchema`, which has exactly one field: the indexes to drop, with a reason.
+
+**The limit lives in the schema, not in the prompt.** There is no field for a replacement, no field
+for a score, no field for a new finding, so a critic that decides it could write a better line has
+nowhere to put it. That matters because prompt instruction has repeatedly failed to hold behaviour in
+this pipeline while code reading output has held it every time. It is the same shape as
+`resolveTargets`: the prompt asks, and the check happens on the way back.
+
+Four things follow:
+
+- **Silence is agreement.** `applyCritique` keeps anything the critic does not name, so a truncated or
+  partial answer costs nothing and only an explicit drop removes anything.
+- **It fails open.** The rewrites have already been paid for and already cost their tokens; an extra
+  call that times out must not take a finished set down with it. Same reasoning as the schema floor.
+- **It may empty the list.** An analysis with no copy findings already renders, and the refund only
+  fires when all three generations came back with nothing.
+- **The reasons are never shown to anybody.** They exist so the log tells a person comparing two
+  versions of this prompt what the critic thought it was doing.
+
+**What it is judged by is the acceptance rate, and that data does not exist yet.** Until it does, the
+only established fact about this pass is that it makes the list shorter. `e2e/critiqued-copy.spec.ts`
+walks the drop against a fixed verdict, so what is faked there is the critic's answer and never the
+code acting on it.
+
+### The reader's other pages are read, when they exist
+
+The brief works because it puts facts in front of the model that the landing page does not carry.
+`measureNeighbours` in `lib/analyze.ts` goes after the same thing without asking anybody: the page's
+own same-origin links are captured during the scrape (`captureLinks`), `pickNeighbours` in
+`lib/site-pages.ts` recognises at most `SITE_PAGE_MAX` of them as pricing, docs, features, about or
+faq, and each one is opened for its text alone.
+
+Three rules hold it together, and each fails differently if it is undone:
+
+- **It selects, it never crawls.** A link matching no pattern is never opened, and nothing follows a
+  link found on a page it opened. An analysis visits a bounded number of recognised kinds of page.
+- **Nothing from these pages reaches the readout or the score.** They are material for the copy
+  prompt, exactly as a competitor's readout is. A number off a pricing page rendered in the readout
+  would be presented as a fact about the page the reader pasted.
+- **Only the owned branch opens them**, because `measureNeighbours` is called from
+  `generateFromMeasurement` and never from `measurePage`. An ownerless run costs one browser slot and
+  zero tokens; opening two more pages to gather material for a generation that will not happen spends
+  slots on nothing. See [invariants.md](invariants.md).
+
+They go to the copy call and to neither of the other two. The playbook argues from what was counted
+and the visibility audit from the SEO readout; neither writes a sentence a founder publishes, which is
+the one thing this material exists to make specific.
+
+**On the evidence so far it fires rarely, and the reason is worth writing down.** Of the two real
+sites available, `hunch.solutions` picks nothing and `notes.axtenn.com` picks one page. A one-page
+landing site keeps its pricing and its features behind `#anchors` on the page that was already
+measured, and `captureLinks` drops fragments because opening them would re-read the same document.
+So the pages this looks for exist on multi-page sites and are frequently absent from exactly the kind
+of page this product is sold for. The mechanism is right and its reach is narrower than the argument
+for it assumed; that is a fact about landing pages, not a bug to tune the patterns around.
+
+`scripts/brief-ab.mts` is the run, and `POST /api/analyses` is where the consequence lives: without
+all four answers no credit is taken. See [analysis-ui.md](analysis-ui.md) for why that is charged at
+the credit and never at the submit.
 
 **It is still one free text column, and the form now asks four questions into it.** `analyses.brief`
 was a blank textarea, which asked the reader to guess what was useful, and most of them wrote nothing.
@@ -154,6 +263,62 @@ element list leaves through one and comes back through the other. Both import fr
 **type-only**, for the reason `lib/competitor.ts` documents — a value import pulls puppeteer in, and
 that is also what makes these testable.
 
+### A replacement made only of the words it replaces is dropped
+
+Second condition in the same place, and the same reasoning: the prompt asks, code checks on the way
+back. **A text whose words are all already in the line it replaces proposes no idea by construction**,
+whatever order they are in, so there is no page and no reader for whom it could be an improvement.
+
+It is not a hypothetical. Two of the 32 real rewrites stored during development were exactly this,
+both ranked and shown with an impact score beside them:
+
+```
+notes.axtenn.com [hero_image]
+was: 🔒 Criptografia em trânsito e repouso 🔑 Seus dados são só seus ⚖️ Em conformidade com a LGPD
+now: ⚖️ Em conformidade com a LGPD 🔒 Criptografia em trânsito e repouso 🔑 Seus dados são só seus
+
+hunch.solutions [other]
+was: Sem cadastro, sem cartão, sem instalar nada. Só a sua URL.
+now: Só a sua URL. Sem cadastro, sem cartão, sem instalar nada.
+```
+
+**The threshold is zero new words and must not be loosened without evidence.** A quarter of real
+rewrites reuse 70% or more of the original and nearly all of them are legitimate — a rewrite keeps the
+product's own nouns. A ratio here would delete finished work on a number nothing supports;
+`scripts/rewrite-stats.mts` is what would earn a tighter one.
+
+### Measuring the generator instead of reviewing the copy
+
+`lib/rewrite-stats.ts` scores a replacement against the line it replaces, and
+`scripts/rewrite-stats.mts` runs it over every stored analysis. **It exists because every judgement
+about this generator until then was taste** — "that rewrite is worse" is a claim about somebody's
+landing page, and on that the page's owner is right and we are not, so it cannot decide whether a
+prompt change helped.
+
+The baseline, 32 real rewrites over two domains, before any of this was changed:
+
+| property | rate |
+| --- | --- |
+| reuses 70% or more of the original's words | 25% |
+| **permutation: zero new words** | **6%** |
+| over the word ceiling | 22% |
+| `rationale` claims a general truth | 13% |
+| uses a `[placeholder]` | 3% |
+
+Three things to read carefully before trusting a comparison against it:
+
+- **Only `permutation` is a defect.** The others are rates that move; high reuse is the normal case.
+- **The script drops fixture runs**, matching `current_copy` against `fixtureAnalysis`. Three of the
+  five analyses in a development database are fixture runs and would describe the fixtures.
+- **A single run is noisy.** Across three runs of the same page, "reuse ≥ 70%" swung from 13% to 38%.
+  Compare aggregates, and treat a small movement as nothing.
+
+The 3% placeholder rate is itself a finding. `variantCopyRules` says that without a brief a variant
+should read as a usable template, and the model almost never writes one: it found a third way out,
+which is to stay abstract. Nothing forbids vagueness, so vagueness is where an honest generator goes
+when it may not invent and is not asked for the missing fact. **Every analysis ever run took that
+branch** — `analyses.brief` is null in all of them.
+
 ### `assessment` is the half of the comparison that was never asked for
 
 The prompt defined `problem` as one sentence naming the gap, and **nothing anywhere invited the model
@@ -174,6 +339,26 @@ from the two columns, because a model that has read one page cannot know what ap
 on someone else's stack — see
 [analysis-ui.md](analysis-ui.md#nothing-shows-an-effort-score-anywhere). Ranking is `impact_score`
 alone.
+
+### `rationale` argues from this page, and no longer from what generally works
+
+It used to be asked for *"grounded in CRO principles and in what this page shows"*, one field over
+from an `evidence` forbidden to say *"studies show"* or name a benchmark. **Two adjacent fields, two
+opposite standards, and the loose one is where the worst changes were justified**: the rewrite that
+deleted a free-of-charge signal from a CTA argued that "CTAs naming the outcome convert better than
+CTAs naming the price", which nobody here has measured. The identical claim turned up in two separate
+runs, so it is a reflex rather than a stray sentence — 13% of rationales carry one.
+
+The permission is gone. The claim is now forbidden by name in the same field, and the rule points at
+`evidence` as the standard it is held to.
+
+**This is a prompt change, and prompt changes have a poor record here** — the same generation that
+wrote that the CTA "remove a objeção de custo" deleted the word anyway, in the same response. So it is
+an experiment rather than a fix, and `scripts/rewrite-stats.mts` is what says whether it held.
+
+It is also the cheap precondition for a much larger question. If output degrades without the
+folklore, the folklore was carrying weight and citing real sources would be worth building; if the
+rate falls and nothing else moves, it was only producing bad justifications.
 
 ### `impactScoreRules()` says what the number measures
 
@@ -333,6 +518,18 @@ compose, so those can never drift between the things one analysis produces.
 `variantWordBudget(words)` in `lib/text.ts` is
 `max(words + VARIANT_WORD_BUDGET_FLOOR, ceil(words * VARIANT_WORD_BUDGET_RATIO))`, and every line of
 the "Page elements" list carries its own ceiling: `<tag> "text" (max N words, max M characters)`.
+
+**Neither ceiling is enforced, and the measured one is only now being counted.** `warnOverLength` logs
+and returns; nothing rejects. Two reasons to leave it that way for now: 22% of real rewrites pass the
+word ceiling and the single best rewrite observed was one of them, so rejecting would throw away the
+good with the long. And the number that matters has never been counted at all — `capacity` is not
+stored, so no stored row can be scored for it after the fact and `scripts/rewrite-stats.mts` can only
+report the derived ceiling.
+
+So `resolveTarget` now returns the matched element's `capacity` and `warnOverLength` reports both,
+separately (`overBudget`, `overBox`). **No rule is written until the measured overflow has a rate.**
+An unpointable match has no box, so the alternates path and any `manual` target fall back to the
+derived ceiling alone rather than borrowing a number from another element.
 
 ### The model chooses the emphasis for the line it wrote, never the line it replaced
 

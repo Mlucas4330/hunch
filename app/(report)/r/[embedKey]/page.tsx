@@ -155,7 +155,14 @@ export default async function ReportPage({
   const hasHistory = history.scores.length > 1
 
   function fixPanel(list: FlowFix[], section: PlaybookSection) {
-    return <FlowPlaybook fixes={list} section={section} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
+    return (
+      <FlowPlaybook
+        fixes={list}
+        section={section}
+        expandFrom={PLAYBOOK_EXPANDED_COUNT}
+        isOwner={isOwner}
+      />
+    )
   }
 
   if (!measured) {

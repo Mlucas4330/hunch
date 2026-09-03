@@ -4,6 +4,7 @@ import {
   AdIdeasSchema,
   AlternateVariantsSchema,
   AnalysisOutputSchema,
+  CritiqueSchema,
   PlaybookOutputSchema,
   VisibilityOutputSchema,
   type AdIdeas,
@@ -13,14 +14,22 @@ import {
   type VariantOutput,
   type VisibilityFixOutput
 } from '@/lib/ai/schema'
+import { applyCritique, critiqueInput } from '@/lib/ai/critique'
 import {
   adIdeasPrompt,
   alternateVariantsPrompt,
+  critiquePrompt,
   playbookPrompt,
   systemPrompt,
   visibilityPrompt
 } from '@/lib/ai/prompt'
-import { AI_OUTPUT_LANGUAGE, DEFAULT_LOCALE, MARKET_NAME } from '@/lib/constants'
+import {
+  AI_OUTPUT_LANGUAGE,
+  DEFAULT_LOCALE,
+  MARKET_NAME,
+  NEIGHBOUR_TEXT_MAX_CHARS,
+  VARIANT_TONE_INSTRUCTION
+} from '@/lib/constants'
 import {
   FIXTURE_CRAWLER_ACCESS,
   FIXTURE_KEYWORDS,
@@ -41,19 +50,23 @@ import { fetchCrawlerAccess, type CrawlerAccess } from '@/lib/robots'
 import { extractKeywords, type PageKeywords } from '@/lib/keywords'
 import { composePageText, coverageNote, type ComposedPageText } from '@/lib/page-text'
 import { promptElements, resolveTarget } from '@/lib/prompt-elements'
+import { pickNeighbours } from '@/lib/site-pages'
+import { rewriteStats } from '@/lib/rewrite-stats'
 import {
   type PageElement,
+  type PageLink,
   type PageMobile,
   type PagePerformance,
   type PageSection,
   type PageSeo,
   type PageStructure,
   preprocessHtml,
-  scrapePage
+  scrapePage,
+  scrapePageText
 } from '@/lib/scrape'
 import { variantCharBudget, variantWordBudget, wordCount } from '@/lib/text'
 import { measuredFindings, type MeasuredFinding } from '@/lib/readout'
-import type { HypothesisTarget, Locale, Market, ReadoutGroup } from '@/lib/enums'
+import type { HypothesisTarget, Locale, Market, ReadoutGroup, VariantTone } from '@/lib/enums'
 
 const MODEL = 'claude-sonnet-4-6'
 
@@ -116,6 +129,47 @@ export async function measureCompetitor(url: string): Promise<CompetitorMeasurem
 }
 
 /**
+ * The reader's own other pages, opened for their words.
+ *
+ * **The landing page is not where a business says what it does.** The price is on the pricing page,
+ * the mechanism is in the docs, and the copy generator had seen none of it -- so it rewrote a line
+ * using the only vocabulary in front of it, which was the vocabulary of the line it was replacing.
+ * This is the same move the brief made, with code doing the finding instead of the reader doing the
+ * typing. See docs/ai-pipeline.md.
+ *
+ * **Nothing here reaches the readout or the score.** These pages are material for a prompt, exactly
+ * as a competitor's readout is, and a number off one of them would be presented as a fact about the
+ * page the reader pasted. `measuredFindings` never sees them.
+ *
+ * **Sequential, and each failure is silent.** They share `SCRAPE_MAX_CONCURRENT_PAGES` with every
+ * other analysis running, and a pricing page that 404s or times out must not take down a generation
+ * the reader already paid for -- it is extra material, so its absence is the state the product was
+ * in yesterday.
+ */
+export async function measureNeighbours(
+  pageUrl: string,
+  links: PageLink[]
+): Promise<{ id: string; url: string; text: string }[]> {
+  const measured: { id: string; url: string; text: string }[] = []
+
+  for (const neighbour of pickNeighbours(links, pageUrl)) {
+    try {
+      const { sections, html } = await scrapePageText(neighbour.url)
+      const composed = composePageText({
+        sections,
+        fallback: preprocessHtml(html),
+        budget: NEIGHBOUR_TEXT_MAX_CHARS
+      })
+      if (composed.text.trim()) measured.push({ ...neighbour, text: composed.text })
+    } catch (error) {
+      console.warn('[analyze] neighbour page unreadable', { url: neighbour.url, error })
+    }
+  }
+
+  return measured
+}
+
+/**
  * Everything one scrape produced: the columns a row stores, and the raw material a generation needs.
  *
  * The two used to be inseparable because `analyzeLandingPage` measured and generated in one call and
@@ -132,6 +186,9 @@ export type MeasuredPage = PageMeasurement & {
    * `lang` is the stronger of the two signals. See docs/invariants.md.
    */
   market: Market
+  // The page's own same-origin links, so `measureNeighbours` can choose from them without a second
+  // scrape of the page that produced them.
+  links?: PageLink[]
 }
 
 export async function measurePage(url: string): Promise<MeasuredPage> {
@@ -150,7 +207,7 @@ export async function measurePage(url: string): Promise<MeasuredPage> {
     }
   }
 
-  const [{ html, elements, structure, seo, performance, mobile, sections }, crawlerAccess] =
+  const [{ html, elements, structure, seo, performance, mobile, sections, links }, crawlerAccess] =
     await Promise.all([scrapePage(url), fetchCrawlerAccess(url)])
 
   return {
@@ -163,6 +220,7 @@ export async function measurePage(url: string): Promise<MeasuredPage> {
     html,
     elements,
     sections,
+    links,
     market: detectMarket({ url, lang: seo.lang })
   }
 }
@@ -223,6 +281,40 @@ export async function generateFromMeasurement(
       capacity: variantCharBudget('Start free trial'),
       emphasized: false
     })
+    // The second URL-keyed case, alongside the one above and for the same reason: the fixtures write
+    // a genuine rewrite for every line, so the permutation drop is unreachable without a real model.
+    // Reversing the first hypothesis's own words is a permutation by construction, whatever the
+    // fixture happens to say.
+    const permuted = url.includes('hunch-e2e-permutation')
+    const copyOutput = permuted
+      ? {
+          hypotheses: analysis.hypotheses.map((h, i) =>
+            i === 0
+              ? {
+                  ...h,
+                  variants: h.variants.map((v) => ({
+                    ...v,
+                    copy: h.current_copy.split(/\s+/).reverse().join(' '),
+                    emphasis: null
+                  }))
+                }
+              : h
+          )
+        }
+      : analysis
+
+    // The third URL-keyed case, and the same argument as the two above: the fixtures never produce a
+    // rewrite the critic would refuse, so the drop is unreachable without a real model. This runs the
+    // real `applyCritique` against a fixed verdict, so what is faked is the critic's answer and never
+    // the code that acts on it.
+    const critiqued = url.includes('hunch-e2e-critique')
+      ? {
+          hypotheses: applyCritique(copyOutput.hypotheses, {
+            drop: [{ index: 1, reason: 'E2E: the current line was already doing its job' }]
+          }).kept
+        }
+      : copyOutput
+
     // `empty` is nothing from any of the three, the only condition that still refunds a credit.
     // `copy` is the case this whole arrangement exists for: the copy call came back with nothing and
     // the other two are full, so the reader gets a report without the copy tab and pays for it.
@@ -231,7 +323,7 @@ export async function generateFromMeasurement(
     const noCopy = barren || mode === 'copy'
 
     return resolveTargets({
-      output: noCopy ? { hypotheses: [] } : analysis,
+      output: noCopy ? { hypotheses: [] } : critiqued,
       elements: fixtureElements,
       playbook: barren ? [] : fixturePlaybook(locale),
       visibility: barren ? [] : fixtureVisibility(locale),
@@ -256,6 +348,11 @@ export async function generateFromMeasurement(
   // together with theirs. See docs/invariants.md.
   const competitor = options.competitorUrl ? await measureCompetitor(options.competitorUrl) : null
 
+  // **Only here, never in measurePage.** An ownerless run measures the page and calls no model, and
+  // opening two more pages for material a generation would have used is the token-free half spending
+  // browser slots on nothing. This function is the owned branch. See docs/invariants.md.
+  const neighbours = await measureNeighbours(url, measured.links ?? [])
+
   // The page's text, cut to a budget that is stated rather than hidden at the end of the flattener,
   // and carrying the account of whatever had to go. See lib/page-text.ts.
   const pageText = composePageText({ sections, fallback: preprocessHtml(html) })
@@ -269,6 +366,16 @@ export async function generateFromMeasurement(
         2
       )}`
     : ''
+
+  // **Only the copy call gets these.** The playbook argues from what was counted and the visibility
+  // audit from the SEO readout; neither writes a sentence a founder publishes, which is the one thing
+  // these pages are here to make specific. See docs/ai-pipeline.md.
+  const neighbourSection =
+    neighbours.length > 0
+      ? `\n\nOther pages of this same site, read by this code just now. They are the reader's own words about their own business, and they carry the facts their landing page left out. Use them, and never contradict them:\n${neighbours
+          .map((page) => `\n[${page.id}] ${page.url}\n${page.text}`)
+          .join('\n')}`
+      : ''
 
   const briefSection = options.brief
     ? `\n\nBusiness details from the founder (use these real facts to write finished copy):\n\n${options.brief}`
@@ -321,7 +428,7 @@ above (JSON):\n${JSON.stringify(
       locale,
       market,
       competitorHost,
-      prompt: `Landing page copy:\n\n${pageText.text}${coverageNote(pageText)}${structureSection}${elementsSection}${briefSection}${competitorSection}`
+      prompt: `Landing page copy:\n\n${pageText.text}${coverageNote(pageText)}${structureSection}${elementsSection}${briefSection}${neighbourSection}${competitorSection}`
     }),
     generatePlaybook({
       structure,
@@ -346,8 +453,15 @@ above (JSON):\n${JSON.stringify(
     })
   ])
 
+  // **The second pass, and the only thing it can do is take rewrites away.** The call that wrote
+  // these also decided they were worth writing and scored its own work, which is the arrangement that
+  // produced an `assessment` saying the CTA removes the cost objection in the same response that
+  // deleted the word "free". Judging is a different job, so it is a different call, and the schema it
+  // answers with has no field for a replacement. See lib/ai/critique.ts.
+  const critiqued = await critique({ hypotheses: object.hypotheses, pageText: pageText.text, locale, market })
+
   const result = resolveTargets({
-    output: object,
+    output: { hypotheses: critiqued },
     elements,
     playbook,
     visibility,
@@ -366,6 +480,11 @@ above (JSON):\n${JSON.stringify(
   // the way back -- and the gap between the two is the only signal there is that the model is quoting
   // the page rather than paraphrasing it. `playbookFixes` and `visibilityFixes` were already here;
   // copy was the one of the three nothing counted.
+  //
+  // **The two drops are counted apart, and merging them would cost the signal above.** `copyRefused`
+  // is a judgement the second pass made about a rewrite; `copyDropped` is a rewrite that quoted a line
+  // the page does not carry, or proposed the words it was replacing. One says the model wrote
+  // something not worth shipping, the other says it wrote something not true of this page.
   console.info('[analyze] timings (ms)', {
     measure: measuredAt - startedAt,
     generation: Date.now() - measuredAt,
@@ -373,8 +492,10 @@ above (JSON):\n${JSON.stringify(
     market,
     robots: crawlerAccess.status,
     competitor: competitorHost,
+    neighbours: neighbours.map((page) => page.id),
     copyIdeas: result.hypotheses.length,
-    copyDropped: object.hypotheses.length - result.hypotheses.length,
+    copyRefused: object.hypotheses.length - critiqued.length,
+    copyDropped: critiqued.length - result.hypotheses.length,
     playbookFixes: playbook.length,
     visibilityFixes: visibility.length
   })
@@ -413,6 +534,43 @@ function findingsSection(findings: MeasuredFinding[]): string {
  * It degrades the same way now. What a credit is worth is decided afterwards, over everything that
  * came back, rather than by whichever generator threw first: see the refund in lib/run-analysis.ts.
  */
+/**
+ * Runs the critique and applies it, or returns the set untouched.
+ *
+ * **Fail open, and it is not a detail.** Everything here has already been paid for and already cost
+ * its tokens; an extra call that times out must not be able to take a finished set of rewrites down
+ * with it. The same reasoning as the schema floor -- see lib/ai/schema.ts.
+ */
+async function critique(input: {
+  hypotheses: HypothesisOutput[]
+  pageText: string
+  locale: Locale
+  market: Market
+}): Promise<HypothesisOutput[]> {
+  if (input.hypotheses.length === 0) return input.hypotheses
+
+  try {
+    const { object } = await generateObject({
+      model: anthropic(MODEL),
+      schema: CritiqueSchema,
+      maxTokens: 2000,
+      system: critiquePrompt(AI_OUTPUT_LANGUAGE[input.locale], MARKET_NAME[input.market]),
+      prompt: `Landing page copy:\n\n${input.pageText}\n\nThe rewrites proposed for it:\n\n${critiqueInput(
+        input.hypotheses
+      )}`
+    })
+
+    const { kept, dropped } = applyCritique(input.hypotheses, object)
+    // The reasons exist for this line and for nothing else: no reader sees them, and a person
+    // comparing two versions of this prompt needs to know what it thought it was doing.
+    if (dropped.length > 0) console.info('[analyze] critique dropped', dropped)
+    return kept
+  } catch (error) {
+    console.error('[analyze] critique failed, keeping every rewrite', error)
+    return input.hypotheses
+  }
+}
+
 async function generateHypotheses(input: {
   locale: Locale
   market: Market
@@ -672,6 +830,16 @@ export type AlternateVariantsInput = {
   currentCopy: string
   rationale: string
   recommendedCopy: string
+  /**
+   * Every line the model has already written for this element, the recommendation included.
+   *
+   * **Without it a second round is a fresh draw from the same distribution**, and round three can
+   * hand back round one. The prompt already forbade paraphrasing the recommendation; this extends
+   * that to everything it has tried.
+   */
+  alreadyWritten: string[]
+  /** A direction the reader asked for, or null. Constrains form and never states a fact. */
+  tone: VariantTone | null
   // Whether the target element has a styled fragment at all. The element list is long gone by now,
   // so it is inferred from the recommendation having chosen an emphasis.
   emphasized: boolean
@@ -692,12 +860,20 @@ export async function generateAlternateVariants(
     `Current copy on the page:\n${input.currentCopy}`,
     `Problem with it:\n${input.problem}`,
     `Why the challenger should win:\n${input.rationale}`,
-    `The recommended challenger (write different angles, do not paraphrase this):\n${input.recommendedCopy}`,
+    `Lines already written for this element. Every one of them was seen and not used, so a new line that paraphrases any of them is a wasted slot:\n${input.alreadyWritten
+      .map((copy) => `- ${copy}`)
+      .join('\n')}`,
     `Word ceiling: the current copy is ${wordCount(input.currentCopy)} words. Every alternate must be ${variantWordBudget(wordCount(input.currentCopy))} words or fewer, and ${variantCharBudget(input.currentCopy)} characters or fewer. Copy past the character ceiling is cut off by the site's own CSS.`,
     input.emphasized
       ? 'This element has a styled fragment, so set emphasis on every alternate.'
       : 'This element has no styled fragment, so set emphasis to null on every alternate.'
   ]
+
+  // A direction the reader asked for. It constrains the form of the rewrite and never supplies a
+  // fact, which is the whole reason it is an enum rather than a text box -- see lib/enums.ts.
+  if (input.tone) {
+    sections.push(`Direction the reader asked for:\n${VARIANT_TONE_INSTRUCTION[input.tone]}`)
+  }
 
   if (input.founderBrief) {
     sections.push(
@@ -713,17 +889,47 @@ export async function generateAlternateVariants(
     prompt: sections.join('\n\n')
   })
 
-  object.variants.forEach((v) => warnOverLength(input.section, input.currentCopy, v.copy))
+  // No measured ceiling here: the element list is long gone by the time somebody opens this drawer,
+  // and `variantCharBudget` is the stand-in the prompt is given. Only the heuristic is checkable.
+  object.variants.forEach((v) => warnOverLength(input.section, input.currentCopy, v.copy, null))
 
   return object.variants
 }
 
-function warnOverLength(section: string, currentCopy: string, variantCopy: string): void {
+/**
+ * Reports a replacement that will not fit, against both ceilings, and enforces neither.
+ *
+ * **The two are not the same claim and only one of them was ever checked.** `variantWordBudget` is a
+ * heuristic over the original's length; `capacity` is the measured width of the element's box, and it
+ * is the one that decides whether the site's own CSS cuts the line off. A fifth of real rewrites pass
+ * the word ceiling, and the single best rewrite seen so far was one of them, so rejecting on either
+ * would throw away the good with the long.
+ *
+ * It logs because the measured overflow has never been counted: `capacity` is not stored, so no
+ * stored row can be scored for it after the fact and `scripts/rewrite-stats.mts` can only report the
+ * heuristic. Nothing here becomes a rule until that number exists. See docs/ai-pipeline.md.
+ */
+function warnOverLength(
+  section: string,
+  currentCopy: string,
+  variantCopy: string,
+  capacity: number | null
+): void {
   const budget = variantWordBudget(wordCount(currentCopy))
-  const actual = wordCount(variantCopy)
-  if (actual <= budget) return
+  const words = wordCount(variantCopy)
+  const overBudget = words > budget
+  const overBox = capacity !== null && variantCopy.length > capacity
+  if (!overBudget && !overBox) return
 
-  console.warn('[analyze] variant over word budget', { section, budget, actual })
+  console.warn('[analyze] variant over its ceiling', {
+    section,
+    overBudget,
+    overBox,
+    budget,
+    words,
+    capacity,
+    chars: variantCopy.length
+  })
 }
 
 function resolveTargets(input: {
@@ -784,7 +990,29 @@ function resolveTargets(input: {
         return []
       }
 
-      h.variants.forEach((v) => warnOverLength(h.section, resolved.text ?? h.current_copy, v.copy))
+      // **A replacement whose words are all already in the line it replaces proposes nothing.**
+      // Measured rather than judged: two of the 32 real rewrites stored are exactly this, one
+      // reordering three security badges and one swapping two sentences, both ranked and shown as
+      // recommended changes. Whatever a reader thinks of the page, a permutation of its own words
+      // cannot be an improvement to it.
+      //
+      // The threshold is zero new words and nothing looser. A quarter of real rewrites reuse 70% or
+      // more of the original and most are fine -- a rewrite keeps the product's own nouns -- so a
+      // ratio here would throw away work on a number nothing supports. `scripts/rewrite-stats.mts`
+      // is what would earn a tighter one. See lib/rewrite-stats.ts.
+      const recommended = h.variants[0]
+      if (recommended && rewriteStats(resolved.text ?? h.current_copy, recommended.copy).permutation) {
+        console.warn('[analyze] hypothesis dropped, the replacement is a permutation', {
+          section: h.section,
+          currentCopy: h.current_copy,
+          copy: recommended.copy
+        })
+        return []
+      }
+
+      h.variants.forEach((v) =>
+        warnOverLength(h.section, resolved.text ?? h.current_copy, v.copy, resolved.capacity)
+      )
       return [
         {
           ...h,

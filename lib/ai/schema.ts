@@ -9,6 +9,7 @@ import {
   AD_HEADLINES_PER_GROUP,
   AD_NEGATIVES_MAX,
   AD_TERMS_PER_GROUP_MAX,
+  ALTERNATES_PER_ROUND,
   HYPOTHESES_MAX,
   IMPACT_SCORE_MAX,
   IMPACT_SCORE_MIN,
@@ -73,7 +74,7 @@ export const AnalysisOutputSchema = z.object({
 })
 
 export const AlternateVariantsSchema = z.object({
-  variants: z.array(VariantSchema).length(2)
+  variants: z.array(VariantSchema).length(ALTERNATES_PER_ROUND)
 })
 
 const fixFields = {
@@ -142,6 +143,32 @@ export const AdIdeasSchema = z.object({
   groups: z.array(AdGroupSchema).min(AD_GROUPS_MIN).max(AD_GROUPS_MAX),
   negatives: z.array(z.string()).max(AD_NEGATIVES_MAX)
 })
+
+/**
+ * The second pass, and **the schema is where its power is limited rather than the prompt.**
+ *
+ * It returns the rewrites to drop and nothing else. There is no field for a replacement, no field for
+ * a score, no field for a new finding, so a critic that decides it could write a better line has
+ * nowhere to put it. That is deliberate: the whole reason for a separate call is that the model which
+ * just wrote a line is the worst judge of whether it was needed, and a critic allowed to rewrite is
+ * the first model again under a second name.
+ *
+ * `reason` is never shown to anybody. It is here because a judgement with no stated grounds is the
+ * one a model produces most freely, and it lands in the log where a person comparing two prompts can
+ * read it. See docs/ai-pipeline.md.
+ */
+export const CritiqueSchema = z.object({
+  drop: z
+    .array(
+      z.object({
+        index: z.number().int(),
+        reason: z.string()
+      })
+    )
+    .max(HYPOTHESES_MAX)
+})
+
+export type CritiqueOutput = z.infer<typeof CritiqueSchema>
 
 export type AdGroup = z.infer<typeof AdGroupSchema>
 export type AdIdeas = z.infer<typeof AdIdeasSchema>

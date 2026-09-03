@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { answerBrief } from './brief'
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { analyses } from '@/db/schema'
@@ -28,6 +29,7 @@ test('a rewrite quoting a line the page does not carry never reaches the reader'
 
   await page.goto('/dashboard')
   await page.fill('input[name="url"]', URL_UNDER_TEST)
+  await answerBrief(page)
   await page.getByRole('button', { name: 'Analyze' }).click()
   await page.waitForURL(/\/r\/[0-9a-f-]+$/, { timeout: 150_000 })
 

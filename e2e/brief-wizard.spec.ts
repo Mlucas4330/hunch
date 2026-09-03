@@ -14,7 +14,10 @@ import { expect, test, type Page } from '@playwright/test'
 const SETTLE_MS = 300
 
 async function openBrief(page: Page) {
-  await page.getByText('Add business details (optional)').click()
+  // Already open wherever the reader has a credit, because there the four answers are the price
+  // rather than an offer. Clicking the summary then would shut it.
+  const closed = page.getByText('Add business details (optional)')
+  if ((await closed.count()) > 0) await closed.click()
   await expect(page.getByText('Step 1 of 4')).toBeVisible()
 
   await page.waitForFunction(
@@ -49,7 +52,7 @@ test.describe('brief wizard', () => {
     const before = await page.evaluate(() => window.scrollY)
 
     await page.getByRole('button', { name: 'Small businesses and their owners' }).click()
-    await page.getByRole('button', { name: 'Software on a subscription' }).click()
+    await page.getByRole('button', { name: 'Software or an app' }).click()
 
     expect(await page.evaluate(() => window.scrollY)).toBe(before)
   })

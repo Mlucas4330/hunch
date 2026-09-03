@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db } from '@/db'
 import { analyses } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
+import { briefIsComplete, parseBrief } from '@/lib/brief'
 import { refundCredit, spendCredit } from '@/lib/credits'
 import { clientIp, enforceRateLimit } from '@/lib/rate-limit'
 import { listAnalysesForUser, parsePaging } from '@/lib/analyses'
@@ -89,7 +90,17 @@ export async function POST(request: Request) {
     // the existing free half rather than a new mode -- `runAnalysis` measures and calls no model, and
     // the report renders the readout with the unlock wall where the fixes would be. See
     // docs/invariants.md.
-    const paid = user ? (await spendCredit(user.id, created.id)).spent : false
+    // **The four answers are the other half of the price, and they are charged here rather than at
+    // the form.** Blocking the submit would leave a reader with a credit unable to see their own
+    // score, which is the one thing no surface may gate. Without them the run is the free half it
+    // already knows how to be: measured, ownerless, no credit taken and no token spent.
+    //
+    // The arm with no brief was measured before this existed and it reused the page's own words to
+    // say what the page already said. See docs/ai-pipeline.md.
+    const paid =
+      user && briefIsComplete(parseBrief(brief ?? ''))
+        ? (await spendCredit(user.id, created.id)).spent
+        : false
 
     // Ownership is the whole record of having paid, so it is written only once a credit is gone --
     // and before the job is queued, since `runAnalysis` reads this column to decide what to run.

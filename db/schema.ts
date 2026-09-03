@@ -14,6 +14,8 @@ import {
 } from 'drizzle-orm/pg-core'
 import {
   FIX_KIND,
+  VARIANT_AUTHOR,
+  VERDICT,
   FLOW_CATEGORY,
   HYPOTHESIS_TARGET,
   LOCALE,
@@ -44,6 +46,8 @@ export const flowCategoryEnum = pgEnum('flow_category', FLOW_CATEGORY)
 export const localeEnum = pgEnum('locale', LOCALE)
 export const marketEnum = pgEnum('market', MARKET)
 export const fixKindEnum = pgEnum('fix_kind', FIX_KIND)
+export const verdictEnum = pgEnum('verdict', VERDICT)
+export const variantAuthorEnum = pgEnum('variant_author', VARIANT_AUTHOR)
 export const userRoleEnum = pgEnum('user_role', USER_ROLE)
 export const creditReasonEnum = pgEnum('credit_reason', CREDIT_REASON)
 
@@ -160,6 +164,20 @@ export const hypotheses = pgTable('hypotheses', {
   rationale: text('rationale').notNull(),
   selector: text('selector'),
   target: hypothesisTargetEnum('target').notNull().default('manual'),
+  /**
+   * What the owner decided about this recommendation, and the only judgement of this product's own
+   * output that exists anywhere.
+   *
+   * **Null means undecided, never rejected.** Every row written before this column existed is null,
+   * and so is every row nobody has read yet, so an acceptance rate is a rate over decided rows and
+   * must never treat the rest as noes.
+   *
+   * **It says the owner acted, never that the change worked.** Nobody controlled for anything
+   * between two measurements of a page, so no surface reading this may attribute a movement to a
+   * fix marked `applied` -- see docs/invariants.md.
+   */
+  verdict: verdictEnum('verdict'),
+  verdictAt: timestamp('verdict_at'),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })
 
@@ -169,6 +187,15 @@ export const variants = pgTable('variants', {
     .notNull()
     .references(() => hypotheses.id, { onDelete: 'cascade' }),
   copy: text('copy').notNull(),
+  /**
+   * Who wrote this line.
+   *
+   * **An owner's edit is a new row, never an overwrite.** Keeping both is the whole point: what the
+   * model proposed stays beside what the reader actually published, and the difference between the
+   * two is a label nobody had to sit down and produce. It is also what stops an edited line from
+   * being presented as something this product wrote. See docs/data-model.md.
+   */
+  author: variantAuthorEnum('author').notNull().default('model'),
   evidence: text('evidence'),
   // A substring of `copy` that belongs in the element's existing styled fragment. See ai-pipeline.md.
   emphasis: text('emphasis'),
@@ -207,6 +234,10 @@ export const flowFixes = pgTable('flow_fixes', {
    * where the value is produced, in lib/ai/schema.ts. See docs/data-model.md.
    */
   finding: text('finding'),
+  // The same pair as on `hypotheses`, and it carries the same meaning. One column on each of the two
+  // tables covers all three fix lists, because `kind` above already splits flow from visibility.
+  verdict: verdictEnum('verdict'),
+  verdictAt: timestamp('verdict_at'),
   position: integer('position').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })

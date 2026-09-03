@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react'
 import { CardDrawers } from '@/components/card-drawers'
 import { DisclosureCard } from '@/components/disclosure-card'
+import { FixVerdict } from '@/components/fix-verdict'
 import { FlowCategoryBadge } from '@/components/flow-category-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
 import { RankedListHeader } from '@/components/ranked-list-header'
@@ -16,11 +17,14 @@ export function FlowPlaybook({
   fixes,
   section = 'flow',
   expandFrom,
+  isOwner = false,
   className
 }: {
   fixes: FlowFix[]
   section?: PlaybookSection
   expandFrom?: number
+  /** Gates the verdict control, and nothing else on the card. See components/fix-verdict.tsx. */
+  isOwner?: boolean
   className?: string
 }) {
   const { dictionary } = useI18n()
@@ -54,7 +58,7 @@ export function FlowPlaybook({
             className="animate-stagger-in"
             style={{ '--index': index } as CSSProperties}
           >
-            <FlowFixBody fix={fix} section={section} />
+            <FlowFixBody fix={fix} section={section} isOwner={isOwner} />
           </DisclosureCard>
         ))}
       </div>
@@ -62,7 +66,15 @@ export function FlowPlaybook({
   )
 }
 
-function FlowFixBody({ fix, section }: { fix: FlowFix; section: PlaybookSection }) {
+function FlowFixBody({
+  fix,
+  section,
+  isOwner
+}: {
+  fix: FlowFix
+  section: PlaybookSection
+  isOwner: boolean
+}) {
   const { dictionary } = useI18n()
   const copy = dictionary[section]
 
@@ -101,6 +113,8 @@ function FlowFixBody({ fix, section }: { fix: FlowFix; section: PlaybookSection 
           }
         ]}
       />
+
+      {isOwner && <FixVerdict target="fix" id={fix.id} initial={fix.verdict} />}
     </>
   )
 }

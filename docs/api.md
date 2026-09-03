@@ -95,6 +95,13 @@ Two things about it are load bearing:
   browser slot and zero tokens, and a second page would double the slot half of that for traffic where
   most visitors never convert. It costs no extra credit — one analysis, one credit, two pages measured.
 
+**A credit buys the four brief answers as much as it buys the run, and it is not spent without them.**
+`briefIsComplete` gates `spendCredit`: all four or none, no partial mode. A caller who sends fewer
+gets the same `202` and the same ownerless row as a caller with no balance, so there is one free path
+rather than two. There is no refusal here either, and there must not be: refusing would gate the
+readout, which no surface may do. What was measured to justify this is in
+[ai-pipeline.md](ai-pipeline.md).
+
 **There is no `no_credits` refusal.** A signed in caller with an empty balance is answered `202` like
 everyone else, with `owned: false` and an ownerless analysis behind it: the measured half only, zero
 model tokens, and the unlock wall on the report. The route used to delete the row and answer `402`,
@@ -224,19 +231,78 @@ Errors: `401` with no session, `404` for an unknown or unowned id, `422 nothing_
 Writes the two alternate challengers the analysis deliberately skipped. Ownership via
 `hypotheses -> analyses`.
 
-**Idempotent**: a hypothesis that already has `VARIANTS_PER_HYPOTHESIS` (3) variants is returned
-unchanged, so a reload or a double fetch never appends duplicates. Otherwise it runs one small
-`generateObject` over `AlternateVariantsSchema`, seeded with the hypothesis plus the analysis's stored
-`brief` and inserts the results at positions 1 and 2.
+Body is optional: `{ tone }` points the round in a direction from `VARIANT_TONE`, and a malformed
+body is treated as none rather than costing the reader the round they asked for. The answer carries
+`roundsLeft`.
+
+**Capped at `VARIANT_ROUNDS_MAX` rounds**, counted over model-authored rows only, so an owner's own
+line never spends the allowance. Both this route and the card call `roundsLeft` in
+`lib/variant-rounds.ts`, because two copies of that sum would drift and offer a round the route
+refuses. Each round receives every line already written for the element, so a later round cannot hand
+back an earlier one -- see [ai-pipeline.md](ai-pipeline.md).
+
+A hypothesis with no rounds left is returned unchanged with `roundsLeft: 0`, so a reload or a double
+fetch never appends past the cap. Otherwise it runs one small `generateObject` over
+`AlternateVariantsSchema`, seeded with the hypothesis, every line already written for it and the
+analysis's stored `brief`, and appends the results after the lines that exist.
 
 `locale` **and `market`** are read from the stored analysis rather than re-derived, per
 [invariants.md](invariants.md#generated-content-is-pinned-to-the-locale-it-was-written-in).
 
 Response: `{ variants: VariantRow[] }`, all three, ordered by position.
 
+### `PATCH /api/hypotheses/[id]/variants`
+
+Which line the owner is going to use. Body is either `{ variantId }` to take one of the written
+lines, or `{ copy }` to supply their own. The answer is the full list in its new order.
+
+**Their own line is a new row, never an edit of ours.** It lands with `author = 'owner'`, `evidence`
+null and position 0, and every line the model wrote stays where it was. See
+[data-model.md](data-model.md) for why that comparison is worth keeping.
+
+`VARIANT_COPY_MAX_CHARS` is a cap so the column cannot be used as storage, and it is not one of the
+two ceilings: `variantWordBudget` and `variantCharBudget` warn on the page and never refuse, because
+it is that reader's own page.
+
+**Choosing is reordering, because position 0 already means "the one".** The card renders it, the
+screenshot route photographs it and `scripts/rewrite-stats.mts` scores against it, so a swap carries
+the preview and the verdict along with it. A `chosen` column would be a second source of truth able to
+disagree with all three.
+
+It swaps two rows rather than renumbering the list, so nothing the reader was looking at rearranges
+itself around the one they clicked. A hypothesis on somebody else's analysis answers `404`.
+
+**What the model first recommended is still recoverable.** The generation writes exactly one variant
+per hypothesis and the alternates arrive later, so the oldest row is the recommendation however the
+positions end up. That is what the harness scores, and whether it is still at position 0 is the
+separate question of whether the reader kept it.
+
 ### `GET /api/hypotheses/[id]/variants`
 
 The hypothesis's variants ordered by position, generating nothing.
+
+## Verdicts
+
+### `PATCH /api/verdicts`
+
+The owner's decision about one recommendation. Body is `{ target, id, verdict }`, where `target` is
+`hypothesis` or `fix` and `verdict` is `applied`, `dismissed`, or **null to take a decision back** --
+undecided is a real state and is not the same as dismissed.
+
+**One route for both tables, deliberately unlike `/api/hypotheses/[id]/variants` next to it.** That
+route is path-shaped because what it does is specific to a hypothesis. This does one `UPDATE` of one
+column, and the only thing it has to get right is that the row belongs to the caller. Written twice in
+two files, that check is exactly what drifts.
+
+The ownership test is a join on `analyses` rather than the relational builder, which is typed per
+table and would not have given the two branches one call. A row somebody else owns answers `404`, like
+the measure route: the caller learns nothing about whether the id exists.
+
+It writes no ledger, spends no credit and calls no model, so its rate limit is loose. Deciding on a
+whole report is one call per card.
+
+**What it stores is that somebody decided, never that a change worked.** See
+[invariants.md](invariants.md) for the rule and [data-model.md](data-model.md) for the column.
 
 ## Pulse
 

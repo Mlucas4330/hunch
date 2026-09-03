@@ -1,4 +1,5 @@
 ﻿import { test, expect, type Page } from '@playwright/test'
+import { answerBrief } from './brief'
 import { pinEnglish } from './locale'
 
 // The four fix lists are stacked `<details>` sections now, not tabs, so opening one is a click on
@@ -278,6 +279,7 @@ test.describe('core features', () => {
 
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
+    await answerBrief(page)
     await page.getByRole('button', { name: 'Analyze' }).click()
 
     await page.waitForURL(/\/r\/[0-9a-f-]+$/)
@@ -307,6 +309,7 @@ test.describe('core features', () => {
 
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
+    await answerBrief(page)
     await page.getByRole('button', { name: 'Analyze' }).click()
     await page.waitForURL(/\/r\/[0-9a-f-]+$/)
     await openSection(page, 'copy')
@@ -354,6 +357,7 @@ test.describe('core features', () => {
 
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
+    await answerBrief(page)
     await page.getByRole('button', { name: 'Analyze' }).click()
     await page.waitForURL(/\/r\/[0-9a-f-]+$/)
     await openSection(page, 'copy')
@@ -387,6 +391,7 @@ test.describe('core features', () => {
 
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
+    await answerBrief(page)
     await page.getByRole('button', { name: 'Analyze' }).click()
     await page.waitForURL(/\/r\/[0-9a-f-]+$/)
 
@@ -464,6 +469,7 @@ test.describe('core features', () => {
 
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
+    await answerBrief(page)
     await page.getByRole('button', { name: 'Analyze' }).click()
     await page.waitForURL(/\/r\/[0-9a-f-]+$/)
     const analysisUrl = page.url()
@@ -482,6 +488,7 @@ test.describe('core features', () => {
 
     await page.goto('/dashboard')
     await page.fill('input[name="url"]', url)
+    await answerBrief(page)
     await page.getByRole('button', { name: 'Analyze' }).click()
     await page.waitForURL(/\/r\/[0-9a-f-]+$/)
     const reportUrl = page.url()

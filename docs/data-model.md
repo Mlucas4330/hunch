@@ -90,6 +90,8 @@ hypotheses
 - rationale      (text)
 - selector       (text, nullable: DOM anchor captured during scrape for client-side apply)
 - target         (enum: HYPOTHESIS_TARGET, default: manual)
+- verdict        (enum: VERDICT, nullable: what the owner decided about this recommendation)
+- verdict_at     (timestamp, nullable)
 - created_at     (timestamp)
 
 flow_fixes                      <- BOTH ranked lists of fixes, one row each
@@ -101,9 +103,12 @@ flow_fixes                      <- BOTH ranked lists of fixes, one row each
 - problem      (text: one sentence on what the current flow costs the visitor)
 - steps        (jsonb: string[], 2-5 concrete implementation actions)
 - impact_score (int, 1-10)
+- author       (enum: VARIANT_AUTHOR, default: model -- who wrote this line)
 - evidence     (text, nullable: the CRO mechanism behind the fix)
 - position     (int: impact desc, assigned at insert, counted PER KIND so each section ranks from 1)
 - created_at   (timestamp)
+- verdict      (enum: VERDICT, nullable: the same column as on hypotheses, same meaning)
+- verdict_at   (timestamp, nullable)
 - finding      (text, nullable: the READOUT_FINDING this fix answers, or null when no measurement
                 backs it -- nothing counts whether an action is repeated below the pricing table.
                 This is the join that stops the readout and the fix lists being two disjoint lists
@@ -227,6 +232,43 @@ its hypothesis was written for. See
 
 `auto` only when `current_copy` resolves to exactly one element. Only an `auto` hypothesis can run as
 a live test or render a preview.
+
+### `variants.author` keeps the model's line next to the one that shipped
+
+The owner can rewrite the recommended line. That writes a **new row** with `author = 'owner'` and
+promotes it to position 0; it never overwrites what the model wrote.
+
+**Keeping both is the entire point.** The distance between the line this product proposed and the
+line its reader actually published is the most precise thing it can know about its own copy, and
+unlike a verdict it costs nobody any labelling effort -- it falls out of somebody using the tool.
+`scripts/rewrite-stats.mts` reports the share of rewrites the owner rewrote and how much of ours
+survived: high reuse means the idea was right and the words needed a nudge, low reuse means they
+threw it out and started again.
+
+It is also what stops an edited line from being rendered as something we generated. `evidence` is
+null on an owner's row, because nobody argues for their own sentence.
+
+**Position and authorship answer different questions and must not be conflated.** Position 0 is the
+chosen line; the oldest `model` row is what was recommended. The generation writes exactly one variant
+per hypothesis and the alternates arrive later, so the recommendation stays recoverable however the
+owner reorders things.
+
+### `verdict` is the only judgement this product holds about its own output
+
+It sits on `hypotheses` and on `flow_fixes`, the same two columns on each, and `kind` on the second
+already splits flow from visibility -- so two columns cover all three fix lists and no table was
+added for it.
+
+**Null is a third state and it is the common one.** Undecided is not rejected: every row written
+before the column existed is null, and so is every row nobody has read yet. An acceptance rate is
+therefore a rate over decided rows, and `scripts/rewrite-stats.mts` computes it that way. Undoing a
+decision writes null back rather than `dismissed`, for the same reason.
+
+**It records that the owner acted, never that anything worked.** The temptation and the rule are in
+[invariants.md](invariants.md); what belongs here is why the column is worth having at all. Every
+other measurement of this product's output measures form: whether a rewrite is an anagram, whether it
+fits, whether a `rationale` invented a general truth. None of them can say whether the recommendation
+was worth making, and this is the only thing that can.
 
 ### `flow_fixes` holds two ranked lists in one table
 

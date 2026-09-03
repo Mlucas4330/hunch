@@ -31,6 +31,8 @@ something or expose something:
 | `readoutHistory`, so `previous` and `scores` on `MeasuredReadout` | The trend is the owner's record of their own page. |
 | `MeasurePage` (all three variants) | Every press opens a real browser against three shared slots. A prospect must not be able to spend the owner's. **Do not "fix" the missing button here** -- see [readout.md](readout.md). |
 | The alternates drawer | `POST /api/hypotheses/[id]/variants` is authenticated, so for anyone else the button would answer 401. |
+| `FixVerdict`, on every hypothesis and every fix card | The decision belongs to whoever owns the page, and the report is handed to clients and partners: what the owner threw out is not theirs to read. `PATCH /api/verdicts` answers 404 to them anyway. |
+| "Use this one" on an alternate | `PATCH /api/hypotheses/[id]/variants` is authenticated and owner-checked. Which line gets shipped is the owner's decision, not a reader's. |
 | "Back to dashboard" | There is no dashboard to go back to without an account. |
 | The `AdIdeas` button | `POST /api/analyses/[id]/ads` is authenticated and owner-checked, so for anyone else it would answer 404. The terms it is written from are a measurement and stay visible to everyone -- see [invariants.md](invariants.md#the-free-half-is-what-code-counted-the-paid-half-is-what-a-model-wrote). |
 | `MeasurePage` in place of `MeasuringNotice` on an unmeasured row | Same reason: the owner can act on it, the reader can only wait. |

@@ -411,6 +411,49 @@ It exists because that wiring was **copied** into the report page and the two dr
 of them was touched. There is one body now too (`components/hypothesis-list.tsx`), which is the same
 lesson applied one level down — see [report.md](report.md).
 
+## Alternates, in the copy card
+
+Each alternate is a row carrying the line, its `evidence` and **Use this one**, rather than the bare
+paragraph it was. The paragraph was the whole problem: the drawer wrote two more options and gave the
+reader no way to take one, so more options would only have meant more triage.
+
+**The chosen line can be replaced with the reader's own.** "Write my own" opens a textarea on the
+card, saving sends it to the same route a choice goes to, and the result is marked "Your words" so
+nothing on the report reads as generated when it was not. The word ceiling shows as a warning under
+the box and never blocks the save.
+
+**Taking one is not optimistic**, unlike the verdict beside it. The list reorders under the finger
+that clicked, so a swap that bounced back would look like the button moved the wrong row.
+
+The loading state is two skeleton rows shaped like the rows that are coming, not a line of text: the
+panel is about to grow by exactly that much, and a text placeholder makes it jump when they land.
+
+`VariantPreview` is keyed on the chosen variant's id, so choosing remounts it with that variant's own
+screenshot instead of leaving the previous one on screen. Screenshots are per variant, so nothing is
+invalidated by the swap.
+
+## Fix verdict — `components/fix-verdict.tsx`
+
+One control on both card families, on the copy card and on the fix card, because the question is the
+same in both: did this recommendation deserve to be made. It is what the acceptance rate in
+`scripts/rewrite-stats.mts` is computed from, and the only judgement of this product's own output that
+exists anywhere.
+
+**It sits under the drawers, not in the header.** The header carries what the card *is* -- rank,
+section, category -- and the decision is what the reader does after reading, so putting it at the top
+would ask for a verdict before the argument. It is separated by a hairline for the same reason.
+
+**Three states, not two.** Undecided is the state every card starts in and is not a soft no; the
+decided state names what was chosen and offers `undo`, which writes null back rather than the
+opposite verdict. Collapsing those would corrupt the rate the column exists to produce.
+
+**Optimistic, and rolled back on failure.** The whole point of the control is that deciding costs
+nothing, so a spinner on it would defeat it. A write that silently failed would be worse than one
+that visibly bounces back.
+
+Owner only, like the alternates drawer beside it, and for a stronger reason: the report gets handed to
+clients and partners, and what the owner discarded is not theirs to read. See [report.md](report.md).
+
 ## Card drawers — `components/card-drawers.tsx`
 
 **The second layer inside an open card.** A row of toggles over `CARD_DRAWER`, with one panel open at

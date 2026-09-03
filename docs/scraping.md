@@ -230,6 +230,21 @@ It is persisted to `analyses.crawler_access` and read twice from there: by the v
 by the readout's `visibility` group. Feeding a prompt was its only job once, which meant the one thing
 we actually measured about AI discoverability existed nowhere a reader could see it.
 
+## Neighbour pages
+
+`scrapePageText` opens one page for its words and does none of the rest: no structure, no SEO, no
+performance, and above all **no phone pass**, which in `scrapePage` is a second full load with the
+cache cleared. A neighbour page is material for a prompt and never a measurement, so everything that
+feeds a number is skipped. It takes its own browser slot and passes `assertPublicUrl` like every
+other outbound URL -- same origin does not dispense with the guard, since a `302` leaves the origin.
+
+They are opened sequentially and after the reader's page, for the same reason the competitor is: the
+slots below are shared across every analysis running at once. Each failure is swallowed with a warning
+-- a pricing page that 404s must not take down a generation that has been paid for.
+
+`SITE_PAGE_MAX` is two, and the number is bounded by how long the reader waits rather than by how
+much the model would find useful. See [ai-pipeline.md](ai-pipeline.md) for what is done with them.
+
 ## Browser lifecycle and the concurrency cap
 
 `launchBrowser()` is the only place a browser is obtained, and it has two modes. With `BROWSER_URL`

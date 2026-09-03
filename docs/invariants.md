@@ -96,6 +96,14 @@ that, and no surface reading the result may learn to: the trend lists which numb
 much, and nothing anywhere attributes the movement. `deltas()` in `lib/snapshots.ts` emits values,
 never prose, for the same reason `lib/readout.ts` does.
 
+**`hypotheses.verdict` is now the second surface, and it is the one that makes the sentence easiest to
+write.** The owner marks a fix `applied`, re-measures, and the two facts sit one screen apart: they
+did what we said, and the number moved. Joining them is a claim nobody measured. A verdict is a fact
+about what a person decided, and it may be counted as one -- `scripts/rewrite-stats.mts` reports an
+acceptance rate over it, which is a rate of agreement and not of effect. **No surface may put a
+verdict and a delta in the same sentence**, and none may summarise an analysis as having worked
+because its fixes were applied.
+
 **The temptation is strongest precisely because the causal story is most plausible here** — the
 reader did change the page, and they changed it the way this product told them to. That is still not
 a controlled experiment: the page may have changed in five other ways, the CDN may have had a better

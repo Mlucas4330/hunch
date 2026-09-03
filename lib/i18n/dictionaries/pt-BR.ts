@@ -456,7 +456,9 @@ export const ptBR: Dictionary = {
     waitNote:
       'Leva menos de um minuto. Mantenha esta aba aberta: assim que a nota estiver pronta a gente te leva até ela, e as correções continuam sendo escritas na própria tela do relatório.',
     briefSummary: 'Adicionar detalhes do negócio (opcional)',
-    briefIntro: 'Quatro toques. São eles que transformam a copy reescrita de um modelo cheio de [placeholders] em linhas que dá para publicar.',
+    briefSummaryRequired: 'Detalhes do negócio, que é no que o crédito é gasto',
+    briefIntro: 'Quatro toques. Sem eles a copy reescrita só consegue repetir o que a página já diz, porque é tudo o que ela tem na frente.',
+    briefIntroRequired: 'Quatro toques, e eles são metade do preço. Deixe qualquer um em branco e a análise roda e entrega a nota do mesmo jeito, ela só não gasta crédito e não escreve nada.',
     briefWizard: {
       step: 'Etapa {step} de {total}',
       back: 'Voltar',
@@ -482,7 +484,7 @@ export const ptBR: Dictionary = {
         label: 'Oferta',
         question: 'O que você vende para essa pessoa?',
         options: {
-          saas: 'Software por assinatura',
+          saas: 'Um software ou app',
           service: 'Um serviço que eu mesmo entrego',
           ecommerce: 'Um produto físico ou de compra única',
           course: 'Um curso, comunidade ou conteúdo',
@@ -746,6 +748,20 @@ export const ptBR: Dictionary = {
     previewLabel: 'Na sua página',
     otherOptions: 'Outras opções',
     writingOptions: 'Escrevendo outras opções...',
+    roundsLeft: 'Mais duas por vez, {rounds} rodadas restantes. Escolha uma direção:',
+    roundsSpent: 'Acabaram as rodadas desta linha. Escreva a sua ali em cima.',
+    tones: {
+      direct: 'Mais direto',
+      shorter: 'Mais curto',
+      concrete: 'Mais concreto',
+      informal: 'Menos formal'
+    },
+    useThis: 'Usar esta',
+    editThis: 'Escrever a minha',
+    saveEdit: 'Salvar a minha linha',
+    yourWords: 'Escrita por você',
+    overBudget: 'São {words} palavras contra um teto de {budget} para este elemento. Ela vai ser salva do mesmo jeito.',
+    choosing: 'Trocando',
     optionsUnavailable:
       'Não conseguimos escrever outras opções agora. A recomendação acima continua valendo.',
     backlog: {
@@ -839,6 +855,14 @@ export const ptBR: Dictionary = {
     }
   },
 
+  verdict: {
+    question: 'Vale fazer?',
+    applied: 'Já apliquei',
+    dismissed: 'Não é para mim',
+    appliedState: 'Aplicada',
+    dismissedState: 'Descartada',
+    undo: 'desfazer'
+  },
   report: {
     generating: {
       eyebrow: 'Ainda sendo escrito',

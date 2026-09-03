@@ -370,6 +370,27 @@ stranded with no route to it.
   chosen label exactly as it would receive typed text. So the prompt reads the same prose it always
   did, `lib/brief.ts` never learned what an option is, and adding or renaming one changes nothing
   downstream.
+- **Where the reader has a credit, the four answers are the price, and the panel says so and opens.**
+  `briefRequired` is `user.credits > 0`, and all it does is open the disclosure and swap the summary
+  and the intro. **It never blocks the submit**: a reader with a credit and no brief still gets their
+  score, because gating a measurement of somebody's own page is the one thing no surface may do (see
+  [invariants.md](invariants.md#the-free-half-is-what-code-counted-the-paid-half-is-what-a-model-wrote)). The
+  run is then the free half it already knows how to be, and `POST /api/analyses` is what decides that.
+  See [api.md](api.md).
+- **The wizard opens pre-filled with the last brief this reader wrote**, from `defaultBrief`, so the
+  price is four taps once and zero on every analysis after it. It is also why an e2e spec cannot
+  assert the briefless path through the form.
+- **The report is where the owner answers back.** Every hypothesis and every fix card carries
+  `FixVerdict` for the owner: applied, not for me, or undecided. It is the only judgement this
+  product holds about its own output and the only thing an acceptance rate can be built from. See
+  [components.md](components.md) and [report.md](report.md).
+- **A preset states a fact about the business, so it may only state what the question asks.** The
+  offer option read "Software on a subscription", and Hunch itself sells a credit per analysis: the
+  only option a reader like that can tap asserts a billing model they do not have, and the prompt
+  reads the brief as truth. It says "Software or an app" now. The question is what you sell, never how
+  you charge for it, and no option may answer a question that was not asked. Adding a sixth option
+  instead is the wrong repair, for the reason `BRIEF_OPTION` gives: past about five the step stops
+  being a choice.
 - It was four text inputs, and before that one textarea. The direction is the point: a blank box asks
   the reader to work out what would be useful, and almost all of them answered it by writing nothing.
   The `<details>` still starts shut, because the fast path is paste and go.

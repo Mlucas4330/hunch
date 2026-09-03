@@ -73,6 +73,14 @@ test('a line carried by exactly one element can be swapped automatically', () =>
   assert.equal(resolved.found, true)
   assert.equal(resolved.mode, 'auto')
   assert.equal(resolved.selector, 'h1#Ship faster')
+  // The measured box comes back with the match, because nothing downstream can look it up again.
+  assert.equal(resolved.capacity, 100)
+})
+
+// Nothing was pointed at, so there is no box to report and the length check has to fall back to the
+// heuristic rather than to a number borrowed from some other element.
+test('an ambiguous match reports no capacity', () => {
+  assert.equal(resolveTarget('Get started', PAGE).capacity, null)
 })
 
 test('whitespace and case are transcription noise, not a different line', () => {

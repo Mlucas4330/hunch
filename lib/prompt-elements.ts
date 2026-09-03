@@ -55,6 +55,14 @@ export interface ResolvedTarget {
    * says today. See docs/ai-pipeline.md.
    */
   found: boolean
+  /**
+   * The matched element's measured box width in characters, or null when nothing was pointed at.
+   *
+   * **The ceiling that decides whether the reader can actually use the line**, unlike
+   * `variantWordBudget`, which is a heuristic over the original's length. Copy past this one is cut
+   * off by the site's own CSS. Nothing stores it, so it exists only while a generation is in flight.
+   */
+  capacity: number | null
 }
 
 function normalize(value: string): string {
@@ -76,15 +84,15 @@ function normalize(value: string): string {
  * exists, and pointing at it would be a guess.
  */
 export function resolveTarget(currentCopy: string, elements: PageElement[]): ResolvedTarget {
-  const absent: ResolvedTarget = { selector: null, mode: 'manual', text: null, found: false }
-  const ambiguous: ResolvedTarget = { selector: null, mode: 'manual', text: null, found: true }
+  const absent: ResolvedTarget = { selector: null, mode: 'manual', text: null, found: false, capacity: null }
+  const ambiguous: ResolvedTarget = { selector: null, mode: 'manual', text: null, found: true, capacity: null }
 
   const target = normalize(currentCopy)
   if (!target) return absent
 
   const exact = elements.filter((e) => normalize(e.text) === target)
   if (exact.length === 1) {
-    return { selector: exact[0].selector, mode: 'auto', text: exact[0].text, found: true }
+    return { selector: exact[0].selector, mode: 'auto', text: exact[0].text, found: true, capacity: exact[0].capacity }
   }
   if (exact.length > 1) return ambiguous
 
@@ -106,5 +114,5 @@ export function resolveTarget(currentCopy: string, elements: PageElement[]): Res
 
   if (near.length === 0) return ambiguous
   if (near.length > 1 && near[0].ratio === near[1].ratio) return ambiguous
-  return { selector: near[0].el.selector, mode: 'auto', text: near[0].el.text, found: true }
+  return { selector: near[0].el.selector, mode: 'auto', text: near[0].el.text, found: true, capacity: near[0].el.capacity }
 }

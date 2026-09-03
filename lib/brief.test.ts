@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { EMPTY_BRIEF, briefIsEmpty, composeBrief, parseBrief } from './brief'
+import { EMPTY_BRIEF, briefIsComplete, briefIsEmpty, composeBrief, parseBrief } from './brief'
 
 test('a composed brief reads back as the fields that made it', () => {
   const parts = {
@@ -43,4 +43,20 @@ test('a label inside an answer is prose, not the next field', () => {
 test('nothing typed is nothing stored', () => {
   assert.ok(briefIsEmpty(parseBrief('   \n  ')))
   assert.equal(composeBrief(EMPTY_BRIEF), '')
+})
+
+// The credit is spent on all four or on none. A legacy brief lands whole in `audience`, so it is
+// three questions short however much business detail it carries, and the reader is asked them.
+test('a credit is only spent when all four questions have answers', () => {
+  const full = {
+    audience: 'Paid traffic freelancers',
+    offer: 'One credit, one analysis',
+    action: 'Buy a credit',
+    objection: 'They cannot tell it apart from asking an AI'
+  }
+
+  assert.equal(briefIsComplete(full), true)
+  assert.equal(briefIsComplete({ ...full, objection: '   ' }), false)
+  assert.equal(briefIsComplete(EMPTY_BRIEF), false)
+  assert.equal(briefIsComplete(parseBrief('We sell a CRM to dentists in Brazil.')), false)
 })

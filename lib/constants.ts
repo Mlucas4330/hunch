@@ -5,6 +5,7 @@ import type {
   Market,
   OAuthProvider,
   RateLimitKind,
+  VariantTone,
   ReadoutSeverity,
   Section,
   Theme,
@@ -289,6 +290,34 @@ export const SCRAPE_PAINT_SETTLE_MS = 250
 // per deploy because .railway/railway.ts pins numReplicas: 1. See docs/scraping.md.
 export const SCRAPE_MAX_CONCURRENT_PAGES = 3
 
+// How many same-origin links `captureLinks` keeps. Big enough that a footer sitemap does not push
+// the pricing page out, small enough that a link farm cannot make the payload interesting.
+export const PAGE_LINKS_MAX = 200
+
+// How many of the linked pages an owned analysis actually opens.
+//
+// **Two, and the number is bounded by latency rather than by usefulness.** Each one is a page load
+// in a shared browser slot on top of a generation that already takes forty seconds, and the two
+// richest are almost always pricing and docs. Raising this is a decision about how long the reader
+// waits, not about how much the model gets. See docs/scraping.md.
+export const SITE_PAGE_MAX = 2
+
+// Which linked pages carry facts a landing page leaves out, recognised in the anchor text or in the
+// path. Both languages, because the market is measured from the page and never assumed.
+//
+// **It selects, it does not crawl.** A page matching nothing here is never opened, so an analysis
+// visits at most SITE_PAGE_MAX known kinds of page and never walks the site. Order is priority.
+export const NEIGHBOUR_PAGE_PATTERNS: { id: string; pattern: RegExp }[] = [
+  { id: 'pricing', pattern: /pre[çc]os?\b|planos?\b|pricing\b|plans?\b/i },
+  {
+    id: 'docs',
+    pattern: /documenta[çc]|\bdocs?\b|manual\b|guias?\b|guides?\b|\bajuda\b|\bhelp\b|suporte\b|support\b/i
+  },
+  { id: 'features', pattern: /funcionalidades?\b|recursos?\b|features?\b|como funciona|how it works/i },
+  { id: 'about', pattern: /\bsobre\b|quem somos|\babout\b|our story/i },
+  { id: 'faq', pattern: /\bfaq\b|perguntas frequentes|d[úu]vidas/i }
+]
+
 // The worker waits here, not the reader: the request that asks for a preview now returns as soon as
 // the job is queued, so giving up after five seconds would throw away work nobody is waiting on.
 // It used to be 5s because the client was holding the connection. See docs/scraping.md.
@@ -543,7 +572,10 @@ export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: numb
   // One Sonnet call and no browser. Tighter than `variants` because the answer is written once per
   // analysis and read back from the column afterwards, so a second call on the same analysis is
   // either a retry after a failure or somebody hammering the button.
-  ad_ideas: { tokens: 10, windowMs: HOUR_MS }
+  ad_ideas: { tokens: 10, windowMs: HOUR_MS },
+  // Loose on purpose: one UPDATE, no browser, no token, and a reader deciding on a whole report
+  // fires it once per card. Tight enough that it cannot be a write loop.
+  verdict: { tokens: 200, windowMs: HOUR_MS }
 }
 
 // Same-origin, so no next/image remote pattern and img-src 'self' already covers them.
@@ -643,8 +675,25 @@ export const FIT_MIN_SCALE = 0.7
 // Subpixel layout noise. A box is not "clipping" because it is a third of a pixel short.
 export const FIT_TOLERANCE_PX = 1
 
-// The recommendation plus its two alternates, which are written on demand. See docs/ai-pipeline.md.
-export const VARIANTS_PER_HYPOTHESIS = 3
+// A ceiling on what the owner may paste into their own replacement line, and nothing to do with the
+// two budgets beside it. `variantWordBudget` and `variantCharBudget` warn about what will fit the
+// element and never refuse, because it is the reader's own page. This exists only so the column
+// cannot be used as storage.
+export const VARIANT_COPY_MAX_CHARS = 2_000
+
+// How many lines one round writes. The schema asks for exactly this many.
+export const ALTERNATES_PER_ROUND = 2
+
+// How many times a reader may ask for more lines on one hypothesis.
+//
+// **The cap is what keeps the cost of a credit knowable.** Without one, the ceiling is the hourly
+// rate limit and somebody insistent spends several times in tokens what they paid. Three rounds over
+// five hypotheses is thirty written lines, which is already more than anyone reads.
+//
+// It replaced a cap on the total number of variants, which the owner's own edits would have counted
+// against: writing your own line is not asking the model for another one. Rounds are counted over
+// model-authored rows only.
+export const VARIANT_ROUNDS_MAX = 3
 
 // A ceiling and deliberately no floor, for the reason VISIBILITY_MAX has none: a page whose lines are
 // already doing their job should return three rewrites rather than three plus five of padding. There
@@ -789,6 +838,26 @@ export const AD_NEGATIVES_MAX = 12
 // generation call is dominated by its 16k of output either way -- the old number was not buying
 // anything. See docs/ai-pipeline.md.
 export const PROMPT_TEXT_MAX_CHARS = 48_000
+
+// The same budget for a neighbour page, and deliberately a fraction of it.
+//
+// A pricing table and a docs index are short; what makes them long is a changelog or an API
+// reference, and a generation that reads twenty thousand characters of endpoint documentation is
+// spending its window on the least useful page of the site. The page the reader pasted is the
+// subject and keeps the whole budget above.
+export const NEIGHBOUR_TEXT_MAX_CHARS = 6_000
+
+// What each direction asks of a rewrite, in the words the prompt reads. Never shown to the reader --
+// the sentence they tap is a dictionary string like every other preset.
+//
+// **Each one constrains form and none states a fact.** See VARIANT_TONE in lib/enums.ts.
+export const VARIANT_TONE_INSTRUCTION: Record<VariantTone, string> = {
+  direct: 'Say the thing first. No wind-up, no framing clause before the point.',
+  shorter: 'Use noticeably fewer words than the recommended line, without dropping what it states.',
+  concrete:
+    'Replace anything abstract with something the visitor can picture, using only what this page and the details already given actually say.',
+  informal: 'Drop a register. Write it the way somebody would say it out loud, still in full sentences.'
+}
 
 // How many sections at the end of a page are protected when the middle has to be dropped. Pricing,
 // FAQ and the closing call to action live there, which is exactly what a tail truncation used to

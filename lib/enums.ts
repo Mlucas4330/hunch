@@ -52,6 +52,34 @@ export type Section = (typeof SECTIONS)[number]
 export const FIX_KIND = ['flow', 'visibility'] as const
 export type FixKind = (typeof FIX_KIND)[number]
 
+// What the owner decided about one recommendation. **Null is the third state and it is the common
+// one**: nobody has decided yet, which is a different fact from having decided against. It is also
+// the only judgement this product will ever hold about its own output, which is why it is stored at
+// all -- see docs/data-model.md.
+export const VERDICT = ['applied', 'dismissed'] as const
+export type Verdict = (typeof VERDICT)[number]
+
+// Who wrote a variant's copy. **The distance between what the model wrote and what the owner
+// published is the most precise thing this product can know about its own quality**, and it costs
+// nobody any labelling effort: it falls out of somebody using the tool. An owner's line is also the
+// one thing on a report that was never generated, so nothing may present it as written by us.
+export const VARIANT_AUTHOR = ['model', 'owner'] as const
+export type VariantAuthor = (typeof VARIANT_AUTHOR)[number]
+
+// A direction the owner can point a rewrite in, and a closed list because it reaches a prompt.
+//
+// **Every one of these constrains form and none of them asks for a fact.** That is the whole reason
+// it is an enum rather than a text box: a free field would let "say we are the best in Brazil" reach
+// the generator as an instruction, and the only defence would be a written rule, which is what has
+// held nothing in this pipeline. See docs/ai-pipeline.md.
+export const VARIANT_TONE = ['direct', 'shorter', 'concrete', 'informal'] as const
+export type VariantTone = (typeof VARIANT_TONE)[number]
+
+// The two tables a verdict can land on. `flow_fixes` carries both the flow list and the visibility
+// one under its own `kind`, so two targets cover all three tabs.
+export const VERDICT_TARGET = ['hypothesis', 'fix'] as const
+export type VerdictTarget = (typeof VERDICT_TARGET)[number]
+
 // The two shapes a route's loading shell can take: a grid of rows, or one analysis.
 export const ROUTE_SKELETON = ['list', 'detail'] as const
 export type RouteSkeleton = (typeof ROUTE_SKELETON)[number]
@@ -188,7 +216,10 @@ export const RATE_LIMIT_KIND = [
   // One model call and no browser, written once per analysis and then read back from the column. Its
   // own kind rather than `variants` because a retry after a failed generation must not eat the
   // allowance for rewriting copy, which is the thing the reader actually paid for. See docs/api.md.
-  'ad_ideas'
+  'ad_ideas',
+  // One update of one column. Its own kind because deciding on a list of five is five calls in a
+  // row, and a reader working through a report must never spend the allowance that runs analyses.
+  'verdict'
 ] as const
 export type RateLimitKind = (typeof RATE_LIMIT_KIND)[number]
 

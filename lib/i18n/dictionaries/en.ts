@@ -469,7 +469,9 @@ export const en = {
     analyzing: 'Analyzing...',
     waitNote: 'This takes under a minute. Keep this tab open: as soon as the score is ready we take you to it, and the fixes carry on being written on the report itself.',
     briefSummary: 'Add business details (optional)',
-    briefIntro: 'Four taps. They are what turns the rewritten copy from a template with [placeholders] into lines you can ship.',
+    briefSummaryRequired: 'Business details, which a credit is spent on',
+    briefIntro: 'Four taps. Without them the rewritten copy can only repeat what the page already says, because that is all it has in front of it.',
+    briefIntroRequired: 'Four taps, and they are half the price. Leave any of them blank and the analysis still runs and still gives you the score, it just does not spend a credit and writes nothing.',
     briefWizard: {
       step: 'Step {step} of {total}',
       back: 'Back',
@@ -495,7 +497,7 @@ export const en = {
         label: 'Offer',
         question: 'What are you selling them?',
         options: {
-          saas: 'Software on a subscription',
+          saas: 'Software or an app',
           service: 'A service I deliver myself',
           ecommerce: 'A physical or one off product',
           course: 'A course, community or content',
@@ -756,6 +758,20 @@ export const en = {
     previewLabel: 'On your page',
     otherOptions: 'Other options',
     writingOptions: 'Writing other options...',
+    roundsLeft: 'Two more each time, {rounds} rounds left. Pick a direction:',
+    roundsSpent: 'No rounds left on this line. Write your own above.',
+    tones: {
+      direct: 'More direct',
+      shorter: 'Shorter',
+      concrete: 'More concrete',
+      informal: 'Less formal'
+    },
+    useThis: 'Use this one',
+    editThis: 'Write my own',
+    saveEdit: 'Save my line',
+    yourWords: 'Your words',
+    overBudget: 'That is {words} words against a {budget} word ceiling for this element. It will be saved either way.',
+    choosing: 'Choosing',
     optionsUnavailable: 'We could not write more options just now. The recommendation above still stands.',
     backlog: {
       one: '{count} more idea',
@@ -848,6 +864,16 @@ export const en = {
     }
   },
 
+  // The owner's decision on one recommendation. "Applied" says they shipped it, never that it
+  // worked -- see docs/invariants.md.
+  verdict: {
+    question: 'Worth doing?',
+    applied: 'I applied this',
+    dismissed: 'Not for me',
+    appliedState: 'Applied',
+    dismissedState: 'Not for me',
+    undo: 'undo'
+  },
   report: {
     generating: {
       eyebrow: 'Still being written',

@@ -55,7 +55,7 @@ export default async function DashboardPage({
         <p className="text-sm text-muted-foreground">{t.dashboard.subtitle}</p>
       </div>
 
-      <UrlInputForm defaultBrief={defaultBrief} />
+      <UrlInputForm defaultBrief={defaultBrief} briefRequired={user.credits > 0} />
 
       {rows.length === 0 ? (
         <Card>

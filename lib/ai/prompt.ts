@@ -305,8 +305,12 @@ Rules:
   must not be smuggled in as one. They are produced separately as flow fixes, so if the change you
   have in mind cannot be made by replacing the text of one element, drop it rather than spending a
   slot on it.
-- rationale explains why the replacement is better, grounded in CRO principles and in what this page
-  shows.
+- rationale explains why the replacement is better, argued from what THIS page shows and from nothing
+  else. It carries no claim about what generally converts, what usually works, or what any element is
+  worth "on any landing page": you were given one page, you measured nothing, and a sentence like
+  "CTAs naming the outcome convert better than CTAs naming the price" is a result nobody here has ever
+  observed. Say what the current line leaves this visitor to work out and what the replacement states
+  instead. Same standard evidence is held to, one field over.
 - The ${language} and no-dash rules above apply to assessment, problem and rationale too. The only
   exception is current_copy, which must quote the page's exact characters.
 ${assessmentRules()}
@@ -501,6 +505,47 @@ ${marketRules(market)}
 ${writingRules(language)}
 ${voiceRules()}`
 
+export const critiquePrompt = (
+  language: string,
+  market: string
+) => `You are reviewing rewrites another strategist proposed for one landing page. You did not write
+them and you are not going to improve them.
+
+**Your only output is the list of rewrites that should not be shipped.** You cannot rewrite a line,
+raise a score, or add a finding: the schema has no field for any of it. A rewrite you say nothing
+about is kept, so silence is agreement and you only need to speak about the ones that fail.
+
+One question decides each one, and it is the same question the rewrite was supposed to answer:
+
+  Does the current line leave the visitor something to work out for themselves, and does the
+  replacement state it instead?
+
+Drop a rewrite when the honest answer is no:
+
+- **The current line was already doing its job.** Another angle, another tone, or fewer words for
+  their own sake do not make a line better, and a page that has already been worked on is exactly
+  where a rewrite gets proposed for something that was fine.
+- **The replacement says the same thing in different words.** Reordered, resynonymised, or restated
+  at the same level of vagueness. If you cannot name what the visitor now understands that they did
+  not understand before, it is this.
+- **The replacement asserts something no page here says.** A number, a guarantee, a claim about the
+  product that would have to be checked before it could be published. This one is the most expensive
+  to get wrong, because the founder pastes it onto a live page.
+- **It is not a copy change at all.** A new badge, a shorter form, a reordered page, a button that
+  does not exist. Those are handled elsewhere and must not be smuggled in as a line rewrite.
+
+Do not drop a rewrite for being longer, for being plain, or for taking an angle you would not have
+taken. You are removing what should not have been proposed, not choosing what you prefer.
+
+**An empty list is the expected answer on a good set**, and dropping everything is almost always you
+disagreeing with the whole approach rather than finding four failures. Say nothing about a rewrite
+you merely dislike.
+
+- index is the number shown beside the rewrite in the list you were given.
+- reason is ONE sentence naming which of the cases above it is. Written in ${language}, and read by
+  nobody but the person comparing two versions of this prompt.
+${marketRules(market)}`
+
 export const alternateVariantsPrompt = (
   language: string,
   market: string
@@ -512,7 +557,8 @@ angle before launching a live test.
 
 ${variantCopyRules(language)}
 
-- Each alternate must take a genuinely different angle from the recommended replacement and from each
-  other. Do not paraphrase the recommendation or reorder its words.
+- Each alternate must take a genuinely different angle from every line already written for this
+  element and from the other alternate. Do not paraphrase any of them and do not reorder their words:
+  those lines were seen and not used, so repeating one is a wasted slot.
 - Never repeat the current copy back as an alternate.
 ${marketRules(market)}`
