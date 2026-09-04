@@ -122,12 +122,23 @@ export async function syncAudience(list: AudienceList, emails: string[]): Promis
 
   const unique = [...new Set(emails.map(hashEmail))]
 
+  // **`removeAll` is the first operation of the job, and an empty list still sends it.** Without it
+  // the job only ever adds, so somebody who unsubscribed stays in the audience until Google's own
+  // expiry, which here is the maximum. The membership is replaced rather than accumulated, and the
+  // whole of leaving depends on this one flag.
+  const batches: string[][] = []
   for (let index = 0; index < unique.length; index += AUDIENCE_BATCH_SIZE) {
-    const batch = unique.slice(index, index + AUDIENCE_BATCH_SIZE)
+    batches.push(unique.slice(index, index + AUDIENCE_BATCH_SIZE))
+  }
+  if (batches.length === 0) batches.push([])
 
+  for (const [index, batch] of batches.entries()) {
     await call(`${jobPath}:addOperations`, {
       enablePartialFailure: true,
-      operations: batch.map((hashedEmail) => ({ create: { userIdentifiers: [{ hashedEmail }] } })),
+      operations: [
+        ...(index === 0 ? [{ removeAll: true }] : []),
+        ...batch.map((hashedEmail) => ({ create: { userIdentifiers: [{ hashedEmail }] } }))
+      ],
       // Cleared once, on the first batch, so a job that is still being filled never serves a
       // half-empty list.
       ...(index === 0 ? { enableWarnings: true } : {})

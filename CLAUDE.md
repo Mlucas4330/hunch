@@ -39,5 +39,6 @@ Read the file that covers what you are about to touch. Paths are relative to the
 | `docs/seo.md` | touching metadata, robots, the sitemap or an OG image |
 | `docs/security.md` | touching auth, middleware, the URL guard, CORS or rate limiting |
 | `docs/ads.md` | touching the gclid capture, the conversion upload, or the campaigns buying traffic |
+| `docs/ads-assets.md` | changing a headline, a sitelink or a callout that is live in the account |
 | `docs/development.md` | running the app or the suites locally |
 | `docs/deployment.md` | deploying, or debugging a Railway service |

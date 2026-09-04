@@ -37,7 +37,15 @@ npx tsx --env-file=.env scripts/rewrite-stats.mts            # score the copy ge
 npx tsx --env-file=.env scripts/rewrite-stats.mts --by-run   # one block per run
 
 npx tsx --env-file=.env scripts/brief-ab.mts <url> brief.json 2   # the brief arm, against no brief
+
+npx tsx --env-file=.env scripts/ads-funnel.mts               # the campaign and the funnel behind it
+npx tsx --env-file=.env scripts/ads-funnel.mts --days=7      # over a shorter window
 ```
+
+`ads-funnel` reads the Google Ads account and the database over one window and prints them side by
+side. **It writes nothing to either.** Without the six Ads variables it prints the database half
+alone, which is still the useful half locally. How to read what it prints is in
+[ads.md](ads.md).
 
 `rewrite-stats` is how a change to the copy prompt is judged. **It reads only what has already been
 generated.** No model, no credit, no network, and reports the properties of a rewrite that hold
