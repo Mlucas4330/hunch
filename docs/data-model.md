@@ -30,14 +30,14 @@ analyses
 - user_id         (FK -> users.id, NULLABLE: an anonymous analysis has no owner until a sign-in
                    claims it by embed_key -- see invariants.md)
 - url             (text)
-- brief           (text, nullable: optional business details the founder supplied for finished copy)
+- brief           (text, nullable: optional business details the owner supplied for finished copy)
 - structure       (jsonb, nullable: PageStructure, the readout of what the page DOES)
 - seo             (jsonb, nullable: PageSeo, how the page describes itself to machines)
 - performance     (jsonb, nullable: PagePerformance, what the page cost to load)
 - crawler_access  (jsonb, nullable: CrawlerAccess, what the site's robots.txt allows an AI crawler)
 - keywords        (jsonb, nullable: PageKeywords, the terms the page repeats and where they appear)
+- sameness        (jsonb, nullable: PageSameness, the marks of a page built out of defaults)
 - mobile          (jsonb, nullable: PageMobile, the same page's geometry in a phone viewport)
-- ad_ideas        (jsonb, nullable: AdIdeas, ad groups written off `keywords` on the owner's click)
 - embed_key       (uuid, unique: public opaque key the report URL uses; never expose analyses.id)
 - locale          (enum: LOCALE, default: en)
 - market          (enum: MARKET, default: us)
@@ -236,17 +236,6 @@ gets two mails minutes apart.
 
 `unsubscribed_at` marks the row rather than deleting it, so a later submit of the same address for the same report cannot silently re-subscribe them.
 
-### `analyses.ad_ideas` is one column and not a table
-
-It holds a single object, read whole and written whole, exactly like the measurement columns above
-it, so a table would buy nothing and cost a join, a cascade and a position column. **Nothing ever
-reads one ad group without the rest of the set**, which is the test: `flow_fixes` is a table because
-the report slices it by `kind` and `category` and ranks it; this is never sliced.
-
-Null on every analysis nobody has asked for one on, which is most of them: it is written by
-`POST /api/analyses/[id]/ads` on the owner's click, never during the run. See
-[api.md](api.md) and [ai-pipeline.md](ai-pipeline.md).
-
 ### `analyses.locale` and `analyses.market` are pinned at creation
 
 Both for the same reason: an alternate written weeks later must be held to the language and the market
@@ -313,7 +302,7 @@ reason `finding` beside it is not one. They exist because the `mobile` and `load
 no fix category that could answer them: the score fell for something the product could not act on.
 
 No variants and no target: nothing here is a single-element text swap, so there is no replacement line
-to render. A founder ships the steps by hand.
+to render. An owner ships the steps by hand.
 
 ## Where rows are split, never inline at a call site
 

@@ -29,6 +29,12 @@ export type CompetitorMeasurement = {
 
 // The competitor's page read as a readout, so the comparison runs through exactly one implementation
 // of what a finding is. `crawler` is null by design and the `visibility` group drops out with it.
+//
+// **`sameness` is null for a different reason, and it is a product one.** The scrape does count the
+// other page's marks, so the data exists. What it would render is "they have four gradients and you
+// have six", and that is not a gap to close: the delta rule says two pages differing is not one page
+// winning, and nowhere is that more obviously true than in somebody else's design choices. See
+// docs/invariants.md.
 export function competitorInput(
   competitor: CompetitorMeasurement,
   market: Market | null
@@ -40,6 +46,7 @@ export function competitorInput(
     keywords: competitor.keywords,
     mobile: competitor.mobile,
     crawler: null,
+    sameness: null,
     market
   }
 }

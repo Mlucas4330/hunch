@@ -10,7 +10,6 @@ performance detail, not the security boundary. See [security.md](security.md).
 | `GET /api/analyses` | session, or embed key for `?embedKey=` | history, or one analysis' progress |
 | `GET /api/analyses/[id]` | session + ownership | |
 | `POST /api/analyses/[id]/measure` | session + ownership | measures the page again, appending a snapshot |
-| `POST /api/analyses/[id]/ads` | session + ownership | writes ad groups off the terms counted on the page |
 | `GET\|POST /api/hypotheses/[id]/variants` | session + ownership | the two alternates, on demand from the analysis screen |
 | `POST /api/billing/checkout` | session | opens a Checkout Session for a credit pack |
 | `POST /api/billing/webhook` | Stripe signature | grants credits for a paid session |
@@ -190,33 +189,6 @@ One thing it deliberately does **not** do:
 - **It is its own `RATE_LIMIT_KIND` rather than reusing `analysis`**: it buys no generation, only
   browser time. The rate limit alone is the gate.
 
-### `POST /api/analyses/[id]/ads`
-
-Ad groups written off `analyses.keywords` by `generateAdIdeas` (`lib/analyze.ts`), stored on
-`analyses.ad_ideas` and returned as `{ adIdeas }`. See
-[ai-pipeline.md](ai-pipeline.md) for the prompt and [analysis-ui.md](analysis-ui.md) for the section
-that renders it.
-
-- **Owner only, and it spends no credit.** The analysis was already paid for. Charging again here
-  would put a second source of truth beside the ledger about what a purchase entitles someone to,
-  which is the shape
-  [invariants.md](invariants.md#credits-are-granted-by-one-internal-path-and-no-provider-code-touches-the-tables)
-  exists to prevent. What bounds the cost is the `ad_ideas` rate limit (10/hour), the ownership
-  check, and the column: once written, the answer is read back rather than generated again.
-- **Its own `RATE_LIMIT_KIND` rather than reusing `variants`.** A retry after a failed generation
-  must not eat the allowance for rewriting copy, which is the thing the reader actually paid for.
-- **Idempotent by column.** A row that already has `ad_ideas` returns it without calling a model, so a
-  second press costs one query.
-- **`422 nothing_measured` when the page has no counted terms.** The whole claim the section makes is
-  that these words came off the reader's own page; with no terms there is nothing to ground it in,
-  and a model asked anyway would invent the keywords a keyword tool would have sold them.
-- `locale` comes from the **stored** `analyses.locale`, never the reader's current one, see
-  [invariants.md](invariants.md#generated-content-is-pinned-to-the-locale-it-was-written-in).
-
-Errors: `401` with no session, `404` for an unknown or unowned id, `422 nothing_measured`,
-`500 generation_failed`, `429` from the rate limit.
-
-## Hypotheses
 
 ### `POST /api/hypotheses/[id]/variants`
 
@@ -334,6 +306,14 @@ one browser's `localStorage` and nowhere else, so a cleared history really does 
 good. The email is the only durable copy of that link an anonymous reader can have, the address buys
 them something rather than buying us something.
 
+**It reports the ad click, and nothing about the person.** On a row the insert actually wrote, the
+`GCLID_COOKIE` is read and uploaded against the lead conversion action -- the click id alone, with
+no value, because nobody paid. A resubmit of the same address for the same page conflicts, returns
+no row, and uploads nothing, which is the whole of the idempotency. It cannot fail the request:
+every error becomes `ads.lead_failed` and the lead is still written and still mailed. The action is
+meant to be a **secondary** one in the account, and the reasoning for that is in
+[ads.md](ads.md).
+
 Three rules hold it:
 
 - **A lead is not a user.** The route never touches `users`, cannot grant, spend or claim anything,
@@ -362,7 +342,9 @@ policy promises it will.
 
 **It writes `consented_at`, and that column is what every follower reads.** The note above the form
 states what actually happens: the link, two more mails, and that the address may be used for our ads.
-This route stamps the row as captured under those terms. A row with a null there was captured under a
+This route stamps the row as captured under those terms. The click upload above is a separate thing
+and is not gated on this column: it sends an identifier Google issued, never the address, and the
+privacy policy states both halves. A row with a null there was captured under a
 narrower promise and is never enrolled in the sequence or uploaded to an ad audience, whatever the
 policy says today. See [ads.md](ads.md).
 
@@ -439,7 +421,7 @@ and training an audience on one is the same mistake as reporting it as a convers
 
 ## Billing
 
-Two providers sell the same three credit packs, and **neither of them touches a credit table**. Each
+Two providers sell the same two credit packs, and **neither of them touches a credit table**. Each
 verifies a payment, works out what it bought, and calls `grantCredits`, see
 [invariants.md](invariants.md#credits-are-granted-by-one-internal-path-and-no-provider-code-touches-the-tables).
 

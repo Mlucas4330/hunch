@@ -5,7 +5,9 @@ to action above the fold, load timings, alt text, what the head declares, what r
 **The score is free and needs no account.** A credit buys the half a model writes: ranked fixes, the
 replacement copy already written, and a preview of it rendered onto a screenshot of the real page.
 
-The reader owns the landing page. See [docs/product.md](docs/product.md).
+The reader owns the landing page, and built it with an AI tool -- Lovable, v0, Bolt, Cursor. They
+have a deployed URL and no way to tell whether what came out is any good. See
+[docs/product.md](docs/product.md).
 
 ## Tech stack
 

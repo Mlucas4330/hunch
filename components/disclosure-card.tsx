@@ -23,17 +23,14 @@ export function DisclosureCard({
   badge?: ReactNode
   title: string
   /**
-   * Applied to the column holding the badge row and the title, for a caller whose cards sit side by
-   * side and must not be different heights.
+   * Applied to the column holding the badge row and the title, for a caller that needs the trigger
+   * itself shaped rather than the card around it. The account and mobile menus use it that way: both
+   * are a `<summary>` drawn as a control, so the padding, the border and the hover state belong to
+   * this column and not to the panel below it.
    *
-   * The readout renders six of these in a two column grid, and the grid is `items-start` on purpose --
-   * stretching would make opening one card grow the closed box beside it. So the height has to come
-   * from the content, and **two separate things were setting it**: a group name that wrapped to a
-   * second line, and a severity badge long enough to push the count beside it onto one. Reserving
-   * the column covers both with one knob instead of chasing them separately.
-   *
-   * A minimum, never a clamp, and opt-in rather than default: the landing FAQ uses this same
-   * component for questions that legitimately run to three lines and must be free to grow.
+   * Opt in and unset by default, which is the part to keep. Anything that constrains height here
+   * constrains it for the closed card and the open one alike, and the readout's group names and the
+   * landing FAQ's questions are both free to run to as many lines as they need.
    */
   summaryClassName?: string
   defaultOpen?: boolean

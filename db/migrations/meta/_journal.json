@@ -295,6 +295,20 @@
       "when": 1788485284776,
       "tag": "0041_wide_tyger_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1788552005720,
+      "tag": "0042_tranquil_lockjaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1788553718597,
+      "tag": "0043_redundant_anthem",
+      "breakpoints": true
     }
   ]
 }

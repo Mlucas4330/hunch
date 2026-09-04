@@ -97,6 +97,7 @@ export async function GET(request: Request) {
         crawlerAccess: analyses.crawlerAccess,
         keywords: analyses.keywords,
         mobile: analyses.mobile,
+        sameness: analyses.sameness,
         market: analyses.market
       })
       .from(analyses)

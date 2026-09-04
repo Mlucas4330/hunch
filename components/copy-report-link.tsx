@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { Check, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/components/i18n-provider'
+import { writeToClipboard } from '@/lib/clipboard'
+import { COPY_FEEDBACK_MS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 type CopyState = 'idle' | 'copied' | 'failed'
@@ -38,7 +40,7 @@ export function CopyReportLink({
 
   async function onCopy() {
     setState((await writeToClipboard(`${origin}/r/${embedKey}`)) ? 'copied' : 'failed')
-    setTimeout(() => setState('idle'), 2000)
+    setTimeout(() => setState('idle'), COPY_FEEDBACK_MS)
   }
 
   const label =
@@ -89,29 +91,4 @@ export function CopyReportLink({
       {label}
     </Button>
   )
-}
-
-async function writeToClipboard(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text)
-      return true
-    }
-  } catch {
-  }
-
-  try {
-    const field = document.createElement('textarea')
-    field.value = text
-    field.setAttribute('readonly', '')
-    field.style.position = 'fixed'
-    field.style.opacity = '0'
-    document.body.appendChild(field)
-    field.select()
-    const ok = document.execCommand('copy')
-    document.body.removeChild(field)
-    return ok
-  } catch {
-    return false
-  }
 }

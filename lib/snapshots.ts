@@ -3,7 +3,7 @@ import { readoutScore } from '@/lib/score'
 import type { Market, ReadoutFinding } from '@/lib/enums'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
-import type { PageMobile, PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
+import type { PageMobile, PagePerformance, PageSameness, PageSeo, PageStructure } from '@/lib/scrape'
 
 // Pure by necessity as much as by taste: `deltas` runs inside MeasuredReadout, a client component,
 // so nothing here may reach for the database or the browser. The queries live in lib/analyses.ts.
@@ -25,6 +25,7 @@ export type MeasuredColumns = {
   crawlerAccess: CrawlerAccess
   keywords: PageKeywords
   mobile: PageMobile
+  sameness: PageSameness
 }
 
 type SnapshotColumns = {
@@ -34,6 +35,7 @@ type SnapshotColumns = {
   crawlerAccess: CrawlerAccess | null
   keywords: PageKeywords | null
   mobile: PageMobile | null
+  sameness: PageSameness | null
 }
 
 // A snapshot holds the same measured facts as the analysis row, so it reads as one too.
@@ -49,6 +51,7 @@ export function snapshotInput(snapshot: SnapshotColumns, market: Market | null):
     crawler: snapshot.crawlerAccess,
     keywords: snapshot.keywords,
     mobile: snapshot.mobile,
+    sameness: snapshot.sameness,
     market
   }
 }
@@ -66,6 +69,7 @@ export function snapshotValues(
     crawlerAccess: measurement.crawlerAccess,
     keywords: measurement.keywords,
     mobile: measurement.mobile,
+    sameness: measurement.sameness,
     // Frozen here so a later threshold change never rewrites what the trend already showed.
     score: readoutScore(measuredFindings(snapshotInput(measurement, market))).overall
   }

@@ -190,8 +190,12 @@ length. `AI_POST_SLUG` names the target so the link cannot outlive the post.
 ### The credit packs
 
 `components/credit-packs.tsx`, under `#credits`. Three cards: the free half first, then the two from
-`CREDIT_PACKS`, R$47 for one analysis, R$147 for three, each with its price, its price **per
+`CREDIT_PACKS`, R$97 for one analysis, R$247 for three, each with its price, its price **per
 analysis**, a one-line tagline and what it includes, all from `dictionary.credits`.
+
+**The price per analysis is what the trio discounts, and the credit count is not.** R$82 against
+R$97 is the whole of the offer; five credits for the same money would be the pack of ten again. See
+[product.md](product.md).
 
 **The free card sells nothing and is deliberately not in `CREDIT_PACKS`.** It has no amount the
 Payment Brick could send and no price id, because there is no payment to match it against; what it
@@ -216,9 +220,14 @@ a price edited at a provider and not here is a page that lies about what it cost
 **The third card is the free half, and it is not a plan.** A monitoring subscription was sold under
 this grid and has been removed. See [product.md](product.md). The layout consequence worth keeping is
 the one that predicted the problem: it sat below the grid rather than in it because side by side a
-reader compared R$97 against R$99 and read it as an expensive pack. That comparison was the correct
-one to make, and it is the reason the free card *is* in the grid: comparing it to R$47 is exactly what
-a reader should be doing, since the difference between them is the whole product.
+reader compared its R$97 a month against a R$99 pack and read it as an expensive pack. That
+comparison was the correct one to make, and it is the reason the free card *is* in the grid:
+comparing it to R$97 is exactly what a reader should be doing, since the difference between them is
+the whole product.
+
+The repricing landed the single on R$97, which is the number that subscription charged. Nothing
+collides -- it is gone, and the two were never on the page together -- but the coincidence is worth
+naming so nobody reading this paragraph later mistakes one for the other.
 
 **The buy button does one of two things, and the server decides which.** With Mercado Pago configured
 it opens the Payment Brick in a modal over the page, card, Pix and boleto, no redirect, and
@@ -459,8 +468,6 @@ for two alternates beside it.
   for the owner, and `MeasurePage variant="trend_start"` below it while there is only one
   measurement. An analysis with nothing measured shows `MeasurePage` alone to the owner and a
   read-only `MeasuringNotice` to everyone else. See [readout.md](readout.md).
-- **`PageTerms` closes the document**, below the four sections: the terms counted on the page and,
-  for the owner, the ad groups written off them. It starts **closed.** See [report.md](report.md).
 - **A sticky rail runs beside the document above `lg`**, and a triage block opens it. Both exist
   because a generated report is roughly fifteen sections and near a hundred discrete numbers on one
   scroll, with no table of contents and no answer to "of all this, what do I do first". Neither adds
@@ -468,7 +475,7 @@ for two alternates beside it.
   highest-impact fixes that are already ranked below. The structural rules for both, and the
   prohibition on `StartHere` ever predicting an outcome, are in [report.md](report.md).
 - **The document sits in a two-column grid**, and the content column carries `min-w-0`. That is not
-  defensive: the keyword table and the `break-all` URLs push a grid track past the viewport without
+  defensive: a wide readout row and the `break-all` URLs push a grid track past the viewport without
   it. See [components.md](components.md).
 
 ### Four sections: `components/analysis-sections.tsx`, over the `ANALYSIS_TAB` enum
@@ -663,7 +670,7 @@ point. Consequences:
   reach, which then sits unrendered as a near-copy of `dictionary.seo`. The enum is the three
   sections that actually render.
 
-They render as **separate sections rather than one impact-ranked list**: a founder deciding what to fix
+They render as **separate sections rather than one impact-ranked list**: an owner deciding what to fix
 first should not have "write a meta description" ranked in among the conversion fixes.
 
 - Per fix: `FlowCategoryBadge`, two `ScoreIndicator`s, the title, the problem sentence, then a
@@ -685,38 +692,3 @@ first should not have "write a meta description" ranked in among the conversion 
   starts open. Either way a row can be closed.
 - The visibility section's `hint` states the limit of what was measured, per
   [invariants.md](invariants.md#the-audit-measured-the-page-not-the-index).
-
-## The page's own words, and what can be bought with them
-
-`components/page-terms.tsx`, the last section of the analysis, below the four fix sections and in
-the same `PanelCard` idiom. Three parts inside it: a heading and a paragraph saying what to take from
-the terms, `KeywordTable`, and `AdIdeas` under it. **It starts closed**, like the four above it: open
-it is the single largest block in the document, and the rail reaches it in one click from anywhere.
-
-The table counts the terms a page repeats and marks which of its own surfaces already carry each one,
-which is the only keyword data this product can honestly produce. See
-[invariants.md](invariants.md#keywords-measure-the-pages-own-words-never-the-index). Four Yes/No
-columns alone leave the reader to work out that a term said fifteen times in the body and missing
-from the title is the finding, so the heading says it and the section below turns the same terms into
-something to spend.
-
-`readout.keywords.hint` stays under the table, where the columns it qualifies are, and is
-deliberately **not** repeated as an `InfoHint` on the section heading.
-
-### `components/ad-ideas.tsx`
-
-Ad groups for a search campaign, written off the measured terms. Four states like `MeasurePage`
-idle with a button, loading, error, and the result, and once written it comes back from the column
-rather than the model.
-
-- **Owner only, and it renders nothing at all for anyone else** unless the ideas already exist. A
-  reader handed the link sees the measured terms and no affordance leading somewhere they cannot go.
-- Each group is a card: the theme, the terms it rests on as chips, then the headlines and the
-  descriptions. The negatives close the section.
-- **Every line carries its character count against Google's ceiling.** That is the one number that
-  belongs in this section, and it is arithmetic over text this code is holding, a headline past
-  `AD_HEADLINE_MAX_CHARS` is rejected at upload, so the reader needs to see how much room an edit has.
-- **No search volume, no cost per click, no competition, anywhere.** This is the first surface in the
-  product whose output *looks* like a keyword tool's, which is exactly why the prohibition is stated
-  in the prompt, in the copy, and here. See [ai-pipeline.md](ai-pipeline.md) and
-  [ads.md](ads.md).

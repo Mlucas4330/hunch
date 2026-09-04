@@ -9,8 +9,7 @@ async function openSection(page: Page, section: 'flow' | 'copy' | 'seo' | 'ai') 
   await openPanel(page, `analysis-section-${section}`)
 }
 
-// The same move for any `PanelCard`, which `page-terms` is too -- it starts closed now, like the
-// sections. See docs/report.md.
+// The same move for any `PanelCard`. They start closed. See docs/report.md.
 async function openPanel(page: Page, testId: string) {
   const panel = page.getByTestId(testId)
   // `.first()` is load bearing: the fix cards inside a section are `<details>` of their own, so a
@@ -160,8 +159,8 @@ test.describe('core features', () => {
 
     const packs = page.getByTestId('credit-packs')
     await expect(packs.getByText('0 reais').first()).toBeVisible()
-    await expect(packs.getByText('R$47').first()).toBeVisible()
-    await expect(packs.getByText('R$147').first()).toBeVisible()
+    await expect(packs.getByText('R$97').first()).toBeVisible()
+    await expect(packs.getByText('R$247').first()).toBeVisible()
     await expect(packs.getByText('Most chosen')).toHaveCount(1)
     // Dois, e nao tres: o card gratuito nao vende nada, entao o que ele tem e o botao que volta para
     // o campo de URL. Ver components/credit-packs.tsx.
@@ -270,7 +269,9 @@ test.describe('core features', () => {
 
     // O botao voltou para a navbar, entao ele e um caminho de verdade para trocar de idioma e nao so
     // um cookie escrito por fora. Ver docs/i18n.md.
-    await page.getByRole('button', { name: 'EN', exact: true }).first().click()
+    // Pelo nome da lingua, nao pela sigla: o segmento mostra uma bandeira e o nome acessivel vem do
+    // LOCALE_LABEL. Ver docs/components.md.
+    await page.getByRole('button', { name: 'English', exact: true }).first().click()
     await expect(page.locator('html')).toHaveAttribute('lang', 'en')
     await expect(page.getByRole('link', { name: 'Score my page' }).first()).toBeVisible()
     await expect(page.getByText('Ver minha nota agora, de graça')).toHaveCount(0)
@@ -457,18 +458,6 @@ test.describe('core features', () => {
     await expect(anon.getByTestId('copy-report-link')).toHaveCount(0)
     await expect(anon.getByTestId('load-alternates')).toHaveCount(0)
     await expect(anon.getByRole('button', { name: 'Measure again' })).toHaveCount(0)
-    await expect(anon.getByRole('button', { name: 'Write ad ideas' })).toHaveCount(0)
-
-    // The terms below the tabs are a measurement, so a stranger reads them like the rest of the
-    // readout. Only the ad groups written off them are the owner's. See docs/invariants.md.
-    //
-    // **Opening the panel is not a concession on that.** It starts closed like the four sections
-    // above it, and what this asserts is that the table is *there* for a reader with no session --
-    // one click, no wall, no sign-in. Gating is about who may reach a measurement, not how many
-    // clicks it takes the same reader to expand it.
-    await expect(anon.getByTestId('page-terms')).toBeVisible()
-    await openPanel(anon, 'page-terms')
-    await expect(anon.getByTestId('keyword-table')).toBeVisible()
 
     await context.close()
   })

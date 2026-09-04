@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { deltas, snapshotInput, snapshotValues } from './snapshots'
-import { FIXTURE_CRAWLER_ACCESS, FIXTURE_KEYWORDS, FIXTURE_MOBILE, FIXTURE_PERFORMANCE, FIXTURE_SEO, FIXTURE_STRUCTURE } from './ai/fixtures'
+import { FIXTURE_CRAWLER_ACCESS, FIXTURE_KEYWORDS, FIXTURE_MOBILE, FIXTURE_PERFORMANCE, FIXTURE_SAMENESS, FIXTURE_SEO, FIXTURE_STRUCTURE } from './ai/fixtures'
 import type { MeasuredColumns } from './snapshots'
 import type { Market } from './enums'
 
@@ -13,7 +13,8 @@ const MEASUREMENT: MeasuredColumns = {
   performance: FIXTURE_PERFORMANCE,
   crawlerAccess: FIXTURE_CRAWLER_ACCESS,
   keywords: FIXTURE_KEYWORDS,
-  mobile: FIXTURE_MOBILE
+  mobile: FIXTURE_MOBILE,
+  sameness: FIXTURE_SAMENESS
 }
 
 function measurement(overrides: Partial<MeasuredColumns>): MeasuredColumns {

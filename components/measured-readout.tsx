@@ -8,7 +8,8 @@ import {
   LayoutTemplate,
   ShieldCheck,
   Smartphone,
-  type LucideIcon
+  type LucideIcon,
+  Copy
 } from 'lucide-react'
 import { DisclosureCard } from '@/components/disclosure-card'
 import { InfoHint } from '@/components/info-hint'
@@ -48,7 +49,8 @@ const READOUT_GROUP_ICON: Record<ReadoutGroup, LucideIcon> = {
   mobile: Smartphone,
   declared: FileCode,
   crawler_access: Bot,
-  load: Gauge
+  load: Gauge,
+  sameness: Copy
 }
 
 export function MeasuredReadout({
@@ -131,20 +133,23 @@ export function MeasuredReadout({
           `ScoreIndicator` is the 1-10 impact scale and this is 0-100 health, so each rail prints its
           own denominator and takes its colour from its own map. See docs/readout.md.
 
-          `items-start` is load-bearing: grid items stretch to the tallest in their row by default, so
-          opening one card grew the empty box of the one beside it. Each card is now its own height.
-
-          **Which is why the closed cards are levelled at their content instead of at the grid.** They
-          were arriving at different heights, and the tempting fix -- dropping `items-start` -- is the
-          bug above coming back. Two things differed: whether the group's name wrapped to a second
-          line, and whether the severity badge was long enough to push the count beside it onto one.
-          Reserving the column covers both, and the grid is still told to stretch nothing. See
-          `summaryClassName` on DisclosureCard. */}
-      <div className="grid items-start gap-4 md:grid-cols-2">
+          **One column at every width, and the six groups are why.** Two columns put the group a
+          reader is opening beside a closed one, so the eye has to work out which of two rails the
+          panel below belongs to, and a card opened in the left column pushed its neighbour's
+          content down the screen for no reason the reader can see. In one column the rail, the name
+          and the findings are the same object every time, and nothing a click does happens beside
+          the thing that was clicked. It costs scrolling, which is what a report is read with. */}
+      <div className="grid gap-4">
         {READOUT_GROUP.map((group, index) => {
           const rows = measured.findings.filter((finding) => finding.group === group)
           const value = score.groups[group]
-          if (rows.length === 0 || value === null) return null
+          // **The guard is on rows alone, and it used to be on the score too.** An unscored group
+          // has a null score by design -- see UNSCORED_READOUT_GROUP -- so testing it here deleted
+          // the whole card rather than the rail. What a missing score removes is the `/100` and the
+          // severity that hangs off it, and nothing else. See docs/readout.md.
+          if (rows.length === 0) return null
+
+          const unscored = value === null
 
           // **A group whose every check passed opens closed, and that is disclosure, not gating.**
           // Rendering the whole readout expanded means 41 findings across six grids with four in
@@ -153,19 +158,18 @@ export function MeasuredReadout({
           // reader, one click, and the count is on the summary either way. The rule that the readout
           // is never gated is about charging for a measurement; see docs/invariants.md.
           const wrong = rows.filter((finding) => finding.severity !== 'ok').length
-          const severity = scoreSeverity(value)
+          const severity = unscored ? null : scoreSeverity(value)
           const Icon = READOUT_GROUP_ICON[group]
 
           return (
             <DisclosureCard
               key={group}
               title={copy.groups[group]}
-              // Enough room reserved for the worst of the six: a two line group name under a
-              // severity badge long enough ("Precisa de trabalho") to push the count onto a second
-              // line beside it. A minimum rather than a clamp, so a locale that needs more grows
-              // instead of clipping. See the note on the grid below.
-              summaryClassName="min-h-36"
-              defaultOpen={wrong > 0}
+              // **Open by default when the group grades nothing.** `wrong > 0` is the right test for
+              // a group of checks: it opens the ones with something to answer for. An unscored group
+              // has no wrong rows by construction, so that test would close it forever -- and it is
+              // the section this audience came to read.
+              defaultOpen={unscored || wrong > 0}
               testId="readout-group"
               // `index` is the group's position in READOUT_GROUP, not its position among the cards
               // that survived the filter above. That is the right one: the delay should follow the
@@ -174,31 +178,43 @@ export function MeasuredReadout({
               className="animate-stagger-in"
               style={{ '--index': index } as CSSProperties}
               score={
-                <span
-                  className={cn(
-                    'flex w-14 shrink-0 flex-col items-center justify-center border-r font-mono tabular-nums',
-                    READOUT_SEVERITY_CLASS[severity]
-                  )}
-                  aria-label={t(copy.score.railAria, { score: value })}
-                >
-                  <span className="text-xl font-semibold leading-none">{value}</span>
-                  {/* The denominator is what keeps this from reading as the 1-10 impact rail three
-                      cards further down the same page. */}
-                  <span className="text-micro leading-none opacity-70" aria-hidden>
-                    /100
+                severity === null ? undefined : (
+                  <span
+                    className={cn(
+                      'flex w-14 shrink-0 flex-col items-center justify-center border-r font-mono tabular-nums',
+                      READOUT_SEVERITY_CLASS[severity]
+                    )}
+                    aria-label={t(copy.score.railAria, { score: value ?? 0 })}
+                  >
+                    <span className="text-xl font-semibold leading-none">{value}</span>
+                    {/* The denominator is what keeps this from reading as the 1-10 impact rail three
+                        cards further down the same page. */}
+                    <span className="text-micro leading-none opacity-70" aria-hidden>
+                      /100
+                    </span>
                   </span>
-                </span>
+                )
               }
               badge={
                 <>
                   <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <Badge className={READOUT_SEVERITY_CLASS[severity]}>
-                    {copy.score.severity[severity]}
-                  </Badge>
+                  {severity !== null && (
+                    <Badge className={READOUT_SEVERITY_CLASS[severity]}>
+                      {copy.score.severity[severity]}
+                    </Badge>
+                  )}
                   <span className="font-mono text-micro tabular-nums text-muted-foreground">
-                    {wrong > 0
-                      ? t(copy.groupWrong, { wrong, total: rows.length })
-                      : t(copy.groupOk, { total: rows.length })}
+                    {/* Three sentences for three shapes: marks present out of marks looked for,
+                        checks needing attention, and checks all passing. The first says nothing
+                        about good or bad, which is the whole contract of an unscored group. */}
+                    {severity === null
+                      ? t(copy.groupMarks, {
+                          present: rows.filter((finding) => finding.value > 0).length,
+                          total: rows.length
+                        })
+                      : wrong > 0
+                        ? t(copy.groupWrong, { wrong, total: rows.length })
+                        : t(copy.groupOk, { total: rows.length })}
                   </span>
                 </>
               }

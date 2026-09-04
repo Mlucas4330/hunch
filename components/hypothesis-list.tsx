@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { HypothesisCard } from '@/components/hypothesis-card'
 import { CardDrawers } from '@/components/card-drawers'
 import { FixVerdict } from '@/components/fix-verdict'
@@ -89,6 +90,7 @@ function HypothesisBody({
   const { dictionary } = useI18n()
   const copy = dictionary.hypothesisList
   const [variants, setVariants] = useState(hypothesis.variants)
+  const router = useRouter()
   const [pending, setPending] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -112,7 +114,13 @@ function HypothesisBody({
         body: JSON.stringify({ variantId })
       })
       const data = res.ok ? await res.json() : null
-      if (data?.variants?.length) setVariants(data.variants)
+      if (data?.variants?.length) {
+        setVariants(data.variants)
+        // **Which line is going to be used changed, and the prompt at the foot of the report is
+        // built from exactly that.** The local state above keeps this card instant; this is what
+        // stops the reader copying an instruction to ship the line they just replaced.
+        router.refresh()
+      }
     } catch {
       // Same fail-quiet as the generation below: the list is still usable and the reader can retry.
     } finally {
@@ -138,6 +146,7 @@ function HypothesisBody({
       if (data?.variants?.length) {
         setVariants(data.variants)
         setDraft(null)
+        router.refresh()
       }
     } catch {
       // Fail-quiet, like the two beside it. The text is still in the box and can be sent again.

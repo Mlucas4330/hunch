@@ -105,7 +105,14 @@ export function fixesByFinding(fixes: FlowFix[]): Map<ReadoutFinding, FlowFix[]>
 export function readoutFor(
   analysis: Pick<
     Analysis,
-    'structure' | 'seo' | 'performance' | 'crawlerAccess' | 'keywords' | 'mobile' | 'market'
+    | 'structure'
+    | 'seo'
+    | 'performance'
+    | 'crawlerAccess'
+    | 'keywords'
+    | 'mobile'
+    | 'sameness'
+    | 'market'
   >
 ): ReadoutInput {
   return {
@@ -115,6 +122,7 @@ export function readoutFor(
     crawler: analysis.crawlerAccess,
     keywords: analysis.keywords,
     mobile: analysis.mobile,
+    sameness: analysis.sameness,
     market: analysis.market
   }
 }

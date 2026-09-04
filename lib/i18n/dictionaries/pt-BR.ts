@@ -5,13 +5,13 @@ export const ptBR: Dictionary = {
   metadata: {
     title: 'Hunch',
     description:
-      'Transforme uma landing page em um diagnóstico medido, com as correções priorizadas e a copy já escrita.',
+      'Você fez a página com IA. Descubra se ela é boa: nota medida na página, correções priorizadas e o texto novo já escrito.',
     ogImageAlt: 'Hunch - diagnóstico medido de uma landing page',
     pages: {
       landing: {
-        title: 'Descubra a nota da sua landing page',
+        title: 'Sua página feita com IA é boa? Descubra a nota',
         description:
-          'Cole a URL da sua landing page e receba uma nota de 0 a 100, medida na página, mais correções priorizadas com a copy substituta já escrita.'
+          'Fez a página no Lovable, v0, Bolt ou Cursor? Cole a URL e receba uma nota de 0 a 100 medida na página, mais correções priorizadas com o texto substituto já escrito.'
       },
       signin: {
         title: 'Entrar',
@@ -91,6 +91,7 @@ export const ptBR: Dictionary = {
       page_structure: 'Estrutura da página',
       mobile: 'Celular',
       performance: 'Performance',
+      distinctiveness: 'Diferenciação',
       indexability: 'Indexação',
       metadata: 'Metadados',
       structured_data: 'Dados estruturados',
@@ -144,11 +145,11 @@ export const ptBR: Dictionary = {
 
   landing: {
     eyebrow: 'Grátis. Sem conta. Em menos de um minuto.',
-    headlineTop: 'Você sabe que a sua landing page não converte.',
-    headlineBottom: 'O que falta é saber o que tem nela.',
-    lead: 'O Hunch abre a sua landing page do jeito que um visitante abre, conta o que tem nela de verdade e dá uma nota de 0 a 100, com as correções priorizadas e a copy substituta já escrita. Cole a URL. Ver a nota não custa nada e não pede cadastro.',
+    headlineTop: 'Você fez a página com IA e ela subiu bonita.',
+    headlineBottom: 'Você não faz ideia se ela é boa.',
+    lead: 'Lovable, v0, Bolt, Cursor: a página fica pronta antes de você conseguir avaliar. O Hunch abre a sua do jeito que um visitante abre, conta o que tem nela de verdade e dá uma nota de 0 a 100, com as correções priorizadas e a copy substituta já escrita. Cole a URL. Ver a nota não custa nada e não pede cadastro.',
     cta: 'Ver minha nota agora, de graça',
-    ctaNote: 'Só a sua URL. A gente não pede cadastro, nem cartão, nem instalar nada.',
+    ctaNote: 'Só a sua URL. A gente não pede cadastro, nem cartão, nem acesso ao seu código.',
     howItWorksLink: 'Como funciona',
 
     heroCard: {
@@ -167,23 +168,23 @@ export const ptBR: Dictionary = {
 
     reality: {
       eyebrow: 'A real',
-      heading: 'Não dá para arrumar o que ninguém metrificou.'
+      heading: 'Perguntar para uma IA se a página da IA está boa não fecha a conta.'
     },
     pains: [
       {
-        headline: 'Você sabe que não converte. Só não sabe qual parte.',
-        reality: 'Chega gente, ninguém se cadastra, e cada palpite sobre o motivo custa mais uma semana.',
+        headline: 'O chat opina sobre uma página que ele nunca abriu.',
+        reality: 'Você cola a URL, ele escreve cinco dicas plausíveis. Nenhuma delas veio de ter carregado a sua página: ele está adivinhando pelo endereço.',
+        answer: 'A gente abre a sua página num navegador de verdade, conta o que tem nela e mostra cada número. Você confere qualquer linha no seu próprio site em um clique.'
+      },
+      {
+        headline: 'Ficou pronta em uma tarde. Você não teve como avaliar.',
+        reality: 'Sem tráfego ainda, sem histórico, sem ninguém para perguntar. A página está no ar e a única leitura que você tem é achar que está ok.',
         answer: 'Uma nota de 0 a 100 e exatamente as linhas que puxaram ela para baixo. Contadas na sua página, nunca chutadas.'
       },
       {
-        headline: 'Cada ferramenta diz uma coisa diferente.',
-        reality: 'Uma diz que a sua velocidade está boa, a seguinte diz que está péssima, e nenhuma diz o que mudar.',
-        answer: 'Um diagnóstico só, um número só, e cada linha é algo que você confere na sua própria página em um clique.'
-      },
-      {
-        headline: 'Perguntar para uma IA devolve conselho genérico.',
-        reality: 'Você cola a URL num chat e ele escreve dicas plausíveis sobre uma página que nunca abriu.',
-        answer: 'A gente carrega a sua página de verdade, conta o que tem nela e reescreve as linhas que precisam.'
+        headline: 'Você sabe o que está errado. Não sabe escrever o certo.',
+        reality: 'Diagnóstico é fácil de conseguir. O texto novo, escrito para a sua oferta, é a parte que ninguém entrega junto.',
+        answer: 'Cada correção vem com a copy substituta já escrita, e você vê ela renderizada na sua página real antes de trocar.'
       }
     ],
     painsNav: {
@@ -201,11 +202,11 @@ export const ptBR: Dictionary = {
 
     aiSearch: {
       heading: 'A IA é o novo Google, e ela nunca abre a sua página num navegador.',
-      body: 'Cada vez mais gente pergunta para um assistente em vez de buscar. O crawler por trás dele baixa o seu texto, lê e segue. A sua análise tem uma aba só para isso.',
+      body: 'Cada vez mais gente pergunta para um assistente em vez de buscar. O crawler por trás dele baixa o seu texto, lê e segue. Uma página montada em cima de componentes bonitos é exatamente a que corre mais risco aqui, porque quase tudo que ela mostra depende de rodar na tela. A sua análise tem uma aba só para isso.',
       points: [
         {
           title: 'Um leitor sem navegador',
-          body: 'Sem script, sem fonte, sem design. Ele fica com a versão mais crua da sua página, então tudo que só aparece na tela não existe para ele.'
+          body: 'Sem script, sem fonte, sem design. Ele fica com a versão mais crua da sua página, então tudo que só aparece depois que o componente monta não existe para ele.'
         },
         {
           title: 'O que a sua página diz sobre ela mesma',
@@ -221,8 +222,8 @@ export const ptBR: Dictionary = {
 
     how: {
       eyebrow: 'Como funciona',
-      heading: 'Três passos, e nenhum deles mexe no seu site.',
-      intro: 'A nota é gratuita e não pede conta. Libere as correções quando quiser a copy nova escrita para você.',
+      heading: 'Três passos, e nenhum deles pede o seu código.',
+      intro: 'A nota é gratuita e não pede conta. Libere as correções quando quiser o texto novo escrito para você.',
       stepLabel: 'Etapa {n}',
       previews: {
         url: {
@@ -250,15 +251,15 @@ export const ptBR: Dictionary = {
     steps: [
       {
         label: 'Cole a sua URL',
-        body: 'Sem instalar script, sem login no seu site, sem mexer em DNS. Qualquer landing page pública serve, e a gente abre num navegador de verdade, do jeito que um visitante abre.'
+        body: 'Sem instalar script, sem acesso ao repositório, sem mexer em DNS. Serve a URL que o Lovable, o v0, o Bolt ou a Vercel te deram, e a gente abre num navegador de verdade, do jeito que um visitante abre.'
       },
       {
         label: 'Receba a sua nota',
-        body: 'De 0 a 100, com todas as linhas que formaram ela: campos de formulário, CTAs, tempo de carregamento, alt text, dados estruturados. Ninguém escreve um relatório para você e ninguém manda depois.'
+        body: 'De 0 a 100, com todas as linhas que formaram ela: campos de formulário, CTAs, tempo de carregamento, alt text, dados estruturados. Nada disso é opinião: é contado na sua página e você confere cada uma.'
       },
       {
         label: 'Libere as correções',
-        body: 'Mudanças priorizadas com a copy substituta já escrita, e uma prévia dela na sua página real. A ordem é o que diz por onde começar.'
+        body: 'Mudanças priorizadas com o texto substituto já escrito, e uma prévia dele na sua página real. A ordem é o que diz por onde começar.'
       }
     ],
 
@@ -290,8 +291,12 @@ export const ptBR: Dictionary = {
           answer: 'Você continua com a metade gratuita. Cole uma URL com saldo zerado e ainda recebe a nota e todas as linhas que formaram ela, igual a quem não tem conta. O que o crédito compra são as correções priorizadas e a copy substituta, então essas ficam esperando você ter um.'
         },
         {
-          question: 'Vocês precisam de acesso ao meu site?',
-          answer: 'Não. Sem instalar nada, sem script, sem login, sem mexer em DNS. A gente abre a página pública do mesmo jeito que qualquer visitante abre, que é justamente por que isso funciona até numa página que não é sua.'
+          question: 'Vocês precisam de acesso ao meu site ou ao meu código?',
+          answer: 'Nenhum dos dois. Sem instalar nada, sem script, sem login, sem repositório, sem mexer em DNS. A gente abre a página pública do mesmo jeito que qualquer visitante abre, que é justamente por que isso funciona até numa página que não é sua.'
+        },
+        {
+          question: 'Minha página foi feita com IA. Isso muda alguma coisa?',
+          answer: 'Muda o que costuma aparecer, não como a gente mede. Página gerada sobe rápido e sobe bonita, e o que fica faltando é quase sempre a mesma lista: meta description, alt text, dados estruturados, o que o crawler consegue ler. A gente conta na sua página, seja ela feita no Lovable, no v0, no Bolt, na mão ou no WordPress. E não, a gente não sabe dizer com o que ela foi feita, nem tenta adivinhar.'
         },
         {
           question: 'De onde sai a nota?',
@@ -372,7 +377,8 @@ export const ptBR: Dictionary = {
         title: 'O anúncio que te trouxe',
         body: [
           'Se você chegou por um anúncio do Google, o identificador do clique fica num cookie nosso, que o navegador não deixa nenhum script ler, por 90 dias.',
-          'Ele só sai daqui se você comprar. Nesse caso o nosso servidor envia ao Google Ads o identificador do clique e o valor pago, e nada além disso. Quem não compra nunca é reportado.'
+          'Ele sai daqui em dois momentos, e em nenhum outro. Se você comprar, o nosso servidor envia ao Google Ads o identificador do clique e o valor pago. Se você deixar o seu e-mail aqui, envia o identificador do clique e mais nada, sem valor nenhum junto, porque nada foi pago.',
+          'Nos dois casos o que sai é o identificador que o próprio Google criou quando você clicou. O seu e-mail não vai junto, nem a página que você mediu, nem a nota dela. Quem chegou sem clicar em anúncio nosso não tem identificador nenhum, e não é reportado em momento algum.'
         ]
       },
       {
@@ -385,7 +391,7 @@ export const ptBR: Dictionary = {
         title: 'Com quem os dados são compartilhados',
         body: [
           'A Anthropic recebe o conteúdo da página analisada, que é o que permite escrever as correções. O Mercado Pago e a Stripe recebem o necessário para cobrar. A Resend envia os e-mails. E a infraestrutura onde o produto roda hospeda o banco e a aplicação.',
-          'O Google Ads recebe duas coisas. Quando existe uma compra, recebe o identificador do clique do anúncio e o valor pago. E recebe os e-mails de quem consentiu, sempre embaralhados com SHA-256 e nunca legíveis, para montar o público de anúncios.',
+          'O Google Ads recebe duas coisas. Recebe o identificador do clique do anúncio: com o valor pago, quando existe uma compra, e sozinho, sem valor, quando alguém deixa o e-mail. E recebe os e-mails de quem consentiu, sempre embaralhados com SHA-256 e nunca legíveis, para montar o público de anúncios.',
           'Ninguém mais recebe nada.'
         ]
       },
@@ -476,7 +482,7 @@ export const ptBR: Dictionary = {
     briefFields: {
       audience: {
         label: 'Público',
-        question: 'Quem cai nessa página?',
+        question: 'Para quem você fez essa página?',
         options: {
           consumers: 'Pessoas comuns, comprando para si',
           smb: 'Pequenos negócios e quem toca eles',
@@ -487,7 +493,7 @@ export const ptBR: Dictionary = {
       },
       offer: {
         label: 'Oferta',
-        question: 'O que você vende para essa pessoa?',
+        question: 'O que essa página oferece para ela?',
         options: {
           saas: 'Um software ou app',
           service: 'Um serviço que eu mesmo entrego',
@@ -498,7 +504,7 @@ export const ptBR: Dictionary = {
       },
       action: {
         label: 'Ação',
-        question: 'O que ela deveria fazer nessa página?',
+        question: 'O que você quer que ela faça aqui?',
         options: {
           signup: 'Criar uma conta ou começar um teste grátis',
           demo: 'Agendar uma demo ou uma call',
@@ -509,13 +515,13 @@ export const ptBR: Dictionary = {
       },
       objection: {
         label: 'Objeção',
-        question: 'O que trava a pessoa na hora de fazer isso?',
+        question: 'O que você acha que faria ela desistir?',
         options: {
-          price: 'Ela acha caro',
-          trust: 'Ela nunca ouviu falar de mim',
-          unclear: 'Ela não entende o que a coisa faz',
-          switching: 'Ela já usa outra solução',
-          effort: 'Ela imagina que configurar vai dar trabalho'
+          price: 'Achar caro',
+          trust: 'Nunca ter ouvido falar de mim',
+          unclear: 'Não entender o que a coisa faz',
+          switching: 'Já estar usando outra solução',
+          effort: 'Achar que configurar vai dar trabalho'
         }
       }
     },
@@ -603,13 +609,17 @@ export const ptBR: Dictionary = {
     fixLabel: 'Correção escrita:',
     groupOk: '{total} verificações, todas passando',
     groupWrong: '{wrong} de {total} precisam de atenção',
+    // De propósito não é 'precisam de atenção' e de propósito não é nota. São escolhas, não defeitos,
+    // e a frase precisa ser verdadeira tanto com 0 quanto com 10.
+    groupMarks: '{present} de {total} presentes',
     groups: {
       structure: 'A experiência de quem chega na página',
       credibility: 'O que a página oferece como motivo para confiar',
       mobile: 'O que a página faz no celular',
       declared: 'O que a página conta para uma máquina',
       crawler_access: 'O que um crawler de IA tem permissão de ler',
-      load: 'O que custa abrir a página'
+      load: 'O que custa abrir a página',
+      sameness: 'O que a sua página tem em comum com todas as outras'
     },
     score: {
       label: 'Saúde do que medimos',
@@ -665,7 +675,17 @@ export const ptBR: Dictionary = {
       no_viewport_meta: 'A página declara viewport de celular',
       mobile_tap_targets: 'Botões pequenos demais para o dedo',
       mobile_tiny_text: 'Texto pequeno demais para ler no celular',
-      mobile_above_fold_ctas: 'CTAs acima da dobra no celular'
+      mobile_above_fold_ctas: 'CTAs acima da dobra no celular',
+      gradient_backgrounds: 'Fundos com gradiente',
+      font_families: 'Famílias de fonte na página',
+      icon_set_default: 'Ícones de biblioteca pronta',
+      card_triplets: 'Fileiras de três cards',
+      emoji_in_headings: 'Títulos e itens com emoji',
+      generic_cta_text: 'Botões com texto genérico',
+      placeholder_text: 'Texto de exemplo esquecido',
+      unlinked_logo_strip: 'Faixa de logos que linka para algum lugar',
+      builder_declared: 'A página declara com que ferramenta foi feita',
+      stock_hero_image: 'Imagem principal de banco de imagens'
     },
     criterion: {
       above: 'sinalizamos a partir de {value}',
@@ -692,22 +712,6 @@ export const ptBR: Dictionary = {
       seconds: '{value}s',
       megabytes: '{value} MB'
     },
-    keywords: {
-      eyebrow: 'Contado no seu próprio texto',
-      heading: 'As palavras em torno das quais esta página foi escrita',
-      explain:
-        'São os termos que a sua página repete, contados no texto dela mesma. O que importa são as colunas da direita: um termo que você diz quinze vezes no corpo e nunca colocou no title nem no H1 é um termo que o crawler, o assistente e o anúncio não têm com o que casar.',
-      title: 'Os termos que esta página mais repete',
-      term: 'Termo',
-      count: 'Vezes que aparece',
-      surfaces: {
-        inTitle: 'Title',
-        inH1: 'H1',
-        inMetaDescription: 'Meta description',
-        inHeadings: 'Títulos'
-      },
-      hint: 'Contado no próprio texto da página. São as palavras em torno das quais ela foi escrita, não o que as pessoas buscam.'
-    },
     measure: {
       explain:
         'Esta análise foi gerada antes de começarmos a contar. Carregamos a página de novo e medimos: campos de formulário, CTAs acima da dobra, tempo de carregamento, imagens sem alt.',
@@ -722,21 +726,30 @@ export const ptBR: Dictionary = {
     }
   },
 
-  adIdeas: {
-    eyebrow: 'Escrito a partir desses termos',
-    title: 'Grupos de anúncio para uma campanha de busca',
-    hintLabel: 'De onde vêm estes anúncios',
-    hint: 'Agrupados a partir dos termos *contados na sua página* e escritos dentro dos limites do Google Ads: headline até 30 caracteres, descrição até 90. Não há *volume de busca, custo por clique nem concorrência* em lugar nenhum aqui, porque não temos índice nem clickstream e nunca inventamos um. Trate como um primeiro rascunho para conferir dentro da sua conta.',
-    explain:
-      'Agrupamos os termos acima em grupos de anúncio e escrevemos as headlines e as descrições de cada um com o que esta página já diz. Não gasta crédito: vem junto com a análise.',
-    cta: 'Escrever ideias de anúncio',
-    loading: 'Escrevendo ideias de anúncio...',
-    failed: 'Não conseguimos escrever as ideias de anúncio desta vez. Nada nesta análise foi alterado.',
-    retry: 'Tentar de novo',
-    headlines: 'Headlines',
-    descriptions: 'Descrições',
-    negatives: 'Palavras negativas',
-    negativesHint: 'Buscas que esta página não atende. Adicione no nível da campanha antes do primeiro clique.'
+  fixPrompt: {
+    eyebrow: 'Devolva para a sua ferramenta de IA',
+    title: 'O prompt que aplica tudo isso',
+    hintLabel: 'O que é isso',
+    hint: 'Tudo que está aqui embaixo, escrito como uma instrução única para colar no Lovable, v0, Bolt, Cursor ou em qualquer chat. É *montado do que já está nesta página* - nenhum modelo roda, nada é gerado, e o link do seu relatório não vai junto.',
+    cta: 'Copiar o prompt',
+    copied: 'Copiado',
+    preview: 'Ver o prompt',
+    preamble:
+      'A minha landing page em {url} foi medida pela Hunch, e estes foram os resultados. Cada item abaixo foi contado na própria página, não é palpite, e o texto substituto já vem escrito. Aplique as mudanças.',
+    changesHeading: 'MUDANÇAS DE ESTRUTURA, da mais importante para a menos:',
+    copyHeading: 'TEXTOS PARA TROCAR. Case a linha existente exatamente e depois substitua:',
+    from: 'Trocar:',
+    to: 'Por:',
+    placeholderNote: '^ esta linha tem [colchetes] que ainda não são dados reais',
+    rulesHeading: 'REGRAS:',
+    placeholderRule:
+      'Qualquer texto entre [colchetes] é uma lacuna que eu ainda tenho que preencher. NÃO invente nome, número, cliente ou estatística para preencher nenhuma. Deixe os colchetes como estão e me liste todos eles no final.',
+    rules: [
+      'Mude só o que está listado. Não redesenhe mais nada na página.',
+      'Mantenha a minha stack, os meus componentes e o meu estilo. São mudanças de conteúdo e de estrutura.',
+      'Se uma linha que eu pedi para trocar não existir exatamente como está escrita, me avise em vez de chutar a mais parecida.',
+      'Não adicione afirmações, estatísticas, depoimentos ou logos que já não estejam na página.'
+    ]
   },
 
   hypothesisList: {
@@ -817,32 +830,32 @@ export const ptBR: Dictionary = {
         features: [
           'A nota e cada linha que a formou, no desktop e no celular',
           'Quanto a página pesa e quanto demora para carregar',
-          'As palavras que a sua página repete e onde cada uma aparece',
+          'O que a sua página declara sobre ela mesma, e o que um crawler de IA consegue ler',
           'O link do relatório no seu email, para voltar nele depois',
           'As correções priorizadas e a copy reescrita ficam de fora: essas precisam de um crédito'
         ]
       },
       single: {
         name: 'Avulso',
-        price: 'R$47',
-        perAnalysis: 'R$47 por análise',
-        tagline: 'Uma página, um diagnóstico dela.',
+        price: 'R$97',
+        perAnalysis: 'R$97 por análise',
+        tagline: 'Uma página, o diagnóstico inteiro dela.',
         features: [
           'A nota e cada linha que a formou, no desktop e no celular',
           'Quanto a página pesa e quanto demora para carregar',
           'Correções priorizadas de estrutura, copy, SEO e visibilidade para IA',
           'A copy substituta escrita, vista na sua página real',
-          'Grupos de anúncio escritos com as palavras contadas na página'
+          'Duas opções alternativas para cada linha, escritas quando você pedir'
         ]
       },
       trio: {
         name: 'Trio',
-        price: 'R$147',
-        perAnalysis: 'R$49 por análise',
-        tagline: 'Um funil de até três páginas.',
+        price: 'R$247',
+        perAnalysis: 'R$82 por análise',
+        tagline: 'Três páginas, ou a mesma três vezes.',
         features: [
           'Tudo do Avulso, nas três páginas',
-          'Uma análise para cada etapa do funil, não só a home',
+          'Uma para cada projeto, ou a landing, o preço e o onboarding do mesmo',
           'Ou a mesma página de novo depois de mexer nela, para comparar as duas medições',
           'As três no mesmo painel, cada uma com a sua nota',
           'Os créditos não expiram'
@@ -956,7 +969,7 @@ export const ptBR: Dictionary = {
       sections: {
         start: 'Mudar primeiro',
         readout: 'Medições',
-        terms: 'Termos da página'
+        prompt: 'Prompt para a sua IA'
       }
     },
     problem: 'Problema',

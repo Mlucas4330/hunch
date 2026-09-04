@@ -1,14 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  AdIdeasSchema,
   AnalysisOutputSchema,
   FlowFixSchema,
   HypothesisSchema,
   PlaybookOutputSchema,
   VisibilityFixSchema
 } from './schema'
-import { AD_DESCRIPTION_MAX_CHARS, AD_HEADLINE_MAX_CHARS } from '@/lib/constants'
 
 // The first tests of the AI layer. They exist for one reason: **every field here is filled by a
 // model, and the two fix generators swallow a parse failure whole** -- `generatePlaybook` and
@@ -95,69 +93,6 @@ test('the category still rejects, because it decides which list a fix lands in',
   // heading, which is a visible lie about what was audited; a wrong finding just fails to link.
   assert.throws(() => FlowFixSchema.parse({ ...FIX, category: 'ai_answerability' }))
   assert.throws(() => VisibilityFixSchema.parse({ ...FIX, category: 'signup_friction' }))
-})
-
-// The ad ideas are the one generator whose ceilings are somebody else's: a headline past
-// AD_HEADLINE_MAX_CHARS is rejected by Google at upload, so letting one through would hand the
-// reader copy they cannot use. `generateAdIdeas` answers null on a throw, which is why rejecting is
-// the right call here and degrading is not -- an empty section with a retry beats a set of headlines
-// that half work. See docs/ads.md.
-
-const AD_GROUP = {
-  theme: 'Workspace for teams',
-  terms: ['workspace', 'teams'],
-  headlines: [
-    'One workspace for teams',
-    'Your team, one workspace',
-    'Built for modern teams',
-    'Start your workspace free',
-    'A workspace teams keep'
-  ],
-  descriptions: [
-    'One workspace where your team plans, writes and ships without switching tools.',
-    'Set up in minutes. No card to start, and your team can join the same day.'
-  ]
-}
-
-const AD_IDEAS = { groups: [AD_GROUP, AD_GROUP], negatives: ['course', 'jobs'] }
-
-test('ad ideas parse when every line fits the ceilings Google enforces', () => {
-  const parsed = AdIdeasSchema.parse(AD_IDEAS)
-
-  assert.equal(parsed.groups.length, 2)
-  assert.deepEqual(parsed.negatives, ['course', 'jobs'])
-})
-
-test('a headline past the character ceiling rejects the whole set', () => {
-  const tooLong = 'x'.repeat(AD_HEADLINE_MAX_CHARS + 1)
-
-  assert.throws(() =>
-    AdIdeasSchema.parse({
-      ...AD_IDEAS,
-      groups: [{ ...AD_GROUP, headlines: [tooLong, ...AD_GROUP.headlines.slice(1)] }, AD_GROUP]
-    })
-  )
-})
-
-test('a description past the character ceiling rejects too', () => {
-  const tooLong = 'x'.repeat(AD_DESCRIPTION_MAX_CHARS + 1)
-
-  assert.throws(() =>
-    AdIdeasSchema.parse({
-      ...AD_IDEAS,
-      groups: [{ ...AD_GROUP, descriptions: [tooLong, AD_GROUP.descriptions[1]] }, AD_GROUP]
-    })
-  )
-})
-
-test('an empty negatives list is a valid answer, because padding one is inventing intent', () => {
-  const parsed = AdIdeasSchema.parse({ ...AD_IDEAS, negatives: [] })
-
-  assert.deepEqual(parsed.negatives, [])
-})
-
-test('one group is not a campaign, so the set rejects below the minimum', () => {
-  assert.throws(() => AdIdeasSchema.parse({ ...AD_IDEAS, groups: [AD_GROUP] }))
 })
 
 // **The key order below is behaviour, not formatting.** A structured output is written in the order

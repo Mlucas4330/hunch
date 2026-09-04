@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { hasReadout, measuredFindings, readout } from './readout'
 import { READOUT_THRESHOLDS } from './constants'
-import type { PageMobile, PagePerformance, PageSeo, PageStructure } from './scrape'
+import type { PageMobile, PagePerformance, PageSameness, PageSeo, PageStructure } from './scrape'
 import type { CrawlerAccess } from './robots'
 import type { PageKeywords } from './keywords'
 import type { Market } from './enums'
@@ -74,6 +74,7 @@ function findingsFor(overrides: {
   crawler?: Partial<CrawlerAccess>
   keywords?: PageKeywords | null
   mobile?: PageMobile | null
+  sameness?: PageSameness | null
   market?: Market | null
 }) {
   return measuredFindings({
@@ -85,6 +86,7 @@ function findingsFor(overrides: {
     // Both default to absent, so every test written before these existed still describes a page
     // measured without them -- which is exactly the row shape the guards have to handle.
     mobile: overrides.mobile ?? null,
+    sameness: overrides.sameness ?? null,
     market: overrides.market ?? null
   })
 }
@@ -267,11 +269,69 @@ test('a page with nothing to read is not accused of hiding a term it never had',
   assert.equal(find(missing, 'term_in_meta_description')?.value, 0)
 })
 
+// **The `sameness` group, and the two rules the rest of the design rests on.** If either of these
+// ever fails, the group has started making a claim it cannot support.
+
+test('the sameness group is absent when the column was never measured', () => {
+  const findings = findingsFor({ sameness: null })
+
+  assert.equal(
+    findings.filter((finding) => finding.group === 'sameness').length,
+    0,
+    'a row measured before the pass existed must report no marks, not zero marks'
+  )
+})
+
+test('every sameness finding is ok, because a design choice is not a defect', () => {
+  const findings = findingsFor({
+    sameness: {
+      gradientCount: 9,
+      fontFamilyCount: 1,
+      iconSetCount: 40,
+      cardTripletCount: 5,
+      emojiHeadingCount: 12,
+      genericCtaCount: 6,
+      placeholderCount: 3,
+      hasUnlinkedLogoStrip: true,
+      declaredBuilder: true,
+      hasStockHeroImage: true
+    }
+  })
+
+  const marks = findings.filter((finding) => finding.group === 'sameness')
+
+  assert.equal(marks.length, 10)
+  // Deliberately asserted on the maximal input: if grading ever creeps in, it creeps in here first.
+  assert.ok(
+    marks.every((finding) => finding.severity === 'ok'),
+    'a page with every mark present must still grade nothing'
+  )
+  assert.ok(marks.every((finding) => finding.criterion === null))
+})
+
+test('a sameness field that was not measured is dropped, not reported as none', () => {
+  const findings = findingsFor({ sameness: { gradientCount: 4 } })
+  const marks = findings.filter((finding) => finding.group === 'sameness')
+
+  assert.equal(marks.length, 1)
+  assert.equal(marks[0].id, 'gradient_backgrounds')
+  assert.equal(marks[0].value, 4)
+})
+
+test('a counted zero is a real answer and is reported', () => {
+  const findings = findingsFor({ sameness: { gradientCount: 0, hasStockHeroImage: false } })
+  const marks = findings.filter((finding) => finding.group === 'sameness')
+
+  assert.equal(marks.length, 2)
+  assert.ok(marks.every((finding) => finding.value === 0))
+})
+
 test('a null readout produces nothing at all', () => {
   const empty = readout({
     structure: null,
     seo: null,
     performance: null,
+    sameness: null,
     crawler: null,
     keywords: null,
     mobile: null,

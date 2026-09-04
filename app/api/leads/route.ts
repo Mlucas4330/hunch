@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db'
 import { analyses, leads } from '@/db/schema'
+import { GCLID_COOKIE } from '@/lib/constants'
+import {
+  leadConversionAction,
+  leadConversionEnabled,
+  uploadClickConversion
+} from '@/lib/google-ads'
 import { clientIp, enforceRateLimit } from '@/lib/rate-limit'
 import { dictionaryFor } from '@/lib/i18n'
 import { t } from '@/lib/i18n/format'
@@ -76,7 +83,7 @@ export async function POST(request: Request) {
         consentedAt: new Date()
       })
       .onConflictDoNothing()
-      .returning({ unsubscribeToken: leads.unsubscribeToken })
+      .returning({ id: leads.id, unsubscribeToken: leads.unsubscribeToken })
 
     const token =
       inserted ??
@@ -84,6 +91,12 @@ export async function POST(request: Request) {
         where: and(eq(leads.email, email), eq(leads.analysisId, analysis.id)),
         columns: { unsubscribeToken: true }
       }))
+
+    // **Only when the insert actually wrote a row.** `onConflictDoNothing` returns nothing on a
+    // resubmit of the same address for the same page, and that is the whole of the idempotency here:
+    // a reader who submits twice is one lead and must be reported once. It is the same guarantee the
+    // purchase upload gets from the ledger's `(provider, provider_ref)` unique.
+    if (inserted) await reportLead(inserted.id)
 
     // Deliberately not awaited into the response's critical path in spirit, but awaited in fact:
     // the runtime can freeze the process the moment the response is returned, so a floating promise
@@ -96,6 +109,49 @@ export async function POST(request: Request) {
   } catch (error) {
     log.error('lead.failed', error)
     return NextResponse.json({ error: 'lead_failed' }, { status: 500 })
+  }
+}
+
+/**
+ * Reports the captured address to Google Ads as a lead, against a second conversion action.
+ *
+ * **What leaves is the click id and nothing about the person.** Not the address, not the page they
+ * measured, not a score. Google already issued the click id; this says that click reached the point
+ * where somebody asked for their report back.
+ *
+ * **It carries no value**, and that is deliberate rather than unfinished. Nobody paid anything here,
+ * so a figure would be the expected value of a lead -- a number this code would have invented, which
+ * is precisely what docs/invariants.md refuses everywhere else. Our own reporting gets no exemption.
+ *
+ * **The action it reports against is meant to be a secondary one in the account**, outside the
+ * bidding goal. That is what keeps the choice honest: it buys a reading of which ad group produces
+ * addresses, without letting Smart Bidding go hunting for people who never pay. See docs/ads.md.
+ *
+ * Nothing here can fail the request. A lead lost because Google was unreachable would be the
+ * marketing bookkeeping costing the thing it exists to measure, the same reasoning that wraps
+ * `rememberAdClick` in front of a payment.
+ */
+async function reportLead(leadId: string): Promise<void> {
+  try {
+    if (!leadConversionEnabled()) return
+
+    const gclid = (await cookies()).get(GCLID_COOKIE)?.value
+    // The ordinary path, and not a failure: most readers never came from an ad. At info for the
+    // same reason `ads.conversion_skipped` is.
+    if (!gclid) return log.info('ads.lead_skipped', { reason: 'no_click', lead: leadId })
+
+    await uploadClickConversion({
+      gclid,
+      // The row's own id. Unique per lead, so a second upload of the same one updates Google's
+      // conversion rather than adding a second.
+      orderId: leadId,
+      at: new Date(),
+      conversionActionId: leadConversionAction()
+    })
+
+    log.info('ads.lead_uploaded', { lead: leadId })
+  } catch (error) {
+    log.error('ads.lead_failed', error, { lead: leadId })
   }
 }
 

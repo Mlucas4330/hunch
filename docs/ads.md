@@ -12,7 +12,7 @@ first-party cookie, and the sale is reported to Google from the server.
 Three reasons, in the order they matter:
 
 - **The product would fail its own audit.** `READOUT_THRESHOLDS.pageWeightWarnBytes` is 2MB and the
-  readout counts requests. Charging a founder to be told their page is heavy while shipping a tag
+  readout counts requests. Charging an owner to be told their page is heavy while shipping a tag
   container onto our own landing page is the kind of thing a reader notices once and never forgets.
 - **A conversion the browser reports is a conversion the browser can lie about**, and Pix and boleto
   confirm asynchronously anyway -- minutes to days after the tab is closed. A client-side purchase
@@ -39,6 +39,7 @@ Four steps, and each one exists because the next has no way to see what the prev
 | `POST /api/billing/mercadopago` | the cookie is copied onto the buyer's row by `rememberAdClick` |
 | `grantCredits` (`lib/credits.ts`) | on a claimed ledger row, `reportConversion` reads the click back |
 | `lib/google-ads.ts` | one `uploadClickConversions` call, with the amount the provider confirmed |
+| `POST /api/leads` | on a row that was actually inserted, the same cookie is read and the click is uploaded against the **lead** action, with no amount |
 
 **Capture is in middleware rather than on the landing page** because an ad may point at any surface
 this app serves -- a blog post, the packs anchor, a shared report. One place means a new landing
@@ -114,13 +115,45 @@ official answer is to let Smart Bidding use first-party signals. So the list fee
 exclusion, and it does not become a way to find people who resemble buyers. Anyone arriving from
 Meta's model of audiences should expect that difference.
 
+### The lead is reported, and the distinction that makes it safe is primary against secondary
+
+A captured address is uploaded as its own conversion action, from `POST /api/leads`, against
+`GOOGLE_ADS_LEAD_CONVERSION_ACTION_ID`. **It is meant to be a secondary action in the account,
+outside the bidding goal**, and that is the whole of what keeps it honest.
+
+This reverses a line that used to read "no mid-funnel conversion", and the argument behind that line
+was never wrong -- it was about the wrong thing. What it actually forbids is letting bidding
+optimise for people who never pay, and that is a property of a **primary** action, not of an upload.
+A secondary action is a column in a report. It answers which ad group produces addresses, which is
+the one question a payment-only account cannot answer at four sales a month, and it steers no bid
+while doing it.
+
+**Promoting it to primary would undo the reasoning**, so it must not happen quietly. Smart Bidding
+would leave the learning phase in weeks and spend the budget on people who leave an address and
+close the tab.
+
+Three properties, and each one is load-bearing:
+
+- **It carries no value.** Nobody paid, so a figure would be the expected worth of a lead -- a
+  number this code invented, which is exactly what [invariants.md](invariants.md) refuses on every
+  reader-facing surface. Our own reporting gets no exemption from a rule the prompts are held to.
+  `ClickConversion.valueBrl` is optional for this reason, and `conversionValue` and `currencyCode`
+  are omitted together rather than sent as a zero.
+- **It is keyed on the lead row's id**, passed as Google's `orderId`, and only uploaded when the
+  insert actually wrote a row. `onConflictDoNothing` returns nothing on a resubmit of the same
+  address for the same page, which is the same guarantee the purchase gets from the ledger's
+  `(provider, provider_ref)` unique.
+- **Its variable is outside `googleAdsEnabled()`.** Unset has to mean "report payments and nothing
+  else", never "report nothing": the money side must not go dark because a second conversion action
+  was never created. `leadConversionEnabled()` is the narrower gate, checked on top of the six.
+
+**Creating an account is still not reported**, and neither is running an analysis. A signup says
+nothing an address does not already say, and a free run is the thing ad traffic is *supposed* to do.
+
 ### What is deliberately not reported
 
-**No mid-funnel conversion.** Running an analysis or creating an account is not uploaded as a
-conversion action, though both would be easy to. Reporting them would make the bidding optimise for
-people who never pay, which is the opposite of what a payment-only signal was chosen for. The cost is
-already named under Strategy: Smart Bidding has almost nothing to learn from at the start, and that
-is accepted rather than papered over with a softer conversion that means less.
+**No conversion for the free analysis itself.** It is what the landing page is for, so reporting it
+would report the click a second time under another name and tell nobody anything.
 
 ## Configuration
 
@@ -185,33 +218,63 @@ like a bad credential.
    screen belongs to the project, so adding it to the project that authenticates paying users puts a
    verification requirement on the thing that logs them in. Publish that consent screen before
    minting: a token issued while it is in Testing stops working after seven days.
-6. Set the six variables and confirm with a real R$47 purchase from a URL carrying a fake `gclid`.
-   It will be rejected as an unknown click, and the rejection proves the whole chain end to end --
-   the log line will read `ads.conversion_failed` naming the click, not a token or permission error.
+6. Create the **lead** conversion action too: goal **Submit lead form**, source **Import**, count
+   **One**, **no value**, same 90 day window, and set it as a **secondary** action so it stays out
+   of the bidding goal. Its numeric id is `GOOGLE_ADS_LEAD_CONVERSION_ACTION_ID`.
+7. Set the variables and confirm with a real R$97 purchase from a URL carrying a fake `gclid`. It
+   will be rejected as an unknown click, and the rejection proves the whole chain end to end -- the
+   log line will read `ads.conversion_failed` naming the click, not a token or permission error.
+   Leaving an address on a report opened with the same fake `gclid` proves the lead half the same
+   way, as `ads.lead_failed`.
 
 ## Strategy
 
 ### The arithmetic first, because it decides everything else
 
-**There is no recurring revenue, so one purchase has to repay one click.** That is the whole
-constraint, and it is what set the price rather than the other way round.
+**There is no recurring revenue, so the purchases have to repay the clicks that produced them.**
+That is the whole constraint, and it is what set the price rather than the other way round.
 
-Brazilian search CPCs for marketing-tool intent run roughly R$1.50 to R$5, and a cold landing page
-converting a click into a purchase at 1-2% is a normal expectation. That puts acquisition somewhere
-around R$100 to R$400 per buyer. An analysis costs a couple of reais to produce, so the contribution
-is very nearly the whole ticket:
+It used to be written as "one purchase repays one click", which was true when the only path was a
+stranger clicking and buying in the same session. It is not the path any more: most readers arrive,
+measure a page for free, leave an address, and buy weeks later or never. So the unit is a batch of
+clicks against the sales that eventually come out of it, and the delay is real -- the sales that
+close in month two were bought with month one's budget, and no report in the Ads account puts them
+in the same row.
 
-| Ticket | Contribution | Break-even CPA | Needed at R$3 CPC |
+Brazilian search CPCs for marketing-tool intent run roughly R$1.50 to R$5. The cheap tail -- the AI
+visibility terms and the blog ones, ad groups 3 and 4 below -- sits near R$1.50; the core intent
+terms in ad groups 1 and 2 sit at R$3 to R$5 and are the ones that cannot be afforded first.
+
+An analysis costs a couple of reais to produce, so the contribution is very nearly the whole ticket.
+What follows is the funnel behind 100 clicks at R$1.50, which is R$150 of spend:
+
+| | Measure a page | Leave an address | Buy at once | Buy later | Sales |
+| --- | --- | --- | --- | --- | --- |
+| Poor | 25 | 5 | 0.5 | 0.25 | 0.75 |
+| **Normal** | 35 | 7 | 1 | 0.35 | **1.35** |
+| Good | 40 | 10 | 1 | 1 | 2 |
+
+The two rows that move it most are the address rate and what a lead is eventually worth: 5 to 7
+addresses per 100 clicks is ordinary and 10 is good, and 1 lead in 20 buying is ordinary where 1 in
+10 is good.
+
+Against those, and at a blended ticket of R$127 -- one buyer in five takes the trio, so the average
+sale sits between R$97 and R$247 rather than at either:
+
+| Ticket | Poor | Normal | Good |
 | --- | --- | --- | --- |
-| R$19 (the old single) | ~R$17 | R$17 | 17.6% |
-| R$39 (the old featured pack) | ~R$37 | R$37 | 8.1% |
-| R$47 (the single) | ~R$45 | R$45 | 6.7% |
-| R$147 (the trio) | ~R$145 | R$145 | 2.1% |
+| R$47 (the old single) | -R$115 | -R$87 | -R$56 |
+| R$77 | -R$92 | -R$46 | +R$4 |
+| **R$97 / R$247, blended R$127** | **-R$55** | **+R$21** | **+R$104** |
 
-**No campaign is running, so this table is a record of the reasoning rather than a live constraint.**
-It set the prices once, at R$147 and R$297; the current R$47 and R$147 were set against what the
-product should cost a buyer, not against a click. If paid acquisition ever starts again, the numbers
-to compare are the ones in the account, and R$47 is the row to look at first.
+**R$47 lost in every column, including the good one.** That is what decided the repricing: not the
+margin on a sale, but that no amount of tuning made a cohort pay for itself, so the campaign could
+never stay on long enough for the mailing list to start compounding -- which is the part that
+actually grows, and which does not start returning until around month five.
+
+**The old prices are still worth reading as a warning.** R$19 and R$39 needed 17.6% and 8.1% of
+clicks to buy, against the 1-2% a cold page converts at. R$47 needed 6.7%. The direction of the
+error was always the same.
 
 **Recurring revenue would make this arithmetic comfortable, and there is none.** A subscription is
 the obvious way to get it and the wrong one here, because what it would sell is a weekly report on
@@ -220,41 +283,67 @@ worse business than retention and a better one than a plan nobody renews.
 
 **A price test cannot settle this and should not be attempted.** At single-digit monthly conversions
 the sample never arrives, the same argument that removed the A/B testing stage in
-[product.md](product.md), applied to our own pricing. What is known is that the old price provably
+[product.md](product.md), applied to our own pricing. What is known is that the old prices provably
 could not pay for a click.
+
+**Whether a Brazilian buyer pays R$97 for this is unmeasured and stays unmeasured.** R$97 is an
+ordinary price point in that market and the deliverable is freelancer-shaped, which is the argument
+for it; the argument against is that the reader has never heard of us and the free half already
+hands them the diagnosis. Neither is a measurement. What is not in doubt is that R$47 did not work
+either, so the cheaper price was never the safer one.
 
 Every number in this section is an estimate, not a measurement. That distinction is the product's
 whole thesis and it does not stop applying to our own marketing. **Treat the first R$1.000 of spend
-as buying the conversion rate, not as buying revenue**, and do not let any figure in that table turn
-into something anyone quotes as measured.
+as buying the conversion rate, not as buying revenue**, and do not let any figure in these tables
+turn into something anyone quotes as measured.
 
 ### Start with one Search campaign and nothing else
 
 - **No Performance Max.** It needs conversion volume to have anything to learn from, and it spends
-  across Display and YouTube where a founder searching for a landing page audit is not. With single
+  across Display and YouTube where somebody searching for a landing page audit is not. With single
   digit monthly conversions it is a budget shredder that returns no readable signal.
-- **No Display, no remarketing.** There is no tag, by design, so there are no audiences.
+- **No Display, and no behavioural remarketing.** There is no tag, so there is no audience of
+  people who merely visited. What does exist is Customer Match, built server-side from hashed
+  addresses -- see the section above. It feeds bidding and exclusion on Search; it is not a Display
+  campaign and must not become the reason to start one.
 - **Portuguese only, Brazil only.** English is a separate campaign for a separate day; the payment
   rails, the default locale and the pt-BR rewrite all point one way.
 
-**Bidding: Maximize Clicks with a CPC ceiling until roughly 30 conversions a month exist**, then
-Target CPA. Smart Bidding on payment-only conversions has almost nothing to optimise against at the
-start, which is the real cost of the payment-only choice and is worth accepting rather than papering
-over with a softer conversion that means less.
+**Bidding: Maximize Clicks with a CPC ceiling until roughly 30 purchase conversions a month
+exist**, then Target CPA. **Set the ceiling near R$1.50.** The arithmetic above only clears on the
+cheap tail, and an uncapped bid buys ad groups 1 and 2 at R$3 to R$5 -- the terms this cannot afford
+until a sale is worth more or the funnel converts better.
+
+The lead action does not change this. It is secondary, so it steers nothing; it exists so the manual
+tuning has something to read. Smart Bidding on payment-only conversions still has almost nothing to
+optimise against at four to eight sales a month, and that is accepted rather than papered over by
+promoting the lead to primary.
 
 ### Ad groups
 
 Four themes, tightly grouped so the ad can actually echo the query. Phrase match throughout: broad
 match with no conversion history to steer it is how the budget leaves.
 
-**1. Landing page audit** -- the core intent, the most expensive, the highest converting.
-`analise de landing page`, `auditoria de landing page`, `analisar pagina de vendas`,
-`revisao de landing page`, `nota da minha landing page`.
+**They are ordered by who the product is now for**, which inverted the first two: the reader is
+somebody who built a page with an AI tool and cannot judge it, not a founder watching a funnel leak.
+See [product.md](product.md).
+
+**1. Built with AI** -- the new core intent, and the cheapest of the high-intent themes because
+almost nobody is bidding on it yet.
+`site feito com ia`, `landing page com ia`, `criei meu site com ia`, `lovable`, `bolt new`,
+`v0 vercel`, `meu site do lovable`, `avaliar site feito com ia`.
 Lands on `/`.
 
-**2. Conversion rate** -- the problem rather than the tool.
-`aumentar conversao do site`, `melhorar taxa de conversao`, `por que meu site nao converte`,
-`otimizar pagina de vendas`, `cro landing page`.
+**Bidding on a tool's name is allowed as a keyword and constrained in the ad text.** Google permits
+trademark terms as keywords; using one *in the ad copy* is what draws a complaint, and it is also
+what our own rules already forbid, since the ad would be making a claim about a product we did not
+measure. Echo the query with what we do -- "Cole a URL e veja a nota" -- never with "Lovable pages
+score badly". Expect these to be the first terms to get expensive if the category catches on.
+
+**2. Landing page audit** -- the old core intent, still the most expensive and still the one that
+converts. It is the same job described in the words the previous buyer used.
+`analise de landing page`, `auditoria de landing page`, `analisar pagina de vendas`,
+`revisao de landing page`, `nota da minha landing page`.
 Lands on `/`.
 
 **3. AI visibility** -- the wedge, and the reason to move now.
@@ -274,9 +363,18 @@ buys readers, not buyers, and its job is to prove whether the blog converts at a
 
 Set at campaign level from day one. The list matters more than the keywords do at this budget.
 
-`curso`, `cursos`, `certificacao`, `vaga`, `vagas`, `emprego`, `salario`, `freelancer`, `agencia`,
-`contratar`, `template`, `templates`, `modelo`, `exemplos`, `wordpress plugin`, `elementor`,
-`figma`, `pdf`, `apostila`, `download`.
+`curso`, `cursos`, `certificacao`, `vaga`, `vagas`, `emprego`, `salario`, `agencia`, `contratar`,
+`pdf`, `apostila`, `download`, `gratis para sempre`.
+
+**Four came off this list with the repositioning, and it is worth saying why rather than editing them
+away.** `template`, `templates`, `figma` and `freelancer` were negatives because they described the
+old buyer's neighbours: somebody shopping for a Figma template was not going to buy a conversion
+audit. The new reader is a designer or developer who builds with these tools, so those words now
+describe the customer instead of excluding them. `modelo` and `exemplos` went with them for the same
+reason and because both are too broad in Portuguese to be safe as negatives.
+
+`wordpress plugin` and `elementor` went for a narrower reason: they name a stack, and the product
+does not care which stack built the page. Somebody on Elementor has the same countable problems.
 
 **`gratis` and `gratuito` are deliberately not negatives.** The score genuinely is free and needs no
 account, so that query is served honestly by the product rather than baited by it -- see the free
@@ -298,27 +396,19 @@ twenty seconds, from a URL and nothing else, with no account and nothing to inst
 strong offer stated accurately, and it has the useful property of being checkable in one click --
 which is exactly what makes the landing page convert.
 
-Headlines worth testing: `Nota da sua landing page em 20s`, `Cole a URL. Receba a nota`,
-`Sem instalar nada, sem cadastro`, `Seu site aparece no ChatGPT?`, `O que sua pagina diz sobre si`.
+**Naming an AI builder is context, never a claim about it.** "Fez no Lovable? Veja a nota" addresses
+a reader; "Paginas do Lovable convertem menos" is a figure nobody has, and it is the same invented
+number the prompts refuse in `evidence`. The rule is harder to hold here than anywhere else because
+the aggressive version writes itself, and the thing this product sells is refusing to say what it
+did not measure -- breaking that in our own ad is the contradiction a reader notices once.
+
+The contrast that IS checkable is stronger anyway: a chat writes about a page it never opened, this
+opens the page and counts.
+
+Headlines worth testing: `Fez o site com IA? Veja a nota`, `Sua pagina de IA e boa mesmo?`,
+`Cole a URL. Receba a nota`, `Sem instalar nada, sem cadastro`, `Seu site aparece no ChatGPT?`.
 
 Sitelinks to `/blog`, `/#how` and `/#credits`.
-
-### The product writes ad groups too, and the same rules bind them
-
-`POST /api/analyses/[id]/ads` groups the terms counted on a reader's page into ad groups and writes
-the headlines and descriptions -- see [ai-pipeline.md](ai-pipeline.md#5b-ad-ideas--generateadideas).
-It is the same reasoning as this section applied to somebody else's campaign, and worth stating here
-because this is the file where the temptation lives.
-
-**Everything above about what an ad may say binds that output too.** No promised increase, no
-percentage, no superlative nobody can check. And one more that is specific to it: **no search volume,
-no cost per click, no competition figure**, because we have no index and no clickstream and the terms
-are a count of the page's own words. See
-[invariants.md](invariants.md#keywords-measure-the-pages-own-words-never-the-index).
-
-The character ceilings in `AD_HEADLINE_MAX_CHARS` (30) and `AD_DESCRIPTION_MAX_CHARS` (90) are
-Google's own, enforced in Zod rather than asked for in the prompt, so a line the reader could not
-upload never reaches them.
 
 ### Creating the campaigns
 

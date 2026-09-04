@@ -148,7 +148,7 @@ export function VariantPreview({
       ) : null}
 
       {state === 'ready' && url && beforeUrl ? (
-        <div className="space-y-2" data-testid="variant-compare">
+        <div data-testid="variant-compare">
           <div className="relative overflow-hidden rounded-md border bg-muted">
             {/* The page as it is now, in the normal flow: it gives the box its height, so the two
                 images cannot disagree about how tall the frame is. */}
@@ -188,31 +188,43 @@ export function VariantPreview({
               style={{ left: `${100 - wipe}%` }}
               aria-hidden="true"
             />
-          </div>
 
-          {/* **A range input, not a drag handle.** It is the reason this works with a keyboard and
-              with a screen reader at all: arrows move the wipe, the value is announced, and none of
-              that would exist behind a pointerdown listener. */}
-          <label className="block">
-            <span className="sr-only">{dictionary.report.compareLabel}</span>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={wipe}
-              onChange={(event) => setWipe(Number(event.target.value))}
-              className="w-full accent-primary"
-              aria-valuetext={t(dictionary.report.compareValue, { percent: wipe })}
-            />
-          </label>
+            {/* **The control sits on the screenshot, not under it.** Below the frame it read as a
+                stray scrollbar the reader had to connect to the image themselves. Over the bottom
+                edge it is chrome on the thing it drives, and the two end labels come with it so the
+                whole comparison is one object.
 
-          <div className="flex justify-between">
-            <p className="panel-label text-nano text-muted-foreground">
-              {dictionary.report.compareBefore}
-            </p>
-            <p className="panel-label text-nano text-muted-foreground">
-              {dictionary.report.compareAfter}
-            </p>
+                A translucent panel rather than a solid one: the strip covers the foot of the page it
+                is comparing, and the reader needs to see that it does. The blur is what keeps the
+                labels legible over whatever the screenshot happens to put behind them.
+
+                **A range input, not a drag handle.** It is the reason this works with a keyboard and
+                with a screen reader at all: arrows move the wipe, the value is announced, and none of
+                that would exist behind a pointerdown listener. */}
+            <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 border-t bg-panel/85 px-2 backdrop-blur-sm">
+              <span className="panel-label shrink-0 text-nano text-muted-foreground">
+                {dictionary.report.compareBefore}
+              </span>
+
+              <label className="min-w-0 flex-1 py-1">
+                <span className="sr-only">{dictionary.report.compareLabel}</span>
+                {/* The thumb keeps its native size and the track takes the tap target, the same
+                    trade `SwipeTrack`'s pagination dots make. */}
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={wipe}
+                  onChange={(event) => setWipe(Number(event.target.value))}
+                  className="h-9 w-full rounded-sm accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-6"
+                  aria-valuetext={t(dictionary.report.compareValue, { percent: wipe })}
+                />
+              </label>
+
+              <span className="panel-label shrink-0 text-nano text-muted-foreground">
+                {dictionary.report.compareAfter}
+              </span>
+            </div>
           </div>
         </div>
       ) : null}

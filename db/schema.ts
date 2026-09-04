@@ -32,6 +32,7 @@ import {
 } from '@/lib/constants'
 import type {
   PageMobile,
+  PageSameness,
   PagePerformance,
   PageSeo,
   PageStructure
@@ -39,7 +40,6 @@ import type {
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
 import type { CompetitorMeasurement } from '@/lib/competitor'
-import type { AdIdeas } from '@/lib/ai/schema'
 
 export const sectionEnum = pgEnum('section', SECTIONS)
 export const hypothesisTargetEnum = pgEnum('hypothesis_target', HYPOTHESIS_TARGET)
@@ -97,16 +97,14 @@ export const analyses = pgTable(
     // The same page measured in a phone viewport. Null on every row measured before the mobile pass
     // existed, and the readout reads that null as "not measured" rather than as "nothing wrong".
     mobile: jsonb('mobile').$type<PageMobile>(),
+    // The marks of a page built out of defaults. Null on every row measured before the pass
+    // existed, and null is never read as "the page had none" -- see docs/readout.md.
+    sameness: jsonb('sameness').$type<PageSameness>(),
     // A page the reader named, optional and supplied by hand: nothing here infers a competitor. The
     // URL is kept beside the measurement because the report labels the column with its hostname and
     // the prompts refer to the page by it. Both null on every analysis that named none.
     competitorUrl: text('competitor_url'),
     competitor: jsonb('competitor').$type<CompetitorMeasurement>(),
-    // Ad groups written off `keywords`, on the owner's click rather than during the run. One column
-    // rather than a table: it is a single object, read whole and written whole, exactly like the
-    // measurement columns above it. Null on every analysis nobody has asked for one on, which is
-    // most of them. See docs/data-model.md.
-    adIdeas: jsonb('ad_ideas').$type<AdIdeas>(),
     locale: localeEnum('locale').notNull().default(DEFAULT_LOCALE),
     market: marketEnum('market').notNull().default(DEFAULT_MARKET),
     embedKey: uuid('embed_key').notNull().defaultRandom().unique(),
@@ -133,6 +131,7 @@ export const pageSnapshots = pgTable(
     crawlerAccess: jsonb('crawler_access').$type<CrawlerAccess>(),
     keywords: jsonb('keywords').$type<PageKeywords>(),
     mobile: jsonb('mobile').$type<PageMobile>(),
+    sameness: jsonb('sameness').$type<PageSameness>(),
     // Frozen at capture so a later threshold change never rewrites history.
     score: integer('score'),
     capturedAt: timestamp('captured_at').notNull().defaultNow()

@@ -42,12 +42,15 @@ export async function ThemeToggle({ theme }: { theme: Theme }) {
               value={option}
               aria-current={active ? 'true' : undefined}
               title={t.nav.theme[option]}
-              // The icon stays `size-3.5`; the box around it grows. `p-1` gave a 22px control, half
-              // of what a thumb needs, and enlarging the glyph instead would have put a pair of
-              // oversized icons in a bar drawn around small ones. On a phone the segmented pair is
-              // 88px wide, which is what a two-way control costs when both halves are tappable.
+              // The icon stays `size-3.5` and the box around it is squared off explicitly, at the
+              // same two sizes `LanguageToggle` uses. Padding alone sized each segment off its own
+              // content, an icon here and a text label there, so the two switches sat side by side
+              // at different heights on a desktop and only agreed at the `max-sm` step. Enlarging
+              // the glyph instead would put a pair of oversized icons in a bar drawn around small
+              // ones. On a phone the segmented pair is 88px wide, which is what a two-way control
+              // costs when both halves are tappable.
               className={cn(
-                'flex items-center justify-center rounded-sm p-1 transition-colors max-sm:size-11',
+                'flex size-6 items-center justify-center rounded-sm transition-colors max-sm:size-11',
                 active ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'
               )}
             >

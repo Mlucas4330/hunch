@@ -32,7 +32,6 @@ something or expose something:
 | `FixVerdict`, on every hypothesis and every fix card | The decision belongs to whoever owns the page, and the report is handed to clients and partners: what the owner threw out is not theirs to read. `PATCH /api/verdicts` answers 404 to them anyway. |
 | "Use this one" on an alternate | `PATCH /api/hypotheses/[id]/variants` is authenticated and owner-checked. Which line gets shipped is the owner's decision, not a reader's. |
 | "Back to dashboard" | There is no dashboard to go back to without an account. |
-| The `AdIdeas` button | `POST /api/analyses/[id]/ads` is authenticated and owner-checked, so for anyone else it would answer 404. The terms it is written from are a measurement and stay visible to everyone -- see [invariants.md](invariants.md#the-free-half-is-what-code-counted-the-paid-half-is-what-a-model-wrote). |
 | `MeasurePage` in place of `MeasuringNotice` on an unmeasured row | Same reason: the owner can act on it, the reader can only wait. |
 
 **The chrome follows the session, not ownership**, and that is deliberately the weaker test.
@@ -192,17 +191,45 @@ asserts.
   already built.
 - Then `AnalysisSections`, the same **four fix lists**, with nothing held out, as stacked
   `PanelCard`s. See [analysis-ui.md](analysis-ui.md).
-- Then `PageTerms`, the terms counted on the page and the ad groups the owner can have written off
-  them. **It starts closed.** Open it is a ten by six table plus four ad-group cards with a character
-  counter on every line, the largest single thing in the document, expanded for every reader whether
-  or not they came for it. The rail makes it reachable in one click from anywhere, so nothing is
-  buried by closing it.
-
   **A closed panel is a print bug**, and `@media print` in `app/globals.css` fixes the general case:
   every `<details>` prints open. Progressive disclosure answers a screen, where the reader can click;
   on paper a closed panel is content deleted from the deliverable. Three of the four analysis panels
   start closed, as does every readout group whose checks all passed, so without that rule a printed
   report is mostly headings.
+
+### The prompt: the report handed back to the tool that built the page
+
+`components/fix-prompt-card.tsx` closes the document, below the fix lists it is assembled from, and
+`lib/fix-prompt.ts` builds the string on the server.
+
+**It exists because this reader does not hand-edit their page.** They built it by prompting and they
+will fix it by prompting, so the last translation the report can spare them is from "here is what to
+change" into "here is the instruction". Everything it needs was already written by the time it runs.
+
+**Assembled, never generated.** No model call, no database read, nothing that can fail, and it costs
+nothing. That is also why it is a pure function rather than a route: it is testable without a
+browser, which is where the rules below are actually pinned (`lib/fix-prompt.test.ts`).
+
+Four decisions, each of which had a plausible alternative:
+
+- **Text, not a link and not a PDF.** A link would hand `embed_key` -- the report's only credential
+  -- to somebody else's model, and it would arrive at a tool that mostly cannot fetch a URL anyway. A
+  PDF is lossy and unreadable to most of them. A block of text pastes everywhere and carries nothing
+  the reader did not choose to send. A test asserts the string never contains `/r/`.
+- **Every replacement travels with the line it replaces**, quoted. A model given only the new text
+  has to find the old one itself, and it picks whichever looked closest -- which is how a rewrite
+  lands on the wrong element. `current_copy` was quoted verbatim off the page for this exact reason.
+- **The owner's own line wins over the model's draft.** It is the one thing on a report that was
+  never generated and it is what they actually shipped; sending the draft instead would undo the edit.
+- **A bracketed replacement adds a rule telling the model not to fill it in.** This is the one that
+  matters most. The report already warns the reader that a `[placeholder]` is a gap they have to
+  fill; a prompt that dropped the warning would hand an unfinished line to a tool that will complete
+  it with something plausible and false, on a page that is already live.
+
+**It is not owner-gated**, and that is consistent rather than lax: everything in it is already
+rendered above it on the same page, so a reader with the link can copy the fixes by hand today. The
+owner-only list above is actions that spend a credit or record a decision, and copying visible text
+is neither.
 
 ### The rail and the triage block
 
@@ -339,13 +366,22 @@ is ever swapped: `before` is captured
 before the copy is applied, saved to `screenshot_before_url`, and rendered as the base layer, end to
 end.
 
-Both the clip and the line now derive from `100 - wipe`, so the number means what the label under the
+Both the clip and the line now derive from `100 - wipe`, so the number means what the label beside the
 handle says, `report.compareValue` ("{percent}% of the rewritten page shown") is literally true rather
 than backwards, and the default sits just under halfway so both images are visible at rest.
 
 The handle is an `<input type="range">`. That is the reason it works with a keyboard and a screen
 reader at all, arrows move the wipe and the value is announced, none of which exists behind a
 `pointerdown` listener.
+
+**It sits on the screenshot rather than under it**, in a translucent strip across the bottom edge of
+the frame with `Now` and `Rewritten` at either end of it. Below the frame the same control read as a
+stray scrollbar the reader had to connect to the image themselves; over the image it is chrome on the
+thing it drives, and the whole comparison is one object. The strip is translucent because it covers
+the foot of the page being compared and the reader needs to see that it does, and blurred because
+the labels have to stay legible over whatever the screenshot puts behind them. The track carries the
+tap target while the thumb keeps its native size, the same trade the pagination dots make in
+[components.md](components.md#everything-tappable-clears-44px-on-a-phone).
 
 `overflow` describes the `after` image alone: nothing was changed in `before` to overflow anything.
 

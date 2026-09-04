@@ -1,0 +1,1 @@
+ALTER TABLE "analyses" DROP COLUMN "ad_ideas";

@@ -15,6 +15,9 @@ import {
   STRUCTURE_PATTERNS,
   SCRAPE_ALLOWED_RESOURCE_TYPES,
   SCRAPE_ASSET_READY_TIMEOUT_MS,
+  SAMENESS_CARD_GRID_SIZE,
+  SAMENESS_PATTERNS,
+  SAMENESS_SAMPLE_MAX,
   SCRAPE_LCP_FLUSH_MS,
   PAGE_LINKS_MAX,
   SCRAPE_MAX_CONCURRENT_PAGES,
@@ -158,6 +161,35 @@ export interface PageSeo {
  * reporting zeroes -- the same shape as the robots.txt guard.
  */
 /**
+ * The marks a page carries from being assembled out of somebody else's defaults.
+ *
+ * **Counted off the DOM and the computed styles, never off the screenshot.** The obvious way to
+ * detect a generated look is to show a picture of the page to a vision model, and that is exactly
+ * what docs/invariants.md forbids: a token a model wrote may never be presented as a measurement.
+ * These are all counts, so they stay measurements. It works at all because
+ * `SCRAPE_ALLOWED_RESOURCE_TYPES` lets stylesheets, fonts and images through, so `getComputedStyle`
+ * returns what the author wrote rather than user agent defaults.
+ *
+ * **Nothing here says a page was generated**, and the readout must never phrase it that way. A
+ * hand-written page has gradients and lucide icons too. See docs/readout.md.
+ *
+ * Optional for the reason every late field is: a row measured before this existed has none of them,
+ * and `undefined` means "not measured" rather than "the page had none".
+ */
+export interface PageSameness {
+  gradientCount?: number
+  fontFamilyCount?: number
+  iconSetCount?: number
+  cardTripletCount?: number
+  emojiHeadingCount?: number
+  genericCtaCount?: number
+  placeholderCount?: number
+  hasUnlinkedLogoStrip?: boolean
+  declaredBuilder?: boolean
+  hasStockHeroImage?: boolean
+}
+
+/**
  * **Geometry only, and deliberately no load numbers.** The phone pass is a reload on a connection the
  * desktop pass already opened, so its TTFB skips DNS and the TLS handshake and every timing after it
  * inherits the head start. Measured that way a page reports painting faster on a phone than on a
@@ -213,6 +245,9 @@ export interface ScrapedPage {
   sections?: PageSection[]
   // Optional for the same reason `sections` is: nothing scraped before this existed carries it.
   links?: PageLink[]
+  // Required here and nullable in the column, exactly like `mobile`: every scrape from now on
+  // carries it, and only rows measured before it existed have none.
+  sameness: PageSameness
 }
 
 export class ScrapeError extends Error {
@@ -411,6 +446,14 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
       const performance = await page.evaluate(capturePerformance, {
         lcpFlushMs: SCRAPE_LCP_FLUSH_MS
       })
+      // Last of the desktop reads, and deliberately after `capturePerformance` so it cannot push the
+      // LCP flush later. Same page, same slot, no extra navigation -- which is what keeps the free
+      // half of an analysis at zero tokens and one browser slot. See docs/scraping.md.
+      const sameness = await page.evaluate(captureSameness, {
+        patterns: SAMENESS_PATTERNS,
+        sampleMax: SAMENESS_SAMPLE_MAX,
+        cardGridSize: SAMENESS_CARD_GRID_SIZE
+      })
 
       // The second pass, in the same slot. Everything above was measured at SCRAPE_VIEWPORT; from
       // here the page is a phone. Nothing after this reads the desktop DOM, so the reload is safe to
@@ -432,7 +475,7 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
         ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
       })
 
-      return { url, html, elements, structure, seo, performance, mobile, sections, links }
+      return { url, html, elements, structure, seo, performance, mobile, sections, links, sameness }
     } catch (error) {
       throw new ScrapeError(`Failed to scrape ${url}`, { cause: error })
     } finally {
@@ -1199,6 +1242,133 @@ function captureStructure(options: {
  * repeating it here would be noise dressed as a second opinion.
  *
  */
+/**
+ * Counts the marks of a page built out of defaults.
+ *
+ * **Exported for the DOM spec.** `e2e/dom/` is the only place in this repo where computed CSS can be
+ * tested for real, and it drives this function through `page.evaluate` against `setContent` fixtures.
+ *
+ * Two constraints this is written around, both of which fail silently rather than loudly:
+ *
+ * - **Every pattern arrives as a string and is compiled here.** A `RegExp` handed across
+ *   `page.evaluate` serialises to `{}` and every test against it answers `false` -- no error, just a
+ *   count of zero forever. Same rule as `TRUST_PATTERNS`, see docs/scraping.md.
+ * - **`getComputedStyle` only, never `document.styleSheets[i].cssRules`.** The second throws
+ *   `SecurityError` on a cross-origin stylesheet, by the browser's own CORS rule and not by anything
+ *   this scraper does, and most real pages load at least one stylesheet off a CDN.
+ */
+export function captureSameness(options: {
+  patterns: typeof SAMENESS_PATTERNS
+  sampleMax: number
+  cardGridSize: number
+}): PageSameness {
+  const { patterns, sampleMax, cardGridSize } = options
+
+  function isVisible(el: Element): boolean {
+    const rect = el.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) return false
+    const style = getComputedStyle(el)
+    return style.visibility !== 'hidden' && style.display !== 'none'
+  }
+
+  function lower(value: string | null | undefined): string {
+    return (value || '').replace(/\s+/g, ' ').trim().toLowerCase()
+  }
+
+  // **Bounded, because this walks every element on the page.** A generated page is often thousands
+  // of nodes, and the counts stop being informative long before the walk stops being cheap.
+  const all = Array.from(document.body.querySelectorAll('*')).slice(0, sampleMax)
+
+  let gradientCount = 0
+  const families = new Set<string>()
+
+  for (const el of all) {
+    const style = getComputedStyle(el)
+    // `backgroundImage` carries the gradient; `background-color` never does. An element with two
+    // stacked gradients counts once, because what is counted is elements and not layers.
+    if (style.backgroundImage.includes('gradient')) gradientCount += 1
+    // The computed value is the whole stack ("Inter, ui-sans-serif, ..."), so the first entry is the
+    // face that actually renders. Quotes come and go between engines and are stripped.
+    const first = lower(style.fontFamily.split(',')[0]).replace(/["']/g, '')
+    if (first) families.add(first)
+  }
+
+  const svgs = Array.from(document.querySelectorAll('svg')).slice(0, sampleMax)
+  const iconSetCount = svgs.filter((svg) => {
+    const attrs = Array.from(svg.attributes).map((a) => lower(a.name) + ' ' + lower(a.value))
+    const cls = lower(svg.getAttribute('class'))
+    if (patterns.iconAttributes.some((n) => cls.includes(n) || attrs.some((a) => a.includes(n)))) {
+      return true
+    }
+    const d = svg.querySelector('path')?.getAttribute('d') || ''
+    return patterns.iconPaths.some((prefix) => d.startsWith(prefix))
+  }).length
+
+  // A row of sibling cards where each is icon + heading + text. Counted on the CONTAINER, so a grid
+  // of three is one triplet rather than three.
+  const cardTripletCount = all.filter((el) => {
+    const kids = Array.from(el.children)
+    if (kids.length !== cardGridSize) return false
+    return kids.every(
+      (kid) =>
+        kid.querySelector('svg') !== null &&
+        kid.querySelector('h2, h3, h4') !== null &&
+        kid.querySelector('p') !== null
+    )
+  }).length
+
+  // Astral-plane pictographs and dingbats. Deliberately not the whole emoji range: a bullet
+  // character and an accented Portuguese letter both live low, and neither is an emoji.
+  const emoji = new RegExp('[\u{1F300}-\u{1FAFF}\u{2700}-\u{27BF}\u{2600}-\u{26FF}]', 'u')
+  const emojiHeadingCount = Array.from(document.querySelectorAll('h1, h2, h3, h4, li')).filter(
+    (el) => emoji.test(el.textContent || '')
+  ).length
+
+  const clickables = Array.from(document.querySelectorAll('a, button')).filter(isVisible)
+  const genericCtaCount = clickables.filter((el) =>
+    (patterns.genericCtas as readonly string[]).includes(lower(el.textContent))
+  ).length
+
+  // Whole-document text, so a placeholder in a footer counts the same as one in the hero.
+  const bodyText = lower(document.body.innerText)
+  const placeholderCount = patterns.placeholders.filter((n) => bodyText.includes(n)).length
+
+  // A logo row is decoration shaped like proof. What makes it a mark is that the logos link nowhere:
+  // real social proof points at the customer.
+  const hasUnlinkedLogoStrip = Array.from(document.querySelectorAll('section, div')).some((el) => {
+    const text = lower(el.textContent).slice(0, 120)
+    if (!patterns.logoStripLabels.some((label) => text.includes(label))) return false
+    const imgs = el.querySelectorAll('img, svg')
+    return imgs.length >= cardGridSize && el.querySelectorAll('a[href]').length === 0
+  })
+
+  // **The one finding here that touches origin, and it is a declaration rather than an inference.**
+  // The page said so itself, in a meta tag or in the hostname it is served from.
+  const generator = lower(document.querySelector('meta[name="generator"]')?.getAttribute('content'))
+  const host = lower(location.hostname)
+  const declaredBuilder = patterns.builders.some(
+    (name) => generator.includes(name) || host.includes(name)
+  )
+
+  const images = Array.from(document.querySelectorAll('img')).slice(0, sampleMax)
+  const hasStockHeroImage = images.some((img) =>
+    patterns.stockHosts.some((h) => lower(img.getAttribute('src')).includes(h))
+  )
+
+  return {
+    gradientCount,
+    fontFamilyCount: families.size,
+    iconSetCount,
+    cardTripletCount,
+    emojiHeadingCount,
+    genericCtaCount,
+    placeholderCount,
+    hasUnlinkedLogoStrip,
+    declaredBuilder,
+    hasStockHeroImage
+  }
+}
+
 function captureMobile(options: {
   tapTargetMinPx: number
   minFontPx: number

@@ -176,6 +176,7 @@ export function headlineFinding(analysis: {
   crawlerAccess: Parameters<typeof measuredFindings>[0]['crawler']
   keywords: Parameters<typeof measuredFindings>[0]['keywords']
   mobile: Parameters<typeof measuredFindings>[0]['mobile']
+  sameness: Parameters<typeof measuredFindings>[0]['sameness']
   market: Parameters<typeof measuredFindings>[0]['market']
 }) {
   const findings = measuredFindings({
@@ -185,6 +186,7 @@ export function headlineFinding(analysis: {
     crawler: analysis.crawlerAccess,
     keywords: analysis.keywords,
     mobile: analysis.mobile,
+    sameness: analysis.sameness,
     market: analysis.market
   })
 

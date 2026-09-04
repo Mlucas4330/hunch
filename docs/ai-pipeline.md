@@ -73,7 +73,7 @@ Testimonial: ...
 Pricing: ...
 ```
 
-A founder `brief`, when present, is appended to the generation prompt so variants use real facts.
+An owner `brief`, when present, is appended to the generation prompt so variants use real facts.
 
 **It is what a credit is spent on, and that came out of a measurement rather than a preference.**
 `analyses.brief` was null in every real analysis this product had ever run, so half of
@@ -87,7 +87,7 @@ measurement twice with a brief and twice without put the two arms side by side:
 | uses a `[placeholder]` | 0% | 0% |
 
 The arm with no brief reshuffles the page's own vocabulary, because that vocabulary is the only thing
-in front of it. The arm with one opens on the objection the founder named and puts facts in the copy
+in front of it. The arm with one opens on the objection the owner named and puts facts in the copy
 that the page did not carry.
 
 Two things in that table are worth keeping for the next person who changes this prompt. **Word reuse
@@ -168,7 +168,7 @@ Three rules hold it together, and each fails differently if it is undone:
   slots on nothing. See [invariants.md](invariants.md).
 
 They go to the copy call and to neither of the other two. The playbook argues from what was counted
-and the visibility audit from the SEO readout; neither writes a sentence a founder publishes, which is
+and the visibility audit from the SEO readout; neither writes a sentence an owner publishes, which is
 the one thing this material exists to make specific.
 
 **On the evidence so far it fires rarely, and the reason is worth writing down.** Of the two real
@@ -240,9 +240,8 @@ page says today.** So a paraphrase, or two elements merged, is generated text pr
 measurement, which [invariants.md](invariants.md) forbids.
 
 `resolveTargets` in `lib/analyze.ts` therefore drops any hypothesis whose quote matches no element,
-with a `console.warn` naming it. **It is the same check `groundTerms` runs on ad terms**, in the same
-place and for the same stated reason: the prompt asks and cannot guarantee, so the guarantee is made
-on the way back. The cost is real, a usable rewrite is lost to a transcription slip, and the
+with a `console.warn` naming it, for the reason every check of this shape exists here: the prompt
+asks and cannot guarantee, so the guarantee is made on the way back, in code. The cost is real, a usable rewrite is lost to a transcription slip, and the
 alternative is telling somebody their page says something it does not.
 
 **`found` and `mode` answer different questions and are allowed to disagree.**
@@ -322,7 +321,7 @@ branch**, `analyses.brief` is null in all of them.
 The prompt defined `problem` as one sentence naming the gap, and **nothing anywhere invited the model
 to say what the current line gets right.** A brief asking only for faults produces only faults: a line
 already doing its job had no way to survive the pass, so every element that got looked at came back
-rewritten. That is how a founder who had just followed this product's own advice was told to undo it.
+rewritten. That is how an owner who had just followed this product's own advice was told to undo it.
 
 It is a field rather than an instruction because a judgement that is not written down cannot be
 checked, by the reader or by us. `assessmentRules()` states the outcome it exists to make possible:
@@ -577,13 +576,13 @@ of the rule.
 ## 4. Playbook: `generatePlaybook`
 
 A second `generateObject` over `PlaybookOutputSchema`, in `Promise.all` with the hypothesis call, so it
-costs no additional latency. Fed the structure JSON and the founder brief. **Resolves to `[]` on any
+costs no additional latency. Fed the structure JSON and the owner brief. **Resolves to `[]` on any
 failure** rather than rejecting, which keeps a playbook failure from taking the analysis down with it.
 
 Load-bearing prompt rules:
 
 - Never recommend adding something the readout says is already there.
-- Every `steps` entry is one concrete action on the founder's own site, never advice, never
+- Every `steps` entry is one concrete action on the owner's own site, never advice, never
   replacement copy.
 - `evidence` carries no quantitative claim of any kind. See
   [invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured).
@@ -602,7 +601,7 @@ the page already has" then covers the new fields unchanged.
 
 The readout counts a phone viewport and a load time, and both drag the score down. Handed
 `PageStructure` alone, with no `FLOW_FIX_CATEGORY` covering either, no fix can ever answer them:
-**the report tells a founder their page is slow and then has nothing to say about it.** A measurement
+**the report tells an owner their page is slow and then has nothing to say about it.** A measurement
 with no possible answer is a worse deliverable than not measuring.
 
 So `generatePlaybook` also gets `PageMobile` and `PagePerformance`, and `PLAYBOOK_MAX` is 8 rather
@@ -612,6 +611,30 @@ a conversion one while the list looked the same length.
 The load numbers arrive with the caveat they always carry, measured from a datacentre, a floor a real
 visitor never beats, and the prompt forbids presenting one as what a visitor experiences, or saying
 what a faster page will produce. Same rule as everywhere else, see [invariants.md](invariants.md).
+
+### The sameness marks reach it as context, never as findings
+
+`PlaybookInput.sameness` carries the ten counts from the `sameness` readout group, and they are
+serialised into the prompt on their own key rather than travelling in `findings`.
+
+**That is forced by a rule already in `readoutRules`: never attach a fix to a finding whose severity
+is `ok`.** Every mark is `ok` by construction, because a gradient is a choice and not a defect -- see
+[readout.md](readout.md). A fix pointing at one would render the "fix written" pointer beside a row
+in the one group that grades nothing, which is exactly the confusion that rule exists to prevent. So
+the fix comes back with `finding: null`, which `readoutRules` already names as a normal answer, and
+under the `distinctiveness` category.
+
+`samenessRules()` in `lib/ai/prompt.ts` is shared for the reason `marketRules` and `competitorRules`
+are, and it bans two sentences that fail differently:
+
+- **Origin.** "Your page was generated by AI" is a claim about how the page was made, which nobody
+  measured. `evidenceRules` does not cover it, because the sentence carries no number.
+- **Outcome.** "Replacing the gradient will build trust" is the delta rule surfacing where it is most
+  tempting, because the advice sounds obviously right.
+
+What it may do is argue the mechanism about this page: three cards each carrying a generic noun tell
+a visitor nothing, and a button reading "Get started" does not say what happens next. Then write the
+replacement.
 
 ## 5. Visibility audit: `generateVisibility`
 
@@ -637,40 +660,6 @@ keyword tool. See
 credibility rests on, see
 [invariants.md](invariants.md#the-audit-measured-the-page-not-the-index).
 
-## 5b. Ad ideas: `generateAdIdeas`
-
-**The only generator that is not in the `Promise.all`, and it must stay out of it.** Everything there
-runs on every paid analysis; most owners of a landing page are not buying search traffic for it, so
-putting this beside them would add a Sonnet call to every run to serve a minority. It is asked for by
-a button on the report instead, `POST /api/analyses/[id]/ads`, owner only, written once, and read
-back from `analyses.ad_ideas` afterwards. See [api.md](api.md).
-
-Fed the measured `PageKeywords` terms, the page's title and meta description, its word count and
-whether it has an FAQ, plus any founder brief. It returns `AdIdeas` or **null**: empty is a real
-answer (a page with nothing to group) and the route has to tell the two apart to decide whether to
-write the column.
-
-`adIdeasPrompt` carries `marketRules` and `writingRules` like every other prompt, plus the rule the
-whole section rests on, stated three ways because this is **the first surface in the product whose
-output looks like the output of a keyword tool**: the terms were counted in the page's own copy, and
-there is no search volume, no cost per click, no competition and no ranking potential anywhere,
-because we have neither an index nor a clickstream. See
-[invariants.md](invariants.md#keywords-measure-the-pages-own-words-never-the-index).
-
-Two more constraints are enforced outside the prompt, because a prompt cannot guarantee either:
-
-- **The character ceilings are Zod's.** `AD_HEADLINE_MAX_CHARS` (30) and
-  `AD_DESCRIPTION_MAX_CHARS` (90) are Google's own limits, so a line past one is a line the reader
-  cannot upload. It rejects rather than degrades, unlike `finding`, half a set of unusable headlines
-  is worse than an empty section with a retry, and the retry costs one call rather than a paid
-  analysis.
-- **`terms` is intersected with the measured terms on the way back**, by `groundTerms`. A `terms`
-  entry is a plain string, so a model that pluralises one, translates one or helpfully adds a synonym
-  produces a term this code never counted, and the entire claim the section makes is that these
-  words came off the page. A group left with nothing is dropped whole.
-
-The causal prohibition applies here as it does to our own campaigns: a headline may say what the
-product does, never what it will produce. See [ads.md](ads.md#what-the-ads-may-say).
 
 ## 6. Market
 
@@ -704,9 +693,8 @@ appended together at all four sites, so every prompt that writes prose carries b
 What it forbids is the set of habits that make a sentence read as machine written and that no other
 rule here catches: sales language and inflated importance, a participle clause bolted onto a fact to
 fake a mechanism, three of something because three sounds finished, "not just X but Y", clipped
-negative endings, filler, and a closing line of encouragement. The superlative rule in
-`adIdeasPrompt` and the no-invented-number rule in `variantCopyRules` already cover their own ground
-and are not repeated.
+negative endings, filler, and a closing line of encouragement. The no-invented-number rule in
+`variantCopyRules` already covers its own ground and is not repeated.
 
 **`evidence` is the field this exists for.** It asks for a CRO mechanism in one sentence, and a
 participle ("ensuring the visitor understands the offer") is the cheapest way to produce something

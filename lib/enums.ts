@@ -95,11 +95,17 @@ export type AnalysisTab = (typeof ANALYSIS_TAB)[number]
 // same four sections and a rail listing a section the page does not render -- or missing one it does
 // -- is the exact failure a hand-kept copy produces the first time a tab is added.
 //
-// `start` and `terms` bracket them: the triage block that opens the document and the counted terms
-// that close it. The cover is not here on purpose. It is the top of the page, so an anchor to it is
-// what the browser already does, and a rail entry pointing at the thing directly above the rail
-// reads as furniture. See docs/report.md.
-export const REPORT_SECTION = ['start', 'readout', ...ANALYSIS_TAB, 'terms'] as const
+// `start` opens the document and the four tabs close it. The cover is not here on purpose. It is the
+// top of the page, so an anchor to it is what the browser already does, and a rail entry pointing at
+// the thing directly above the rail reads as furniture.
+//
+// `prompt` closes it: the whole report rewritten as one instruction for the tool that built the
+// page, which is the last thing a reader does with it.
+//
+// **`terms` was an entry here and went with the counted-terms panel it named.** The rail is
+// generated from this list, so a value left here after its section stops rendering is a link to
+// nowhere -- which is the failure this being one list exists to prevent. See docs/report.md.
+export const REPORT_SECTION = ['start', 'readout', ...ANALYSIS_TAB, 'prompt'] as const
 export type ReportSection = (typeof REPORT_SECTION)[number]
 
 // The second layer inside an open card. An open card shows the decision -- the rewritten line, or
@@ -132,10 +138,18 @@ export const FLOW_FIX_CATEGORY = [
   'page_structure',
   // **These two exist because the readout measured things nothing could fix.** The `mobile` and
   // `load` groups drag a page's score down, and until now no fix category could address either:
-  // the report told a founder their page was slow and then offered nothing about it. A measurement
+  // the report told an owner their page was slow and then offered nothing about it. A measurement
   // with no possible answer is a worse deliverable than not measuring at all.
   'mobile',
-  'performance'
+  'performance',
+  // **Third of the same kind, and added for the same reason.** The `sameness` group counts marks a
+  // page picks up from being built out of defaults, and without a category the only home for a fix
+  // about them is `page_structure` -- which buries the one theme this product now leads with.
+  //
+  // **Named `distinctiveness` and deliberately not `sameness`.** That word already names the readout
+  // group, and one word meaning two things on one screen is how a reader concludes the page is
+  // saying everything twice. Same collision the note on READOUT_GROUP describes.
+  'distinctiveness'
 ] as const
 export type FlowFixCategory = (typeof FLOW_FIX_CATEGORY)[number]
 
@@ -213,10 +227,6 @@ export const RATE_LIMIT_KIND = [
   // so that someone correcting a typo in their address never spends the analysis allowance the same
   // IP is about to need. See docs/api.md.
   'lead',
-  // One model call and no browser, written once per analysis and then read back from the column. Its
-  // own kind rather than `variants` because a retry after a failed generation must not eat the
-  // allowance for rewriting copy, which is the thing the reader actually paid for. See docs/api.md.
-  'ad_ideas',
   // One update of one column. Its own kind because deciding on a list of five is five calls in a
   // row, and a reader working through a report must never spend the allowance that runs analyses.
   'verdict'
@@ -299,7 +309,20 @@ export const READOUT_FINDING = [
   'no_viewport_meta',
   'mobile_tap_targets',
   'mobile_tiny_text',
-  'mobile_above_fold_ctas'
+  'mobile_above_fold_ctas',
+  // The `sameness` marks. **Every one of these is descriptive and every one is emitted `ok`**, which
+  // is what separates them from everything above: a gradient is a choice, not a defect, and grading
+  // it would be this product asserting something it never measured. See docs/readout.md.
+  'gradient_backgrounds',
+  'font_families',
+  'icon_set_default',
+  'card_triplets',
+  'emoji_in_headings',
+  'generic_cta_text',
+  'placeholder_text',
+  'unlinked_logo_strip',
+  'builder_declared',
+  'stock_hero_image'
 ] as const
 export type ReadoutFinding = (typeof READOUT_FINDING)[number]
 
@@ -326,9 +349,24 @@ export const READOUT_GROUP = [
   'mobile',
   'declared',
   'crawler_access',
-  'load'
+  'load',
+  // Last, and deliberately: it is the only group that grades nothing, so a reader who stops before
+  // it has lost no judgement. See docs/readout.md.
+  'sameness'
 ] as const
 export type ReadoutGroup = (typeof READOUT_GROUP)[number]
+
+// Groups that are counted and shown but never scored.
+//
+// **`sameness` is descriptive, so folding it into the score would make a claim.** The score says how
+// much of what was measured is wrong; a gradient is not wrong. Averaging marks into it would assert
+// that looking like other pages costs conversion, and nobody measured that -- it is the delta rule
+// applied to a design choice. See docs/invariants.md.
+//
+// The consequence to know before adding to this list: `lib/score.ts` drops these from `overall`, and
+// `components/measured-readout.tsx` has to render a card with no rail for them, because its normal
+// path returns null when a group has no score.
+export const UNSCORED_READOUT_GROUP: ReadoutGroup[] = ['sameness']
 
 // `flow_fixes.finding` is a `text` column rather than a pgEnum -- see the note on it in db/schema.ts --
 // so a value read back is a plain string and has to be narrowed before it can key anything. This is
@@ -392,6 +430,13 @@ export const LOG_EVENT = [
   'ads.conversion_uploaded',
   'ads.conversion_skipped',
   'ads.conversion_failed',
+  // The same three for a captured address, reported against a second conversion action. Separate
+  // names rather than a field on the ones above, because these are the noisy pair: a lead is far
+  // more common than a purchase, so a failure here would otherwise be buried under a metric nobody
+  // is watching for payments. `skipped` is again the ordinary case -- most readers never saw an ad.
+  'ads.lead_uploaded',
+  'ads.lead_skipped',
+  'ads.lead_failed',
   // The lead sequence. `skipped` covers every ordinary reason a row is passed over -- unsubscribed,
   // already bought, consented under the older copy -- and stays at info, because passing rows over
   // is most of what the cron does. See docs/api.md.

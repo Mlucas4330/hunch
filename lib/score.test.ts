@@ -57,3 +57,20 @@ test('the score bands read downward, with the threshold on the bad side', () => 
   assert.equal(scoreSeverity(100), 'ok')
   assert.equal(scoreSeverity(0), 'alert')
 })
+
+// **The regression that is easiest to cause and hardest to notice.** Nothing on screen says the
+// score moved because a design choice was averaged into it; the number just drifts up, and every
+// page measured before the group existed carries a different one for no stated reason.
+test('sameness findings never move the overall score', () => {
+  const base = [finding('structure', 'ok'), finding('load', 'alert')]
+  const withMarks = [...base, finding('sameness', 'ok'), finding('sameness', 'ok')]
+
+  assert.equal(readoutScore(withMarks).overall, readoutScore(base).overall)
+})
+
+test('an unscored group carries no group score either, so no rail renders for it', () => {
+  const score = readoutScore([finding('structure', 'ok'), finding('sameness', 'ok')])
+
+  assert.equal(score.groups.sameness, null)
+  assert.equal(score.groups.structure, 100)
+})

@@ -76,6 +76,34 @@ routinely keeps its whole navigation in the DOM translated off to one side, wher
 horizontally and to have non-zero opacity. Tap targets additionally exclude `display: inline`, because
 a link inside a sentence is prose rather than something anyone aims a thumb at.
 
+## `PageSameness`: what the page has in common with every other one
+
+The last of the desktop reads, run after `capturePerformance` so it cannot push the LCP flush later,
+and before the user agent switches to a phone. **No extra navigation and no extra browser slot**,
+which is what keeps the free half of an analysis at zero tokens and one slot.
+
+`captureSameness` counts gradients, rendered typefaces, icons whose path data belongs to a known set,
+three-card rows, emoji in headings, generic button labels, placeholder text, an unlinked logo strip,
+a declared builder, and a stock hero image. What the readout does with those counts, and why it
+grades none of them, is in [readout.md](readout.md).
+
+Three things about the implementation, all of which fail quietly rather than loudly:
+
+- **It reads `getComputedStyle` and never `document.styleSheets[i].cssRules`.** The second throws
+  `SecurityError` on a cross-origin stylesheet, by the browser's own CORS rule rather than by
+  anything the interceptor does, and nearly every real page loads a font or component stylesheet from
+  a CDN. Computed style has no such restriction and is the reason this works at all.
+- **The patterns cross as strings**, per the rule below. `SAMENESS_PATTERNS` holds arrays of literals
+  and the one regex it needs (the emoji range) is built inside the evaluate.
+- **`SAMENESS_SAMPLE_MAX` bounds the walk at 1500 nodes**, because reading a computed style forces
+  layout and a generated page is routinely thousands of elements. The counts stop being informative
+  long before the walk stops being cheap: forty gradients and four hundred are the same answer.
+
+`e2e/dom/capture-sameness.spec.ts` is where this is actually tested. `lib/readout.test.ts` can prove
+what the readout does with the counts and nothing more -- `getComputedStyle` needs a browser, so the
+claim that a gradient declared in a `<style>` block comes back as `linear-gradient(...)` is checked
+there or nowhere.
+
 ## `PageStructure`: what the page does
 
 A flat record: `hasOauth`, `formFieldCount`, `hasFaq`, `hasPricing`, `hasTestimonials`, `hasVideo`,

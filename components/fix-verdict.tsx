@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/components/i18n-provider'
 import type { Verdict, VerdictTarget } from '@/lib/enums'
@@ -34,6 +35,7 @@ export function FixVerdict({
   const copy = dictionary.verdict
   const [verdict, setVerdict] = useState(initial)
   const [pending, setPending] = useState(false)
+  const router = useRouter()
 
   // Optimistic, and rolled back on failure. The alternative is a spinner on a control whose whole
   // point is that deciding costs nothing, and a decision that quietly did not save is worse than one
@@ -49,7 +51,15 @@ export function FixVerdict({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ target, id, verdict: next })
       })
-      if (!res.ok) setVerdict(previous)
+      if (!res.ok) {
+        setVerdict(previous)
+      } else {
+        // **The prompt at the foot of the report is assembled on the server and filters on this
+        // column**, so a verdict that only lives in this component's state leaves the reader copying
+        // an instruction to redo what they just marked as done. The optimistic update above is what
+        // keeps the button feeling free; this is what makes it mean something. See lib/fix-prompt.ts.
+        router.refresh()
+      }
     } catch {
       setVerdict(previous)
     } finally {

@@ -29,6 +29,7 @@ const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN
 const customerId = process.env.GOOGLE_ADS_CUSTOMER_ID
 const loginCustomerId = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID
 const conversionActionId = process.env.GOOGLE_ADS_CONVERSION_ACTION_ID
+const leadConversionActionId = process.env.GOOGLE_ADS_LEAD_CONVERSION_ACTION_ID
 const clientId = process.env.GOOGLE_ADS_CLIENT_ID
 const clientSecret = process.env.GOOGLE_ADS_CLIENT_SECRET
 const refreshToken = process.env.GOOGLE_ADS_REFRESH_TOKEN
@@ -49,6 +50,24 @@ export function googleAdsEnabled(): boolean {
       clientSecret &&
       refreshToken
   )
+}
+
+/**
+ * Whether a captured lead can be reported as well.
+ *
+ * **A seventh variable, and deliberately not part of `googleAdsEnabled`.** Leaving it unset has to
+ * mean "report payments and nothing else" rather than "report nothing": the payment upload is the
+ * one that carries money and it must not go dark because a second conversion action was never
+ * created. So this is the narrower gate, and it is checked on top of the six rather than beside
+ * them.
+ */
+export function leadConversionEnabled(): boolean {
+  return googleAdsEnabled() && Boolean(leadConversionActionId)
+}
+
+/** The conversion action a lead is reported against, empty when one was never configured. */
+export function leadConversionAction(): string {
+  return leadConversionActionId ?? ''
 }
 
 // Google's customer ids are written with dashes everywhere a human reads one and refused with them
@@ -162,19 +181,29 @@ export function conversionDateTime(at: Date): string {
 
 export type ClickConversion = {
   gclid: string
-  /** What the buyer actually paid, in BRL. Never an estimate -- see docs/ads.md. */
-  valueBrl: number
   /**
-   * The payment's own id at the provider. Passed as Google's `orderId`, which makes the upload
-   * idempotent on Google's side as well as on ours: a second upload carrying the same order id
-   * updates the conversion rather than adding one.
+   * What the buyer actually paid, in BRL. Never an estimate -- see docs/ads.md.
+   *
+   * **Absent for a lead, and that is the rule rather than an omission.** Nobody paid anything when
+   * an address was left, so any figure here would be a number this code invented -- the expected
+   * value of a lead is exactly the sort of quantity docs/invariants.md refuses on every other
+   * surface, and our own reporting does not get an exemption. A conversion with no value is honest;
+   * one carrying a guessed ticket is not.
+   */
+  valueBrl?: number
+  /**
+   * The payment's own id at the provider, or the lead's row id. Passed as Google's `orderId`, which
+   * makes the upload idempotent on Google's side as well as on ours: a second upload carrying the
+   * same order id updates the conversion rather than adding one.
    */
   orderId: string
   at: Date
+  /** Which action to report against. Defaults to the purchase one when absent. */
+  conversionActionId?: string
 }
 
 /**
- * Reports one confirmed purchase to Google Ads.
+ * Reports one conversion to Google Ads: a confirmed purchase, or a captured lead.
  *
  * **Throws on failure**, unlike everything the caller does with it -- the caller logs and swallows.
  * It is written this way so the failure carries a reason into the log line rather than becoming a
@@ -200,10 +229,14 @@ export async function uploadClickConversion(conversion: ClickConversion): Promis
         conversions: [
           {
             gclid: conversion.gclid,
-            conversionAction: `customers/${account}/conversionActions/${conversionActionId}`,
+            conversionAction: `customers/${account}/conversionActions/${conversion.conversionActionId ?? conversionActionId}`,
             conversionDateTime: conversionDateTime(conversion.at),
-            conversionValue: conversion.valueBrl,
-            currencyCode: ADS_CONVERSION_CURRENCY,
+            // Omitted together, rather than sent as a zero: a currency with no amount beside it is
+            // refused, and a zero would claim a sale worth nothing rather than a conversion that
+            // never had a price.
+            ...(conversion.valueBrl === undefined
+              ? {}
+              : { conversionValue: conversion.valueBrl, currencyCode: ADS_CONVERSION_CURRENCY }),
             orderId: conversion.orderId
           }
         ],

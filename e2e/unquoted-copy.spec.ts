@@ -16,7 +16,7 @@ const URL_UNDER_TEST = 'https://example.com/?hunch-e2e-unquoted'
  * requires the quote verbatim off the element list it was given, Zod sees a plain string, and the
  * reader's card renders that quote struck through as what their page says today. So an unmatched one
  * is a sentence a model wrote being presented as a measurement, and it is checked on the way back
- * exactly as `groundTerms` checks ad terms.
+ * rather than asked for in the prompt.
  *
  * The fixture withholds the first element, which is the only way to reach this without a real model.
  * Six hypotheses come back, five survive, and the rest of the report is untouched: the drop is not a

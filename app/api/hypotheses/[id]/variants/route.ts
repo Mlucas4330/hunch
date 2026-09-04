@@ -65,7 +65,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       alreadyWritten: written.map((variant) => variant.copy),
       tone: tone.success ? tone.data.tone : null,
       emphasized: recommended.emphasis !== null,
-      founderBrief: hypothesis.analysis.brief,
+      ownerBrief: hypothesis.analysis.brief,
       locale: hypothesis.analysis.locale,
       market: hypothesis.analysis.market
     })

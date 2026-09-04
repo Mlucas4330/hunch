@@ -7,7 +7,7 @@ import type {
   ReadoutUnit
 } from '@/lib/enums'
 import type { Market } from '@/lib/enums'
-import type { PageMobile, PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
+import type { PageMobile, PagePerformance, PageSameness, PageSeo, PageStructure } from '@/lib/scrape'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
 
@@ -47,6 +47,7 @@ export type ReadoutInput = {
   crawler: CrawlerAccess | null
   keywords: PageKeywords | null
   mobile: PageMobile | null
+  sameness: PageSameness | null
   // Only one finding reads it, and it reads it to stay silent: a CNPJ in the footer is a Brazilian
   // convention, so its absence is a finding in Brazil and noise anywhere else. Same rule as
   // everywhere else -- the market filters what may be said, it is never a fact about buyers. See
@@ -124,8 +125,28 @@ function presence(
   }
 }
 
+/**
+ * A counted fact that is not a verdict.
+ *
+ * **Always `ok`, and that is the whole point of it existing.** `count` grades against a threshold and
+ * `presence` grades absence as `warn`; both are right for a defect and wrong for a design choice. A
+ * page with four gradients has four gradients, and calling that amber would be this product
+ * asserting something it never measured -- the same line that keeps `evidence` free of invented
+ * numbers. The reader reads the count and draws their own conclusion.
+ *
+ * `criterion` is null because there is no boundary: nothing here is flagged from any value.
+ */
+function mark(
+  id: ReadoutFinding,
+  group: ReadoutGroup,
+  value: number,
+  unit: 'count' | 'presence'
+): MeasuredFinding {
+  return { id, group, severity: 'ok', value, unit, criterion: null }
+}
+
 export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
-  const { structure, seo, performance, crawler, keywords, mobile, market } = input
+  const { structure, seo, performance, crawler, keywords, mobile, sameness, market } = input
   const out: MeasuredFinding[] = []
 
   if (structure) {
@@ -514,7 +535,38 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
     )
   }
 
+  // **All or nothing on the column, like every group above.** A row measured before the pass existed
+  // has `null` here, and a group of zeroes would tell that reader their page has none of these marks
+  // -- reporting never-measured as a clean bill, which is unknown-reported-as-fact and forbidden
+  // outright. See docs/invariants.md.
+  //
+  // Each field is guarded separately for the same reason: `undefined` is not `0`.
+  if (sameness) {
+    const marks: [ReadoutFinding, number | undefined, 'count' | 'presence'][] = [
+      ['gradient_backgrounds', sameness.gradientCount, 'count'],
+      ['font_families', sameness.fontFamilyCount, 'count'],
+      ['icon_set_default', sameness.iconSetCount, 'count'],
+      ['card_triplets', sameness.cardTripletCount, 'count'],
+      ['emoji_in_headings', sameness.emojiHeadingCount, 'count'],
+      ['generic_cta_text', sameness.genericCtaCount, 'count'],
+      ['placeholder_text', sameness.placeholderCount, 'count'],
+      ['unlinked_logo_strip', bool(sameness.hasUnlinkedLogoStrip), 'presence'],
+      ['builder_declared', bool(sameness.declaredBuilder), 'presence'],
+      ['stock_hero_image', bool(sameness.hasStockHeroImage), 'presence']
+    ]
+
+    for (const [id, value, unit] of marks) {
+      if (value !== undefined) out.push(mark(id, 'sameness', value, unit))
+    }
+  }
+
   return out
+}
+
+// `undefined` has to survive the trip so the guard above can drop the field, which a plain
+// `Number(flag)` would turn into `0` -- the exact confusion between "not measured" and "none".
+function bool(flag: boolean | undefined): number | undefined {
+  return flag === undefined ? undefined : flag ? 1 : 0
 }
 
 export function readout(input: ReadoutInput): Readout {

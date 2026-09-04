@@ -138,7 +138,7 @@ type ReportDictionary = ReturnType<typeof useI18n>['dictionary']
  * four words twice, free to drift into two names for one section.
  */
 function labelFor(section: ReportSection, dictionary: ReportDictionary): string {
-  if (section === 'start' || section === 'readout' || section === 'terms') {
+  if (section === 'start' || section === 'readout' || section === 'prompt') {
     return dictionary.report.rail.sections[section]
   }
 

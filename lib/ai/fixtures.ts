@@ -1,12 +1,11 @@
 import type {
-  AdIdeas,
   AnalysisOutput,
   FlowFixOutput,
   VariantOutput,
   VisibilityFixOutput
 } from '@/lib/ai/schema'
 import type { Locale } from '@/lib/enums'
-import type { PageMobile, PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
+import type { PageMobile, PagePerformance, PageSameness, PageSeo, PageStructure } from '@/lib/scrape'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
 
@@ -86,6 +85,21 @@ export const FIXTURE_MOBILE: PageMobile = {
   tinyTextCount: 11,
   aboveFoldCtaCount: 1,
   hasViewportMeta: true
+}
+
+// A page carrying most of the marks, because the e2e run's whole job is to render the section with
+// something in it. A fixture of zeroes would exercise the empty path and never the populated one.
+export const FIXTURE_SAMENESS: PageSameness = {
+  gradientCount: 4,
+  fontFamilyCount: 1,
+  iconSetCount: 11,
+  cardTripletCount: 3,
+  emojiHeadingCount: 6,
+  genericCtaCount: 2,
+  placeholderCount: 0,
+  hasUnlinkedLogoStrip: true,
+  declaredBuilder: true,
+  hasStockHeroImage: false
 }
 
 export const FIXTURE_CRAWLER_ACCESS: CrawlerAccess = {
@@ -626,81 +640,3 @@ export function fixtureAlternateVariants(locale: Locale): VariantOutput[] {
   return ALTERNATE_VARIANTS[locale]
 }
 
-// Every term below is one of FIXTURE_KEYWORDS' own, because the route filters the generated groups
-// against the measured terms and a fixture that failed that filter would come back empty.
-const AD_IDEAS: Record<Locale, AdIdeas> = {
-  en: {
-    groups: [
-      {
-        theme: 'Workspace for teams',
-        terms: ['workspace', 'teams', 'modern teams'],
-        headlines: [
-          'One workspace for teams',
-          'Your team, one workspace',
-          'Built for modern teams',
-          'Start your workspace free',
-          'A workspace teams keep'
-        ],
-        descriptions: [
-          'One workspace where your team plans, writes and ships without switching tools.',
-          'Set up in minutes. No card to start, and your team can join the same day.'
-        ]
-      },
-      {
-        theme: 'Pricing and onboarding',
-        terms: ['pricing', 'onboarding'],
-        headlines: [
-          'Pricing on the page',
-          'See pricing, no demo call',
-          'Onboarding in one sitting',
-          'Simple pricing, no surprises',
-          'Start onboarding today'
-        ],
-        descriptions: [
-          'Pricing is on the page, so you can decide before anyone asks you for a call.',
-          'Onboarding walks your team through setup, from the first invite to the first project.'
-        ]
-      }
-    ],
-    negatives: ['course', 'jobs', 'salary', 'template', 'free download', 'tutorial']
-  },
-  'pt-BR': {
-    groups: [
-      {
-        theme: 'Workspace para times',
-        terms: ['workspace', 'teams', 'modern teams'],
-        headlines: [
-          'Um workspace para o time',
-          'Seu time, um workspace só',
-          'Feito para times modernos',
-          'Comece seu workspace grátis',
-          'O workspace que o time usa'
-        ],
-        descriptions: [
-          'Um workspace onde seu time planeja, escreve e entrega sem trocar de ferramenta.',
-          'Configuração em minutos. Sem cartão para começar, e o time entra no mesmo dia.'
-        ]
-      },
-      {
-        theme: 'Preços e onboarding',
-        terms: ['pricing', 'onboarding'],
-        headlines: [
-          'Preços na própria página',
-          'Veja o preço, sem reunião',
-          'Onboarding de uma sentada',
-          'Preços simples, sem surpresa',
-          'Comece o onboarding hoje'
-        ],
-        descriptions: [
-          'O preço está na página, então você decide antes de alguém pedir uma reunião.',
-          'O onboarding leva o time pela configuração, do primeiro convite ao primeiro projeto.'
-        ]
-      }
-    ],
-    negatives: ['curso', 'vaga', 'salário', 'template', 'download grátis', 'tutorial']
-  }
-}
-
-export function fixtureAdIdeas(locale: Locale): AdIdeas {
-  return AD_IDEAS[locale]
-}

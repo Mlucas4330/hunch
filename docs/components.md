@@ -153,7 +153,8 @@ Fixed at the source, `max-sm:` only, so nothing about the desktop scale moves:
   overlap the hit areas, trading a target that is too small for one that activates its neighbour.
 - **Icon-only controls grow their box, never their glyph.** The theme toggle's icons stay `size-3.5`;
   the buttons around them go to `size-11`. Enlarging the glyph would put oversized icons in a bar
-  drawn around small ones.
+  drawn around small ones. The same buttons are squared off at `size-6` above `sm`, which is a
+  separate reason: see [the language toggle](#language-toggle-componentslanguage-toggletsx).
 - **Standalone links get `min-h`, not padding.** Nav items, footer links and the two `inline-block`
   links on the landing page centre their text in a 44px box, so the row grows without the baseline
   drifting.
@@ -340,12 +341,32 @@ away, and a signed-out reader still gets none: the report has its own footer for
 
 ### Language toggle: `components/language-toggle.tsx`
 
-An EN / PT pair of submit buttons in one `<form>` posting to the `setLocale` server action, wrapped in
+A pair of submit buttons in one `<form>` posting to the `setLocale` server action, wrapped in
 `PendingFieldset` -- the action calls `revalidatePath('/', 'layout')`, so it is the most expensive
 click in the chrome and the one that most needs to show it. `useFormStatus` reports the form rather
 than which button was pressed, which is why the whole pair dims rather than one label swapping. No
 client JS beyond that, no URL change. Mounted in `components/navbar.tsx` and, **separately, in the public report's own
 header.** That surface has no navbar and is read signed-out by someone who may not read English.
+
+**Each segment is a flag from `country-flag-icons`, and specifically not the flag emoji.** Windows
+ships no flag faces in Segoe UI Emoji, so Chrome and Edge render the regional indicator pair as the
+boxed letters `BR` and `US`: the small out-of-proportion label the flags replaced, with less control
+over it. The SVG renders the same everywhere. `LOCALE_FLAG` lives in the component for the reason
+`READOUT_GROUP_ICON` does, see the note in [readout.md](readout.md).
+
+A flag is a country and the switch chooses a language, so **the accessible name is the language**.
+`LOCALE_LABEL` carries the endonyms, `English` and `Português`, untranslated in both directions so a
+reader who cannot read the current UI can still find their own. It is `sr-only` plus the `title`, and
+nothing prints it. The inactive segment is desaturated: two full-colour flags side by side both look
+selected, and the fill would then be arguing against the colour.
+
+**Both switches state their segment's box rather than padding it**, `size-6` above `sm` and `size-11`
+below, in `language-toggle.tsx` and `theme-toggle.tsx` alike. Padding sized each segment off its own
+content, and the two switches have different content: a 14px icon against an 18x12 flag, previously
+against a `text-nano` label whose line box came from an inherited `line-height`. They sat next to
+each other in the navbar cluster at different heights and agreed only at the `max-sm` step, where
+both were already squared off. Whichever way the pair is resized, resize it in both files: neither
+one can hold the match on its own.
 
 ## Disclosure card: `components/disclosure-card.tsx`
 
@@ -355,17 +376,17 @@ is deliberately shared: a number down the left edge is how this report says *her
 score on it*, and having two answers to that on one page was the actual inconsistency. **The widget
 is deliberately not shared.** See the note in [readout.md](readout.md#a-group-is-a-card-with-its-score-down-the-left-edge).
 
-### `summaryClassName` levels a row of cards without stretching the grid
+### `summaryClassName` shapes the trigger, not the card
 
-Opt in, and only the readout uses it. Its six group cards sit in a two column grid that is
-`items-start` **on purpose.** Stretching would make opening one card grow the closed box beside it
-so nothing external sets their height and the content has to agree on its own.
+Opt in and unset by default. It lands on the column holding the badge row and the title, for a
+caller that needs the `<summary>` itself drawn as a control: the account menu and the mobile menu
+both pass the padding, border and hover state through it, because on those two the trigger *is* the
+button and the panel below is only what it opens.
 
-Two things were disagreeing: a group name that wrapped to a second line, and a severity badge long
-enough ("Precisa de trabalho") to push the count beside it onto one. Reserving a minimum on the column
-that holds both covers them together, and the obvious fix, dropping `items-start`, is the older bug
-coming back. It is a minimum rather than a clamp, and off by default: the landing FAQ uses this same
-component for questions that legitimately run to three lines.
+**Nothing passes a height through it, and that is deliberate.** A constraint here applies to the
+closed card and the open one alike. The readout's group names and the landing FAQ's questions both
+run to as many lines as the locale needs, and an earlier `min-h` here was reserving room in every
+card for the longest name any of them might have.
 
 **The score is a rail down the left edge, and it is the only score treatment in the header.** The
 rail is one fixed-width block, tinted by impact, identical open or closed. Scanning a list reads
@@ -537,25 +558,6 @@ should have.
 
 `trailing` is what the bar says about the body without opening it, a count of cards. It sits before
 the chevron and must stay short enough not to wrap.
-
-## Page terms: `components/page-terms.tsx`
-
-The last section of the analysis: the terms counted on the page, and the ad groups written off them.
-A composer, not a widget, a `PanelCard` holding a heading, `KeywordTable` and `AdIdeas`, and it
-exists because those three were one thing conceptually and were previously two things in two places,
-with the table buried at the bottom of `MeasuredReadout` leading nowhere. **It starts open**, unlike
-the four sections above it: it is the last thing on the page, so nothing is buried by it. Returns
-`null` with no terms. See [analysis-ui.md](analysis-ui.md) and [readout.md](readout.md).
-
-## Ad ideas: `components/ad-ideas.tsx`
-
-Four states like `MeasurePage`: idle with a button, loading, error, and the result. Owner only, and
-it renders nothing at all for anyone else unless the ideas already exist, so a reader handed the link
-never sees an affordance leading somewhere they cannot go.
-
-Each group is a `Card` with the theme, its terms as `Badge` chips, and two `Lines` blocks. **`Lines`
-prints a character count against Google's ceiling on every entry.** The one number this section may
-carry, and it is arithmetic over text the component is already holding.
 
 ## Impact legend: `components/impact-legend.tsx`
 

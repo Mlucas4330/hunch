@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { ReportCover } from '@/components/report-cover'
 import { Wordmark } from '@/components/wordmark'
 import { UnlockWall } from '@/components/unlock-wall'
+import { FixPromptCard } from '@/components/fix-prompt-card'
 import { GeneratingSections } from '@/components/generating-sections'
 import { GenerationFailed } from '@/components/generation-failed'
 import { WatchPageForm } from '@/components/watch-page-form'
@@ -18,7 +19,6 @@ import { CopyReportLink } from '@/components/copy-report-link'
 import { Button } from '@/components/ui/button'
 import { MeasuredReadout } from '@/components/measured-readout'
 import { MeasurePage } from '@/components/measure-page'
-import { PageTerms } from '@/components/page-terms'
 import { ReportRail } from '@/components/report-rail'
 import { StartHere } from '@/components/start-here'
 import { getCurrentUser } from '@/lib/current-user'
@@ -39,6 +39,7 @@ import { cn } from '@/lib/utils'
 import type { FlowFix } from '@/db/schema'
 import { REPORT_SECTION, type Locale, type PlaybookSection } from '@/lib/enums'
 import { dictionaryFor, getDictionary, getLocale, type Dictionary } from '@/lib/i18n'
+import { fixPrompt } from '@/lib/fix-prompt'
 import { formatDate, t as fill } from '@/lib/i18n/format'
 import { displayHost } from '@/lib/host'
 import { pageMetadata } from '@/lib/seo'
@@ -111,6 +112,15 @@ export default async function ReportPage({
   // The readout is never gated in any of them, for the reason in docs/readout.md.
   const measured = hasReadout(readout(readoutFor(analysis)))
   const generated = analysis.hypotheses.length > 0 || analysis.flowFixes.length > 0
+
+  // Assembled on the server, from what is already on this page. Null on an analysis with nothing
+  // generated, which is what keeps the card and its rail entry off a free report. See lib/fix-prompt.ts.
+  const prompt = fixPrompt({
+    url: analysis.url,
+    hypotheses: analysis.hypotheses,
+    flowFixes: analysis.flowFixes,
+    dictionary: t
+  })
   const state = await analysisStateFor({
     id: analysis.id,
     measured,
@@ -183,7 +193,7 @@ export default async function ReportPage({
   const railSections = REPORT_SECTION.filter((section) => {
     if (section === 'start') return generated && analysis.flowFixes.length > 0
     if (section === 'readout') return true
-    if (section === 'terms') return Boolean(analysis.keywords?.terms.length)
+    if (section === 'prompt') return prompt !== null
     return generated && sectionCounts[section] > 0
   })
 
@@ -278,17 +288,11 @@ export default async function ReportPage({
             <UnlockWall embedKey={embedKey} />
           )}
 
-          {/* **Last in the document, below the tabs, and below the wall on a report with nothing
-              generated.** The terms are a measurement, so they are free like the rest of the readout
-              and sitting under the wall does not gate them -- it shows a reader who has not paid
-              that the counted half keeps going. What the owner can do here is ask for the ad groups;
-              everyone else reads the table. See docs/readout.md. */}
-          <PageTerms
-            keywords={analysis.keywords}
-            analysisId={analysis.id}
-            isOwner={isOwner}
-            adIdeas={analysis.adIdeas}
-          />
+          {/* **Last in the document, below the fix lists it is assembled from.** It is the step after
+              reading: this reader did not hand-write the page and will not hand-edit it either, so
+              the report's final act is handing itself back to the tool that built it. Null on a
+              report with nothing generated, which is what keeps it off the free half. */}
+          {prompt && <FixPromptCard prompt={prompt} />}
         </div>
       </div>
     </div>

@@ -121,26 +121,26 @@ title, H1, meta description, headings. That is a fact about one page, countable 
 
 **Search volume, keyword difficulty and ranking potential are none of those things.** They come from a
 clickstream and a SERP index we do not have, so any such number would be invented at the moment it was
-printed. This is the same rule as the one below applied to a different noun, and it is why the keyword
-table has a "times said" column and never a "searches per month" one.
+printed. This is the same rule as the one below applied to a different noun, and it is why
+`term_in_title`, `term_in_h1` and `term_in_meta_description` report where a word already appears and
+nothing anywhere reports how often anyone searches for it.
 
-**A counted term may be written into an ad, and it carries none of the index with it.** `generateAdIdeas`
-groups those terms into ad groups and writes headlines and descriptions for them, which is the first
-output in the product that *looks* like what a keyword tool sells -- and is the reason this rule needed
-extending rather than restating. What changes is the form; what does not change is that nothing here
-knows how often anyone searches for a term, what it costs, or how contested it is. So:
+**No volume, no cost per click, no competition, no difficulty, no expected position**, in any field,
+in any wording. There is no "high volume" term in this product and no "low competition" one, because
+nobody measured either.
 
-- **No volume, no cost per click, no competition, no difficulty, no expected position**, in any field,
-  in any wording. There is no "high volume" term in this product and no "low competition" one, because
-  nobody measured either, and a model handed a list that looks exactly like a keyword planner's output
-  will supply those adjectives unless told not to.
-- **Every term in a group is one this code counted.** A pluralised, translated or helpfully added
-  synonym is a word the page never used, and the whole claim the section rests on is that these came
-  off the page. The prompt says so and `groundTerms` enforces it, because a prompt cannot.
-- **A headline says what the product does, never what it will produce.** That is the delta rule below,
-  applied to our reader's advertising exactly as [ads.md](ads.md) applies it to our own.
+**This rule used to be twice as long, and what it lost is worth naming.** The product generated Google
+Ads groups off these terms -- the one output it ever had that *looked* like what a keyword planner
+sells -- and most of the words here were about keeping that output honest: every term intersected
+with the measured ones on the way back, because a model handed a list like that supplies "high
+volume" unless told not to. **That feature is gone**, along with the keyword table it sat under; see
+[product.md](product.md). What survives is the narrower and older claim, which never depended on it:
+the three `term_*` findings count words in the page's own copy, and this product has no index.
 
-*Governs:* [readout.md](readout.md), [ai-pipeline.md](ai-pipeline.md), [ads.md](ads.md)
+The deleted half is the warning to re-read before anything is built on `lib/keywords.ts` again. The
+counts are safe; the moment something groups, ranks or prices them, every line above comes back.
+
+*Governs:* [readout.md](readout.md), [ai-pipeline.md](ai-pipeline.md)
 
 ### The audit measured the page, not the index
 

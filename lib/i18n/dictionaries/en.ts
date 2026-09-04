@@ -3,13 +3,13 @@ import { enBlog } from '@/lib/i18n/dictionaries/en.blog'
 export const en = {
   metadata: {
     title: 'Hunch',
-    description: 'Turn a landing page into a measured teardown with ranked fixes and the copy already written.',
+    description: 'You built the page with AI. Find out if it is any good: a score measured on the page, ranked fixes, and the new copy already written.',
     ogImageAlt: 'Hunch - a measured teardown of your landing page',
     pages: {
       landing: {
-        title: 'Find out your landing page score',
+        title: 'Is your AI-built page any good? Get the score',
         description:
-          'Paste your landing page URL and get a score out of 100, measured on the page, plus ranked fixes with the replacement copy already written.'
+          'Built it in Lovable, v0, Bolt or Cursor? Paste the URL and get a score out of 100 measured on the page, plus ranked fixes with the replacement copy already written.'
       },
       signin: {
         title: 'Sign in',
@@ -94,6 +94,7 @@ export const en = {
       page_structure: 'Page Structure',
       mobile: 'Mobile',
       performance: 'Performance',
+      distinctiveness: 'Distinctiveness',
       indexability: 'Indexability',
       metadata: 'Metadata',
       structured_data: 'Structured Data',
@@ -150,11 +151,11 @@ export const en = {
 
   landing: {
     eyebrow: 'Free. No account. Under a minute.',
-    headlineTop: 'You know your landing page is not converting.',
-    headlineBottom: 'What is missing is knowing what is on it.',
-    lead: 'Hunch opens your landing page the way a visitor does, counts what is actually on it, and scores it out of 100, with ranked fixes and the replacement copy already written. Paste your URL. Seeing the score costs nothing and needs no account.',
+    headlineTop: 'You built the page with AI and it shipped looking good.',
+    headlineBottom: 'You have no idea whether it is any good.',
+    lead: 'Lovable, v0, Bolt, Cursor: the page is finished before you can judge it. Hunch opens yours the way a visitor does, counts what is actually on it, and scores it out of 100, with ranked fixes and the replacement copy already written. Paste your URL. Seeing the score costs nothing and needs no account.',
     cta: 'Score my page now, free',
-    ctaNote: 'Just your URL. We do not ask for a signup, a card, or an install.',
+    ctaNote: 'Just your URL. We do not ask for a signup, a card, or access to your code.',
     howItWorksLink: 'How it works',
 
     heroCard: {
@@ -173,23 +174,23 @@ export const en = {
 
     reality: {
       eyebrow: 'The reality',
-      heading: 'You cannot fix what nobody counted.'
+      heading: 'Asking an AI whether the AI-built page is good does not close the loop.'
     },
     pains: [
       {
-        headline: 'You know it is not converting. You do not know which part.',
-        reality: 'Traffic arrives, nobody signs up, and every guess about why costs you another week.',
+        headline: 'The chat has an opinion about a page it never opened.',
+        reality: 'You paste the URL, it writes five plausible tips. None of them came from loading your page: it is guessing from the address.',
+        answer: 'We open your page in a real browser, count what is on it, and show every number. You can check any row on your own site in one click.'
+      },
+      {
+        headline: 'It was done in an afternoon. You never got to judge it.',
+        reality: 'No traffic yet, no history, nobody to ask. The page is live and the only reading you have is that it looks fine.',
         answer: 'A score out of 100, and the exact rows that dragged it down. Counted on your page, never guessed.'
       },
       {
-        headline: 'Every tool tells you something different.',
-        reality: 'One says your speed is fine, the next says it is terrible, and none of them says what to change.',
-        answer: 'One readout, one number, and every row is something you can check on your own page in a click.'
-      },
-      {
-        headline: 'Asking an AI gets you generic advice.',
-        reality: 'You paste your URL into a chat and it writes plausible tips about a page it never opened.',
-        answer: 'We load your page for real, count what is on it, and rewrite the lines that need rewriting.'
+        headline: 'You know what is wrong. You cannot write what is right.',
+        reality: 'A diagnosis is easy to come by. The new text, written for your offer, is the part nobody hands over with it.',
+        answer: 'Every fix comes with the replacement copy already written, and you see it rendered on your real page before you swap it in.'
       }
     ],
     painsNav: {
@@ -207,11 +208,11 @@ export const en = {
 
     aiSearch: {
       heading: 'AI is the new Google, and it never opens your page in a browser.',
-      body: 'More and more people ask an assistant instead of searching. The crawler behind it downloads your text, reads it, and moves on. Your analysis has a tab for exactly that.',
+      body: 'More and more people ask an assistant instead of searching. The crawler behind it downloads your text, reads it, and moves on. A page assembled out of good-looking components is the one most at risk here, because almost everything it shows depends on running on screen. Your analysis has a tab for exactly that.',
       points: [
         {
           title: 'A reader with no browser',
-          body: 'No scripts, no fonts, no design. It gets the barest version of your page, so anything that only appears on screen is not there for it.'
+          body: 'No scripts, no fonts, no design. It gets the barest version of your page, so anything that only appears once a component mounts is not there for it.'
         },
         {
           title: 'What your page says about itself',
@@ -227,7 +228,7 @@ export const en = {
 
     how: {
       eyebrow: 'How it works',
-      heading: 'Three steps, and none of them touch your site.',
+      heading: 'Three steps, and none of them ask for your code.',
       intro: 'The score is free and needs no account. Unlock the fixes when you want the new copy written for you.',
       stepLabel: 'Step {n}',
 
@@ -264,11 +265,11 @@ export const en = {
     steps: [
       {
         label: 'Paste your URL',
-        body: 'No script to install, no login to your site, no DNS to change. Any public landing page will do, and we open it in a real browser, the way a visitor does.'
+        body: 'No script to install, no repository access, no DNS to change. The URL Lovable, v0, Bolt or Vercel gave you is enough, and we open it in a real browser, the way a visitor does.'
       },
       {
         label: 'Get your score',
-        body: 'Out of 100, with every row that made it: form fields, calls to action, load time, alt text, structured data. Nobody writes it up for you and nobody sends it later.'
+        body: 'Out of 100, with every row that made it: form fields, calls to action, load time, alt text, structured data. None of it is opinion: it is counted on your page and you can check every one.'
       },
       {
         label: 'Unlock the fixes',
@@ -304,8 +305,12 @@ export const en = {
           answer: 'You keep the free half. Paste a URL with an empty balance and you still get the score and every row that made it, exactly as someone with no account does. What a credit buys is the ranked fixes and the replacement copy, so those wait until you have one.'
         },
         {
-          question: 'Do you need access to my site?',
-          answer: 'No. No install, no script, no login, no DNS change. We open the public page the same way any visitor does, which is why it works on a page you do not control either.'
+          question: 'Do you need access to my site or my code?',
+          answer: 'Neither. No install, no script, no login, no repository, no DNS change. We open the public page the same way any visitor does, which is why it works on a page you do not control either.'
+        },
+        {
+          question: 'My page was built with AI. Does that change anything?',
+          answer: 'It changes what usually turns up, not how we measure. A generated page ships fast and ships good-looking, and what tends to be missing is the same short list: meta description, alt text, structured data, what a crawler can actually read. We count it on your page whether it came from Lovable, v0, Bolt, hand-written code or WordPress. And no, we cannot tell what built it, and we do not guess.'
         },
         {
           question: 'Where does the score come from?',
@@ -386,7 +391,8 @@ export const en = {
         title: 'The ad that brought you',
         body: [
           'If you arrived from a Google ad, the click identifier sits in a cookie of ours that no script in the browser can read, for 90 days.',
-          'It leaves here only if you buy. In that case our server sends Google Ads the click identifier and the amount paid, and nothing else. Someone who does not buy is never reported.'
+          'It leaves here at two moments and at no other. If you buy, our server sends Google Ads the click identifier and the amount paid. If you leave your email here, it sends the click identifier and nothing more, with no amount beside it, because nothing was paid.',
+          'In both cases what leaves is the identifier Google itself created when you clicked. Your email does not go with it, nor the page you measured, nor its score. Someone who arrived without clicking an ad of ours has no identifier at all, and is never reported at any point.'
         ]
       },
       {
@@ -399,7 +405,7 @@ export const en = {
         title: 'Who the data is shared with',
         body: [
           'Anthropic receives the content of the analysed page, which is what makes writing the fixes possible. Mercado Pago and Stripe receive what they need to charge. Resend sends the emails. And the infrastructure the product runs on hosts the database and the application.',
-          'Google Ads receives two things. When there is a purchase, it receives the ad click identifier and the amount paid. And it receives the emails of people who consented, always hashed with SHA-256 and never readable, to build the ads audience.',
+          'Google Ads receives two things. It receives the ad click identifier: with the amount paid when there is a purchase, and on its own, with no amount, when someone leaves their email. And it receives the emails of people who consented, always hashed with SHA-256 and never readable, to build the ads audience.',
           'Nobody else receives anything.'
         ]
       },
@@ -489,7 +495,7 @@ export const en = {
     briefFields: {
       audience: {
         label: 'Audience',
-        question: 'Who lands on this page?',
+        question: 'Who did you build this page for?',
         options: {
           consumers: 'Regular people, buying for themselves',
           smb: 'Small businesses and their owners',
@@ -500,7 +506,7 @@ export const en = {
       },
       offer: {
         label: 'Offer',
-        question: 'What are you selling them?',
+        question: 'What does this page offer them?',
         options: {
           saas: 'Software or an app',
           service: 'A service I deliver myself',
@@ -511,7 +517,7 @@ export const en = {
       },
       action: {
         label: 'Action',
-        question: 'What should they do on this page?',
+        question: 'What do you want them to do here?',
         options: {
           signup: 'Start a free account or trial',
           demo: 'Book a demo or a call',
@@ -522,13 +528,13 @@ export const en = {
       },
       objection: {
         label: 'Objection',
-        question: 'What stops them from doing it?',
+        question: 'What do you think would make them walk away?',
         options: {
-          price: 'They think it costs too much',
-          trust: 'They have never heard of me',
-          unclear: 'They cannot tell what it actually does',
-          switching: 'They already use something else',
-          effort: 'They expect it to be a pain to set up'
+          price: 'Thinking it costs too much',
+          trust: 'Never having heard of me',
+          unclear: 'Not being able to tell what it does',
+          switching: 'Already using something else',
+          effort: 'Expecting it to be a pain to set up'
         }
       }
     },
@@ -614,12 +620,16 @@ export const en = {
     fixLabel: 'Fix written:',
     groupOk: '{total} checks, all passing',
     groupWrong: '{wrong} of {total} need attention',
+    // Deliberately not 'need attention' and deliberately not a score. These are choices, not
+    // defects, and the sentence has to be true whether the count is 0 or 10.
+    groupMarks: '{present} of {total} present',
     groups: {
       structure: 'What a visitor runs into on the page',
       credibility: 'What the page offers as a reason to believe it',
       mobile: 'What the page does on a phone',
       declared: 'What the page tells a machine',
       crawler_access: 'What an AI crawler is allowed to read',
+      sameness: 'What your page has in common with every other one',
       load: 'What the page costs to open'
     },
     score: {
@@ -676,7 +686,17 @@ export const en = {
       no_viewport_meta: 'Page declares a mobile viewport',
       mobile_tap_targets: 'Buttons too small to tap',
       mobile_tiny_text: 'Text too small to read on a phone',
-      mobile_above_fold_ctas: 'Calls to action above the fold on a phone'
+      mobile_above_fold_ctas: 'Calls to action above the fold on a phone',
+      gradient_backgrounds: 'Gradient backgrounds',
+      font_families: 'Typefaces on the page',
+      icon_set_default: 'Icons from a stock icon set',
+      card_triplets: 'Rows of three feature cards',
+      emoji_in_headings: 'Headings and bullets with emoji',
+      generic_cta_text: 'Buttons with a generic label',
+      placeholder_text: 'Placeholder text left in',
+      unlinked_logo_strip: 'Logo strip that links somewhere',
+      builder_declared: 'Page declares the tool that built it',
+      stock_hero_image: 'Hero image from a stock library'
     },
     criterion: {
       above: 'flagged from {value}',
@@ -703,22 +723,6 @@ export const en = {
       seconds: '{value}s',
       megabytes: '{value} MB'
     },
-    keywords: {
-      eyebrow: 'Counted in your own copy',
-      heading: 'The words this page is built around',
-      explain:
-        'These are the terms your page repeats, counted in its own text. What matters is the columns on the right: a term you say fifteen times in the body but never put in the title or the H1 is a term a crawler, an assistant and an ad have nothing to match on.',
-      title: 'The terms this page repeats most',
-      term: 'Term',
-      count: 'Times said',
-      surfaces: {
-        inTitle: 'Title',
-        inH1: 'H1',
-        inMetaDescription: 'Meta description',
-        inHeadings: 'Headings'
-      },
-      hint: 'Counted in the page copy itself. These are the words this page is built around, not what anyone searches for.'
-    },
     measure: {
       explain:
         'This analysis was generated before we started counting. Load the page again and we will measure it: form fields, calls to action above the fold, load time, images with no alt text.',
@@ -733,21 +737,35 @@ export const en = {
     }
   },
 
-  adIdeas: {
-    eyebrow: 'Written from those terms',
-    title: 'Ad groups for a search campaign',
-    hintLabel: 'Where these ads come from',
-    hint: 'Grouped from the terms *counted on your page* and written to fit Google Ads: headlines up to 30 characters, descriptions up to 90. There is *no search volume, no cost per click and no competition* anywhere here, because we have no index and no clickstream and never invent one. Treat it as a first draft to check inside your account.',
-    explain:
-      'Group the terms above into ad groups, and write the headlines and descriptions for each one using what this page already says. One credit is not spent: it is included with the analysis.',
-    cta: 'Write ad ideas',
-    loading: 'Writing ad ideas...',
-    failed: 'We could not write the ad ideas this time. Nothing in this analysis was changed.',
-    retry: 'Try again',
-    headlines: 'Headlines',
-    descriptions: 'Descriptions',
-    negatives: 'Negative keywords',
-    negativesHint: 'Searches this page does not serve. Add them at campaign level before the first click.'
+  // The report turned into an instruction for the tool that built the page. **Every string here ends
+  // up inside somebody else's model**, so the same rules that govern our own prompts govern these:
+  // no claim about what a change will produce, and nothing asserted that was not measured.
+  fixPrompt: {
+    eyebrow: 'Hand it back to your AI tool',
+    title: 'The prompt that applies all of this',
+    hintLabel: 'What this is',
+    hint: 'Everything below, written as one instruction you can paste into Lovable, v0, Bolt, Cursor or any chat. It is *assembled from what is already on this page* - no model runs, nothing is generated, and your report link is not in it.',
+    cta: 'Copy the prompt',
+    copied: 'Copied',
+    preview: 'Preview the prompt',
+    preamble:
+      'My landing page at {url} was measured by Hunch, and these were the results. Every item below was counted on the page itself, not guessed, and the replacement text comes written. Apply the changes.',
+    changesHeading: 'STRUCTURAL CHANGES, most important first:',
+    copyHeading: 'TEXT TO REPLACE. Match the existing line exactly, then swap it:',
+    from: 'Replace:',
+    to: 'With:',
+    placeholderNote: '^ this line has [brackets] that are not real details yet',
+    rulesHeading: 'RULES:',
+    // Conditional, and first in the list when it appears: it is the one that prevents a live page
+    // being filled with something invented.
+    placeholderRule:
+      'Any text in [square brackets] is a gap I still have to fill. Do NOT invent a name, a number, a customer or a statistic to fill one. Leave the brackets in place and list them back to me at the end.',
+    rules: [
+      'Change only what is listed. Do not redesign anything else on the page.',
+      'Keep my existing stack, components and styling. These are content and structure changes.',
+      'If a line I asked you to replace does not exist exactly as written, tell me instead of guessing at the closest one.',
+      'Do not add claims, statistics, testimonials or logos that are not already on the page.'
+    ]
   },
 
   hypothesisList: {
@@ -826,32 +844,32 @@ export const en = {
         features: [
           'The score and every row that made it, on desktop and on a phone',
           'What the page weighs and how long it takes to load',
-          'The words your page repeats and where each one appears',
+          'What your page declares about itself, and what an AI crawler can read',
           'The report link in your inbox, so you can come back to it',
           'The ranked fixes and the rewritten copy are not in it: those are what a credit buys'
         ]
       },
       single: {
         name: 'Single',
-        price: 'R$47',
-        perAnalysis: 'R$47 per analysis',
-        tagline: 'One page, one look at it.',
+        price: 'R$97',
+        perAnalysis: 'R$97 per analysis',
+        tagline: 'One page, the whole teardown of it.',
         features: [
           'The score and every row that made it, on desktop and on a phone',
           'What the page weighs and how long it takes to load',
           'Ranked fixes for structure, copy, SEO and AI visibility',
           'The replacement copy written, previewed on your real page',
-          'Ad groups written from the words counted on the page'
+          'Two alternate options for any line, written on demand'
         ]
       },
       trio: {
         name: 'Trio',
-        price: 'R$147',
-        perAnalysis: 'R$49 per analysis',
-        tagline: 'A funnel of up to three pages.',
+        price: 'R$247',
+        perAnalysis: 'R$82 per analysis',
+        tagline: 'Three pages, or the same one three times.',
         features: [
           'Everything in Single, across three pages',
-          'One analysis for each step of the funnel, not just the home page',
+          'One for each project, or the landing, the pricing and the onboarding of the same one',
           'Or the same page again after you change it, to compare the two measurements',
           'All three in one dashboard, each with its own score',
           'Credits never expire'
@@ -967,12 +985,12 @@ export const en = {
     },
     rail: {
       label: 'On this page',
-      // Only the three landmarks that are not analysis sections. The other four take their names
-      // from `analysis.sections`, where the panel bars already read them.
+      // Only the landmarks that are not analysis sections. The other four take their names from
+      // `analysis.sections`, where the panel bars already read them.
       sections: {
         start: 'Change first',
         readout: 'Measurements',
-        terms: 'Page terms'
+        prompt: 'Prompt for your AI'
       }
     },
     problem: 'Problem',

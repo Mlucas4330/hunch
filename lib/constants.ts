@@ -138,7 +138,7 @@ export const GITHUB_EMAILS_URL = 'https://api.github.com/user/emails'
 // but for a reason nothing in the error would name.
 export const GITHUB_SCOPE = 'read:user user:email'
 
-// The founder's own channel, in the site footer. Never on a report surface -- see
+// The operator's own channel, in the site footer. Never on a report surface -- see
 // docs/components.md.
 //
 // wa.me takes the number in E.164 without the plus.
@@ -155,7 +155,7 @@ export const CONTACT_EMAIL = 'contact@hunch.solutions'
 export const CONTACT_EMAIL_URL = `mailto:${CONTACT_EMAIL}`
 
 // What a reader with no cookie gets, which is every first visit: the product sells to Brazilian
-// founders, takes BRL through Mercado Pago, and pt-BR is a rewrite rather than a translation of the
+// creators building with AI tools, takes BRL through Mercado Pago, and pt-BR is a rewrite rather than a translation of the
 // English -- see docs/i18n.md. English is still complete and one cookie away.
 //
 // It is also the locale generation falls back to and the one the OG images are written in, because a
@@ -164,10 +164,13 @@ export const DEFAULT_LOCALE: Locale = 'pt-BR'
 
 export const LOCALE_COOKIE = 'locale'
 
-// Never translated.
+// Never translated: each language names itself, so a reader who cannot read the current UI can still
+// find their own. These are the language switch's accessible names rather than anything it prints --
+// the segments show flags, and a flag is a country. "EN" and "PT" were enough while they were the
+// visible label and are not enough to be read aloud as one.
 export const LOCALE_LABEL: Record<Locale, string> = {
-  en: 'EN',
-  'pt-BR': 'PT'
+  en: 'English',
+  'pt-BR': 'Português'
 }
 
 export const AI_OUTPUT_LANGUAGE: Record<Locale, string> = {
@@ -464,22 +467,31 @@ export const PULSE_SPHERE = {
 // and an empty `priceId` would collide with any Stripe variable that is unset. There is nothing to
 // buy, so there is nothing to price. See docs/invariants.md.
 //
-// **The prices carry the acquisition arithmetic, and that is why they are what they are.** A single
-// purchase gives one transaction to repay a click, so the ticket has to be able to. R$19 could not:
-// against a CAC estimated at R$100 to R$400 it is a loss on every sale.
+// **The prices carry the acquisition arithmetic, and that is why they are what they are.** The
+// ticket has to repay every click that produced the sale, not only the click that closed it: most
+// readers arrive, measure a page, leave an address and buy weeks later, so the purchase is repaying
+// the whole batch of clicks the lead came out of.
 //
-// R$47 and R$147 are the owner's call, and they are a bet on volume rather than on ticket: R$47 needs
-// roughly 6.7% of clicks to buy before it repays a R$3 one, which is above the 1-2% a cold page
-// normally converts at. The table in docs/ads.md carries the arithmetic and the caveat -- read it
+// R$97 and R$247 replace R$47 and R$147, which could not do that. With a mature funnel converting a
+// hundred clicks into two sales, R$47 returns R$94 against R$150 of clicks and loses on every
+// cohort, in month twelve as surely as in month one. R$97 returns R$194 against the same R$150.
+//
+// The number that decided it is not the margin per sale but the number of months the campaign can
+// stay on: the mailing list only starts compounding around month five, and R$47 cannot pay to stay
+// running that long. The table in docs/ads.md carries the arithmetic and the caveat -- read it
 // before touching either number.
+//
+// The trio's discount is per analysis and never in credits. Five credits for the same money would
+// cost almost nothing to give and buy the reader nothing: they own one landing page or three, which
+// is the same reasoning that removed the pack of ten.
 //
 // `amountBrl` is the Mercado Pago half of the same decision. Stripe keeps the amount on its own
 // servers behind the price id, so the id is enough there; the Payment Brick has the browser send the
 // amount, which makes it an input nobody may trust. The number here is what the server charges and
 // what the webhook matches a payment against -- see creditsForAmount in lib/mercadopago.ts.
 export const CREDIT_PACKS = [
-  { id: 'single', credits: 1, amountBrl: 47, priceId: process.env.STRIPE_PRICE_SINGLE ?? '' },
-  { id: 'trio', credits: 3, amountBrl: 147, priceId: process.env.STRIPE_PRICE_TRIO ?? '' }
+  { id: 'single', credits: 1, amountBrl: 97, priceId: process.env.STRIPE_PRICE_SINGLE ?? '' },
+  { id: 'trio', credits: 3, amountBrl: 247, priceId: process.env.STRIPE_PRICE_TRIO ?? '' }
 ] as const
 
 export type CreditPackId = (typeof CREDIT_PACKS)[number]['id']
@@ -643,7 +655,6 @@ export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: numb
   // One Sonnet call and no browser. Tighter than `variants` because the answer is written once per
   // analysis and read back from the column afterwards, so a second call on the same analysis is
   // either a retry after a failure or somebody hammering the button.
-  ad_ideas: { tokens: 10, windowMs: HOUR_MS },
   // Loose on purpose: one UPDATE, no browser, no token, and a reader deciding on a whole report
   // fires it once per card. Tight enough that it cannot be a write loop.
   verdict: { tokens: 200, windowMs: HOUR_MS }
@@ -719,6 +730,10 @@ export const REPORT_PREVIEW_LIMIT = 3
 
 // Lower than the hypothesis limit: a fix card carries its whole steps list, so two fill a screen.
 export const REPORT_FIX_PREVIEW_LIMIT = 2
+
+// How long a copy button says "Copied" before it goes back to its label. Long enough to be read at a
+// glance, short enough that a second copy does not look like it failed.
+export const COPY_FEEDBACK_MS = 2000
 
 // What the button promises before the click. The wait is long enough to state rather than hide.
 export const PREVIEW_ESTIMATE_SECONDS = 15
@@ -813,13 +828,13 @@ export const VARIANT_ROUNDS_MAX = 3
 // was a floor of five, and it was what bought the padding. See docs/ai-pipeline.md.
 export const HYPOTHESES_MAX = 8
 
-// Bounded because a founder acts on a short list, and the playbook shares the generation budget.
+// Bounded because an owner acts on a short list, and the playbook shares the generation budget.
 export const PLAYBOOK_MIN = 3
 
 // Raised from 6 when `mobile` and `performance` joined the categories. The subject got wider, and a
 // ceiling that did not move would have let a phone-viewport fix crowd out a conversion one -- the
 // list would look the same length while quietly covering less of what it now measures. Still bounded:
-// a founder acts on a short list, and every extra card is generation budget and page height.
+// an owner acts on a short list, and every extra card is generation budget and page height.
 export const PLAYBOOK_MAX = 8
 
 export const PLAYBOOK_STEPS_MAX = 5
@@ -923,25 +938,6 @@ export const KEYWORD_MIN_COUNT = 2
 // Bigrams as well as single words, because "landing page" is one term and two words.
 export const KEYWORD_MAX_WORDS = 2
 
-/**
- * The shape of one set of ad ideas written off the terms this code counted.
- *
- * **The two character limits are Google's, not ours, and they are enforced in the Zod schema.** A
- * headline of 40 characters is a headline Google refuses at upload, so letting one through would
- * hand the reader copy they cannot use -- the schema rejects it and the whole call degrades to
- * nothing, exactly like every other generator here.
- *
- * The rest are sizing decisions. Four groups is already more than a first campaign should run, and
- * five headlines is what Google's responsive search ad wants to start rotating. See docs/ads.md.
- */
-export const AD_HEADLINE_MAX_CHARS = 30
-export const AD_DESCRIPTION_MAX_CHARS = 90
-export const AD_GROUPS_MIN = 2
-export const AD_GROUPS_MAX = 4
-export const AD_HEADLINES_PER_GROUP = 5
-export const AD_DESCRIPTIONS_PER_GROUP = 2
-export const AD_TERMS_PER_GROUP_MAX = 6
-export const AD_NEGATIVES_MAX = 12
 
 // How much of the page's own text a prompt may carry.
 //
@@ -1014,7 +1010,7 @@ export const OAUTH_PROVIDER_PATTERNS: Record<string, string[]> = {
 // Portuguese (`perguntas`, `preco`, `planos`, `depoimentos`); this one did not, and it is the only
 // thing `hasOauth` is computed from. So on any page written in Portuguese `hasOauth` was false by
 // construction, and every Brazilian landing page with a form was told it has no social sign in
-// whether or not it does. DEFAULT_LOCALE is pt-BR and the product is sold to Brazilian founders, so
+// whether or not it does. DEFAULT_LOCALE is pt-BR and the product is sold to Brazilian builders, so
 // that was a false negative on the main market rather than an edge case -- our own page has "Entrar"
 // and was counted as having nothing. See docs/readout.md.
 //
@@ -1085,6 +1081,63 @@ export const TRUST_PATTERNS = {
 
 // An href that goes nowhere. `#` alone and an empty href are the two a template leaves behind when a
 // section was copied and never wired up; `javascript:` covers the handler that was never attached.
+// How many nodes `captureSameness` walks before it stops, and how wide a "row of cards" is.
+//
+// The cap exists because the walk reads a computed style per element, which forces layout, and a
+// generated page is routinely several thousand nodes. The counts stop being informative long before
+// the walk stops being cheap: a page with forty gradients and one with four hundred are the same
+// answer to a reader.
+//
+// Three is the card row every builder emits, and it is a count of siblings rather than a threshold.
+export const SAMENESS_SAMPLE_MAX = 1500
+export const SAMENESS_CARD_GRID_SIZE = 3
+
+/**
+ * The marks a page picks up from being built out of somebody else's defaults.
+ *
+ * **Every one of these is countable, and that is the entire reason this list looks like it does.** A
+ * vision model shown a screenshot could say "this looks generated", and that sentence would be a
+ * token a model wrote presented as a measurement -- which docs/invariants.md forbids outright. What
+ * survives the rule is what code can count off the DOM and the computed styles: how many gradients,
+ * how many font families, how many icons share one library's path data. See docs/readout.md.
+ *
+ * **They prove nothing about how the page was made, and nothing here may claim they do.** A
+ * hand-written page uses a gradient and a lucide icon; this repo's own `UnlockWall` uses both. The
+ * findings say what is present and the reader draws the conclusion.
+ *
+ * **This list rots in silence, which is the thing to remember about it.** Lucide changes a path, a
+ * new builder appears, "Get Started" goes out of fashion -- and nothing breaks, no test fails, the
+ * counts just quietly drop to zero. It is the same failure mode as GOOGLE_ADS_API_VERSION sitting at
+ * v18 for months: the only symptom is an answer that looks plausible. Re-check it against a few real
+ * generated pages when a count starts reading low.
+ */
+export const SAMENESS_PATTERNS = {
+  // Path data prefixes that identify an icon set. Matched against the `d` attribute of a `<path>`
+  // inside an inline `<svg>`, which is what every one of these libraries ships when it is imported
+  // as a component rather than a sprite. Prefixes rather than whole paths: the libraries round
+  // coordinates differently between releases, and a whole-path match would go stale in one version.
+  iconPaths: ['M12 2', 'M12 3', 'M4 4', 'M3 3', 'M8 2', 'M21 12', 'M20 6', 'M5 12'],
+  // Attributes a component-based icon leaves on the element itself. Cheaper and far more reliable
+  // than path matching when present, which is why both are used and the counts are unioned.
+  iconAttributes: ['data-lucide', 'lucide', 'heroicon', 'feather', 'iconify'],
+  // Hosts that serve stock photography. A hero image from one of these was chosen from a grid of
+  // thumbnails rather than made for the page.
+  stockHosts: ['images.unsplash.com', 'unsplash.com', 'pexels.com', 'pixabay.com'],
+  // `<meta name="generator">` values, and hostnames, that name the tool that produced the page.
+  // Lowercased before matching. This is the only finding here that says anything about origin, and
+  // it says it because the PAGE says it -- a declaration the page volunteered, not an inference.
+  builders: ['lovable', 'bolt.new', 'v0.dev', 'vercel', 'framer', 'webflow', 'wix', 'squarespace', 'replit', 'bubble'],
+  // Text that was never replaced. `lorem ipsum` is the classic; the rest are what a generator emits
+  // when it has no real content to put somewhere.
+  placeholders: ['lorem ipsum', 'your company', 'your brand', 'company name', 'john doe', 'jane doe', 'acme', 'example.com', 'seudominio', 'sua empresa', 'nome da empresa', 'placeholder'],
+  // Calls to action that say nothing about what happens next. Matched on the whole trimmed label, so
+  // "Get started with billing" is not one of these -- only the bare phrase is.
+  genericCtas: ['get started', 'learn more', 'sign up', 'try it free', 'get started free', 'read more', 'contact us', 'comece agora', 'saiba mais', 'clique aqui', 'entre em contato', 'comecar agora', 'experimente gratis'],
+  // A logo strip's usual labels, used to find the row before checking whether anything in it links
+  // anywhere. Logos that link nowhere are decoration, and decoration shaped like proof.
+  logoStripLabels: ['trusted by', 'as seen on', 'used by', 'our clients', 'confiam em', 'usado por', 'clientes']
+} as const
+
 export const DEAD_HREFS = ['', '#', 'javascript:void(0)', 'javascript:void(0);', 'javascript:;']
 
 // The floor a tap target has to clear. 44 CSS pixels is the size both mobile platforms publish as
@@ -1213,6 +1266,7 @@ export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
   page_structure: 'bg-neutral/15 text-neutral',
   mobile: 'bg-blue/15 text-blue',
   performance: 'bg-amber/15 text-amber',
+  distinctiveness: 'bg-purple-soft/15 text-purple-soft',
   indexability: 'bg-coral/15 text-coral',
   metadata: 'bg-purple/15 text-purple',
   structured_data: 'bg-blue/15 text-blue',

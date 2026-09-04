@@ -1,13 +1,11 @@
 import { generateObject } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import {
-  AdIdeasSchema,
   AlternateVariantsSchema,
   AnalysisOutputSchema,
   CritiqueSchema,
   PlaybookOutputSchema,
   VisibilityOutputSchema,
-  type AdIdeas,
   type AnalysisOutput,
   type FlowFixOutput,
   type HypothesisOutput,
@@ -16,7 +14,6 @@ import {
 } from '@/lib/ai/schema'
 import { applyCritique, critiqueInput } from '@/lib/ai/critique'
 import {
-  adIdeasPrompt,
   alternateVariantsPrompt,
   critiquePrompt,
   playbookPrompt,
@@ -37,7 +34,7 @@ import {
   FIXTURE_PERFORMANCE,
   FIXTURE_SEO,
   FIXTURE_STRUCTURE,
-  fixtureAdIdeas,
+  FIXTURE_SAMENESS,
   fixtureAlternateVariants,
   fixtureAnalysis,
   fixturePlaybook,
@@ -56,6 +53,7 @@ import {
   type PageElement,
   type PageLink,
   type PageMobile,
+  type PageSameness,
   type PagePerformance,
   type PageSection,
   type PageSeo,
@@ -102,6 +100,7 @@ export type PageMeasurement = {
   crawlerAccess: CrawlerAccess
   keywords: PageKeywords
   mobile: PageMobile
+  sameness: PageSameness
 }
 
 // The page's own words, counted the same way from both entry points.
@@ -199,6 +198,7 @@ export async function measurePage(url: string): Promise<MeasuredPage> {
       crawlerAccess: FIXTURE_CRAWLER_ACCESS,
       keywords: FIXTURE_KEYWORDS,
       mobile: FIXTURE_MOBILE,
+      sameness: FIXTURE_SAMENESS,
       html: '',
       elements: [],
       sections: [],
@@ -206,8 +206,10 @@ export async function measurePage(url: string): Promise<MeasuredPage> {
     }
   }
 
-  const [{ html, elements, structure, seo, performance, mobile, sections, links }, crawlerAccess] =
-    await Promise.all([scrapePage(url), fetchCrawlerAccess(url)])
+  const [
+    { html, elements, structure, seo, performance, mobile, sections, links, sameness },
+    crawlerAccess
+  ] = await Promise.all([scrapePage(url), fetchCrawlerAccess(url)])
 
   return {
     structure,
@@ -215,6 +217,7 @@ export async function measurePage(url: string): Promise<MeasuredPage> {
     performance,
     crawlerAccess,
     mobile,
+    sameness,
     keywords: keywordsFor(html, seo),
     html,
     elements,
@@ -339,8 +342,19 @@ export async function generateFromMeasurement(
 
   const startedAt = Date.now()
 
-  const { html, elements, structure, seo, performance, mobile, sections, crawlerAccess, keywords, market } =
-    measured
+  const {
+    html,
+    elements,
+    structure,
+    seo,
+    performance,
+    mobile,
+    sameness,
+    sections,
+    crawlerAccess,
+    keywords,
+    market
+  } = measured
 
   // The reader's own page is already measured and already stored. This is the only page still to
   // fetch, and it waits on its own browser slot, which is why it is not taken together with theirs.
@@ -367,7 +381,7 @@ export async function generateFromMeasurement(
     : ''
 
   // **Only the copy call gets these.** The playbook argues from what was counted and the visibility
-  // audit from the SEO readout; neither writes a sentence a founder publishes, which is the one thing
+  // audit from the SEO readout; neither writes a sentence an owner publishes, which is the one thing
   // these pages are here to make specific. See docs/ai-pipeline.md.
   const neighbourSection =
     neighbours.length > 0
@@ -377,7 +391,7 @@ export async function generateFromMeasurement(
       : ''
 
   const briefSection = options.brief
-    ? `\n\nBusiness details from the founder (use these real facts to write finished copy):\n\n${options.brief}`
+    ? `\n\nBusiness details from the owner (use these real facts to write finished copy):\n\n${options.brief}`
     : ''
 
   // Counted over the WHOLE page, including any part the text budget could not carry. It is here so
@@ -414,6 +428,10 @@ above (JSON):\n${JSON.stringify(
     structure,
     seo,
     performance,
+    // **Deliberately still null here.** The marks reach the playbook as context on their own key;
+    // letting them into `findings` would offer ids that `readoutRules` forbids attaching to, since
+    // every one of them is `ok`. See PlaybookInput and docs/ai-pipeline.md.
+    sameness: null,
     crawler: crawlerAccess,
     keywords,
     mobile,
@@ -434,7 +452,9 @@ above (JSON):\n${JSON.stringify(
       mobile,
       performance,
       findings: findingsFor(['structure', 'credibility', 'mobile', 'load']),
-      founderBrief: options.brief ?? null,
+      // Context, not findings -- see PlaybookInput.
+      sameness,
+      ownerBrief: options.brief ?? null,
       locale,
       market,
       competitor
@@ -446,7 +466,7 @@ above (JSON):\n${JSON.stringify(
       crawlerAccess,
       keywords,
       pageText,
-      founderBrief: options.brief ?? null,
+      ownerBrief: options.brief ?? null,
       locale,
       market
     })
@@ -603,12 +623,22 @@ export type PlaybookInput = {
   mobile: PageMobile
   performance: PagePerformance
   /**
+   * The marks of a page built out of defaults, handed over as **context and never as findings**.
+   *
+   * `readoutRules` forbids attaching a fix to a finding whose severity is `ok`, and every mark is
+   * `ok` by construction -- a gradient is a choice, not a defect. So they cannot travel in
+   * `findings`: a fix pointing at one would render the "fix written" pointer beside a row in the one
+   * group that grades nothing, telling the reader a passing check is broken. The fix comes back with
+   * `finding: null`, which `readoutRules` already calls a normal answer. See docs/ai-pipeline.md.
+   */
+  sameness: PageSameness | null
+  /**
    * The findings this generator may answer, already narrowed to the groups it can act on. Narrowed
    * rather than handed the whole readout: an id it cannot address is an invitation to link a fix to
    * the wrong number.
    */
   findings: MeasuredFinding[]
-  founderBrief: string | null
+  ownerBrief: string | null
   locale: Locale
   market: Market
   competitor?: CompetitorMeasurement | null
@@ -624,7 +654,14 @@ export async function generatePlaybook(input: PlaybookInput): Promise<FlowFixOut
     `The same page in a phone viewport (JSON):\n${JSON.stringify(input.mobile, null, 2)}`,
     `What the page cost to load (JSON). These were measured from a datacentre, so they are a floor a real visitor never beats. Never present one as what a visitor experiences:\n${JSON.stringify(input.performance, null, 2)}`,
     findingsSection(input.findings)
-  ]
+]
+
+  if (input.sameness) {
+    sections.push(
+      `Marks this page shares with pages built out of the same defaults, COUNTED on it (JSON). These are choices and not defects, and none of them says how the page was made:
+${JSON.stringify(input.sameness, null, 2)}`
+    )
+  }
 
   const competitorHost = input.competitor ? displayHost(input.competitor.url) : null
   if (input.competitor) {
@@ -637,8 +674,8 @@ export async function generatePlaybook(input: PlaybookInput): Promise<FlowFixOut
     )
   }
 
-  if (input.founderBrief) {
-    sections.push(`Business details from the founder:\n${input.founderBrief}`)
+  if (input.ownerBrief) {
+    sections.push(`Business details from the owner:\n${input.ownerBrief}`)
   }
 
   try {
@@ -678,7 +715,7 @@ export type VisibilityInput = {
    * guarantee for a subscription this product does not sell. See docs/ai-pipeline.md.
    */
   pageText: ComposedPageText
-  founderBrief: string | null
+  ownerBrief: string | null
   locale: Locale
   market: Market
 }
@@ -718,8 +755,8 @@ anyone searches for one, and never promise a position:\n${JSON.stringify(
     )}`
   ]
 
-  if (input.founderBrief) {
-    sections.push(`Business details from the founder:\n${input.founderBrief}`)
+  if (input.ownerBrief) {
+    sections.push(`Business details from the owner:\n${input.ownerBrief}`)
   }
 
   try {
@@ -734,92 +771,6 @@ anyone searches for one, and never promise a position:\n${JSON.stringify(
   } catch (error) {
     console.error('[analyze] visibility generation failed', error)
     return []
-  }
-}
-
-export type AdIdeasInput = {
-  keywords: PageKeywords
-  seo: PageSeo
-  structure: PageStructure
-  founderBrief: string | null
-  locale: Locale
-  market: Market
-}
-
-/**
- * Ad groups written off the terms this code counted on the page.
- *
- * **It is not in the `Promise.all` above and must not be moved into it.** Every generator there runs
- * on every paid analysis, and most owners of a landing page are not buying search traffic for it --
- * so putting this beside them would add a Sonnet call to every run to serve a minority. It is asked
- * for by a button instead, written once, and read back from the column afterwards. See docs/api.md.
- *
- * Returns null rather than an empty object on failure, because empty is a real answer here (a page
- * with nothing to group) and the route has to tell the two apart to decide whether to write the
- * column at all.
- */
-export async function generateAdIdeas(input: AdIdeasInput): Promise<AdIdeas | null> {
-  if (process.env.E2E_FIXTURES === '1') {
-    return fixtureAdIdeas(input.locale)
-  }
-
-  const sections = [
-    `Terms this page repeats, COUNTED in its own copy, with where each already appears. This is not
-search data: there is no volume, no cost, and no competition figure here, and you must never state
-one:
-${JSON.stringify(input.keywords.terms, null, 2)}`,
-    `What the page declares about itself (JSON):
-${JSON.stringify(
-      { title: input.seo.title, metaDescription: input.seo.metaDescription },
-      null,
-      2
-    )}`,
-    `Readable content on the page (JSON):
-${JSON.stringify(
-      { wordCount: input.structure.wordCount, hasFaq: input.structure.hasFaq },
-      null,
-      2
-    )}`
-  ]
-
-  if (input.founderBrief) {
-    sections.push(`Business details from the founder:
-${input.founderBrief}`)
-  }
-
-  try {
-    const { object } = await generateObject({
-      model: anthropic(MODEL),
-      schema: AdIdeasSchema,
-      maxTokens: 3000,
-      system: adIdeasPrompt(AI_OUTPUT_LANGUAGE[input.locale], MARKET_NAME[input.market]),
-      prompt: sections.join('\n\n')
-    })
-
-    return groundTerms(object, input.keywords)
-  } catch (error) {
-    console.error('[analyze] ad ideas generation failed', error)
-    return null
-  }
-}
-
-/**
- * Drop any term the page does not actually use.
- *
- * **Zod cannot check this and the prompt cannot guarantee it.** A `terms` entry is a plain string,
- * so a model that pluralises one, translates one, or helpfully adds a synonym produces a term this
- * code never counted -- and the whole claim the section rests on is that these words came off the
- * page. So the list is intersected with the measured terms on the way back, and a group left with
- * nothing is dropped whole rather than shown with an empty term list.
- */
-function groundTerms(ideas: AdIdeas, keywords: PageKeywords): AdIdeas {
-  const measured = new Set(keywords.terms.map((term) => term.term))
-
-  return {
-    ...ideas,
-    groups: ideas.groups
-      .map((group) => ({ ...group, terms: group.terms.filter((term) => measured.has(term)) }))
-      .filter((group) => group.terms.length > 0)
   }
 }
 
@@ -842,7 +793,7 @@ export type AlternateVariantsInput = {
   // Whether the target element has a styled fragment at all. The element list is long gone by now,
   // so it is inferred from the recommendation having chosen an emphasis.
   emphasized: boolean
-  founderBrief: string | null
+  ownerBrief: string | null
   locale: Locale
   market: Market
 }
@@ -874,9 +825,9 @@ export async function generateAlternateVariants(
     sections.push(`Direction the reader asked for:\n${VARIANT_TONE_INSTRUCTION[input.tone]}`)
   }
 
-  if (input.founderBrief) {
+  if (input.ownerBrief) {
     sections.push(
-      `Business details from the founder (use these real facts to write finished copy):\n${input.founderBrief}`
+      `Business details from the owner (use these real facts to write finished copy):\n${input.ownerBrief}`
     )
   }
 
@@ -975,8 +926,8 @@ function resolveTargets(input: {
 
       // **A quote that is on no element is a line the model wrote, and the card renders it struck
       // through as what the page says today.** The prompt requires it verbatim off the element list
-      // and cannot enforce that, and Zod sees a plain string -- the same hole `groundTerms` closes for
-      // ad terms, closed the same way and for the same reason: on the way back, in code.
+      // and cannot enforce that, and Zod sees a plain string, so the check has to happen on the way
+      // back, in code.
       //
       // The cost is real and worth naming: a usable rewrite is thrown away over a transcription slip.
       // `resolveTarget` already matches approximately, so nothing here is dropped for punctuation, and
