@@ -13,11 +13,9 @@ type Progress = { state: AnalysisState }
 /**
  * What stands where the four fix sections will be, while they are still being written.
  *
- * **This is the wait, moved off the form and into the report.** It used to be a spinner on the
- * landing page in front of an empty screen, driven by three `setTimeout` calls that announced
- * "writing the new copy" at forty six seconds whatever was actually happening. The reader now arrives
+ * **This is the wait, and it happens on the report rather than on the form.** The reader arrives
  * here as soon as the page has been measured, with their score above this block, and these are the
- * four things still coming -- named, so a half filled report reads as deliberate rather than as one
+ * four things still coming: named, so a half filled report reads as deliberate rather than as one
  * that failed to load.
  *
  * The sections come from ANALYSIS_TAB in its own order, so this cannot fall out of step with what
@@ -32,20 +30,18 @@ export function GeneratingSections({ embedKey }: { embedKey: string }) {
   /**
    * **Polls the progress endpoint, and refreshes the route exactly once.**
    *
-   * It was `setInterval(router.refresh)`, which re-ran the whole server component every two seconds:
+   * `GET /api/analyses?embedKey=` answers the question off three columns, needs no session, and is
+   * the endpoint the URL form already polls. One `router.refresh()` happens when there is something
+   * new to render.
+   *
+   * `setInterval(router.refresh)` instead re-runs the whole server component every two seconds:
    * `loadReport` with its joins, the current user, the readout history, and a Redis read. That is a
-   * heavy render to ask for two hundred times, and it had a second cost that was worse than the
-   * first -- the state was recomputed from a transient signal on every pass, so a momentary Redis
-   * blip dropped the page to the unlock wall and the next pass brought this back. It flickered
-   * between "still writing" and "buy a credit".
+   * heavy render to ask for two hundred times, and the worse cost is that the state is recomputed
+   * from a transient signal on every pass, so a momentary Redis blip drops the page to the unlock
+   * wall and the next pass brings this back, flickering between "still writing" and "buy a credit".
    *
-   * `GET /api/analyses?embedKey=` answers the same question off three columns, needs no session, and
-   * is the endpoint the URL form already polls. One `router.refresh()` happens when there is
-   * something new to render.
-   *
-   * **It also stops.** A job nothing ever finishes used to be polled until the component unmounted;
-   * now the deadline is the same wall clock the form waits on, and running out swaps the note rather
-   * than continuing to ask.
+   * **It also stops.** The deadline is the same wall clock the form waits on, so a job nothing ever
+   * finishes swaps the note rather than being polled until the component unmounts.
    */
   useEffect(() => {
     let cancelled = false

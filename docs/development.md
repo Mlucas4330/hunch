@@ -13,7 +13,7 @@ npm run db:push
 Schema changes are tracked as migrations in `db/migrations` (`npm run db:generate`); `db:push` applies
 the current schema directly for local iteration and stays local-only.
 
-**Run `npm run build` with no `npm run dev` server attached** — both write to `.next`, and concurrently
+**Run `npm run build` with no `npm run dev` server attached.** Both write to `.next`, and concurrently
 they corrupt each other's chunks.
 
 ## Commands
@@ -27,6 +27,9 @@ npx playwright test --project=dom   # just the DOM specs: no sign in, no databas
 npm run preview:screenshot                                   # defaults: https://vercel.com, h1
 npm run preview:screenshot -- https://foo.com "h1" out-dir   # url, selector, output dir
 
+npm run preview:emails -- you@example.com                    # all four mails, in pt-BR
+npm run preview:emails -- you@example.com en                 # and in English
+
 npm run seed:pulse                                           # plant domains for the landing board
 npm run seed:pulse -- --clear                                # and take them out again
 
@@ -37,7 +40,7 @@ npx tsx --env-file=.env scripts/brief-ab.mts <url> brief.json 2   # the brief ar
 ```
 
 `rewrite-stats` is how a change to the copy prompt is judged. **It reads only what has already been
-generated** — no model, no credit, no network — and reports the properties of a rewrite that hold
+generated.** No model, no credit, no network, and reports the properties of a rewrite that hold
 across pages: word reuse, permutations, ceiling overflow, unmeasured claims in `rationale`,
 placeholders. It scores **the oldest variant of each hypothesis**, which is what the model first recommended: the
 generation writes exactly one and the alternates arrive later, so choosing a different one reorders
@@ -47,7 +50,8 @@ reported separately, over hypotheses that have alternates at all.
 It also reports the **acceptance rate** off `verdict`, which is the one line there that
 is a judgement rather than a shape, and the one the others exist to be compared against. That rate is
 over decided rows only: a null verdict is nobody having looked yet, never a no. It covers `flow_fixes`
-too, so the playbook and the visibility audit are no longer the halves nothing ever scored. It exists because the alternative is somebody's opinion of somebody else's landing page,
+too, so the playbook and the visibility audit are scored alongside the copy. It exists because the
+alternative is somebody's opinion of somebody else's landing page,
 and there the page's owner is right and we are not. Read `permutation` as the only defect and the rest
 as rates to compare; a single run is noisy enough that a small movement means nothing. Fixture runs are
 excluded, which matters because most analyses in a development database are fixture runs. See
@@ -62,14 +66,14 @@ the page does not. See [ai-pipeline.md](ai-pipeline.md).
 
 `seed:pulse` exists because **the landing board counts domains, not analyses**. Every test run measures
 `example.com`, `publicLeaderboard` keeps one entry per domain, and one entry is below
-`PULSE_MIN_ENTRIES` — so the section correctly refuses to render and there is nothing to look at. The
+`PULSE_MIN_ENTRIES`, so the section correctly refuses to render and there is nothing to look at. The
 script plants enough distinct hostnames to see the sphere, tags every row `seed:pulse`, and `--clear`
 removes exactly those. **Local only.** The board's entire claim is that every chip is a page this tool
-measured, so planting rows anywhere real is the one thing it must never do — see
+measured, so planting rows anywhere real is the one thing it must never do, see
 [invariants.md](invariants.md#the-public-board-carries-a-domain-and-a-score-and-nothing-else).
 
 The first three are the gates and can go red. `preview:screenshot`, `rewrite-stats` and `brief-ab`
-**are not tests** — they assert nothing, cannot fail, and are not in CI, which is why neither is named like one.
+**are not tests.** They assert nothing, cannot fail, and are not in CI, which is why neither is named like one.
 `rewrite-stats` reports numbers for a person to compare; nothing about it is pass or fail.
 
 `.github/workflows/ci.yml` is the only thing running `typecheck`, `npm test` and the e2e suite before a
@@ -79,21 +83,21 @@ push goes live: Railway ships whatever is on `main` and fails a deploy only if t
 
 - **`ADMIN_EMAIL` and `ADMIN_PASSWORD` must be set** for the e2e suite to sign in. The suite sets
   `ALLOW_CREDENTIALS_LOGIN` for itself; see [security.md](security.md).
-- **`REDIS_URL` is now required to run an analysis at all.** It used to be optional, and the note here
-  used to say so. `POST /api/analyses` enqueues with **no inline fallback** — running a scrape inside
-  the request is the unmetered path the fail-closed limit exists to prevent — so no Redis means every
+- **`REDIS_URL` is required to run an analysis at all.** `POST /api/analyses` enqueues with **no
+  inline fallback.** Running a scrape inside
+  the request is the unmetered path the fail-closed limit exists to prevent, so no Redis means every
   analysis answers `503 queue_unavailable`, refunds the credit and deletes the row. Nothing in the UI
   names Redis, so it shows up as an Analyze button that returns you to the dashboard. `docker compose`
   already runs one: set `REDIS_URL=redis://localhost:6379`. `.github/workflows/ci.yml` runs the same
-  image as a service for exactly this reason -- it did not, and the whole `chromium` project died at
+  image as a service for exactly this reason: without it the whole `chromium` project dies at
   `auth.setup.ts` with nothing in the log naming Redis.
-- **Setting it also turns rate limiting on, and `analysis` is 5/hour**, which is the reason
-  `.env.example` used to leave it empty. Note the budget counts **requests, not analyses**: the
+- **Setting it also turns rate limiting on, and `analysis` is 5/hour.** Note the budget counts
+  **requests, not analyses**: the
   limiter runs before the body is parsed, so a rejected URL or a queue failure spends a token too.
   Five an hour is easy to hit while iterating.
 - **`E2E_FIXTURES=1` skips rate limiting entirely**, which is what lets the suite run: it creates six
   analyses on one account and would otherwise take a `429` on the sixth. The budgets exist to cap what
-  a route costs, and under fixtures a route costs nothing — no browser opens and no tokens are spent.
+  a route costs, and under fixtures a route costs nothing, no browser opens and no tokens are spent.
   See `lib/rate-limit.ts`.
 - A misconfigured `REDIS_URL` in production looks exactly like a working one, so **confirm it with a
   real `429`** rather than by reading the config.
@@ -106,7 +110,7 @@ push goes live: Railway ships whatever is on `main` and fails a deploy only if t
   `generateFromMeasurement`, so it cannot fire unless fixtures are already on and no production deploy
   can reach it however the variable is set. See [report.md](report.md).
 
-## The unit suite — `npm test`
+## The unit suite: `npm test`
 
 Node's built-in runner, driven through `tsx` (no test framework). Colocated with the functions they
 cover: `lib/market.test.ts`, `lib/url-guard.test.ts`, `lib/readout.test.ts`, `lib/keywords.test.ts`,
@@ -114,7 +118,7 @@ cover: `lib/market.test.ts`, `lib/url-guard.test.ts`, `lib/readout.test.ts`, `li
 `lib/analysis-state.test.ts`.
 
 `lib/analysis-state.test.ts` is worth singling out: the function it covers decides which of five
-things the report renders, from five booleans whose interesting combinations are all failure-shaped —
+things the report renders, from five booleans whose interesting combinations are all failure-shaped
 an ownerless row with a live job, a refund and a running job at once. Pure by design so those can be
 written as a table instead of a fixture.
 
@@ -130,12 +134,12 @@ fallback creeping into the one place the product is allowed to state numbers fai
 shipping. See [readout.md](readout.md).
 
 **The suite makes no network requests, and `lib/url-guard.test.ts` must stay that way.** It asserts the
-allow path with **IP literals**, which `resolvesPublicly` classifies without a DNS lookup at all. It
-used to use real hostnames, which bought no coverage — no public domain answers with a private address,
-so the multi-address rule they were nominally there for never ran — while making a CI step fail on
-someone else's DNS. **A new case here uses a literal or it does not belong in this file.**
+allow path with **IP literals**, which `resolvesPublicly` classifies without a DNS lookup at all.
+Real hostnames buy no coverage here: no public domain answers with a private address, so the
+multi-address rule they would nominally be there for never runs, and the step fails on somebody
+else's DNS instead. **A new case here uses a literal or it does not belong in this file.**
 
-## The Playwright suite — `npm run test:e2e`
+## The Playwright suite: `npm run test:e2e`
 
 Runs on a dedicated port (3100, overridable via `E2E_PORT`) so it never collides with or reuses a
 running `npm run dev`, which would not have `E2E_FIXTURES` set.
@@ -145,7 +149,7 @@ are picked by the same locale the real pipeline uses.
 
 **`DEFAULT_LOCALE` is pt-BR, and the suite pins itself to English anyway.** `e2e/locale.ts` writes the
 locale cookie into `auth.setup.ts`'s saved state and into every anonymous context, so the assertions
-stay in one language and keep covering behaviour rather than which dictionary rendered it — both are
+stay in one language and keep covering behaviour rather than which dictionary rendered it, both are
 complete and typechecked against each other. The single exception is the locale test in
 `e2e/core.spec.ts`, which is the only place that asserts what a reader with no cookie gets, and it
 would assert nothing if it were pinned.
@@ -156,7 +160,7 @@ recorded nothing.
 
 **The suite drives `next dev`, so a route's first hit pays for its compile, and that is why a URL is
 awaited rather than asserted.** `expect(page).toHaveURL()` is capped at the 5s expect timeout, which a
-credentials sign in followed by a first render does not always fit inside — the symptom is a snapshot
+credentials sign in followed by a first render does not always fit inside. The symptom is a snapshot
 showing the submit button still `[disabled]`, because `useFormStatus` is telling the truth and the
 request simply has not come back. `page.waitForURL()` inherits the 60s test timeout instead, which is
 what every navigation after an action uses. `toHaveURL` is right for a URL that has already settled,
@@ -181,7 +185,7 @@ renders under about 198px. It failed at 398.5 against an identical 606.5px row, 
 page changed.
 
 So **measure against the layout, never against a pixel count a font can move**. Assert what the test is
-named for — that two elements share a row, that one drops below the other — and express size relative
+named for, that two elements share a row, that one drops below the other, and express size relative
 to the container, which leaves a hundred pixels of margin where a fixed threshold left one and a half.
 A bare number is safe only where it is a real minimum with real headroom, like the field staying above
 200px at a 380px viewport.
@@ -195,13 +199,13 @@ the credential pair to dummies, so `mercadoPagoEnabled()` picks the Brick over S
 `e2e/checkout-brick.spec.ts` has something to open. Nothing reaches Mercado Pago: the spec stubs the
 SDK at its own URL and no test submits the form.
 
-**`dom`** (`e2e/dom/`) drives a browser function against synthetic markup — no session, no request to
-the app, no row in the database — and **deliberately does not depend on the auth setup**, so a broken
+**`dom`** (`e2e/dom/`) drives a browser function against synthetic markup, no session, no request to
+the app, no row in the database, and **deliberately does not depend on the auth setup**, so a broken
 local database or an expired credentials hatch cannot hide a regression in the DOM routines, which are
 the least forgiving code in the repo and the cheapest to check.
 
 Today `dom` holds `apply-variant-copy.spec.ts`, the only automated coverage `applyVariantCopy` has. It
-cannot live in `npm test` (it needs a real DOM) and it cannot go through `screenshotVariant` — whose
+cannot live in `npm test` (it needs a real DOM) and it cannot go through `screenshotVariant`, whose
 first act is `assertPublicUrl`, and that refuses loopback, so pointing it at a local fixture would mean
 punching a hole in the SSRF guard to enable a test. Driving the exported function directly against
 `setContent` markup avoids the guarded path entirely. Each of the four rules in
@@ -211,21 +215,34 @@ the routine to `el.textContent = copy` turns four of the eight red.
 ### What the fixture user can and cannot prove
 
 The credentials hatch forces that user to `admin` (`auth.ts`), which is the only role there is besides
-`user` — there are no plans and no `pro`. `auth.setup.ts` then buys the run `E2E_CREDITS` through
+`user`, there are no plans and no `pro`. `auth.setup.ts` then buys the run `E2E_CREDITS` through
 `grantCredits`, never by updating `users.credits`, so the suite exercises the path that actually
 charges. **An analysis spends a credit for everyone, admin included**, and there is no exemption by
 role.
 
-**The free, walled shape is no longer checked by hand.** `e2e/free-analysis.spec.ts` drains the
-balance to zero, runs an analysis, and asserts the three things that define the free half: the reader
-lands on `/r/<embedKey>` (which is where every run lands now) rather than being refused, the row came back with `user_id` null and
+**The free, walled shape is checked by the suite, not by hand.** `e2e/free-analysis.spec.ts` drains
+the balance to zero, runs an analysis, and asserts the three things that define the free half: the
+reader lands on `/r/<embedKey>`, which is where every run lands, rather than being refused; the row
+came back with `user_id` null and
 `structure` populated (so no model was called), and the report shows the unlock wall without claiming
 zero changes. It restores whatever balance it took, because the rest of the suite needs it.
 
 What still cannot be reached from here is a **second, non-admin account**: every signed-in path the
-suite drives is the same row. The role gate is covered from the other direction instead —
+suite drives is the same row. The role gate is covered from the other direction instead
 `e2e/admin-credits.spec.ts` demotes that row mid-session and expects the operator screen to answer
 404 with the token untouched.
+
+## `preview:emails`
+
+Sends one of every mail the product writes to one address: the day-0 report link, the two sequence
+mails, and the pending-payment reminder. The sequence pair is built by `lib/lead-sequence.ts` itself
+and all four render through `lib/email-template.ts`, so what lands in the inbox is what a reader
+would get, sample data aside.
+
+It exists for the same reason `preview:screenshot` does: **how a mail looks is only answerable by
+looking at it in a client.** Gmail strips styles Apple Mail keeps, Outlook renders through Word, and
+no assertion here can tell you the button survived any of them. It needs `RESEND_API_KEY` and
+`EMAIL_FROM`, writes to no table, and reads no analysis.
 
 ## `preview:screenshot`
 
@@ -236,9 +253,9 @@ Boots a real browser against a real page and writes `before.png` / `after.png` t
 It exists because `applyVariantCopy` distributes the new copy across an element's text nodes to avoid
 destroying its inline children, and **whether a gradient span or a `<br>` survived that split is only
 answerable by looking at the two images**. What is assertable about that split is covered by the `dom`
-project; this script is for the half no assertion can make — whether the gradient span landed on a word
+project; this script is for the half no assertion can make, whether the gradient span landed on a word
 that still looks good.
 
 One non-obvious constraint applies to any script driving `scrapePage` / `screenshotVariant` outside the
-Next build — see
+Next build, see
 [scraping.md](scraping.md#running-the-scraper-outside-the-next-build).

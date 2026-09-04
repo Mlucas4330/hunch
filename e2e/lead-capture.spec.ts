@@ -9,10 +9,10 @@ const ADDRESS = 'lead-capture@example.com'
 /**
  * The address is asked for **below** the readout and gates nothing.
  *
- * This is the spec that pins the shape rather than the copy. An email wall used to stand where the
- * unlock wall is now, trading a stranger's address for a preview of someone else's report, and
- * docs/invariants.md forbids putting the readout behind anything on any surface. A regression here
- * would not throw -- it would quietly re-gate a measurement of the reader's own page.
+ * This is the spec that pins the shape rather than the copy. docs/invariants.md forbids putting the
+ * readout behind anything on any surface, and an email wall trading a stranger's address for a
+ * preview of someone else's report is what that rule refuses. A regression here would not throw: it
+ * would quietly gate a measurement of the reader's own page.
  */
 test.describe('lead capture on the report', () => {
   test.use({ storageState: { cookies: [], origins: [] } })

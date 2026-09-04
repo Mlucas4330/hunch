@@ -31,12 +31,12 @@ export type MeasuredFinding = {
 }
 
 /**
- * What a ranker answers: the severity, and the boundary it used to decide it.
+ * What a ranker answers: the severity, and the boundary it applied to decide it.
  *
- * **The two travel together so they cannot disagree.** The alternative was a second map from finding
- * id to threshold, read by the renderer -- which is a copy of what `measuredFindings` already knows,
- * and the first edit to READOUT_THRESHOLDS that missed the copy would have printed a boundary this
- * code does not actually apply. The whole product rests on the printed number being the counted one.
+ * **The two travel together so they cannot disagree.** The alternative is a second map from finding
+ * id to threshold, read by the renderer, which is a copy of what `measuredFindings` already knows:
+ * the first edit to READOUT_THRESHOLDS that missed the copy would print a boundary this code does
+ * not actually apply. The whole product rests on the printed number being the counted one.
  */
 type Ranked = { severity: ReadoutSeverity; criterion: ReadoutCriterion | null }
 

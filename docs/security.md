@@ -1,6 +1,6 @@
 # Security
 
-## Middleware — `middleware.ts`
+## Middleware: `middleware.ts`
 
 Protects `/dashboard` and `/analyses` with a NextAuth session check (`PROTECTED_PREFIXES`).
 `/billing` left that list when the page did.
@@ -13,25 +13,24 @@ Excluded from the matcher:
 | `/api/billing/mercadopago/webhook` | Mercado Pago calls it directly |
 | `/api/report` | it backs the public report, read with no session |
 | `/api/cron` | driven by the cron services, authenticated by `CRON_SECRET` |
-| `/api/health` | Railway's deploy probe, which must not depend on a session check — see [deployment.md](deployment.md#healthcheck) |
+| `/api/health` | Railway's deploy probe, which must not depend on a session check: see [deployment.md](deployment.md#healthcheck) |
 
 **Middleware gates pages only.** Every `/api` route authenticates itself via `getCurrentUser()`, so
-the exclusion list is a performance detail, not the security boundary — see
+the exclusion list is a performance detail, not the security boundary, see
 [invariants.md](invariants.md#middleware-proves-a-session-not-a-user-row).
 
 A redirect carries the requested `pathname` **and query string** in `CALLBACK_URL_PARAM`, so a link
 into a filtered view survives sign-in. The sign-in page revalidates it before use.
 
-## Auth — `auth.ts`
+## Auth: `auth.ts`
 
 Two OAuth providers sign people in: Google always, GitHub whenever `AUTH_GITHUB_ID` and
 `AUTH_GITHUB_SECRET` are both set (`githubLoginAllowed()`). An absent pair is not a broken config, it
-is the provider being off — `auth.config.ts` does not mount it and `app/(app)/auth/signin/page.tsx`
-does not draw its button. Microsoft Entra ID was a third, for corporate buyers, and went with the
-agency framing; the claim table below is what any further provider has to extend before it can be
-added back.
+is the provider being off: `auth.config.ts` does not mount it and `app/(app)/auth/signin/page.tsx`
+does not draw its button. **The claim table below is what any further provider has to extend before
+it can be added**, which is the whole cost of adding one.
 
-**Registering the GitHub app.** Callback URL `https://<host>/api/auth/callback/github` — the default
+**Registering the GitHub app.** Callback URL `https://<host>/api/auth/callback/github`, the default
 Auth.js route, since nothing here sets a `basePath`. Do not set the scope in GitHub's own UI:
 `GITHUB_SCOPE` is passed in `authConfig` because the default omits `user:email`, and without it the
 verification call answers 403 and refuses every GitHub login. In production set `AUTH_URL` to this deploy's own public
@@ -41,7 +40,7 @@ localhost value and an absent one both end at localhost by different routes. See
 ### Verification fails closed, and each provider declares how it verifies
 
 The user row is keyed on email with no `accounts` table, so **whoever presents an address next owns
-whatever is in that row** — credits included. `VERIFIED_EMAIL` in `lib/constants.ts` therefore names a
+whatever is in that row.** Credits included. `VERIFIED_EMAIL` in `lib/constants.ts` therefore names a
 strategy per provider, and `verifiedEmailFor()` returns the address that provider will vouch for, or
 null.
 
@@ -59,24 +58,24 @@ Four things hold, and none may weaken:
 - **The address that keys the row is the verified one**, not whatever the profile carried. For GitHub
   the two differ whenever the address is private, and using the profile's would key a row on an
   address nobody verified.
-- **Every failure of the remote check refuses** — timeout, 403 from a missing `user:email` scope,
+- **Every failure of the remote check refuses.** Timeout, 403 from a missing `user:email` scope,
   unexpected body. Reading "we could not check" as "verified" turns a GitHub outage into an open door
   onto rows holding money.
 
 **The `user:email` scope is spelled out in `authConfig`** because GitHub's default does not include
-it, and without it the endpoint answers 403 — so every GitHub login is refused, correctly, for a
+it, and without it the endpoint answers 403, so every GitHub login is refused, correctly, for a
 reason nothing in the failure names.
 
 ### The credentials escape hatch
 
 A `Credentials` provider exists **only** for local dev and e2e, behind `credentialsLoginAllowed()`
 (`lib/auth-policy.ts`): it needs both `NODE_ENV !== 'production'` **and** an explicit
-`ALLOW_CREDENTIALS_LOGIN=1`. `NODE_ENV` alone was never a deploy boundary — the e2e server and any
+`ALLOW_CREDENTIALS_LOGIN=1`. `NODE_ENV` alone was never a deploy boundary, the e2e server and any
 staging container run as `development` while still being reachable. The sign-in page reads the same
 predicate, so the form is never offered when it cannot work.
 
 Credentials are compared through `secretsMatch()` (`lib/secure-compare.ts`), which hashes both sides and
-uses `timingSafeEqual` — never `!==`. The cron route's `CRON_SECRET` check uses the same helper. Sign-in
+uses `timingSafeEqual`, never `!==`. The cron route's `CRON_SECRET` check uses the same helper. Sign-in
 attempts are rate limited per IP.
 
 ### The user row is upserted in one statement
@@ -85,14 +84,14 @@ Never read-then-written: two concurrent first sign-ins would otherwise both find
 the `users.email` unique constraint, failing a login that was perfectly valid.
 
 The OAuth branch uses `onConflictDoUpdate` and re-syncs `name` and `avatarUrl` from the provider, which
-owns them — so a user who changes their photo at Google sees it on the next sign in. `plan`, the usage
+owns them, so a user who changes their photo at Google sees it on the next sign in. `plan`, the usage
 counters and the provider ids are ours and are never touched there. A provider that omits the photo leaves
 the stored one alone rather than blanking it.
 
 The credentials branch updates `lastSignInAt` and nothing else, so the local hatch can never overwrite a
 real user's name with `Admin`.
 
-The row may already exist without anyone ever having signed in to it — the webhook created the payer, or
+The row may already exist without anyone ever having signed in to it, the webhook created the payer, or
 the Stripe webhook created it for a payer. That is deliberate, and it is why the upsert above never
 touches `plan`: see
 [invariants.md](invariants.md#a-user-row-may-exist-before-its-first-sign-in-and-only-a-provider-verified-email-may-claim-one).
@@ -110,7 +109,7 @@ to keep that true.
 ### `getCurrentUser()` is `cache()`d
 
 `auth()` is not itself memoized and the `jwt` callback queries `users` on **every** token decode, so an
-uncached helper cost one query per caller — and a signed-in render has several. `Navbar` consumes the
+uncached helper cost one query per caller, and a signed-in render has several. `Navbar` consumes the
 same helper rather than calling `auth()` itself, which collapses a page view to one `jwt` query plus one
 lookup by id.
 
@@ -118,37 +117,33 @@ lookup by id.
 
 `redirect('/auth/signin')` on the user's own pages.
 
-**There is no `/admin` right now.** The three operator screens went with the features they read, and
-the layout that gated them went with the screens — an empty layout is not a shell, it is a file the
-router never reaches. What survives is the gate itself: `users.role`, `isAdmin()`, `isAdminEmail()`.
-When a screen comes back it re-adds the layout, and the rule it must re-adopt is the one the old one
-held: **the segment gates by default, and each page repeats the check anyway**, because a server
-component is its own entry point.
+**`/admin/credits` is the one operator screen**, and it is gated three times: the nav hides the
+link, the page answers `notFound()`, and the server action behind the form re-checks before it
+grants. Only the last two are boundaries. The gate itself is `users.role`, `isAdmin()` and
+`isAdminEmail()`.
 
-~~`grantPlan`~~ went with plans. The rule it demonstrated stands for whatever replaces it: a server
-action is its own endpoint, so it authorizes itself rather than trusting the layout that rendered the
-form. The paragraph below is kept for that reason.
+**A second screen adds a segment layout and repeats the check anyway.** The segment gating by
+default is not enough on its own, because a server component is its own entry point.
 
-It
-authorizes itself the same way. A server action is its own endpoint, reachable by anyone who can post
-its action id — the layout that rendered the form is not in that path and proves nothing about the
-caller.
+The same rule governs the server action: it is its own endpoint, reachable by anyone who can post its
+action id, so it authorizes itself rather than trusting the layout that rendered the form. The layout
+is not in that path and proves nothing about the caller.
 
-`isAdmin()` reads `users.role`, which sign-in granted from `ADMIN_EMAIL` — see
+`isAdmin()` reads `users.role`, which sign-in granted from `ADMIN_EMAIL`. See
 [invariants.md](invariants.md#admin_email-grants-the-role-usersrole-authorizes-the-request) for why the
 grant and the gate are separate, and for how the role is revoked.
 
-## Outbound request guard — `lib/url-guard.ts`
+## Outbound request guard: `lib/url-guard.ts`
 
 Scraping points a browser at a URL the user chose, and the result is read back to them through the
 dashboard and the public report. **That makes an unguarded `page.goto` a read-SSRF, not a blind one.**
 
 `assertPublicUrl(raw)` throws `UnsafeUrlError` unless the URL is `http(s)`, on an allowed port, and
-resolves — via **every** address DNS returns, not just the first — to a public one. Private, loopback,
+resolves, via **every** address DNS returns, not just the first, to a public one. Private, loopback,
 link-local, CGNAT, unique-local and multicast ranges are all refused, as are `.localhost`, `.local` and
 `.internal`. `POST /api/analyses` maps `UnsafeUrlError` to `422`, distinct from a `502` scrape failure.
 
-That check alone is bypassable, so `openGuardedPage()` re-applies it per request — see
+That check alone is bypassable, so `openGuardedPage()` re-applies it per request, see
 [invariants.md](invariants.md#every-outbound-url-is-validated-before-a-browser-is-pointed-at-it-and-again-per-request).
 It also caps response bytes and drops resource types a text scrape does not need.
 
@@ -158,7 +153,7 @@ It also caps response bytes and drops resource types a text scrape does not need
 the app connects rather than launches. The deployed browser passes `--no-sandbox` in
 `Dockerfile.browser`, because Chrome's sandbox needs user namespaces whose syscalls Docker's default
 seccomp profile blocks, and Railway does not support attaching a custom profile. **On a host that does,
-that profile is the fix — not the flag.**
+that profile is the fix, not the flag.**
 
 What makes it survivable is the browser service having **no environment variables at all**: an escaped
 renderer holds no DB URL and no API key. Railway propagates project-level shared variables into every
@@ -167,7 +162,7 @@ keeping the image rebuilt so Chromium stays patched.
 
 Lifecycle and the concurrency cap are in [scraping.md](scraping.md).
 
-## Serving screenshots — `app/screenshots/[file]/route.ts`
+## Serving screenshots: `app/screenshots/[file]/route.ts`
 
 Previews live on a volume rather than in `public/`, so the app serves them; behind a proxy with access
 to that volume this route would not exist.
@@ -175,7 +170,7 @@ to that volume this route would not exist.
 The filename comes from an unauthenticated caller, and `screenshotPath(file)` in `lib/screenshots.ts` is
 the single function that turns one into a path on disk. It **allowlists** against
 `SCREENSHOT_FILENAME_PATTERN` (the exact shape `saveScreenshot` writes, which admits no separator and no
-dot segment) rather than sanitizing — stripping `..` keeps losing to encoding tricks — then checks
+dot segment) rather than sanitizing, stripping `..` keeps losing to encoding tricks, then checks
 containment against `SCREENSHOT_DIR` as a second lock, and returns `null` on any of those failing plus
 on the variable being unset.
 
@@ -184,31 +179,29 @@ need the identical check. **Never re-implement it at a call site**: a security c
 a check that will drift, and this route's `404` (a miss and a malformed name answer identically, so
 nothing reveals what the directory holds) depends on the resolver being the only way in.
 
-## The public board — `GET /api/pulse`
+## The public board: `GET /api/pulse`
 
 The landing page shows other people's pages. **What leaves the server is a domain and a score, and
-the shape is the entire control** — the rule, and what each omission is protecting, is in
+the shape is the entire control.** The rule, and what each omission is protecting, is in
 [invariants.md](invariants.md#the-public-board-carries-a-domain-and-a-score-and-nothing-else).
 
 The enforcement point is `publicLeaderboard()` and `analysisPulse()` in `lib/analyses.ts`: the route
 returns exactly what they select, so widening the select is what widens the disclosure. There is no
-authorization check here to get wrong, and that is the design — nothing sensitive is fetched in the
+authorization check here to get wrong, and that is the design: nothing sensitive is fetched in the
 first place.
 
 `e2e/core.spec.ts` asserts the exact key set of both shapes, so the day a column is added to either
 select a test fails rather than a customer finding out.
 
-## There is no upload any more
+## There is no upload
 
-The logo upload went with white-label, and with it `BRAND_LOGO_SIGNATURES`, `brandLogoPath()` and
-`app/brand/[file]/route.ts`. **The rule it existed to hold is the one to re-read before any future
-upload ships**: the file type is sniffed from the leading bytes, never from the caller-chosen
+Nothing in this product accepts a file. **These are the rules to re-read before any upload ships**: the file type is sniffed from the leading bytes, never from the caller-chosen
 `Content-Type`; the stored extension comes from the sniff so the response header is derived from a
 name the caller never controlled; and **SVG is refused**, because these files are served from our own
 origin and an SVG can carry `<script>`, which would be stored XSS on the domain holding the session
 cookie.
 
-## The ad click cookie — `middleware.ts`
+## The ad click cookie: `middleware.ts`
 
 The one cookie this app sets that is not the session or the locale, and **it is deliberately not a
 tracker.** `GCLID_COOKIE` holds a Google Ads click id read out of our own query string; no script is
@@ -225,14 +218,38 @@ Three properties are load bearing:
   rather than a sanitizer. Anything that is not a click id is dropped, not escaped.
 - **`sameSite: 'lax'`**, which is what a click arriving from Google's own redirect needs and no more.
 
-## Rate limiting — `lib/rate-limit.ts`
+## The unsubscribe token: `GET /api/leads/unsubscribe`
+
+A uuid in a query string, and the whole credential. Same shape as `embed_key` and safe for the same
+reason: unguessable, scoped to one row, and useless for reaching any other.
+
+It has to survive being handled carelessly, because it travels in mail that clients prefetch and
+scanners follow. Two properties cover that. **The worst a prefetch can do is unsubscribe the person
+whose mail it was fetching**, which is a link they were offered anyway. And **the response is
+identical for a token that worked, one nobody holds, and one that is malformed.** Whether a token is
+real is the only fact the endpoint could leak, and nobody clicking their own link needs to be told.
+
+It is a GET that writes, which is deliberate rather than an oversight: an unsubscribe needing a second
+click is one people abandon and report as spam instead, and a young sending domain pays for that in
+deliverability.
+
+## Hashed addresses leaving for Google: `lib/google-ads-audience.ts`
+
+The Customer Match upload is the only path that sends anything about a person to an ad network, and
+it sends a SHA-256 digest. **The address itself never leaves the process.** Normalisation happens
+first because Google hashes the same way, so anything else is a member that silently matches nobody.
+
+The gate is `leads.consented_at`, in the query rather than in a comment: a row captured before the
+form said what actually happens is never uploaded. See [ads.md](ads.md).
+
+## Rate limiting: `lib/rate-limit.ts`
 
 Distinct from the plan quotas: those are what a tier allows, these are what the infrastructure will
 absorb. Backed by Redis over `ioredis` (`REDIS_URL`), because more than one app instance can serve the
 same visitor.
 
 The window is a **sorted set per (kind, identifier)**, evaluated by one Lua script so the prune, the
-count and the insert cannot interleave between two callers — a read-then-write in application code would
+count and the insert cannot interleave between two callers, a read-then-write in application code would
 let two simultaneous requests both see the count below the limit. Members are a fresh uuid per request,
 so two hits in the same millisecond do not collide into one. The script returns when the oldest hit in
 the window expires, which is what `Retry-After` is computed from.
@@ -241,7 +258,7 @@ the window expires, which is what `Retry-After` is computed from.
 connection per reload exhausts Redis' client limit within an afternoon.
 
 **The offline queue is left on.** With it off and no connection yet, every check during startup silently
-allowed the request — a limiter failing open exactly when a burst is most likely. So the first commands
+allowed the request, a limiter failing open exactly when a burst is most likely. So the first commands
 wait for the handshake instead, and `commandTimeout: 1_000` (plus `connectTimeout: 2_000` and
 `maxRetriesPerRequest: 1`) is the hard bound that keeps that queue from becoming a stall when Redis is
 genuinely down: **a rate limiter must never be the thing that makes a request hang.** Its `error` event
@@ -249,7 +266,7 @@ is handled, because an unhandled one on an ioredis client takes the process down
 
 `enforceRateLimit(kind, identifier)` returns a `429` with `Retry-After` or `null`, so a guarded route
 reads as one early return. Kinds are the `RATE_LIMIT_KIND` enum; windows live in `RATE_LIMITS`, so a
-kind without a window fails typecheck. It **fails open** — see
+kind without a window fails typecheck. It **fails open.** See
 [invariants.md](invariants.md#rate-limiting-fails-open-deliberately).
 
 **Identity** is the user id on authenticated routes, the embed key on
@@ -260,12 +277,12 @@ and `report/screenshot`.
 and Railway's proxy does the same, so the client entry is first. Getting this backwards makes the limit
 trivially bypassable. It falls back to a shared bucket rather than to no limit at all.
 
-## CORS — `lib/cors.ts`
+## CORS: `lib/cors.ts`
 
 The public report is read from domains we do not know in advance, so the wildcard is the point. See
 [invariants.md](invariants.md#the-public-routes-are-cors-open-and-must-never-send-credentials).
 
-## Security headers — `next.config.ts`
+## Security headers: `next.config.ts`
 
 HSTS, `nosniff`, `DENY` framing, `Referrer-Policy` and `Permissions-Policy` are enforced on every route.
 
@@ -299,11 +316,11 @@ else: the player is served from that origin and no script on our page talks to i
 that one directive and in no other. The entry is inert while `NEXT_PUBLIC_SUPADEMO_DEMO_ID` is empty,
 because `components/product-demo.tsx` renders no iframe at all until an id is set.
 
-**`frame-src` is no longer `'none'`, and that is the product decision, not a header tweak:** the buyer
-now pays inside our page, in an iframe the provider serves. It is the cost of a checkout with no
-redirect, and it is why the origins are named one by one instead of a wildcard. The Stripe halves of
-that list (`js.stripe.com`, `api.stripe.com`, `hooks.stripe.com`) stay dropped — Stripe checkout still
-leaves for its own hosted page.
+**`frame-src` is not `'none'`, and that is a product decision rather than a header tweak:** the
+buyer pays inside our page, in an iframe the provider serves. It is the cost of a checkout with no
+redirect, and it is why the origins are named one by one instead of a wildcard. Stripe is absent from
+that list (`js.stripe.com`, `api.stripe.com`, `hooks.stripe.com`) because Stripe checkout leaves for
+its own hosted page.
 
 ## Mercado Pago webhook signature
 
@@ -313,5 +330,5 @@ constant time, with `ts` and `v1` taken from the `x-signature` header. Anything 
 answers `400`.
 
 The signature only proves who is calling. **What the payment is worth is read back from the provider's
-API**, never from the notification body, and matched against our own price map — see
+API**, never from the notification body, and matched against our own price map, see
 [invariants.md](invariants.md#credits-are-granted-by-one-internal-path-and-no-provider-code-touches-the-tables).

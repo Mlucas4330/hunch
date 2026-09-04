@@ -1,7 +1,7 @@
 # SEO and metadata
 
 `pageMetadata()` in `lib/seo.ts` builds every route's metadata, so the shape cannot drift per page. A
-new page declares its own `generateMetadata` calling it — **there is no default that quietly makes a
+new page declares its own `generateMetadata` calling it. **There is no default that quietly makes a
 page indexable**.
 
 - Titles and descriptions live under `dictionary.metadata.pages.*`, like every other string. The
@@ -9,7 +9,7 @@ page indexable**.
   the site name.
 - `metadataBase` is set once, in `app/layout.tsx`, from `siteOrigin()` (`lib/app-url.ts`). It is what
   turns each page's `path` into an absolute canonical and `og:url`, so **`NEXT_PUBLIC_APP_URL` is
-  load-bearing in production** — canonical URLs, OG URLs and the sitemap are all built from it, never
+  load-bearing in production.** Canonical URLs, OG URLs and the sitemap are all built from it, never
   from the caller-controlled `Host` header.
 
 ## Indexability
@@ -18,7 +18,7 @@ page indexable**.
 `app/sitemap.ts`. Everything else passes `index: false`. `app/robots.ts` disallows the same prefixes,
 importing `PROTECTED_PREFIXES` from `lib/constants.ts` so it can never drift from `middleware.ts`.
 
-`/` used to be the only one. The blog was added as a destination for paid traffic that explains a
+The blog is indexed alongside `/` because it is a destination for paid traffic that explains a
 concept before asking for a URL, and a page written to be read by strangers is a page there is no
 reason to hide from a crawler.
 
@@ -51,7 +51,7 @@ The locale is a cookie with no route segment, so `en` and `pt-BR` are genuinely 
 `alternates.languages` would be a lie to crawlers; the cookie-less render (`DEFAULT_LOCALE`) is what
 gets indexed. **Do not add hreflang without first giving the locales real URLs.**
 
-## Structured data — `FAQPage` and `SoftwareApplication`
+## Structured data: `FAQPage` and `SoftwareApplication`
 
 `components/landing-faq.tsx` emits `FAQPage` JSON-LD on `/`, and it is **generated from
 `dictionary.landing.faq.items`**, the same array the visible rows render from. Written out by hand
@@ -63,7 +63,7 @@ one, per the section above.
 
 **The component has no `'use client'`, and that is what puts the schema and every answer in the
 initial HTML.** The section became a two-column layout and the rows stayed native `<details>`
-precisely so this stayed true — an accordion driven by `useState` would ship the questions and leave
+precisely so this stays true. An accordion driven by `useState` would ship the questions and leave
 the answers to hydration, and a crawler that does not run the bundle would index a page of headings.
 The `<script>` is a sibling of the grid rather than a child of it; that is a readability call, not a
 behavioural one, since `script` lays out nothing either way.
@@ -72,7 +72,7 @@ The same rule the rest of the product runs on applies to the answers: a question
 product counts and what a credit buys, and may not answer with a lift, a benchmark or a conversion
 figure. The last item exists to say that out loud. See [invariants.md](invariants.md).
 
-### `SoftwareApplication` — what the product is and what it charges
+### `SoftwareApplication`: what the product is and what it charges
 
 `components/landing-schema.tsx`, server rendered on `/` for the same reason `LandingFaq` is. The FAQ
 schema describes seven answers and says nothing about the thing being sold; this names the product,
@@ -90,7 +90,7 @@ not sell.
 
 **The `<script>` is the last child of the page's `space-y-24` container, and that placement is load
 bearing.** That utility spaces siblings with `:not([hidden]) ~ :not([hidden])`, which a `<script>`
-satisfies — placed first it would push the hero down by six rem while rendering nothing itself. Last,
+satisfies. Placed first it would push the hero down by six rem while rendering nothing itself. Last,
 the rule targets the script, and a `display: none` element generates no box for the margin to apply
 to.
 
@@ -109,16 +109,16 @@ the invented half.
   file-convention image with it. That is why `pageMetadata` names `DEFAULT_OG_IMAGE_PATH` by hand and
   why only a route with a co-located `opengraph-image.tsx` passes `ownImage: true`.
 - Satori parses neither `oklch()` nor a CSS variable, so the OG components in `components/og.tsx` use
-  inline styles over `OG_COLORS` — **the one place hex values are legitimate**. Keep them in step with
+  inline styles over `OG_COLORS`, **the one place hex values are legitimate**. Keep them in step with
   the tokens in `app/globals.css`. Every element needs an explicit `display`.
 - The images resolve their dictionary with `dictionaryFor(DEFAULT_LOCALE)`, not `getDictionary()`:
   unfurlers send no cookies, and avoiding the cookie read keeps the site-wide card static.
 
-## There is no white-label in metadata any more
+## There is no white-label in metadata
 
-`pageMetadata()` used to take `unbranded` and `brandName`, because a browser prints the `<title>`
-into a printed page header and `openGraph.siteName` rides every unfurl — the two places our name
-reached a reader without being on the page. Both went with the brand columns, so the helper now takes
-only `ownImage` and always says `Hunch`.
+`pageMetadata()` takes only `ownImage` and always says `Hunch`. There is no `unbranded` flag and no
+caller-supplied brand name, so the two places our name reaches a reader without being on the page,
+the `<title>` a browser prints into a page header and the `openGraph.siteName` that rides every
+unfurl, both say the same thing on every surface.
 
-`components/og.tsx` lost `OgBrandName` for the same reason; `OgWordmark` is the only mark left.
+`components/og.tsx` follows the same rule: `OgWordmark` is the only mark it draws.

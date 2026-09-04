@@ -184,7 +184,7 @@ hypotheses  1 -> N  variants
 
 `structure`, `seo`, `performance`, `crawler_access`, `keywords` and `mobile` were captured for
 generation and thrown away from the moment the scrape existed. They are persisted so the report can
-state **measured** facts with no model in the loop — see [readout.md](readout.md).
+state **measured** facts with no model in the loop. See [readout.md](readout.md).
 
 **Null is not the only "not measured" here, and the other one is inside the jsonb.** `structure` grew
 fields after rows already existed, so a row can hold the object with none of them. The type marks
@@ -194,26 +194,52 @@ records is therefore never a migration and always a guard.
 
 **`market` is not stored on `page_snapshots`.** It is pinned to `analyses.market` at creation and
 never moves, so a snapshot carrying its own copy would be a second source of truth for one fact.
-`snapshotInput` and `snapshotValues` take it as an argument instead — one finding reads it, and reads
+`snapshotInput` and `snapshotValues` take it as an argument instead, one finding reads it, and reads
 it to stay quiet outside Brazil.
 
 An analysis created before these columns holds null and renders no readout section, exactly as an
 empty playbook renders no playbook. **Nothing is regenerated**, and nothing sweeps them.
 `POST /api/analyses/[id]/measure` re-measures one analysis at a time on the owner's click, and that
-click is the only thing that re-measures anything. **There is no sweep.** One existed twice and was
-removed twice — once with the plans it swept for, once with the subscription that paid for it — and
-the reason did not change either time: a scheduled re-measure opens a real browser against somebody's
-site, so it is browser time nobody asked for unless something pays for it. See [api.md](api.md) and
-[product.md](product.md).
+click is the only thing that re-measures anything. **There is no sweep**, because a scheduled
+re-measure opens a real browser against somebody's site: browser time nobody asked for unless
+something pays for it. See [api.md](api.md) and [product.md](product.md).
 
 The columns are the current measurement and `page_snapshots` is the history. They are written
-together, in one transaction, every time — a trend that disagrees with the readout above it is worse
+together, in one transaction, every time, a trend that disagrees with the readout above it is worse
 than no trend.
+
+### `leads.consented_at` is a promise, held as a column
+
+The note above the address says what actually happens: the link, then the follow-up sequence, and
+the address may also feed the Customer Match upload.
+
+**Rewriting a promise only works forwards.** A row captured under a narrower sentence keeps it, and
+this column is how: `POST /api/leads` stamps it, and every follower, the sequence cron and the
+audience sync, requires it. A null is somebody who was promised one mail, and they get one mail.
+
+Holding it as a column rather than as a rule in two crons is the whole point. A rule is remembered;
+a null in a `where` clause is enforced.
+
+### The other three `leads` columns
+
+`unsubscribe_token` is the credential on the unsubscribe link, unguessable for the same reason
+`embed_key` is: it travels in a URL that mail clients prefetch, so it must be safe for a stranger to
+hold and useless for walking to anybody else's row.
+
+`stage` is which mail of `LEAD_SEQUENCE` has gone out, and it is where the cron's idempotency lives.
+A timestamp would have to be reasoned about; a stage that is already written when a run crashes
+mid-batch simply causes the next run to skip that row.
+
+`last_emailed_at` exists for one case the stage cannot see: **one address can hold two rows**, since
+the unique is on `(email, analysis_id)`. Without it, somebody who left their address on two reports
+gets two mails minutes apart.
+
+`unsubscribed_at` marks the row rather than deleting it, so a later submit of the same address for the same report cannot silently re-subscribe them.
 
 ### `analyses.ad_ideas` is one column and not a table
 
 It holds a single object, read whole and written whole, exactly like the measurement columns above
-it — so a table would buy nothing and cost a join, a cascade and a position column. **Nothing ever
+it, so a table would buy nothing and cost a join, a cascade and a position column. **Nothing ever
 reads one ad group without the rest of the set**, which is the test: `flow_fixes` is a table because
 the report slices it by `kind` and `category` and ranks it; this is never sliced.
 
@@ -289,20 +315,18 @@ no fix category that could answer them: the score fell for something the product
 No variants and no target: nothing here is a single-element text swap, so there is no replacement line
 to render. A founder ships the steps by hand.
 
-## Where rows are split — never inline at a call site
+## Where rows are split, never inline at a call site
 
 Three surfaces render these lists, and a surface that forgot to filter would silently show conversion
 fixes under the discoverability heading. Both helpers live in `lib/analyses.ts`:
 
 - **`splitFixes`** separates `flow_fixes` by `kind`.
 - **`splitVisibility`** makes the second cut, by `category === AI_FIX_CATEGORY`, into the SEO and
-  "found by AI" tabs. That split is **presentation, not a column** — no migration divides those rows,
+  "found by AI" tabs. That split is **presentation, not a column.** No migration divides those rows,
   so an analysis generated before the tabs existed divides itself. It skips it and
   renders one combined visibility section, because on paper there is nothing to click.
 - **`readoutFor()`** is the single place the four readout columns are gathered, for the same reason.
 - **`listAnalysesForUser`** is read by both `GET /api/analyses` and the dashboard server component, so
   paging cannot drift between the page and the route that feeds it.
-- **`loadReport`** is the public report's one query, authorized by the embed key alone. It moved here
-  from `lib/report.ts` when white-label was deleted: that file resolved a brand, and the lookup it
-  also held belongs beside the other analysis queries. It stays `cache()`d because the page and its
-  OG route both call it.
+- **`loadReport`** is the public report's one query, authorized by the embed key alone. It stays
+  `cache()`d because the page and its OG route both call it.

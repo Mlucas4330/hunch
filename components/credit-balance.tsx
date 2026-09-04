@@ -9,7 +9,7 @@ import { t as fill } from '@/lib/i18n/format'
  *
  * **Read from the row on every render, never from the session.** A JWT lives
  * `SESSION_MAX_AGE_SECONDS`, so a balance carried in one is stale the instant something is bought or
- * spent — and a stale balance is either free credit or credit that looks vanished. Same reasoning
+ * spent, and a stale balance is either free credit or credit that looks vanished. Same reasoning
  * that keeps `role` out of the token. See docs/invariants.md.
  *
  * `variant` is about the box around it, never about what it says. `card` draws its own border, for a

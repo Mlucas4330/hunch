@@ -20,11 +20,10 @@ const PRIORITY_ELEMENT_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 
  * The elements the copy prompt may write a variant for, chosen by what they are rather than by where
  * they sit in the document.
  *
- * `captureElements` walks `document.querySelectorAll('*')`, so it returns in document order, and the
- * cut used to be a plain `.slice` off the front. On a long page that meant the last hundred elements
- * were unreachable: there was no possible variant for the closing call to action, because it was
- * element number four hundred. Headings and clickable controls now claim their places first and body
- * copy fills what is left.
+ * `captureElements` walks `document.querySelectorAll('*')`, so it returns in document order. A plain
+ * `.slice` off the front would make the last hundred elements of a long page unreachable, leaving no
+ * possible variant for a closing call to action that happens to be element number four hundred.
+ * Headings and clickable controls claim their places first and body copy fills what is left.
  *
  * **The result is re-sorted back into document order.** The model reasons about a page as a sequence,
  * and handing it the buttons first and the paragraphs after would describe a page that does not

@@ -3,13 +3,12 @@ import { test, expect, type Page } from '@playwright/test'
 /**
  * **A tooltip may never widen the document.**
  *
- * `InfoHint` is a panel absolutely positioned against a 16px button, and it used to render at
- * `left-0` with an `align` prop no call site ever passed. Wherever the trigger sat near the right
- * edge -- the impact legend is right-aligned over both ranked lists -- the panel ran off the page
- * and put a horizontal scrollbar on the whole document.
+ * `InfoHint` is a panel absolutely positioned against a 16px button. Pinned at `left-0`, a trigger
+ * near the right edge (the impact legend is right-aligned over both ranked lists) runs the panel off
+ * the page and puts a horizontal scrollbar on the whole document.
  *
  * This opens **every** hint on the analysis at three widths and asserts the document never scrolls
- * sideways. It is written as a sweep rather than against the one hint that was reported, because the
+ * sideways. It is written as a sweep rather than against a single hint, because the
  * failure is positional: the next one to break will be whichever hint moves closest to an edge.
  */
 async function documentOverflow(page: Page): Promise<number> {

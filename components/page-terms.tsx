@@ -11,22 +11,19 @@ import type { PageKeywords } from '@/lib/keywords'
 /**
  * The page's own words, and what can be bought with them.
  *
- * **The table used to be the last thing inside `MeasuredReadout`, and it went nowhere.** It counts
- * the terms the page repeats and marks which of its own surfaces already carry each one, which is a
- * correct measurement and the only kind of keyword data this product can honestly produce -- we have
- * no index and no clickstream, so volume and difficulty would be invented at the moment they were
+ * The table counts the terms the page repeats and marks which of its own surfaces already carry
+ * each one. That is the only kind of keyword data this product can honestly produce: we have no
+ * index and no clickstream, so volume and difficulty would be invented at the moment they were
  * printed. See docs/invariants.md.
  *
- * What it lacked was a destination. It is its own `PanelCard` at the end of the document now, under
- * a heading that says what to take from it, with the ad groups written off those same terms
- * underneath -- so the count leads somewhere instead of being a table the reader interprets alone.
+ * It is its own `PanelCard` at the end of the document, under a heading that says what to take from
+ * it, with the ad groups written off those same terms underneath, so the count leads somewhere
+ * instead of being a table the reader interprets alone.
  *
- * **It starts closed now, like the sections above it.** The old reasoning was that nothing is buried
- * by the last block on the page -- true, and beside the point once the rail exists. What it costs
- * open is a ten by six table and up to four ad groups, each line carrying its own character counter,
- * always expanded at the foot of a document that already asks a lot: the single largest thing on the
- * page, shown to every reader whether or not they came for it. The rail names it, so a reader who
- * wants it can reach it in one click from anywhere; before, it was open because it was unreachable.
+ * **It starts closed, like the sections above it.** Open it costs a ten by six table and up to four
+ * ad groups, each line carrying its own character counter, at the foot of a document that already
+ * asks a lot: the single largest thing on the page, shown to every reader whether or not they came
+ * for it. The rail names it, so a reader who wants it can reach it in one click from anywhere.
  */
 export function PageTerms({
   keywords,

@@ -17,6 +17,7 @@
     "db:studio": "drizzle-kit studio",
     "test": "tsx --test \"lib/**/*.test.ts\"",
     "preview:screenshot": "tsx --env-file=.env scripts/preview-screenshot.mts",
+    "preview:emails": "tsx --env-file=.env scripts/preview-emails.mts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "seed:pulse": "tsx --env-file=.env scripts/seed-pulse.mts"

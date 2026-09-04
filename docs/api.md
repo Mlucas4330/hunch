@@ -1,11 +1,11 @@
 # API routes
 
 Every `/api` route authenticates itself via `getCurrentUser()`. The middleware matcher is a
-performance detail, not the security boundary — see [security.md](security.md).
+performance detail, not the security boundary. See [security.md](security.md).
 
 | Route | Auth | Notes |
 | ----- | ---- | ----- |
-| `GET\|POST /api/auth/[...nextauth]` | — | NextAuth catch-all |
+| `GET\|POST /api/auth/[...nextauth]` | none | NextAuth catch-all |
 | `POST /api/analyses` | **session optional** | queues the pipeline; anything unpaid gets the measured half only; takes an optional `competitorUrl` |
 | `GET /api/analyses` | session, or embed key for `?embedKey=` | history, or one analysis' progress |
 | `GET /api/analyses/[id]` | session + ownership | |
@@ -17,45 +17,41 @@ performance detail, not the security boundary — see [security.md](security.md)
 | `POST /api/billing/mercadopago` | session | creates the payment the Payment Brick collected |
 | `POST /api/billing/mercadopago/webhook` | Mercado Pago signature | grants credits for an approved payment |
 | `POST /api/analyses/claim` | session | hands anonymous analyses to the account that just signed in |
-| `POST /api/leads` | — | takes an address and emails the report's link back; gates nothing |
-| `POST\|GET /api/report/screenshot` | embed key | queues a preview and reports on it — see [report.md](report.md) |
-| `GET /api/pulse` | — | the landing page's ranked board and live feed, domain and score only |
+| `POST /api/leads` | none | takes an address and emails the report's link back; gates nothing |
+| `POST\|GET /api/report/screenshot` | embed key | queues a preview and reports on it: see [report.md](report.md) |
+| `GET /api/pulse` | none | the landing page's ranked board and live feed, domain and score only |
 | `GET /api/cron/prune-screenshots` | `CRON_SECRET` | see [deployment.md](deployment.md) |
-| `GET /api/health` | — | Railway's deploy probe, imports nothing — see [deployment.md](deployment.md#healthcheck) |
+| `GET /api/health` | none | Railway's deploy probe, imports nothing: see [deployment.md](deployment.md#healthcheck) |
 
-**Routes that were removed with the agency framing:** `GET /api/usage` (no plans, no allowance),
-`POST /api/brand` (no white-label), `POST /api/waitlist` (no lead capture) and
-`POST /api/report/view` (no open tracking).
-
-**Routes removed with the monitoring subscription:** `POST|DELETE /api/billing/mercadopago/subscribe`
-and `GET /api/cron/remeasure`. The sweep has now been added and removed twice for the same reason
-both times — a scheduled re-measure is browser time nobody asked for unless something pays for it,
-and what paid for it sold a weekly report on pages that do not change weekly. **Re-measuring is the
-owner's click**, at `POST /api/analyses/[id]/measure`. See [product.md](product.md).
+**There is no scheduled re-measure**, because it is browser time nobody asked for unless something
+pays for it. **Re-measuring is the owner's click**, at `POST /api/analyses/[id]/measure`. See
+[product.md](product.md).
 
 ## Analyses
 
 ### `POST /api/analyses`
 
-Chain: rate limit -> guard both URLs -> (Puppeteer scrape ‖ robots.txt) -> detect market ->
-**persist the measurement** -> compose page text -> (competitor scrape ‖ Claude: hypotheses +
+Chain: rate limit -> guard both URLs -> (Puppeteer scrape || robots.txt) -> detect market ->
+**persist the measurement** -> compose page text -> (competitor scrape || Claude: hypotheses +
 playbook + visibility audit, in parallel) -> persist the generation.
 
-**The two writes are two writes, and that is the point.** `runAnalysis` used to call one function
-that scraped and generated and committed everything in a single transaction at the end, so
-`analyses.structure` stayed null for the whole run. `analysisProgress` therefore reported `measured`
-and `generated` turning true at the same instant for an owned analysis, and **the person who had paid
-waited minutes for the score that the anonymous visitor got in twenty seconds** — against the rule
-that [the readout is never gated](invariants.md#the-free-half-is-what-code-counted-the-paid-half-is-what-a-model-wrote).
+**The two writes are two writes, and that is the point.** `measurePage` runs for every analysis, its
+result is committed with the `page_snapshots` row, and only then does an owned run continue into
+`generateFromMeasurement`.
 
-`measurePage` now runs for every analysis, its result is committed with the `page_snapshots` row, and
-only then does an owned run continue into `generateFromMeasurement`. Three consequences:
+Scraping and generating in one transaction at the end leaves `analyses.structure` null for the whole
+run, so `analysisProgress` reports `measured` and `generated` turning true at the same instant for an
+owned analysis and **the person who paid waits minutes for the score the anonymous visitor gets in
+twenty seconds.** That is against the rule that
+[the readout is never gated](invariants.md#the-free-half-is-what-code-counted-the-paid-half-is-what-a-model-wrote).
 
-- **The client navigates on `measured`.** `waitForAnalysis` no longer waits for `generated`, so the
+Three consequences:
+
+- **The client navigates on `measured`.** `waitForAnalysis` never waits for `generated`, so the
   reader reaches `/r/<embedKey>` with their score while the fixes are still being written. See
   [report.md](report.md) for the five states that render there.
-- **A generation failure is survivable, and rarer than it was.** The credit comes back when
-  **nothing** was generated — not when one of the three calls fell short. A short set of copy
+- **A generation failure is survivable.** The credit comes back when
+  **nothing** was generated, not when one of the three calls fell short. A short set of copy
   hypotheses now ships alongside the flow and visibility fixes instead of taking them down with it;
   see [ai-pipeline.md](ai-pipeline.md). When the refund does happen the readout is already committed,
   so it is "you have your score and your credit is back" rather than three minutes of spinner ending
@@ -82,7 +78,7 @@ not theirs.
 finished copy instead of `[placeholders]`.
 
 `competitorUrl` (optional) is a page the caller names and nothing infers. It is measured by the same
-code, shown as a second column in the readout, and handed to the prompts — the one case where a
+code, shown as a second column in the readout, and handed to the prompts, the one case where a
 generated `evidence` may carry a number, bounded in
 [invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured).
 
@@ -93,7 +89,7 @@ Two things about it are load bearing:
   this deploy points a real browser at. See [security.md](security.md).
 - **Only the owned branch measures it.** An ownerless run is what makes an anonymous analysis cost one
   browser slot and zero tokens, and a second page would double the slot half of that for traffic where
-  most visitors never convert. It costs no extra credit — one analysis, one credit, two pages measured.
+  most visitors never convert. It costs no extra credit, one analysis, one credit, two pages measured.
 
 **A credit buys the four brief answers as much as it buys the run, and it is not spent without them.**
 `briefIsComplete` gates `spendCredit`: all four or none, no partial mode. A caller who sends fewer
@@ -104,9 +100,9 @@ readout, which no surface may do. What was measured to justify this is in
 
 **There is no `no_credits` refusal.** A signed in caller with an empty balance is answered `202` like
 everyone else, with `owned: false` and an ownerless analysis behind it: the measured half only, zero
-model tokens, and the unlock wall on the report. The route used to delete the row and answer `402`,
-which made holding a session strictly worse than not having one — the same person got a free readout
-signed out and nothing signed in.
+model tokens, and the unlock wall on the report. Deleting the row and answering `402` would make
+holding a session strictly worse than not having one: the same person gets a free readout signed out
+and nothing signed in.
 
 The order matters and is not obvious from reading it: the row is inserted **ownerless whoever is
 signed in**, because `spendCredit` writes a ledger row naming the analysis it paid for and cannot do
@@ -127,7 +123,7 @@ before the job is queued, since `runAnalysis` reads that column to decide whethe
 ```
 
 `flowFixes` holds both kinds, `flow` first then `visibility`, each ranked by impact with `position`
-counted from 0 within its own kind. **Either family can be empty** — the playbook when its generation
+counted from 0 within its own kind. **Either family can be empty.** The playbook when its generation
 failed, the visibility audit for that reason or because the page genuinely has nothing left to fix.
 Both are additions to the analysis, never preconditions for it, and they ride the same
 `persist_failed` catch as everything else in the transaction.
@@ -141,7 +137,7 @@ limited · `502` scrape failed · `500` Claude or DB failure.
 ### `GET /api/analyses`
 
 History, paginated via `?page=1&limit=10`. Reads through
-`listAnalysesForUser` — see [data-model.md](data-model.md).
+`listAnalysesForUser`. See [data-model.md](data-model.md).
 
 ```json
 { "analyses": [ "...AnalysisRow[]" ], "total": 12, "page": 1, "pages": 2 }
@@ -149,7 +145,7 @@ History, paginated via `?page=1&limit=10`. Reads through
 
 `page` is what was **served**, not what was asked for: a number past the end is clamped to the last
 page rather than answered with an empty list, and anything that is not a positive integer reads as
-page one. Both callers go through `parsePaging`, so the dashboard and this route cannot disagree —
+page one. Both callers go through `parsePaging`, so the dashboard and this route cannot disagree
 see [analysis-ui.md](analysis-ui.md#paging).
 
 ### `GET /api/analyses/[id]`
@@ -158,13 +154,13 @@ One analysis with all hypotheses. `404` if not found **or not owned**.
 
 ### `GET /api/analyses?embedKey=`
 
-Progress for one analysis, readable by whoever holds the key — the anonymous caller who started it has
+Progress for one analysis, readable by whoever holds the key, the anonymous caller who started it has
 nothing else to identify themselves with. It answers `id`, `owned`, `measured`, `generated` and
 `state`.
 
 **`state` is what a caller should switch on**, and it is why the poll can stop. The booleans say what
 has landed and never why nothing more is coming, so a client watching them could not tell a generation
-still running from one that threw an hour ago — it just kept asking. It comes from `analysisStateFor`,
+still running from one that threw an hour ago, it just kept asking. It comes from `analysisStateFor`,
 the same helper the report renders from, so the screen and the poll cannot disagree about a row. The
 values are `ANALYSIS_STATE`: `measuring`, `generating`, `failed`, `ready`, `locked`. See
 [report.md](report.md).
@@ -176,13 +172,13 @@ what `components/generating-sections.tsx` does instead of re-rendering the whole
 
 Fills `structure` / `seo` / `performance` / `crawler_access` on an analysis generated **before those
 columns existed**, so its report stops rendering no readout at all. Runs `measurePage`
-(`lib/analyze.ts`) — a scrape plus the robots.txt fetch, and nothing else. No model call, no new rows,
+(`lib/analyze.ts`), a scrape plus the robots.txt fetch, and nothing else. No model call, no new rows,
 no re-ranking; `locale` and `market` stay pinned to what the hypotheses were written for. Response:
 `{ measured: true }`.
 
 **It is a re-measure, not a backfill, and is deliberately not idempotent.** It rewrites the columns and
 appends a `page_snapshots` row in one transaction, which is what a trend is made of. The `measure` rate
-limit (10/hour) is what holds the browser cost — an idempotency guard would have blocked the second
+limit (10/hour) is what holds the browser cost, an idempotency guard would have blocked the second
 measurement, which is the only one worth having.
 
 Errors mirror `POST /api/analyses` because the failures are the same: `422 invalid_url` (a stored URL
@@ -214,17 +210,13 @@ that renders it.
 - **`422 nothing_measured` when the page has no counted terms.** The whole claim the section makes is
   that these words came off the reader's own page; with no terms there is nothing to ground it in,
   and a model asked anyway would invent the keywords a keyword tool would have sold them.
-- `locale` comes from the **stored** `analyses.locale`, never the reader's current one — see
+- `locale` comes from the **stored** `analyses.locale`, never the reader's current one, see
   [invariants.md](invariants.md#generated-content-is-pinned-to-the-locale-it-was-written-in).
 
 Errors: `401` with no session, `404` for an unknown or unowned id, `422 nothing_measured`,
 `500 generation_failed`, `429` from the rate limit.
 
 ## Hypotheses
-
-### `PATCH /api/hypotheses/[id]`
-
-`{ "status": "testing" }`. Validates against `HYPOTHESIS_STATUS`. Returns the updated row.
 
 ### `POST /api/hypotheses/[id]/variants`
 
@@ -313,11 +305,11 @@ What the landing page polls. Answers `{ leaderboard, pulse }` from `publicLeader
 
 A leaderboard entry is `{ domain, score }`; a feed entry is `{ domain, state, score, at }`, where
 `state` is `running` for a row with no measurement yet and `done` for one with a score. **The route
-may never widen either shape** — see
+may never widen either shape.** See
 [invariants.md](invariants.md#the-public-board-carries-a-domain-and-a-score-and-nothing-else).
 
 **Fails open**, like everything except `POST /api/analyses`: a poll costs one cached read and opens no
-browser, so Redis being down here is a landing page without ambience rather than an unmetered bill —
+browser, so Redis being down here is a landing page without ambience rather than an unmetered bill
 which is the only thing that earns `failClosed`. See
 [invariants.md](invariants.md#rate-limiting-fails-open-except-where-failing-open-is-the-bill). It
 spends the `job_status` budget for the reason that kind exists: cheap polling must not spend an
@@ -335,19 +327,18 @@ analysis carries, `429` past the `lead` budget.
 
 **It gates nothing, and it must never start to.** [invariants.md](invariants.md) puts the readout
 outside every wall on every surface, and an email wall in front of a measurement of the reader's own
-page reads as a trick — an earlier one did exactly that and was removed for it. This asks below the
-numbers, once, and takes no for an answer.
+page reads as a trick. This asks below the numbers, once, and takes no for an answer.
 
 **What makes the offer honest is what it delivers.** An `embed_key` is an unguessable uuid held in
 one browser's `localStorage` and nowhere else, so a cleared history really does lose the report for
-good. The email is the only durable copy of that link an anonymous reader can have — the address buys
+good. The email is the only durable copy of that link an anonymous reader can have, the address buys
 them something rather than buying us something.
 
 Three rules hold it:
 
 - **A lead is not a user.** The route never touches `users`, cannot grant, spend or claim anything,
   and the address lands in its own table. `users` is keyed on email and whoever presents that address
-  next owns the row and its credits, which is why only a provider-verified address may create one —
+  next owns the row and its credits, which is why only a provider-verified address may create one
   see [security.md](security.md). Nobody verified this one; it is a string a stranger typed.
 - **The locale is the analysis's, not the request's.** What gets written to this person is written in
   the language they were reading, under the same rule as `analyses.locale`.
@@ -357,10 +348,99 @@ Three rules hold it:
 Sending is fail-soft (`lib/email.ts`): the row is written first, and a provider outage or a deploy
 with no `RESEND_API_KEY` costs the message, never the lead.
 
+**Every mail this product sends renders through `lib/email-template.ts`.** Four of them exist: this
+one, the two in `LEAD_SEQUENCE`, and the pending-payment reminder. They share one frame, built from
+tables and inline styles because a mail client is not a browser, and coloured from `EMAIL_THEME`
+rather than the stylesheet, which no client can read. Callers pass plain text and the template
+escapes it, which is why the hostname off a submitted URL needs no guard at the call site. Preview
+all four in a real client with `npm run preview:emails -- you@example.com`.
+
+**Every message carries `CONTACT_EMAIL` as its reply-to.** The sender address is `EMAIL_FROM`, a
+deploy setting on a domain Resend has verified; the mailbox a reader is invited to answer is the one
+the privacy policy and the footer name, so a reply to any mail this product sends lands where the
+policy promises it will.
+
+**It writes `consented_at`, and that column is what every follower reads.** The note above the form
+states what actually happens: the link, two more mails, and that the address may be used for our ads.
+This route stamps the row as captured under those terms. A row with a null there was captured under a
+narrower promise and is never enrolled in the sequence or uploaded to an ad audience, whatever the
+policy says today. See [ads.md](ads.md).
+
+### `GET /api/leads/unsubscribe?token=...`, and `POST` on the same path
+
+Marks `unsubscribed_at` and redirects to `/unsubscribe`. The uuid token is the whole credential, the
+same shape as `embed_key`.
+
+**The POST is the same write, submitted by a mail client rather than by a person.** Every mail that
+carries an unsubscribe link also carries it as `List-Unsubscribe` with `List-Unsubscribe-Post:
+List=One-Click`, which is what puts the unsubscribe button beside the sender's name in Gmail, and
+what bulk senders are now expected to provide. That header is a promise this path answers a POST, so
+it answers one: `200`, no redirect, because nobody is looking at it. Declaring the header without the
+handler is worse than declaring neither, since the button then fails and the reader who tried to
+leave politely reaches for the spam button instead.
+
+**A GET that writes, deliberately.** Every alternative costs the reader a second click, and an
+unsubscribe people give up on is one they report as spam instead, which a young sending domain pays
+for. The token being unguessable is what keeps a prefetching mail client harmless: the worst it can
+do is unsubscribe the person whose mail it was fetching.
+
+**It answers identically for a token that worked, one nobody holds, and one that is malformed.** Which
+of those it was is the only fact this endpoint could leak, and nobody clicking their own link needs
+the distinction. The row is updated rather than deleted, so a later submit of the same address for
+the same report cannot quietly re-subscribe them.
+
+## Crons
+
+Three, all guarded by `authorizeCron` and all scheduled from `.railway/railway.ts`. **None of them
+moves a balance**; `grantCredits` remains the only thing that does, see
+[invariants.md](invariants.md#credits-are-granted-by-one-internal-path-and-no-provider-code-touches-the-tables).
+
+### `GET /api/cron/lead-sequence`
+
+Mails the day-2 measurement and the day-7 offer to leads who have not bought. `LEAD_SEQUENCE` is the
+only description of the cadence.
+
+**Idempotent on `leads.stage`, not on the clock.** A run that sends and then crashes has already
+written the stage, so the next run passes that row over and calling it twice in a day is safe.
+
+A row is dropped when it is unsubscribed, when `consented_at` is null, or when hypotheses exist for
+its analysis. That last one is the test rather than ownership: an analysis can be claimed by signing
+in without anything having been bought, and the offer mail is only wrong once the fixes exist.
+
+**One address is mailed once per run**, however many reports it left, and a row whose address was
+mailed in the last day is skipped. Two mails minutes apart read as a leak rather than as a sequence.
+
+The measurement mail quotes a finding recomputed by `measuredFindings` from the JSON already on the
+analysis. It says what was counted and never what changing it will produce, the same rule as every
+other surface.
+
+### `GET /api/cron/pending-payments`
+
+Reminds a buyer about a payment Mercado Pago still reports as pending. Pix and boleto settle after
+the browser has gone, so an unfinished checkout is ordinary rather than a failure.
+
+**Nothing is stored locally and nothing needs to be.** The provider stays the authority on payment
+state, and `external_reference` carries the buyer's id, so `pendingPayments` asks Mercado Pago and
+maps the answer back to `users`. A pending payment written to our own tables would be a second record
+of a fact only the provider can settle.
+
+**Its idempotency is the window, not a column**: a payment is mailed about while it is between
+`PENDING_PAYMENT_REMINDER_AFTER_HOURS` and `PENDING_PAYMENT_MAX_AGE_HOURS` old, and the cron runs
+daily. Moving it to a schedule that fires twice a day would mail the same person twice.
+
+### `GET /api/cron/audience-sync`
+
+Replaces the membership of the two Customer Match lists. Buyers are uploaded to be **excluded** from
+targeting; leads are uploaded to be targeted. See [ads.md](ads.md).
+
+`REMOVE_ALL` before adding, so leaving the audience is one run rather than a deletion nobody would
+remember to write. Only `reason = 'purchase'` counts as a buyer: a hand grant is a comped account,
+and training an audience on one is the same mistake as reporting it as a conversion.
+
 ## Billing
 
 Two providers sell the same three credit packs, and **neither of them touches a credit table**. Each
-verifies a payment, works out what it bought, and calls `grantCredits` — see
+verifies a payment, works out what it bought, and calls `grantCredits`, see
 [invariants.md](invariants.md#credits-are-granted-by-one-internal-path-and-no-provider-code-touches-the-tables).
 
 Mercado Pago is the one that can charge in BRL against a CPF, so it is what sells today; Stripe stays
@@ -373,7 +453,7 @@ Both webhooks **must be excluded from NextAuth middleware**, and both claim thei
 ### `POST /api/billing/checkout`
 
 Session required. Opens a Stripe Checkout Session for one pack, with `customer_email` pinned to the
-signed-in account — **the email is never taken from the body**, or anyone could buy credits into
+signed-in account. **the email is never taken from the body**, or anyone could buy credits into
 someone else's account. A pack whose price id is unset answers `503` rather than selling nothing.
 
 ### `POST /api/billing/webhook`
@@ -389,13 +469,13 @@ Session required, rate limited on the `billing` kind. Takes `{ pack, payment }` 
 whatever the Payment Brick collected, and creates the payment with three fields the server decides
 rather than the browser:
 
-- `transaction_amount` from `CREDIT_PACKS.amountBrl` — **the Brick submits an amount and it may not be
+- `transaction_amount` from `CREDIT_PACKS.amountBrl`. **the Brick submits an amount and it may not be
   believed**
 - `external_reference` from the session's user id, which is how the webhook knows whom to credit;
   Mercado Pago's `payer.email` is the buyer's account address and is frequently a different one
 - `notification_url`, so the delivery arrives where the signature is checked
 
-It answers the payment's status plus the Pix QR when there is one, and **grants nothing** — a card
+It answers the payment's status plus the Pix QR when there is one, and **grants nothing.** A card
 approved in this response is still credited by the webhook, so there is one path that moves a balance
 instead of two that have to agree.
 
@@ -413,8 +493,8 @@ It handles the `payment` topic, which credits a pack, and acknowledges everythin
 
 The claim is keyed `<payment id>:<topic>`, because a Pix payment notifies once pending and again once
 approved and collapsing those two would throw away the delivery carrying the money. It then **reads
-the payment back from the provider's API** — the notification body is an unsigned claim that something
-happened to an id — and grants only when the status is `approved` and the amount matches a pack.
+the payment back from the provider's API.** The notification body is an unsigned claim that something
+happened to an id, and grants only when the status is `approved` and the amount matches a pack.
 
 On an exception it releases the claim before answering `500`, so the retry can redo the work: a claim
 that survives a failure turns every retry into a no-op and loses a paid credit.

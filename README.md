@@ -2,7 +2,7 @@
 
 Paste a landing page URL and get a score out of 100, measured on the page itself: form fields, calls
 to action above the fold, load timings, alt text, what the head declares, what robots.txt allows.
-**The score is free and needs no account.** A credit buys the half a model writes — ranked fixes, the
+**The score is free and needs no account.** A credit buys the half a model writes: ranked fixes, the
 replacement copy already written, and a preview of it rendered onto a screenshot of the real page.
 
 The reader owns the landing page. See [docs/product.md](docs/product.md).
@@ -44,10 +44,10 @@ Full setup, what each suite covers and what it deliberately cannot cover:
 
 The cut runs through the whole codebase and is worth knowing before reading any of it:
 
-- **Measured** — `lib/readout.ts`, `lib/score.ts`, `lib/keywords.ts`. Pure arithmetic over what the
+- **Measured.** `lib/readout.ts`, `lib/score.ts`, `lib/keywords.ts`. Pure arithmetic over what the
   scrape counted. **No model is called**, so a run nobody paid for costs a browser slot and zero
   tokens. Never gated, on any surface.
-- **Generated** — `lib/ai/`. Hypotheses, replacement copy, the flow playbook, the visibility audit.
+- **Generated.** `lib/ai/`. Hypotheses, replacement copy, the flow playbook, the visibility audit.
   Costs a credit.
 
 `analyses.user_id` is the whole switch: ownerless means measured only. There is no flag, and adding
@@ -55,13 +55,13 @@ one would be a second source of truth that can disagree.
 
 ## Documentation
 
-**[docs/invariants.md](docs/invariants.md) comes first.** It holds the rules that cross subsystems —
+**[docs/invariants.md](docs/invariants.md) comes first.** It holds the rules that cross subsystems:
 what may be stated as a measurement, what a model may never assert, how a balance is allowed to move.
 If a sentence would have to appear in two docs, it belongs there and both link to it.
 
 | Doc | Read it when |
 | --- | ------------ |
-| [invariants.md](docs/invariants.md) | always — the cross-cutting rules |
+| [invariants.md](docs/invariants.md) | always, for the cross-cutting rules |
 | [product.md](docs/product.md) | you need what the product does and for whom |
 | [data-model.md](docs/data-model.md) | touching the schema, a column's contract, or how rows are split |
 | [api.md](docs/api.md) | touching a route under `/api` (analyses, hypotheses, billing) |
@@ -77,7 +77,5 @@ If a sentence would have to appear in two docs, it belongs there and both link t
 | [development.md](docs/development.md) | running the app or the suites locally |
 | [deployment.md](docs/deployment.md) | deploying, or debugging a Railway service |
 
-**Much of this repo's prose explains what was deleted and why.** That is deliberate: the product was
-sold to agencies and carried white-label, plans, a print report and a live A/B testing stage, and
-every one of those left a shape behind that is easier to reintroduce than to reason about. A
-paragraph saying "this is gone, and here is what would have to come back with it" is doing work.
+**The docs describe what the product does now.** A rule that exists to keep a shape out says so as a
+rule, in the present tense, with the reason it holds. They are not a changelog: git carries that.

@@ -1,7 +1,13 @@
 import Link from 'next/link'
-import { MessageCircle } from 'lucide-react'
+import { Mail, MessageCircle } from 'lucide-react'
 import { Wordmark } from '@/components/wordmark'
-import { CONTAINER_CLASS, PRIVACY_PATH, WHATSAPP_URL } from '@/lib/constants'
+import {
+  CONTACT_EMAIL,
+  CONTACT_EMAIL_URL,
+  CONTAINER_CLASS,
+  PRIVACY_PATH,
+  WHATSAPP_URL
+} from '@/lib/constants'
 import { getDictionary } from '@/lib/i18n'
 import { t as fill } from '@/lib/i18n/format'
 import { cn } from '@/lib/utils'
@@ -33,6 +39,14 @@ export async function SiteFooter() {
           <Link href={PRIVACY_PATH} className={linkClass}>
             {t.footer.privacy}
           </Link>
+          <a
+            href={CONTACT_EMAIL_URL}
+            aria-label={fill(t.footer.email, { address: CONTACT_EMAIL })}
+            title={CONTACT_EMAIL}
+            className={linkClass}
+          >
+            <Mail className="size-4" aria-hidden />
+          </a>
           <a
             href={WHATSAPP_URL}
             target="_blank"

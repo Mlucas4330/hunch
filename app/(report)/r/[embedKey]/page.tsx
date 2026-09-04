@@ -12,6 +12,7 @@ import { HypothesisList } from '@/components/hypothesis-list'
 import { FlowPlaybook } from '@/components/flow-playbook'
 import { AnalysisSections } from '@/components/analysis-sections'
 import { InfoHint } from '@/components/info-hint'
+import { LanguageToggle } from '@/components/language-toggle'
 import { RichText } from '@/components/rich-text'
 import { CopyReportLink } from '@/components/copy-report-link'
 import { Button } from '@/components/ui/button'
@@ -36,7 +37,7 @@ import { hasReadout, readout } from '@/lib/readout'
 import { PLAYBOOK_EXPANDED_COUNT, SECTION_ANCHOR_CLASS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { FlowFix } from '@/db/schema'
-import { REPORT_SECTION, type PlaybookSection } from '@/lib/enums'
+import { REPORT_SECTION, type Locale, type PlaybookSection } from '@/lib/enums'
 import { dictionaryFor, getDictionary, getLocale, type Dictionary } from '@/lib/i18n'
 import { formatDate, t as fill } from '@/lib/i18n/format'
 import { displayHost } from '@/lib/host'
@@ -65,13 +66,13 @@ export async function generateMetadata({ params }: { params: Promise<{ embedKey:
  * The one analysis surface, keyed on the embed key and public.
  *
  * **`embedKey` is the only key that works for every row.** An analysis nobody has claimed has no
- * `user_id`, so it could never be addressed by owner -- which is why this used to be two routes,
- * `/analyses/[id]` for a row with an owner and this one for a row without. Two routes rendering the
- * same document is two copies that drift, and they did: the copy panel was written twice, the
- * `generated` predicate disagreed with itself, and the two disagreed on which cards start open.
+ * `user_id`, so it cannot be addressed by owner. Splitting this into `/analyses/[id]` for a row
+ * with an owner and this one for a row without is two copies of the same document that drift: the
+ * copy panel written twice, a `generated` predicate that disagrees with itself, two answers to which
+ * cards start open.
  *
- * So there is one document and one axis through it. `isOwner` decides what the reader may *do* --
- * spend a browser slot, buy two more variants, copy the share link -- and decides nothing at all
+ * So there is one document and one axis through it. `isOwner` decides what the reader may *do*
+ * (spend a browser slot, buy two more variants, copy the share link) and decides nothing at all
  * about what the document *says*. See docs/report.md.
  */
 export default async function ReportPage({
@@ -168,7 +169,7 @@ export default async function ReportPage({
   if (!measured) {
     return isOwner ? (
       <div className="animate-fade-up space-y-6">
-        <ReportHeader isOwner={isOwner} t={t} embedKey={analysis.embedKey} />
+        <ReportHeader isOwner={isOwner} t={t} locale={locale} embedKey={analysis.embedKey} />
         <MeasurePage analysisId={analysis.id} />
       </div>
     ) : (
@@ -191,6 +192,7 @@ export default async function ReportPage({
       <ReportHeader
         isOwner={isOwner}
         t={t}
+        locale={locale}
         embedKey={analysis.embedKey}
         remeasure={isOwner ? <MeasurePage analysisId={analysis.id} variant="again" /> : null}
       />
@@ -297,22 +299,28 @@ export default async function ReportPage({
 // again here would be it twice. A signed-out one has no navbar at all, and the report has to say
 // whose document it is.
 //
-// **Copying the link is the owner's one control here, and it is a button rather than a card.** It
-// used to be a named "Interactive report" card with an `Open` button, which made sense while the
-// owner read this document on a different route. There is nothing to open now -- the link points at
-// the page it is sitting on -- so what is left is putting the URL on the clipboard.
+// **Copying the link is the owner's one control here, and it is a button rather than a card.** A
+// named card with an `Open` button would offer nothing to open: the link points at the page it is
+// sitting on, so what is left is putting the URL on the clipboard.
 //
 // `remeasure` is the second one, passed in rather than built here because the unmeasured branch has
 // nothing to measure again: that reader gets the whole `MeasurePage` section below the header, and a
 // button offering the same thing above it would be the same action twice.
+//
+// The language switch is here because this route has no navbar: a reader who followed a shared link
+// has no other control on the page, and the report is the surface most likely to be read by somebody
+// who never chose a locale. It never retranslates what was generated -- that is pinned to
+// `analyses.locale` at creation -- so what it switches is the page around it. See docs/invariants.md.
 function ReportHeader({
   isOwner,
   t,
+  locale,
   embedKey,
   remeasure = null
 }: {
   isOwner: boolean
   t: Dictionary
+  locale: Locale
   embedKey: string
   remeasure?: ReactNode
 }) {
@@ -329,9 +337,12 @@ function ReportHeader({
       ) : (
         <Wordmark />
       )}
-      <div className="text-right">
-        <p className="panel-label text-micro text-muted-foreground">{t.report.teardown}</p>
-        <p className="font-display text-sm font-medium">{t.report.plan}</p>
+      <div className="flex items-end gap-4">
+        <LanguageToggle locale={locale} />
+        <div className="text-right">
+          <p className="panel-label text-micro text-muted-foreground">{t.report.teardown}</p>
+          <p className="font-display text-sm font-medium">{t.report.plan}</p>
+        </div>
       </div>
     </header>
   )

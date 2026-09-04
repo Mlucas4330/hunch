@@ -31,8 +31,7 @@ test('a signed in reader with no credits still gets the measured half', async ({
     await page.fill('input[name="url"]', URL_UNDER_TEST)
     await page.getByRole('button', { name: 'Analyze' }).click()
 
-    // The free half lands on the shareable report, exactly as it does with no session at all --
-    // it used to answer 402 and delete the row.
+    // The free half lands on the shareable report, exactly as it does with no session at all.
     await page.waitForURL(/\/r\/[0-9a-f-]+$/, { timeout: 150_000 })
 
     // The readout is never gated, on any surface.
@@ -43,9 +42,9 @@ test('a signed in reader with no credits still gets the measured half', async ({
     await expect(wall).toBeVisible()
     await expect(wall.getByRole('link', { name: 'Buy a credit to unlock' })).toBeVisible()
 
-    // **It must not read as "nothing to improve".** The cover used to fill its count sentence with
-    // zeroes and the strip above the readout printed "Changes recommended: 0" -- a page scored 47
-    // being told it was perfect. Incomplete and clean are opposite claims.
+    // **It must not read as "nothing to improve".** A count sentence filled with zeroes, or a strip
+    // printing "Changes recommended: 0", tells a page scored 47 that it is perfect. Incomplete and
+    // clean are opposite claims.
     await expect(page.getByText('have not been written for this page yet')).toBeVisible()
     await expect(page.getByText('Changes recommended')).toHaveCount(0)
     await expect(page.getByText('found 0 changes worth making')).toHaveCount(0)

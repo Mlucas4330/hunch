@@ -53,8 +53,9 @@ export async function analysisStateFor(facts: {
  *
  * **An analysis with no owner is measured and nothing more.** `measurePage` is a scrape plus the
  * robots.txt fetch; `measuredFindings`, `readoutScore` and `extractKeywords` are pure arithmetic over
- * what it counted. No model is called, so an anonymous run costs a browser slot and **zero tokens** —
- * which is what makes it safe to give away to ad traffic where most visitors never convert.
+ * what it counted. No model is called, so an anonymous run costs a browser slot and **zero
+ * tokens**, which is what makes it safe to give away to ad traffic where most visitors never
+ * convert.
  *
  * An owned analysis gets the generation too. The cut is `userId`, not a flag, because ownership is
  * exactly the thing that says someone paid for this. See docs/product.md.
@@ -100,12 +101,10 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
     return { ok: true }
   }
 
-  // **Measured and stored first, whoever owns it.** This used to be the ownerless branch alone: an
-  // owned run went through one call that scraped and generated and wrote everything in a single
-  // transaction at the end, so `analyses.structure` stayed null for the whole three minutes. The
-  // consequence was that `analysisProgress` reported `measured` and `generated` turning true at the
-  // same instant, and the person who had paid waited longer for the score than the anonymous visitor
-  // who got it free. The score exists about twenty seconds in; there was never a reason to sit on it.
+  // **Measured and stored first, whoever owns it.** The score exists about twenty seconds in, so
+  // `analysisProgress` reports `measured` well before `generated`. Writing both in one transaction
+  // at the end would leave `analyses.structure` null for the whole three minutes and make the
+  // person who paid wait longer for the score than the anonymous visitor who gets it free.
   const measurement = await measurePage(analysis.url)
 
   // **Skipped when the row already carries one, and that is about `page_snapshots`, not tidiness.**
@@ -160,11 +159,10 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
 
   // **What a credit buys, checked over everything that came back.**
   //
-  // This used to be a schema floor: `AnalysisOutputSchema` required five hypotheses and rejecting
-  // that threw, which is how the refund was reached. The floor was in the wrong place. All three
-  // generators run in one `Promise.all` and the other two degrade to an empty list, so a fourth
-  // hypothesis coming back short discarded a finished flow playbook and a finished visibility audit
-  // along with it -- tokens already spent, work already done, thrown away over one line.
+  // The check belongs here rather than in the schema. All three generators run in one `Promise.all`
+  // and the other two degrade to an empty list, so a floor on the hypothesis count would discard a
+  // finished flow playbook and a finished visibility audit along with it: tokens already spent, work
+  // already done, thrown away over one line.
   //
   // Nothing at all is the honest condition, and it is what "paid for a call and got nothing" always
   // meant. `ok: false` rather than a throw: the queue reads that as `unavailable`, which lib/queue.ts

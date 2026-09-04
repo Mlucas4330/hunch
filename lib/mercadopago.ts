@@ -34,6 +34,9 @@ export type MercadoPagoPayment = {
   status_detail: string
   transaction_amount: number
   external_reference: string | null
+  // Only the search returns it, and only the reminder reads it: a Pix is often paid within minutes,
+  // so mailing about one that is ten minutes old reaches somebody mid-payment.
+  date_created?: string
   point_of_interaction?: {
     transaction_data?: {
       qr_code?: string
@@ -43,10 +46,10 @@ export type MercadoPagoPayment = {
   }
 }
 
-// A refused call answers a body naming the field it refused, and that body used to be dropped on the
-// floor: every failure surfaced as a bare status code, so "the checkout button returns 502" was
-// as much as anyone could learn from a log. Cheap to keep, and it is the whole difference between a
-// guess and a diagnosis. Capped because it is going into a log line, not a report.
+// A refused call answers a body naming the field it refused, and that body is kept. Dropping it
+// leaves every failure as a bare status code, so "the checkout button returns 502" is as much as
+// anyone can learn from a log. Cheap to keep, and it is the whole difference between a guess and a
+// diagnosis. Capped because it is going into a log line, not a report.
 const ERROR_BODY_MAX_CHARS = 500
 
 async function call<T>(path: string, init: RequestInit): Promise<T> {
@@ -98,6 +101,36 @@ export async function createPayment(
  */
 export async function getPayment(id: string): Promise<MercadoPagoPayment> {
   return call<MercadoPagoPayment>(`/v1/payments/${encodeURIComponent(id)}`, { method: 'GET' })
+}
+
+/**
+ * Payments the provider still reports as pending, newest first.
+ *
+ * **The provider stays the authority on payment state, which is why nothing is stored locally.** Pix
+ * and boleto confirm minutes to days after the browser has gone, so a pending payment written to our
+ * own tables would be a second record of a fact only Mercado Pago can settle, and the two would
+ * disagree the first time one of them missed an update.
+ *
+ * `external_reference` carries the buyer's id, written by `POST /api/billing/mercadopago`, which is
+ * what lets a row here be mapped back to a person without a table in between.
+ */
+export async function pendingPayments(since: Date): Promise<MercadoPagoPayment[]> {
+  const query = new URLSearchParams({
+    status: 'pending',
+    sort: 'date_created',
+    criteria: 'desc',
+    range: 'date_created',
+    begin_date: since.toISOString(),
+    end_date: 'NOW',
+    limit: '100'
+  })
+
+  const page = await call<{ results?: MercadoPagoPayment[] }>(
+    `/v1/payments/search?${query.toString()}`,
+    { method: 'GET' }
+  )
+
+  return page.results ?? []
 }
 
 /**

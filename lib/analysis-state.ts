@@ -4,10 +4,9 @@ import type { AnalysisState } from '@/lib/enums'
  * What the reader is looking at, decided in one place.
  *
  * Pure, and separate from the two reads that feed it, because the order of these tests is the whole
- * logic and it is worth being able to test without a database or a Redis. Every surface that used to
- * derive its own answer from `measured` / `generated` / ownership is a chance for two screens to
- * disagree about the same row -- which has already happened once in this product, back when the
- * report was two routes.
+ * logic and it is worth being able to test without a database or a Redis. A surface deriving its own
+ * answer from `measured` / `generated` / ownership is a chance for two screens to disagree about the
+ * same row.
  */
 export type AnalysisFacts = {
   /** The scrape landed and the readout is stored. */

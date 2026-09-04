@@ -21,7 +21,7 @@ type GithubEmail = { email: string; primary: boolean; verified: boolean }
  * keeps its address private. The only place the truth exists is the REST endpoint, so this asks it.
  *
  * **Every failure path refuses.** A timeout, a 403 from a missing `user:email` scope, or a body that
- * is not the shape expected all return null — because the alternative, reading "we could not check"
+ * is not the shape expected all return null, because the alternative, reading "we could not check"
  * as "verified", turns a GitHub outage into an open door onto rows that hold credits.
  */
 async function githubVerifiedEmail(accessToken: string | undefined): Promise<string | null> {
@@ -60,13 +60,13 @@ async function githubVerifiedEmail(accessToken: string | undefined): Promise<str
  * The address a provider will vouch for, or null.
  *
  * The user row is keyed on email and there is no `accounts` table, so **whoever presents an address
- * next owns everything in the row** — which, after credits, means money. Each provider therefore
+ * next owns everything in the row**, which, after credits, means money. Each provider therefore
  * declares *how* its address is verified, and **a provider with no strategy declared is refused
  * outright**. That default is the point: a provider added to `authConfig` without an entry here locks
  * itself out rather than letting itself in. See docs/security.md.
  *
- * **The address returned is what keys the row, and it is not always `profile.email`** — GitHub's can
- * be null or unverified while a different address on the same account is the verified primary one.
+ * **The address returned is what keys the row, and it is not always `profile.email`.** GitHub's
+ * can be null or unverified while a different address on the same account is the verified primary one.
  */
 export async function verifiedEmailFor(
   account: Account | null | undefined,
@@ -95,8 +95,8 @@ export function githubLoginAllowed(): boolean {
 // Case and surrounding space are not identity. The domain half is case insensitive by RFC and every
 // provider this app accepts treats the local half that way too, so `Ada@Example.com` and
 // `ada@example.com` are one mailbox -- and a dashboard that kept a trailing space on a pasted value
-// is not a different operator. It used to compare with `===`, which turned both into a promotion
-// that silently did nothing.
+// is not a different operator. Comparing with `===` would turn both into a promotion that silently
+// did nothing.
 //
 // This decides who is *granted* the role, never who owns the row: the address keying the row is still
 // the exact one the provider verified. See docs/invariants.md.

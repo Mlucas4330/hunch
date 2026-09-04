@@ -26,9 +26,18 @@ export const BLOG_PATH = '/blog'
 
 export const PRIVACY_PATH = '/privacy'
 
+// One click out of the sequence, from any email in it. The mail links to the route, which writes and
+// redirects to the page: a page that wrote on render would run again on every refresh, and checking
+// whether it worked is exactly when somebody reloads.
+//
+// The token in the query string is the whole credential, the same shape as `embed_key` and
+// unguessable for the same reason.
+export const UNSUBSCRIBE_PATH = '/unsubscribe'
+export const UNSUBSCRIBE_API_PATH = '/api/leads/unsubscribe'
+
 // What the page states as its own last change. A date in the copy and a date in the file would be two
 // places holding one fact, and the one nobody remembers to edit is the one the reader believes.
-export const PRIVACY_UPDATED = '2026-08-29'
+export const PRIVACY_UPDATED = '2026-09-04'
 
 // Where every "buy credits" control points: the packs section on the landing page. Named once so the
 // unlock wall, the balance and the report cannot drift to three different links.
@@ -37,6 +46,16 @@ export const CREDITS_ANCHOR = '/#credits'
 // The other landing section the nav links into. Same reason as CREDITS_ANCHOR: the hero's own link
 // and the nav must not drift to two different anchors for the same section.
 export const HOW_ANCHOR = '/#how'
+
+// The hero, where the URL field is. The free card in the packs grid is what made this worth naming:
+// it has no checkout to open, so the only thing it can do is send the reader back to the one input
+// that starts an analysis -- and a card pointing at a different anchor than the final CTA would be
+// two links to one place.
+export const HERO_ANCHOR = '/#top'
+
+// The URL field itself. Named because the free card focuses it rather than only scrolling to it: an
+// anchor that lands a reader next to an empty input still leaves them a click from typing.
+export const URL_FIELD_ID = 'url'
 
 // Publication dates, in ISO. They reach the reader through formatDate and the sitemap's
 // lastModified, so they are the real date a post was written and nothing infers them.
@@ -126,6 +145,15 @@ export const GITHUB_SCOPE = 'read:user user:email'
 export const WHATSAPP_NUMBER = '5551989431913'
 export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`
 
+// The written channel, next to WhatsApp in the footer and named by the privacy policy.
+//
+// It is also what `EMAIL_FROM` should be set to and what every outgoing mail carries as its
+// `reply_to`, so a reader who answers one of the sequence's messages lands in the same inbox the
+// policy points them at. One address in one place: a policy naming a mailbox nobody reads is worse
+// than naming none.
+export const CONTACT_EMAIL = 'contact@hunch.solutions'
+export const CONTACT_EMAIL_URL = `mailto:${CONTACT_EMAIL}`
+
 // What a reader with no cookie gets, which is every first visit: the product sells to Brazilian
 // founders, takes BRL through Mercado Pago, and pt-BR is a rewrite rather than a translation of the
 // English -- see docs/i18n.md. English is still complete and one cookie away.
@@ -152,11 +180,16 @@ export const AI_OUTPUT_LANGUAGE: Record<Locale, string> = {
 // about this browser, which no sign-out should undo.
 export const PREFERENCE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
-// **Light, and not the operating system's setting.** A theme read from `prefers-color-scheme` cannot
+// **Dark, and not the operating system's setting.** A theme read from `prefers-color-scheme` cannot
 // be known on the server, so the first paint would be the wrong one and every surface would flash --
-// which is exactly what the cookie exists to avoid. A reader who wants dark chooses it once and the
-// choice is then a fact the server has before it renders. See docs/components.md.
-export const DEFAULT_THEME: Theme = 'light'
+// which is exactly what the cookie exists to avoid. A reader who wants light chooses it once and the
+// choice is then a fact the server has before it renders.
+//
+// Which of the two is the fallback is an owner's call about how the product should look on a first
+// visit, and it moved from `light` to `dark`. Nothing else changed: both palettes are complete in
+// app/globals.css, the toggle writes the same cookie, and a reader already holding a `light` cookie
+// still gets light. See docs/components.md.
+export const DEFAULT_THEME: Theme = 'dark'
 
 export const THEME_COOKIE = 'theme'
 
@@ -320,7 +353,7 @@ export const NEIGHBOUR_PAGE_PATTERNS: { id: string; pattern: RegExp }[] = [
 
 // The worker waits here, not the reader: the request that asks for a preview now returns as soon as
 // the job is queued, so giving up after five seconds would throw away work nobody is waiting on.
-// It used to be 5s because the client was holding the connection. See docs/scraping.md.
+// See docs/scraping.md.
 export const SCREENSHOT_QUEUE_MAX_WAIT_MS = 120_000
 
 // An analysis has already committed to a Sonnet call and needs several slots at once, so it waits.
@@ -424,18 +457,29 @@ export const PULSE_SPHERE = {
 // with a funnel of two or three. The pack of ten is gone -- it priced an analysis at R$9,90, which
 // was the cheapest thing on the page and the one nobody this was rebuilt for had a use for.
 //
+// **Nothing free belongs in this list.** The card the home page prints beside these two is the free
+// half -- the measured readout, which costs a browser slot and zero tokens and needs no payment at
+// all -- and it is rendered from the dictionary alone, deliberately never from here. An entry with
+// `amountBrl: 0` would be an amount the Payment Brick could send and `creditsForAmount` could match,
+// and an empty `priceId` would collide with any Stripe variable that is unset. There is nothing to
+// buy, so there is nothing to price. See docs/invariants.md.
+//
 // **The prices carry the acquisition arithmetic, and that is why they are what they are.** A single
 // purchase gives one transaction to repay a click, so the ticket has to be able to. R$19 could not:
-// against a CAC estimated at R$100 to R$400 it was a loss on every sale, which is what the monitoring
-// subscription used to exist to paper over. See docs/ads.md.
+// against a CAC estimated at R$100 to R$400 it is a loss on every sale.
+//
+// R$47 and R$147 are the owner's call, and they are a bet on volume rather than on ticket: R$47 needs
+// roughly 6.7% of clicks to buy before it repays a R$3 one, which is above the 1-2% a cold page
+// normally converts at. The table in docs/ads.md carries the arithmetic and the caveat -- read it
+// before touching either number.
 //
 // `amountBrl` is the Mercado Pago half of the same decision. Stripe keeps the amount on its own
 // servers behind the price id, so the id is enough there; the Payment Brick has the browser send the
 // amount, which makes it an input nobody may trust. The number here is what the server charges and
 // what the webhook matches a payment against -- see creditsForAmount in lib/mercadopago.ts.
 export const CREDIT_PACKS = [
-  { id: 'single', credits: 1, amountBrl: 147, priceId: process.env.STRIPE_PRICE_SINGLE ?? '' },
-  { id: 'trio', credits: 3, amountBrl: 297, priceId: process.env.STRIPE_PRICE_TRIO ?? '' }
+  { id: 'single', credits: 1, amountBrl: 47, priceId: process.env.STRIPE_PRICE_SINGLE ?? '' },
+  { id: 'trio', credits: 3, amountBrl: 147, priceId: process.env.STRIPE_PRICE_TRIO ?? '' }
 ] as const
 
 export type CreditPackId = (typeof CREDIT_PACKS)[number]['id']
@@ -511,6 +555,26 @@ export const SUPADEMO_ASPECT = '2 / 1'
 // Pago adapter -- see lib/email.ts.
 export const EMAIL_API_ORIGIN = 'https://api.resend.com'
 
+/**
+ * The palette the mail template paints with.
+ *
+ * **Hex, and duplicated from `app/globals.css` on purpose.** A mail client is not a browser: Gmail
+ * strips `<style>` blocks it dislikes, none of them resolves a CSS variable, and `oklch()` is
+ * unsupported almost everywhere. So the tokens are mirrored here as the closest sRGB values to
+ * `--ink`, `--paper`, `--panel`, `--rule` and `--muted-foreground`, and the template inlines them.
+ *
+ * They live in one constant rather than inside the template's markup for the ordinary reason: the
+ * mail is the only surface in the product that cannot read the stylesheet, and hex scattered through
+ * a string of HTML is hex nobody will ever find again.
+ */
+export const EMAIL_THEME = {
+  ink: '#1c1f27',
+  paper: '#f7f7f9',
+  panel: '#ffffff',
+  rule: '#e2e3e9',
+  muted: '#5f6472'
+} as const
+
 export const MERCADOPAGO_SDK_URL = 'https://sdk.mercadopago.com/js/v2'
 export const MERCADOPAGO_BRICK_CONTAINER = 'mercadopago-brick'
 export const MERCADOPAGO_APPROVED = 'approved'
@@ -550,7 +614,14 @@ export const CONFETTI_Z_INDEX = 100
 
 // Which pack the section marks as the one most buyers take. A constant rather than a literal, since
 // the component needs the same answer twice -- for the border and for the button variant.
-export const FEATURED_CREDIT_PACK: CreditPackId = 'trio'
+//
+// It is the single, and with the free card first that also puts the mark on the middle of the three.
+export const FEATURED_CREDIT_PACK: CreditPackId = 'single'
+
+// What the free card counts on its first line, in analyses. **Not credits**: nothing is granted, and
+// the line reads "1 analysis" for the same reason the card names no price -- what the free half gives
+// is a run of the measured readout, and calling it a credit would say a balance moved.
+export const FREE_ANALYSES = 1
 
 // Sized by what each route costs us, not by what a plan allows.
 export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: number }> = {
@@ -598,6 +669,48 @@ export const SCREENSHOT_RETENTION_DAYS = 30
 // failed" as everything else. Well under the ceiling on purpose: the cost of a few extra statements
 // once a day is nothing, and the point is to never be near it.
 export const PRUNE_BATCH_SIZE = 500
+
+/**
+ * The lead sequence, as the only description of it anywhere.
+ *
+ * `stage` is what gets written to `leads.stage` once that mail is out, so the cron is idempotent on
+ * a column rather than on a timestamp it has to reason about. `afterDays` is measured from
+ * `leads.created_at`, which is when the reader asked for the link.
+ *
+ * **The day-0 mail is not in here.** It is sent inline by `POST /api/leads`, in the same request
+ * that writes the row, because the reader is waiting for it. The sequence is only what comes after.
+ *
+ * Day 2 and day 7 rather than anything tighter: the domain is new at Resend, and a young domain that
+ * mails three times in three days earns spam complaints faster than it earns replies.
+ */
+export const LEAD_SEQUENCE = [
+  { stage: 1, afterDays: 2, kind: 'measurement' },
+  { stage: 2, afterDays: 7, kind: 'offer' }
+] as const
+
+// How many leads one cron run will mail. A ceiling rather than a target: the run is idempotent on
+// `stage`, so a backlog past this simply finishes on the next day's run instead of turning one
+// invocation into a mail burst that the domain's reputation pays for.
+export const LEAD_SEQUENCE_BATCH_SIZE = 200
+
+// How long a pending payment waits before it is worth a reminder, and how old is too old to bother.
+//
+// The floor exists because Pix is often paid within minutes: mailing at once would reach people who
+// are mid-payment. The ceiling exists because a boleto nobody paid in a week is a decision, not an
+// oversight, and a second nudge past it reads as pestering.
+export const PENDING_PAYMENT_REMINDER_AFTER_HOURS = 6
+export const PENDING_PAYMENT_MAX_AGE_HOURS = 72
+
+// The two Customer Match lists, named here so the sync and any later targeting agree on which is
+// which. Buyers exist to be excluded from targeting, not to be sold to again.
+export const AUDIENCE_LISTS = {
+  leads: 'Hunch leads',
+  buyers: 'Hunch buyers'
+} as const
+
+// How many members one offline user data job carries. Google accepts far more per job; this is small
+// because a failed job is retried whole and a small job is cheap to lose.
+export const AUDIENCE_BATCH_SIZE = 1000
 
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 
@@ -832,11 +945,9 @@ export const AD_NEGATIVES_MAX = 12
 
 // How much of the page's own text a prompt may carry.
 //
-// It was 8000, written as a bare `.slice` at the end of `preprocessHtml` and mentioned in no doc, so
-// every prompt in the product silently received the top third of a long page and was never told. At
-// roughly four characters a token this is about 12k tokens against a 200k window, and the cost of a
-// generation call is dominated by its 16k of output either way -- the old number was not buying
-// anything. See docs/ai-pipeline.md.
+// At roughly four characters a token this is about 12k tokens against a 200k window, and the cost
+// of a generation call is dominated by its 16k of output either way. A tighter budget would hand
+// every prompt the top third of a long page without buying anything. See docs/ai-pipeline.md.
 export const PROMPT_TEXT_MAX_CHARS = 48_000
 
 // The same budget for a neighbour page, and deliberately a fraction of it.
@@ -860,8 +971,8 @@ export const VARIANT_TONE_INSTRUCTION: Record<VariantTone, string> = {
 }
 
 // How many sections at the end of a page are protected when the middle has to be dropped. Pricing,
-// FAQ and the closing call to action live there, which is exactly what a tail truncation used to
-// throw away first.
+// FAQ and the closing call to action live there, which is exactly what a tail truncation throws away
+// first.
 export const PROMPT_SECTIONS_KEEP_TAIL = 3
 
 // Both languages in one list, like STRUCTURE_PATTERNS: the page's language is not known until the
@@ -989,7 +1100,9 @@ export const MOBILE_MIN_FONT_PX = 12
 //
 // **They mirror the light tokens only, and there is no dark counterpart.** An unfurl is rendered once
 // and served to every reader, so it has no way to know anyone's theme; a card that guessed would be
-// wrong for half of them. Light is what the product looks like by default -- see DEFAULT_THEME.
+// wrong for half of them. Light is the safe guess for a card that lands in someone else's timeline,
+// whatever DEFAULT_THEME says our own pages open in -- the two are unrelated decisions and moving one
+// is no reason to move the other.
 //
 // `coral` was re-derived when the token was darkened to clear 4.5:1 against the panel. That contrast
 // rule does not itself bind here, because the OG card sets its own background, but a mirror that has

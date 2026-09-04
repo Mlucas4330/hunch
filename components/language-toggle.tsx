@@ -6,16 +6,16 @@ import { dictionaryFor } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 /**
- * **Not mounted anywhere right now, on purpose, and kept for that reason.**
+ * The language switch: two segments, the current one filled.
  *
- * The control was pulled from the navbar and the public report as a temporary call by the owner.
- * Nothing else about i18n changed: both dictionaries are complete and typechecked against each
- * other, `getLocale()` still reads the cookie, and `setLocale` still writes it — so a reader who
- * already has a `pt-BR` cookie still gets Portuguese, and putting this back is re-adding the two
- * lines it was rendered from.
+ * **A segmented pair rather than one button that toggles**, the same call `ThemeToggle` makes and for
+ * the same reason -- a single control has to say either what is on or what pressing it will do, and
+ * both readings are common enough to make it a coin flip. Two segments with one marked `aria-current`
+ * say both at once.
  *
- * **Do not "clean up" this file or the locale action as dead code.** They are the switch being held
- * off, not a leftover. See docs/i18n.md.
+ * It sits in the navbar cluster next to the theme switch, in the mobile menu, and in the public
+ * report's header, because a signed out reader on the landing page or on somebody else's report is
+ * exactly who needs it. See docs/i18n.md.
  */
 export function LanguageToggle({ locale }: { locale: Locale }) {
   const t = dictionaryFor(locale)
@@ -37,7 +37,9 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
               value={option}
               aria-current={active ? 'true' : undefined}
               className={cn(
-                'panel-label rounded-sm px-1.5 py-0.5 text-nano transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                // Matched to the theme switch beside it: the label stays small and the box around it
+                // grows on a phone, so the pair is one control height rather than two.
+                'panel-label flex items-center justify-center rounded-sm px-1.5 py-0.5 text-nano transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:size-11',
                 active
                   ? 'bg-foreground text-background'
                   : 'text-muted-foreground hover:text-foreground'

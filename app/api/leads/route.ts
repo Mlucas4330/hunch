@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db'
 import { analyses, leads } from '@/db/schema'
@@ -7,6 +7,8 @@ import { clientIp, enforceRateLimit } from '@/lib/rate-limit'
 import { dictionaryFor } from '@/lib/i18n'
 import { t } from '@/lib/i18n/format'
 import { sendEmail } from '@/lib/email'
+import { renderEmail } from '@/lib/email-template'
+import { unsubscribeUrl } from '@/lib/lead-sequence'
 import { siteOrigin } from '@/lib/app-url'
 import { displayHost } from '@/lib/host'
 import { log } from '@/lib/log'
@@ -20,10 +22,10 @@ const BodySchema = z.object({
 /**
  * Takes an address from someone reading a report and sends them the link to it.
  *
- * **It gates nothing.** The readout is never behind this, on this surface or any other -- see
- * invariants.md. The old email wall traded a stranger's address for a preview of someone else's
- * report and was removed for it; this asks for an address in exchange for something the reader
- * actually gets, which is the report's own URL in their inbox.
+ * **It gates nothing.** The readout is never behind this, on this surface or any other. See
+ * invariants.md. A wall trading a stranger's address for a preview of someone else's report is the
+ * thing that rule forbids; this asks for an address in exchange for something the reader actually
+ * gets, which is the report's own URL in their inbox.
  *
  * That offer is honest rather than a pretext: `embed_key` is an unguessable uuid held only in the
  * browser's localStorage (`ANONYMOUS_ANALYSES_KEY`), so a cleared history really does lose the
@@ -53,15 +55,42 @@ export async function POST(request: Request) {
 
     // Pinned to the analysis's locale, not the request's: what gets written to this person is
     // written in the language they were reading when they asked. Same rule as `analyses.locale`.
-    await db
+    // **`consentedAt` is what the sequence and the ad audience read**, and it is written here because
+    // this is the request the reader made after reading `watch.note`. That note now states what
+    // actually happens: the link, two more mails, and that the address may be used for our ads.
+    //
+    // Rows written before that note existed carry a null, and every follower of this column leaves
+    // them alone. They were promised one mail and nothing else, and a policy that changed afterwards
+    // does not reach backwards. See docs/ads.md.
+    //
+    // The token comes back so the mail can carry the way out, in the body and in the
+    // `List-Unsubscribe` header. A second submit of the same address for the same page conflicts and
+    // returns nothing, so the existing row's token is read instead: the person is the same person
+    // and their link must not change.
+    const [inserted] = await db
       .insert(leads)
-      .values({ email, analysisId: analysis.id, locale: analysis.locale })
+      .values({
+        email,
+        analysisId: analysis.id,
+        locale: analysis.locale,
+        consentedAt: new Date()
+      })
       .onConflictDoNothing()
+      .returning({ unsubscribeToken: leads.unsubscribeToken })
+
+    const token =
+      inserted ??
+      (await db.query.leads.findFirst({
+        where: and(eq(leads.email, email), eq(leads.analysisId, analysis.id)),
+        columns: { unsubscribeToken: true }
+      }))
 
     // Deliberately not awaited into the response's critical path in spirit, but awaited in fact:
     // the runtime can freeze the process the moment the response is returned, so a floating promise
     // here is a mail that sometimes never sends. `sendEmail` never throws and never rejects.
-    await sendEmail(message(analysis.locale, analysis.url, embedKey, email))
+    await sendEmail(
+      message(analysis.locale, analysis.url, embedKey, email, token?.unsubscribeToken)
+    )
 
     return NextResponse.json({ ok: true }, { status: 202 })
   } catch (error) {
@@ -70,35 +99,34 @@ export async function POST(request: Request) {
   }
 }
 
-// The only interpolated value is a hostname off a URL a stranger submitted, and `displayHost` hands
-// back the raw string when the URL will not parse. Escaping it costs nothing and means the email
-// body can never be composed by whoever chose the URL.
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-function message(locale: Locale, url: string, embedKey: string, to: string) {
-  const copy = dictionaryFor(locale).watch.email
+function message(
+  locale: Locale,
+  url: string,
+  embedKey: string,
+  to: string,
+  unsubscribeToken?: string
+) {
+  const dictionary = dictionaryFor(locale)
+  const copy = dictionary.watch.email
   const link = `${siteOrigin()}/r/${embedKey}`
   const host = displayHost(url)
+  // This mail is also what enrols the reader in the sequence, so it carries the same way out the
+  // sequence's own mails do. Absent only if the row could not be read back, and a missing link is
+  // better than a broken one.
+  const out = unsubscribeToken ? unsubscribeUrl(unsubscribeToken) : null
+  const leave = dictionary.watch.sequence.unsubscribe
 
   return {
     to,
+    ...(out ? { unsubscribeUrl: out } : {}),
     subject: copy.subject,
-    text: [copy.heading, '', t(copy.body, { host }), '', link, '', copy.keep, '', copy.footer].join(
-      '\n'
-    ),
-    html: [
-      `<h1>${copy.heading}</h1>`,
-      `<p>${t(copy.body, { host: escapeHtml(host) })}</p>`,
-      `<p><a href="${link}">${copy.cta}</a></p>`,
-      `<p>${copy.keep}</p>`,
-      `<hr>`,
-      `<p>${copy.footer}</p>`
-    ].join('\n')
+    ...renderEmail({
+      heading: copy.heading,
+      body: [t(copy.body, { host })],
+      action: { label: copy.cta, href: link },
+      note: copy.keep,
+      footer: copy.footer,
+      ...(out ? { unsubscribe: { label: leave, href: out } } : {})
+    })
   }
 }

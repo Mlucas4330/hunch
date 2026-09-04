@@ -17,8 +17,8 @@ import type { Dictionary } from '@/lib/i18n/dictionaries/en'
  * One line at a time about what the tool is doing, bottom left of the landing page.
  *
  * Every line is a row that exists: `running` is an analysis with no measurement on it yet, `done` is
- * one that has a score. **Nothing here may say what the score means or what fixing it would do** —
- * that is the same rule the readout is held to, and a corner toast is exactly where it would be
+ * one that has a score. **Nothing here may say what the score means or what fixing it would do.**
+ * That is the same rule the readout is held to, and a corner toast is exactly where it would be
  * easiest to break. See docs/invariants.md.
  *
  * Closing it silences the toast for the tab. `sessionStorage` and not a cookie: the reader wanted it
@@ -74,7 +74,7 @@ export function AnalysisPulseToast({
   }
 
   // Portalled to the body, and it has to be. `position: fixed` is relative to the viewport only while
-  // no ancestor has a transform, and the landing page's own wrapper carries `animate-fade-up` — whose
+  // no ancestor has a transform, and the landing page's own wrapper carries `animate-fade-up`, whose
   // `both` fill mode leaves a transform on the element forever. That makes the wrapper the containing
   // block, and the toast anchors to the bottom of the page instead of the bottom of the screen.
   return createPortal(

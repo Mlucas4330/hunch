@@ -10,7 +10,7 @@ const baseURL = E2E_BASE_URL
 export const E2E_CRON_SECRET = 'e2e-cron-secret'
 
 // The suite signs in as the admin and then runs analyses, and **an analysis spends a credit for
-// everyone, admin included** — there is no exemption by role and there must not be one, or the suite
+// everyone, admin included.** There is no exemption by role and there must not be one, or the suite
 // would stop covering the path that charges. So the setup buys the run a balance. Comfortably above
 // the handful the specs create, because running out shows up as a navigation that never happens
 // rather than as anything naming credits.

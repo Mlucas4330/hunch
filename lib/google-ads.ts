@@ -57,6 +57,36 @@ function bareCustomerId(value: string): string {
   return value.replace(/-/g, '')
 }
 
+/** The account every call here writes to, normalised. */
+export function adsAccount(): string {
+  return bareCustomerId(customerId ?? '')
+}
+
+/**
+ * The headers every Google Ads call needs, exported so a second caller cannot get one of them
+ * subtly wrong.
+ *
+ * The one worth naming is `login-customer-id`: it is **omitted rather than blanked** when absent,
+ * because an empty value is refused outright, and it may only name a manager the target account
+ * actually sits under. Claiming a manager that is not above the account answers
+ * `USER_PERMISSION_DENIED`, which reads exactly like a bad credential. See docs/ads.md.
+ */
+export async function adsHeaders(): Promise<Record<string, string>> {
+  const token = await accessToken()
+
+  return {
+    Authorization: `Bearer ${token}`,
+    'developer-token': developerToken ?? '',
+    'Content-Type': 'application/json',
+    ...(loginCustomerId ? { 'login-customer-id': bareCustomerId(loginCustomerId) } : {})
+  }
+}
+
+/** Exported for the audience sync, which needs to prove the credentials before uploading anybody. */
+export async function adsAccessToken(): Promise<string | null> {
+  return accessToken()
+}
+
 let cachedToken: { value: string; expiresAt: number } | null = null
 
 /**

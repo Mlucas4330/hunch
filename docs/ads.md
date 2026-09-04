@@ -20,8 +20,14 @@ Three reasons, in the order they matter:
 - **LGPD gets much easier** when the only thing stored is an ad click id in a first-party httpOnly
   cookie and nothing is shared with a third party until money has actually changed hands.
 
-What is given up is real and worth naming: **no remarketing audiences, and no on-site behaviour in
+What is given up is real and worth naming: **no behavioural remarketing, and no on-site behaviour in
 the Google Ads UI.** Neither is worth a tracker on a page this product sells a score on.
+
+**"No tag" does not mean "no audiences", and reading it that way was wrong.** Customer Match builds
+an audience from hashed addresses uploaded server-side, with no pixel, no cookie and nothing loaded
+in a browser, the same shape as the conversion upload. What the no-tag decision actually costs is
+the audience of people who visited and left **without giving an address**. See the Customer Match
+section below.
 
 ## The chain
 
@@ -69,6 +75,53 @@ invocation can be frozen the moment its response is returned.
 - **A buyer who never saw an ad**, which is most of them. Logged as `ads.conversion_skipped` with
   `reason: 'no_click'`, at `info`, because it is the ordinary path and not a failure.
 
+## Customer Match
+
+Two lists, kept in step by `GET /api/cron/audience-sync` and built in `lib/google-ads-audience.ts`:
+**buyers, uploaded to be excluded** so the campaign stops paying for clicks from existing customers,
+and **leads, uploaded to be targeted**.
+
+**What leaves is a SHA-256 digest and never an address.** Google normalises the same way before
+matching, so `hashEmail` lowercases and trims first: a digest of `" Foo@Bar.com "` matches nobody and
+fails silently, which is the failure mode this whole area is prone to.
+
+`REMOVE_ALL` runs before each add, so the membership is replaced rather than accumulated. That is
+what makes leaving take one run instead of a deletion nobody would remember to write.
+
+**Only `reason = 'purchase'` counts as a buyer.** A hand grant is a comped account, and training an
+audience on one is the same mistake as reporting it as a conversion, the rule that already keeps
+`grant` out of the conversion upload.
+
+### It changed what the privacy policy could say, and that was the expensive part
+
+Three sentences stopped being true and were rewritten rather than softened: that nothing is traded
+with anyone for marketing, that Google Ads receives the click and the amount **only when there is a
+purchase**, and that nobody else receives anything. The policy now names the upload, says it is
+hashed, and says leaving covers the ads as well as the mail.
+
+`app/(app)/privacy/page.tsx` states that every claim there is checkable against the code. That rule
+survived this change by being obeyed, and it is the reason the change was worth stating rather than
+absorbing.
+
+**The consent is forward-only, and it is a column.** `leads.consented_at` is stamped by the form that
+carries the current note; a row without it was captured under the older "one email with the link,
+nothing else" and is never uploaded. See [data-model.md](data-model.md).
+
+### There is no lookalike, and there is no substitute for one
+
+Google retired Similar Audiences in August 2023, and for Search there is no direct replacement: the
+official answer is to let Smart Bidding use first-party signals. So the list feeds bidding and
+exclusion, and it does not become a way to find people who resemble buyers. Anyone arriving from
+Meta's model of audiences should expect that difference.
+
+### What is deliberately not reported
+
+**No mid-funnel conversion.** Running an analysis or creating an account is not uploaded as a
+conversion action, though both would be easy to. Reporting them would make the bidding optimise for
+people who never pay, which is the opposite of what a payment-only signal was chosen for. The cost is
+already named under Strategy: Smart Bidding has almost nothing to learn from at the start, and that
+is accepted rather than papered over with a softer conversion that means less.
+
 ## Configuration
 
 Six variables, and `googleAdsEnabled()` requires all of them. A partial set is worse than none: it
@@ -110,11 +163,18 @@ like a bad credential.
    | Basic | yes | 15,000 |
    | Standard | yes | unlimited |
 
-   **Explorer Access reaches production accounts**, and 2,880 operations a day is enormous next to
-   one upload per purchase. Its blocked list is account creation, user management, planning tools and
-   billing services -- conversion upload is not on it. So the integration should run on Explorer from
-   day one; confirm that with the test purchase in step 6 rather than taking this table's word for it.
-   Apply for Basic Access in parallel, as headroom rather than as a gate.
+   **A token is issued at Test, and Test reaches no production account at all.** Explorer is not
+   what you get either: every call against a real account answers `DEVELOPER_TOKEN_NOT_APPROVED`,
+   naming Basic or Standard as the way out. **Apply for Basic Access first; it is a gate and not
+   headroom.**
+
+   Explorer's own blocked list is account creation, user management, planning tools and billing
+   services, so conversion upload is not on it. That remains true and remains untested here, because
+   the application went straight from Test to Basic.
+
+   **`validate_only` is how to find out what a token may do without writing anything.** Every mutate
+   accepts it, the whole operation is validated, and nothing is created. It answers the access-level
+   question in one call and leaves no wreckage in the account if the answer is no.
 3. Create the conversion action: goal **Purchase**, source **Import**, count **Every**, value **Use
    different values for each conversion** (the amount is uploaded per sale), click-through window 90
    days to match `GCLID_MAX_AGE_SECONDS`.
@@ -125,7 +185,7 @@ like a bad credential.
    screen belongs to the project, so adding it to the project that authenticates paying users puts a
    verification requirement on the thing that logs them in. Publish that consent screen before
    minting: a token issued while it is in Testing stops working after seven days.
-6. Set the six variables and confirm with a real R$147 purchase from a URL carrying a fake `gclid`.
+6. Set the six variables and confirm with a real R$47 purchase from a URL carrying a fake `gclid`.
    It will be rejected as an unknown click, and the rejection proves the whole chain end to end --
    the log line will read `ads.conversion_failed` naming the click, not a token or permission error.
 
@@ -145,25 +205,21 @@ is very nearly the whole ticket:
 | --- | --- | --- | --- |
 | R$19 (the old single) | ~R$17 | R$17 | 17.6% |
 | R$39 (the old featured pack) | ~R$37 | R$37 | 8.1% |
-| R$147 | ~R$145 | R$145 | 2.1% |
-| R$297 | ~R$295 | R$295 | 1.0% |
+| R$47 (the single) | ~R$45 | R$45 | 6.7% |
+| R$147 (the trio) | ~R$145 | R$145 | 2.1% |
 
-The old prices were not close. **R$147 is the first ticket in that table whose break-even sits inside
-the range a real funnel reaches**, and it sits at the pessimistic edge of it: 2.1% click to purchase
-is the top of the 1-2% expectation, not the middle.
+**No campaign is running, so this table is a record of the reasoning rather than a live constraint.**
+It set the prices once, at R$147 and R$297; the current R$47 and R$147 were set against what the
+product should cost a buyer, not against a click. If paid acquisition ever starts again, the numbers
+to compare are the ones in the account, and R$47 is the row to look at first.
 
-**The trio is the lever, and it is why there are two cards rather than one.** Blended ticket is what
-actually pays the bill: if three buyers in ten take the trio, the blend is about R$192 and break-even
-falls to roughly 1.6%. That is the number the campaign is really playing for.
-
-**This was previously solved with a subscription, which is gone** — see
-[product.md](product.md) for why. The honest summary of the trade: recurring revenue would have made
-this arithmetic comfortable, and the subscription that was supposed to provide it sold a weekly
-report on pages that do not change weekly. A price that can pay for a click is a worse business than
-retention and a better one than a plan nobody renews.
+**Recurring revenue would make this arithmetic comfortable, and there is none.** A subscription is
+the obvious way to get it and the wrong one here, because what it would sell is a weekly report on
+pages that do not change weekly. See [product.md](product.md). A price that can pay for a click is a
+worse business than retention and a better one than a plan nobody renews.
 
 **A price test cannot settle this and should not be attempted.** At single-digit monthly conversions
-the sample never arrives — the same argument that removed the A/B testing stage in
+the sample never arrives, the same argument that removed the A/B testing stage in
 [product.md](product.md), applied to our own pricing. What is known is that the old price provably
 could not pay for a click.
 

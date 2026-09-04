@@ -44,9 +44,9 @@ export function ReadoutScore({ findings }: { findings: MeasuredFinding[] }) {
           the public report and on paper, where a tooltip is a click nobody makes and a print that
           never appears. See docs/readout.md.
 
-          **The per-group bars used to live here and are gone.** Every group now carries its own
-          score in its own card below, so the bars were the same six numbers stated twice -- and the
-          reader had to match a label in this card against a heading further down to join them. */}
+          **There are deliberately no per-group bars here.** Every group carries its own score in
+          its own card below, so bars here would be the same six numbers stated twice, and the reader
+          would have to match a label in this card against a heading further down to join them. */}
       <div className="min-w-0 flex-1 space-y-3">
         <p className="text-sm leading-snug text-muted-foreground">{copy.scale}</p>
         <p className="text-xs leading-relaxed text-muted-foreground">

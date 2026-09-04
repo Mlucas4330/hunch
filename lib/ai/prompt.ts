@@ -366,7 +366,7 @@ Rules:
   authentication or social sign in unless the readout shows this page actually has a way to sign in:
   offering Google login to a page that creates no accounts is a fix for somebody else's product.
 - mobile and performance are measured, so a fix in either MUST name the finding it answers. They are
-  the two things this report used to count and then have nothing to say about. Keep them concrete and
+  the two things this report would otherwise count and have nothing to say about. Keep them concrete and
   inside the founder's own control: a step is "serve the hero image at the size it renders" or "set a
   viewport meta tag", never "improve performance" and never a target number you cannot verify. Say
   nothing about what a faster page will produce.

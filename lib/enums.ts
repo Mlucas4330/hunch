@@ -111,12 +111,12 @@ export type CardDrawer = (typeof CARD_DRAWER)[number]
 
 // Which lists `FlowPlaybook` can render, and therefore which dictionary sections have to exist.
 //
-// **It used to be `[...FIX_KIND, 'seo', 'ai']`, and that was wrong twice over.** `visibility` is a
-// FIX_KIND -- the discriminator on the table -- and it is the *parent* of the seo and ai lists, never
-// a list itself: `splitVisibility` cuts it into those two and nothing ever renders it whole. Deriving
-// from FIX_KIND therefore demanded a `dictionary.visibility` that no call site could reach, and the
-// one that existed sat there as a near-copy of `dictionary.seo`, same eyebrow and all, until it was
-// deleted. One word for the kind and for a section it never is: see the note on READOUT_GROUP.
+// **Written out rather than derived from FIX_KIND.** `visibility` is a FIX_KIND, the discriminator
+// on the table, and it is the *parent* of the seo and ai lists, never a list itself: `splitVisibility`
+// cuts it into those two and nothing ever renders it whole. Deriving from FIX_KIND would demand a
+// `dictionary.visibility` that no call site can reach, and it would sit there as a near-copy of
+// `dictionary.seo`. One word for the kind and for a section it never is: see the note on
+// READOUT_GROUP.
 export const PLAYBOOK_SECTION = ['flow', 'seo', 'ai'] as const
 export type PlaybookSection = (typeof PLAYBOOK_SECTION)[number]
 
@@ -171,7 +171,7 @@ export type CreditReason = (typeof CREDIT_REASON)[number]
 
 // What a queued job is doing. `unavailable` is not an error state: it means the work can never
 // succeed for this input (a manual hypothesis, a stale selector), which is a different answer from
-// "still working" and used to reach the client as the same one. See docs/scraping.md.
+// "still working" and must not reach the client as the same one. See docs/scraping.md.
 export const JOB_STATUS = ['queued', 'running', 'ready', 'unavailable'] as const
 export type JobStatus = (typeof JOB_STATUS)[number]
 
@@ -391,6 +391,21 @@ export const LOG_EVENT = [
   // without a line here the channel goes blind silently. See docs/ads.md.
   'ads.conversion_uploaded',
   'ads.conversion_skipped',
-  'ads.conversion_failed'
+  'ads.conversion_failed',
+  // The lead sequence. `skipped` covers every ordinary reason a row is passed over -- unsubscribed,
+  // already bought, consented under the older copy -- and stays at info, because passing rows over
+  // is most of what the cron does. See docs/api.md.
+  'lead.sequence_sent',
+  'lead.sequence_skipped',
+  'lead.sequence_failed',
+  'lead.unsubscribed',
+  // A reminder about a payment the provider still reports as pending. It moves no balance and never
+  // could: `grantCredits` remains the only path that does. See docs/invariants.md.
+  'billing.reminder_sent',
+  'billing.reminder_failed',
+  // Customer Match. The addresses leave hashed, so a failure here is a list that stopped growing
+  // rather than anything exposed.
+  'ads.audience_synced',
+  'ads.audience_failed'
 ] as const
 export type LogEvent = (typeof LOG_EVENT)[number]

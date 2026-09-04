@@ -10,9 +10,9 @@ const URL_UNDER_TEST = `https://example.com/?choose=${Date.now()}`
 /**
  * Choosing one of the written lines.
  *
- * **An option used to be a dead end.** The drawer rendered each alternate as a paragraph and nothing
- * else: no way to take one, preview one, or act on one. Generating more of those makes the reader do
- * the triage they paid to avoid, so this comes before any of it.
+ * **An option must not be a dead end.** A drawer that renders each alternate as a paragraph and
+ * nothing else, with no way to take one, preview one or act on one, makes the reader do the triage
+ * they paid to avoid.
  *
  * Choosing is reordering, because position 0 already means "the one" to the card, to the screenshot
  * route and to the harness.

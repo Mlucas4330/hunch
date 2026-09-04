@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { BRIEF_FIELD, BRIEF_OPTION } from '@/lib/enums'
 import { t } from '@/lib/i18n/format'
-import type { BriefParts } from '@/lib/brief'
+import { briefIsComplete, type BriefParts } from '@/lib/brief'
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import { cn } from '@/lib/utils'
 
@@ -24,6 +24,13 @@ import { cn } from '@/lib/utils'
  * Selecting advances on its own. There is no Next button to hunt for, and the one control that could
  * have moved the page -- a link, an anchor, a scrollIntoView -- is deliberately absent: every step
  * change here is state, so the viewport never jumps under the reader's finger.
+ *
+ * **A brief that already has all four answers opens as a summary.** The dashboard hands over the
+ * last brief this reader wrote, which is what makes the price four taps once and zero afterwards.
+ * Replaying question one over it printed "step 1 of 4" above a progress bar with every segment
+ * already filled, the counter and the bar disagreeing about the same four answers. What the reader
+ * needs there is to check that those answers still describe the page they are about to spend a
+ * credit on, and to change the one that does not.
  */
 export function BriefWizard({
   value,
@@ -36,12 +43,53 @@ export function BriefWizard({
   disabled?: boolean
   copy: Dictionary['urlForm']
 }) {
-  const [step, setStep] = useState(0)
+  // `null` is the summary. A complete brief starts there; anything else starts at the first question
+  // with no answer behind it, so a partial brief resumes rather than restarts.
+  const [step, setStep] = useState<number | null>(() =>
+    briefIsComplete(value) ? null : firstUnanswered(value)
+  )
   const [writing, setWriting] = useState(false)
 
-  const field = BRIEF_FIELD[step]
   const total = BRIEF_FIELD.length
-  const last = step === total - 1
+
+  function goTo(next: number | null) {
+    setWriting(false)
+    setStep(next)
+  }
+
+  if (step === null) {
+    return (
+      <div className="space-y-3">
+        <ul className="divide-y rounded-md border">
+          {BRIEF_FIELD.map((f, i) => (
+            <li key={f} className="flex items-start justify-between gap-3 px-3 py-2.5">
+              <div className="min-w-0 space-y-0.5">
+                <p className="panel-label text-nano text-muted-foreground">
+                  {copy.briefFields[f].label}
+                </p>
+                <p className="text-sm">{value[f]}</p>
+              </div>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => goTo(i)}
+                className="panel-label shrink-0 text-micro text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50"
+              >
+                {copy.briefWizard.edit}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          {copy.briefWizard.done}
+        </p>
+      </div>
+    )
+  }
+
+  const current = step
+  const field = BRIEF_FIELD[current]
+  const last = current === total - 1
   const fieldCopy = copy.briefFields[field]
 
   // One narrow cast, and the reason it is here rather than in the types: `field` is the whole union,
@@ -52,29 +100,25 @@ export function BriefWizard({
   const options = fieldCopy.options as Record<string, string>
 
   function answer(text: string) {
-    onChange({ ...value, [field]: text })
+    const next = { ...value, [field]: text }
+    onChange(next)
     setWriting(false)
-    if (!last) setStep(step + 1)
+    // The summary is where a finished brief lives, so the last answer lands there whichever question
+    // it happened to be -- including the single edit somebody opened from the summary itself.
+    setStep(briefIsComplete(next) ? null : firstUnanswered(next, current + 1))
   }
-
-  function goTo(next: number) {
-    setWriting(false)
-    setStep(next)
-  }
-
-  const answered = BRIEF_FIELD.filter((f) => value[f].trim()).length
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <p className="panel-label text-micro text-muted-foreground">
-            {t(copy.briefWizard.step, { step: step + 1, total })}
+            {t(copy.briefWizard.step, { step: current + 1, total })}
           </p>
-          {step > 0 && (
+          {(current > 0 || briefIsComplete(value)) && (
             <button
               type="button"
-              onClick={() => goTo(step - 1)}
+              onClick={() => goTo(briefIsComplete(value) ? null : current - 1)}
               className="panel-label text-micro text-muted-foreground transition-colors hover:text-foreground"
             >
               {copy.briefWizard.back}
@@ -90,7 +134,7 @@ export function BriefWizard({
               key={f}
               className={cn(
                 'h-1 flex-1 rounded-full transition-colors',
-                value[f].trim() ? 'bg-purple' : i === step ? 'bg-foreground/30' : 'bg-border'
+                value[f].trim() ? 'bg-purple' : i === current ? 'bg-foreground/30' : 'bg-border'
               )}
             />
           ))}
@@ -153,18 +197,26 @@ export function BriefWizard({
 
         {!last && (
           <div className="flex justify-end">
-            <Button type="button" variant="outline" size="sm" onClick={() => goTo(step + 1)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => goTo(current + 1)}>
               {copy.briefWizard.skip}
             </Button>
           </div>
         )}
       </fieldset>
-
-      {answered === total && (
-        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-          {copy.briefWizard.done}
-        </p>
-      )}
     </div>
   )
+}
+
+/**
+ * The next question with nothing behind it, searched from `from` and wrapping once.
+ *
+ * Wrapping is what picks up a question the reader skipped: answering the last one then sends them
+ * back to the gap rather than to a summary that would have to show a blank row.
+ */
+function firstUnanswered(parts: BriefParts, from = 0): number {
+  for (let i = 0; i < BRIEF_FIELD.length; i++) {
+    const index = (from + i) % BRIEF_FIELD.length
+    if (!parts[BRIEF_FIELD[index]].trim()) return index
+  }
+  return 0
 }

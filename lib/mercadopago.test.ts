@@ -35,7 +35,7 @@ test('an amount matching no pack buys nothing', () => {
 // somehow still charges one of them grants nothing rather than guessing what it was meant to buy,
 // which is the same direction `creditsForAmount` already refuses in.
 test('a retired price buys nothing', () => {
-  for (const amount of [19, 39, 99, 97]) {
+  for (const amount of [19, 39, 99, 97, 297]) {
     assert.equal(creditsForAmount(amount), 0, `R$${amount} is no longer a pack`)
   }
 })

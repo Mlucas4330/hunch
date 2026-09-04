@@ -1,7 +1,7 @@
 # Invariants
 
 The rules that hold across subsystems. **If a sentence would have to appear in two docs, it belongs
-here and both link to it** — everything below was previously written two to four times, in wordings
+here and both link to it.** Everything below was previously written two to four times, in wordings
 that had already started to drift.
 
 Each rule names the surfaces it governs. A change to one of them is a change to all of them.
@@ -11,15 +11,15 @@ Each rule names the surfaces it governs. A change to one of them is a change to 
 ### A number reaches the reader through code, never through a token a model wrote
 
 This is the one line separating the measured readout from every other claim the product makes.
-`lib/readout.ts` counts facts off the scraped page — form fields, above-fold CTAs, images with no alt
-text, LCP, transferred bytes — and emits `{ id, group, severity, value, unit }` with **no prose**. The
+`lib/readout.ts` counts facts off the scraped page, form fields, above-fold CTAs, images with no alt
+text, LCP, transferred bytes, and emits `{ id, group, severity, value, unit }` with **no prose**. The
 sentence lives in `dictionary.readout.findings[id]` and the value is interpolated into it.
 
 **Nothing generated is ever presented as a measurement.** That is the whole of the rule, and the
-direction it runs in matters: measurements *do* go into prompts, and always have —
+direction it runs in matters: measurements *do* go into prompts, and always have
 `generatePlaybook` serializes `PageStructure` whole, `generateVisibility` gets `PageSeo`,
-`CrawlerAccess` and the keyword terms. This line used to claim the opposite, which was never true of
-the code and made the real rule easy to misread as a ban on grounding a prompt in what was counted.
+`CrawlerAccess` and the keyword terms. Read backwards, as a ban on grounding a prompt in what was
+counted, this rule forbids the one thing that makes the generated half honest.
 
 What a model may then *say* about those numbers is a separate rule, one section down.
 
@@ -40,15 +40,15 @@ so they are a **floor** a real visitor never beats, and `transferredBytes` rende
 ### A generated `evidence` carries a number only from a page this code measured
 
 No percentage, no lift figure, no count of what other companies do, no "studies show". The default is
-that a generation call has exactly one measurement — the readout of the page in front of it — so a
+that a generation call has exactly one measurement, the readout of the page in front of it, so a
 number in `evidence` is invented by construction. The prompts require the CRO mechanism instead.
 
 **It governs all three `evidence` fields**: the flow fix, the visibility fix, and the variant.
 
 **The one exception is a page the reader named**, and its shape is the whole reason it is safe. When
 a competitor URL is supplied, `measureCompetitor` scrapes that page and `lib/readout.ts` counts the
-same facts off it. The argument that makes a number "invented by construction" — that no such
-measurement exists — stops being true for that page and for no other. So `evidence` may cite a figure
+same facts off it. The argument that makes a number "invented by construction", that no such
+measurement exists, stops being true for that page and for no other. So `evidence` may cite a figure
 from **that readout**, and:
 
 - **never a number that is not in it.** Not about a third page, not about "companies in this space",
@@ -57,17 +57,16 @@ from **that readout**, and:
   the page by that hostname alone. A brand name would be inferred from the page's contents, and an
   inferred name is an invented one.
 - **never a claim that the other page performs better.** Nobody measured either page's conversion,
-  traffic or ranking. Two pages differing is not one page winning, and closing a gap is not a result —
+  traffic or ranking. Two pages differing is not one page winning, and closing a gap is not a result
   that is the delta rule below, applied across pages instead of across time.
 
-This is narrower than what was here before the pivot, and deliberately inverted. The old competitor
-research had a model *recall* what competitors do, which is why removing it removed the exception
-with it. What came back is the opposite direction: the reader points, this code measures, and the
-number is a measurement rather than a recollection. The rules live in `competitorRules` in
+**The direction is what makes it safe.** A model *recalling* what competitors do earns no exception
+at all. This runs the other way: the reader points, this code measures, and the number is a
+measurement rather than a recollection. The rules live in `competitorRules` in
 `lib/ai/prompt.ts`, shared by every prompt that receives a competitor for the same reason
-`marketRules` is — the risk is identical in all of them and must not drift into three wordings.
+`marketRules` is: the risk is identical in all of them and must not drift into three wordings.
 
-The corpus escape hatch is still gone, and re-adding one would need this same test: does this code
+There is no corpus escape hatch, and adding one would need this same test: does this code
 measure the thing the number describes?
 
 This is a different rule from the two above and they never share a sentence: this governs what a
@@ -81,13 +80,13 @@ model may **assert**, those govern what a measurement may **state**.
 subtraction over two numbers this code measured, so it is allowed.
 
 **"Your fix cut LCP by 2.1s" and "the rewrite lifted conversion" are not.** Nobody controlled for
-anything between the two measurements — the page may have changed ten times, or not at all while the
+anything between the two measurements, the page may have changed ten times, or not at all while the
 CDN did. The readout may state that a number moved and when, and **nothing here may say what moved
 it**: attributing a change to a cause needs a controlled experiment, and this product runs none.
 
-The product used to carry a live A/B testing stage, and that stage was the one place a causal
-sentence would have been earned. It is gone — see [product.md](product.md) — so the rule is no longer
-"only an experiment may say it" but simply "nothing says it".
+A live A/B testing stage would be the one place a causal sentence could be earned, and this product
+has none. See [product.md](product.md). So the rule is not "only an experiment may say it" but simply
+"nothing says it".
 
 **The owner's re-measure is the surface where this rule bites hardest.** `POST /api/analyses/[id]/measure`
 exists so somebody who has just shipped the changes this product recommended can measure the page
@@ -104,22 +103,20 @@ acceptance rate over it, which is a rate of agreement and not of effect. **No su
 verdict and a delta in the same sentence**, and none may summarise an analysis as having worked
 because its fixes were applied.
 
-**The temptation is strongest precisely because the causal story is most plausible here** — the
+**The temptation is strongest precisely because the causal story is most plausible here.** The
 reader did change the page, and they changed it the way this product told them to. That is still not
 a controlled experiment: the page may have changed in five other ways, the CDN may have had a better
 minute, and nothing here can separate those. Two measurements report what changed and not what
 changed it, whoever made the change and however confident they are about it.
 
-**This rule used to be written around a weekly monitoring email**, which has been deleted along with
-the subscription that paid for it — see [product.md](product.md). The prohibition never depended on
-that surface and does not weaken with it gone: it binds every surface that shows two measurements of
-the same page, and the re-measure is now the one that does.
+**It binds every surface that shows two measurements of the same page**, whichever surface that is.
+The re-measure is the one that does today.
 
 *Governs:* [readout.md](readout.md), [report.md](report.md), [api.md](api.md)
 
 ### Keywords measure the page's own words, never the index
 
-`lib/keywords.ts` counts terms in the copy that was scraped and reports where each already appears —
+`lib/keywords.ts` counts terms in the copy that was scraped and reports where each already appears
 title, H1, meta description, headings. That is a fact about one page, countable by code.
 
 **Search volume, keyword difficulty and ranking potential are none of those things.** They come from a
@@ -148,7 +145,7 @@ knows how often anyone searches for a term, what it costs, or how contested it i
 ### The audit measured the page, not the index
 
 A visibility finding never promises a ranking or a citation, never estimates traffic, and never says
-whether any model currently mentions the product — none of that was measured. Its `evidence` argues
+whether any model currently mentions the product, none of that was measured. Its `evidence` argues
 the mechanism (a crawler cannot read a price that exists only inside an image), under the
 no-quantitative-claim rule above.
 
@@ -158,8 +155,8 @@ The UI copy carries the same limit and must not be softened into a claim the aud
 
 ### Unknown is never reported as negative
 
-`robots.txt` resolves to `found`, `absent`, or `unknown`. An `unknown` — a network failure or an
-unreadable response — is excluded from the prompt's findings rather than presented as a missing file
+`robots.txt` resolves to `found`, `absent`, or `unknown`. An `unknown`, a network failure or an
+unreadable response, is excluded from the prompt's findings rather than presented as a missing file
 or a block. "We could not check" and "they block AI crawlers" are opposite conclusions.
 
 *Governs:* [scraping.md](scraping.md), [ai-pipeline.md](ai-pipeline.md)
@@ -180,7 +177,7 @@ the risk is identical in all of them and must not be phrased three ways.
 ### The market is measured from the page, never taken from the UI locale
 
 A `.br` domain or a Portuguese `lang` attribute decides it, and nothing else does. Weaker signals were
-deliberately left out — a BRL price appears on plenty of global pricing tables — because the two
+deliberately left out, a BRL price appears on plenty of global pricing tables, because the two
 directions of error are not symmetric. Missing a Brazilian page costs one recommendation phrased for
 the wrong country; marking a US page Brazilian rewrites the whole analysis around the wrong country
 and shows the reader nothing that explains it.
@@ -204,7 +201,7 @@ written in, because the embed matches on it.
 ### `pt-BR` is a rewrite, not a translation
 
 A technical term the Brazilian market uses in English stays in English (LCP, meta description, alt,
-CTA, snippet, deploy, landing page, placeholder). Accented characters are **required** — the whole
+CTA, snippet, deploy, landing page, placeholder). Accented characters are **required.** The whole
 `metadata` subtree once shipped stripped of them, which is the browser tab and the unfurl.
 
 This is why the prompts' typographic rule restricts **punctuation** (no dashes of any kind, straight
@@ -222,7 +219,7 @@ thing that moves a balance**, and `spendCredit` / `refundCredit` the only things
 
 This is the load-bearing decision, and it is not tidiness. Stripe may not be able to charge in BRL
 without a registered company, which makes a second provider a matter of when rather than if. Written
-the other way round — a webhook that knows how to add credits — plugging in the second one means
+the other way round, a webhook that knows how to add credits, plugging in the second one means
 reimplementing idempotency, row creation and the ledger a second time, and the two copies drift the
 first time one is fixed.
 
@@ -231,18 +228,18 @@ Four rules hold the money side together:
 - **Idempotency is keyed on the payment, not on the message about it.** `payment_events` claims the
   delivery so a retry does no work twice; the unique on `(provider, provider_ref)` claims the payment
   so even a delivery that slipped past the first guard cannot credit twice. The second is the
-  guarantee that matters. A claim that outlives a **failed** handling is the mirror-image bug — every
-  retry then answers `duplicate` and the paid credit is lost for good — so the Mercado Pago route
+  guarantee that matters. A claim that outlives a **failed** handling is the mirror-image bug, every
+  retry then answers `duplicate` and the paid credit is lost for good, so the Mercado Pago route
   releases its claim before answering `500`.
 - **Spend before the work, refund if the work fails.** The other order hands out a free analysis
   whenever something crashes between the two, and nothing afterwards can tell which happened. "Paid
-  for a Sonnet call and got nothing" is a real path, so the refund is real too — and **what counts as
+  for a Sonnet call and got nothing" is a real path, so the refund is real too, and **what counts as
   failing is nothing being generated at all**, measured over all three calls once they have returned.
-  It used to be a schema floor of five hypotheses, which could only see one of the three: a short set
-  of copy took a finished playbook and a finished audit down with it. The rule never changed; where it
-  was enforced did. See [ai-pipeline.md](ai-pipeline.md).
+  A schema floor on the hypothesis count enforces it in the wrong place: it sees one of the three
+  calls, so a short set of copy takes a finished playbook and a finished audit down with it. See
+  [ai-pipeline.md](ai-pipeline.md).
 - **The balance is never in the JWT.** A token lives `SESSION_MAX_AGE_SECONDS`, so a balance stamped
-  into one is stale the instant something is bought or spent — free credit in one direction, credit
+  into one is stale the instant something is bought or spent, free credit in one direction, credit
   that looks vanished in the other. Read from the row per request, exactly as the role is.
 - **What a payment is worth comes from our own price map**, never from provider metadata and never
   from the buyer. Stripe metadata is dashboard-editable, so honouring a `credits` field there lets
@@ -253,72 +250,66 @@ Four rules hold the money side together:
   charges buys nothing.
 
 **The operator screen is back, and it changed nothing about this rule.** `/admin/credits` grants
-credits with no payment behind them — comping someone, or repairing a payment whose webhook never
-landed — and it does it by calling `grantCredits` like every other source. It touches neither table.
+credits with no payment behind them, comping someone, or repairing a payment whose webhook never
+landed, and it does it by calling `grantCredits` like every other source. It touches neither table.
 The one thing it added is a fourth `CREDIT_REASON`: a hand grant records `grant`, never `purchase`,
 because **the ledger's whole job is being auditable and a row claiming a purchase nobody made is the
 one lie that devalues the rest of the table**. It has no inverse, which is why `ADMIN_GRANT_MAX`
 bounds a single grant and why the screen lists what has been granted.
 
-The second provider has landed and the shape held: Mercado Pago verifies a payment, works out what it
-bought, and calls `grantCredits`. `lib/credits.ts` did not change to accommodate it, which is the
-whole return on writing it this way.
+The second provider is the proof: Mercado Pago verifies a payment, works out what it bought, and
+calls `grantCredits`. `lib/credits.ts` did not change to accommodate it, which is the whole return on
+writing it this way.
 
-**The monitoring subscription held it too, and it was the harder test.** It has since been deleted
-for product reasons rather than structural ones — see [product.md](product.md) — and what it proved
-on the way out is worth keeping: a subscription has state a one-off payment does not, it renews, it
-fails, it gets cancelled, and the obvious way to build it is a second place that says what someone is
-entitled to. That is exactly the second source of truth this rule exists to prevent. So it was split:
-`subscriptions` held **eligibility and status** only, and every renewal's credits went through
-`grantCredits` with the charge's own id as `providerRef`, exactly like a pack.
+**Anything recurring is the harder case, and the rule holds there too.** A subscription has state a
+one-off payment does not: it renews, it fails, it gets cancelled, and the obvious way to build it is a
+second place that says what someone is entitled to. That is exactly the second source of truth this
+rule exists to prevent. Split it instead: a `subscriptions` table holding **eligibility and status**
+only, with every renewal's credits going through `grantCredits` using the charge's own id as
+`providerRef`, exactly like a pack.
 
-Removing it was consequently a matter of dropping one table and one route. **`lib/credits.ts` did not
-change**, which is the same return this rule paid when Mercado Pago was added — the shape survives
-both directions, adding a payment source and taking one away.
-
-The consequence that outlives the feature, because it is the kind of bug that looks like working
-software: **a recurring grant is keyed on the charge, never on the authorisation.** A renewal is a
-new payment against the same preapproval, so keying it on the preapproval id credits the first month
-and silently swallows every month after it. For thirty days that is indistinguishable from correct.
-Anything recurring added later inherits that rule.
+The consequence to hold onto, because it is the kind of bug that looks like working software: **a
+recurring grant is keyed on the charge, never on the authorisation.** A renewal is a new payment
+against the same preapproval, so keying it on the preapproval id credits the first month and silently
+swallows every month after it. For thirty days that is indistinguishable from correct.
 
 *Governs:* [api.md](api.md), [data-model.md](data-model.md), [product.md](product.md)
 
 ### The free half is what code counted; the paid half is what a model wrote
 
 `measuredFindings`, `readoutScore` and `extractKeywords` are pure arithmetic over what the scrape
-counted. They call no model, so **an analysis with no owner costs a browser slot and zero tokens** —
+counted. They call no model, so **an analysis with no owner costs a browser slot and zero tokens**
 which is what makes it safe to hand to ad traffic where most visitors never convert.
 
 The cut is `analyses.user_id`, not a flag. Ownership is exactly the thing that says someone paid, so
 one nullable column carries the whole decision and no second source of truth can disagree with it.
 
-**An empty balance is not a refusal, it is the free half.** `POST /api/analyses` used to delete the
-row and answer `402` when `spendCredit` found nothing to spend, which made signing in strictly worse
-than staying signed out: the same person got the readout with no session and nothing at all with one.
-The row is now created ownerless whoever is signed in, and `user_id` is written **only once a credit
-has actually been taken** — so the branch `runAnalysis` reads is still ownership, still one column,
-and a run nobody paid for still costs zero tokens.
+**An empty balance is not a refusal, it is the free half.** `POST /api/analyses` creates the row
+ownerless whoever is signed in, and writes `user_id` **only once a credit has actually been taken**,
+so the branch `runAnalysis` reads is still ownership, still one column, and a run nobody paid for
+still costs zero tokens. Deleting the row and answering `402` when `spendCredit` finds nothing to
+spend would make signing in strictly worse than staying signed out: the same person gets the readout
+with no session and nothing at all with one.
 
 The consequence to hold onto: **an owned analysis can contain nothing generated.** Claiming a free run
 after signing in hands over the row without the paid half ever having been bought, so the analysis
 surface renders the unlock wall rather than four empty tabs. There is one surface to say that of now
-— it was two, and they disagreed about the predicate — see [report.md](report.md).
+it was two, and they disagreed about the predicate. See [report.md](report.md).
 
 **Since the readout is committed before the generation starts, "owned and nothing generated" is now
 two situations rather than one**, and the surface has to tell them apart: a generation in flight gets
 placeholders that fill themselves, and a claimed free run gets the wall. The row is identical in both,
-so the job is asked — and only about whether work is happening. **Ownership is still what says the
+so the job is asked, and only about whether work is happening. **Ownership is still what says the
 paid half was bought**, which is why an ownerless row is never treated as generating no matter what
 its job says: an anonymous run's job is briefly `running` after the measurement lands, and reading
 that as a pending generation would promise a stranger fixes nobody paid for.
-Buying credits does not retroactively generate anything — the reader runs the URL again with a credit
+Buying credits does not retroactively generate anything, the reader runs the URL again with a credit
 in hand.
 
 Three consequences that must hold together:
 
 - **The readout is never gated**, on any surface. It is the part the reader can check against their
-  own site in one click, and gating a measurement of someone's own page reads as a trick — see
+  own site in one click, and gating a measurement of someone's own page reads as a trick, see
   [readout.md](readout.md).
 - **A token spent on an ownerless analysis is a bug**, not a cost. If one ever appears, the split
   leaked.
@@ -328,7 +319,7 @@ Three consequences that must hold together:
 
   This is also why the offer sits **below** the readout rather than in front of it, and why it may
   never move: the wall this replaced traded a stranger's address for a preview of someone else's
-  report, and the rule above is what killed it. What is asked for here buys the reader something —
+  report, and the rule above is what killed it. What is asked for here buys the reader something
   an `embed_key` lives in one browser's `localStorage`, so the email is the only durable copy of the
   link they can have.
 
@@ -338,7 +329,7 @@ Three consequences that must hold together:
 
 The landing page ranks pages this tool has measured, and every one of them belongs to somebody who
 did not ask to be on a marketing page. **What leaves the server is `{ domain, score }`, and the shape
-is the entire control** — `publicLeaderboard` and `analysisPulse` in `lib/analyses.ts` select those
+is the entire control**, `publicLeaderboard` and `analysisPulse` in `lib/analyses.ts` select those
 columns, and `GET /api/pulse` returns exactly what they hand back.
 
 Three omissions carry the rule, and each fails differently if it is undone:
@@ -351,7 +342,7 @@ Three omissions carry the rule, and each fails differently if it is undone:
 The board itself is subject to the measurement rules above like every other surface: an entry is a
 score this code counted and froze into `page_snapshots`, deduplicated by domain. Below
 `PULSE_MIN_ENTRIES` the section does not render, because **padding a board with examples is the
-invented data the whole product refuses** — there is no seed anywhere and there must never be one.
+invented data the whole product refuses.** There is no seed anywhere and there must never be one.
 
 *Governs:* [security.md](security.md), [api.md](api.md), [analysis-ui.md](analysis-ui.md)
 
@@ -360,9 +351,8 @@ invented data the whole product refuses** — there is no seed anywhere and ther
 ### A user row may exist before its first sign-in, and only a provider-verified email may claim one
 
 Someone can pay before they have ever opened the app, so the row has to be able to exist without a
-sign-in behind it. `grantCredits` is the only writer that does it now — the operator screen that used
-to grant plans by hand is gone — but the shape is unchanged: insert `{ email, name: email }` and set
-the entitlement. That is the whole provisioning record, and it is why the sign-in upsert writes `name`,
+sign-in behind it. `grantCredits` is the only writer that does it: insert `{ email, name: email }`
+and set the entitlement. That is the whole provisioning record, and it is why the sign-in upsert writes `name`,
 `avatarUrl`, `role` and `lastSignInAt` and **never** the entitlement. First sign-in fills in the
 person; what they bought was already there.
 
@@ -373,7 +363,7 @@ read off the profile for Google, a call to `GET /user/emails` for GitHub, whose 
 no such claim and whose `email` is null outright when the account keeps it private. A provider with no
 strategy declared is refused.
 
-**The address that keys the row is the verified one, not the one the profile carried** — for GitHub
+**The address that keys the row is the verified one, not the one the profile carried.** For GitHub
 they can differ, and using the profile's would key a row on an address nobody verified. **Every
 failure of the remote check refuses**: a timeout or a 403 from a missing `user:email` scope must not
 read as "verified", or a GitHub outage becomes an open door onto rows holding credits. An absent claim is
@@ -394,9 +384,9 @@ functions in `lib/auth-policy.ts` precisely so no call site can confuse them.
 
 **It happens at sign-in, so setting the variable promotes nobody who is already signed in.** A session
 lives `SESSION_MAX_AGE_SECONDS`, and `isAdminEmail` is only consulted while the `signIn` callback
-runs — adding `ADMIN_EMAIL` to a deploy does nothing until that person signs out and back in. The
-match ignores case and surrounding whitespace, because neither is identity and both used to turn a
-correct-looking variable into a promotion that silently did nothing. A mismatch now logs.
+runs, adding `ADMIN_EMAIL` to a deploy does nothing until that person signs out and back in. The
+match ignores case and surrounding whitespace, because neither is identity and either one turns a
+correct-looking variable into a promotion that silently does nothing. A mismatch logs.
 
 **`isAdmin` gates `/admin/credits`, and it is checked three times on purpose.** The nav hides the
 link, the page answers `notFound()`, and the server action behind the form re-checks before it grants.
@@ -405,11 +395,11 @@ endpoint that happens to live next to a component**, reachable by anyone who kno
 loading the page that renders the form.
 
 The gate reads the **row**, so revoking with `update users set role = 'user'` takes effect on the next
-request rather than the next sign-in — covered by `e2e/admin-credits.spec.ts`, which demotes the row
+request rather than the next sign-in, covered by `e2e/admin-credits.spec.ts`, which demotes the row
 mid-session and expects the screen to answer 404 with the token untouched.
 
 The promotion is one-way. A sign-in never writes the role back down, which means **removing `ADMIN_EMAIL`
-revokes nothing** — revoking is `update users set role = 'user'`, and it takes effect on the next request
+revokes nothing.** Revoking is `update users set role = 'user'`, and it takes effect on the next request
 rather than the next login, because the gate reads the row and the role is deliberately kept out of the
 JWT. The same one-way rule is what lets an `update` promote a second operator without their next sign-in
 undoing it.
@@ -418,7 +408,7 @@ undoing it.
 
 ### Rate limiting fails open, except where failing open is the bill
 
-A missing `REDIS_URL`, a wrong one, or a Redis that is simply down means no limit at all — silently,
+A missing `REDIS_URL`, a wrong one, or a Redis that is simply down means no limit at all, silently,
 by design, so infrastructure trouble never becomes an outage. Both paths log.
 
 The consequence to remember: **a misconfigured `REDIS_URL` looks exactly like a working one.** Confirm
@@ -426,12 +416,12 @@ with a real `429`, never by reading the config.
 
 **`POST /api/analyses` with no session is the one exception, and it must stay one.** Failing open is
 right where a request costs a query. There, every accepted call opens a real browser against three
-shared slots with nobody behind it, so no limit is not a degraded feature — it is an unmetered bill
+shared slots with nobody behind it, so no limit is not a degraded feature: it is an unmetered bill
 and an outage at once. It passes `failClosed` and answers `503` when Redis cannot be reached.
 
 The two halves are one rule seen from both ends: **the default is open because infra trouble should
 not stop a paying user; the exception is closed because infra trouble must not open a public tap.**
-Adding `failClosed` anywhere else needs both of those to be true — no session, and real cost per call.
+Adding `failClosed` anywhere else needs both of those to be true, no session, and real cost per call.
 
 *Governs:* [security.md](security.md), [api.md](api.md), [deployment.md](deployment.md)
 
@@ -447,7 +437,7 @@ it.**
 
 Every page behind `PROTECTED_PREFIXES` re-checks the user itself, and every `/api` route authenticates
 via `getCurrentUser()`. The matcher's exclusion list is a performance detail, not the security
-boundary — never treat a route as protected because it is missing from that list.
+boundary, never treat a route as protected because it is missing from that list.
 
 *Governs:* [security.md](security.md)
 
@@ -455,7 +445,7 @@ boundary — never treat a route as protected because it is missing from that li
 
 `assertPublicUrl` refuses private, loopback, link-local, CGNAT, unique-local and multicast ranges via
 **every** address DNS returns. That check alone is bypassable, so `openGuardedPage` re-applies it to
-every request the page makes — which is what actually closes DNS rebinding and a `302` to the metadata
+every request the page makes, which is what actually closes DNS rebinding and a `302` to the metadata
 endpoint.
 
 *Governs:* [security.md](security.md), [scraping.md](scraping.md)

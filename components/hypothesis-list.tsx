@@ -45,10 +45,10 @@ export function HypothesisList({
   const { dictionary } = useI18n()
   const copy = dictionary.hypothesisList
 
-  // Impact, and nothing else. The public report used to float the auto targets to the top because
-  // they are the ones with a preview -- but "Start here" is the first row, and it means the idea
-  // worth the most, so a second sort key quietly hands that label to a lesser idea for being
-  // easier to photograph. Whether a change can be previewed is not a reason to make it first.
+  // Impact, and nothing else. Floating the auto targets up because they are the ones with a preview
+  // would quietly hand "Start here" to a lesser idea for being easier to photograph. That label
+  // means the idea worth the most, and whether a change can be previewed is not a reason to make it
+  // first.
   const ranked = useMemo(
     () => [...hypotheses].sort((a, b) => b.impactScore - a.impactScore),
     [hypotheses]

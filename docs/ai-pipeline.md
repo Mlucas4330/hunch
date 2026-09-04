@@ -1,17 +1,16 @@
 # AI pipeline
 
-Three `generateObject` calls in one `Promise.all` — hypotheses, playbook, visibility audit — then a
+Three `generateObject` calls in one `Promise.all`, hypotheses, playbook, visibility audit, then a
 fourth over the rewrites alone, which may only remove them. `lib/ai/`.
 
-**There is still no web-search step, and there never will be one.** It used to run a Haiku call with
-the `web_search` tool before generation, and it was roughly half the cost of an analysis: search is
-agentic, so each of its three rounds resent the conversation plus the content of the results. Removing
-it took a run from about $0.17 to about $0.09. Cost is why it went; it is not why it stays gone. What
-it produced was a model's recollection of what competitors do, presented beside numbers this code had
-counted, and the two were indistinguishable to a reader.
+**There is no web-search step, and there never will be one.** A search call before generation is
+roughly half the cost of an analysis, because search is agentic and each of its three rounds resends
+the conversation plus the content of the results: about $0.17 a run against about $0.09 without it.
+Cost is not the reason it stays out. What it produces is a model's recollection of what competitors
+do, presented beside numbers this code counted, and the two are indistinguishable to a reader.
 
 **Comparison against a competitor exists again, and it is the inverse of that.** The reader supplies
-a URL, `measureCompetitor` scrapes it, and `lib/readout.ts` counts the same facts off it — so the
+a URL, `measureCompetitor` scrapes it, and `lib/readout.ts` counts the same facts off it, so the
 prompts still argue only from pages this code measured, and now there can be two of them. Nothing
 infers a competitor and nothing searches for one: no URL, no comparison. See
 [invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured).
@@ -25,13 +24,13 @@ Strip scripts, styles and meta tags; extract semantic text only.
 
 ### The text budget is stated, and truncation is declared
 
-`preprocessHtml` used to end in `.slice(0, 8000)`. No caller knew, no doc said so, and the effect was
-that every prompt in the product received the top third of a long page and was told nothing about the
-rest. That is not a size limit, it is an undeclared blind spot: a model handed the first third of a
-page will report that the pricing is missing, that there is no FAQ, that nothing says what the product
-costs — which is
-[unknown reported as negative](invariants.md#unknown-is-never-reported-as-negative), committed by a
-`slice`. Our own report did exactly this to our own page.
+`preprocessHtml` does not truncate, and a `.slice` inside it is the failure to avoid. No caller would
+know and no doc would say so, and the effect is that every prompt in the product receives the top
+third of a long page and is told nothing about the rest. That is not a size limit but an
+undeclared blind spot: a model handed the first third of a page reports that the pricing is missing,
+that there is no FAQ, that nothing says what the product costs, which is
+[unknown reported as negative](invariants.md#unknown-is-never-reported-as-negative) committed by a
+`slice`.
 
 Three pieces now:
 
@@ -44,7 +43,7 @@ Three pieces now:
   `captureSections` existed has no sections and falls back to a flat cut.
 - **`coverageNote`** appends what was left out, by heading, plus the instruction that makes the
   naming useful: never state the page lacks something you were not shown. Nothing is appended when
-  everything fit — a note that appears every time is a note nobody reads.
+  everything fit, a note that appears every time is a note nobody reads.
 
 The counts that back this up are measured over the **whole** page and travel beside the text, so
 `hasPricing` and `hasFaq` settle the question even for a section the budget could not carry.
@@ -53,7 +52,7 @@ The counts that back this up are measured over the **whole** page and travel bes
 
 Beside `marketRules` and `competitorRules` in `lib/ai/prompt.ts`, and for the same reason: the risk
 is identical wherever page content reaches a model and three wordings of it would drift. It carries
-two halves that fail differently — what may be concluded from missing text, and the ban on inventing
+two halves that fail differently, what may be concluded from missing text, and the ban on inventing
 how the product is sold. The second is not implied by the first, and it is the one that produced a
 recommendation to add a cancellation guarantee to a product with no subscription.
 
@@ -62,7 +61,7 @@ recommendation to add a cancellation guarantee to a product with no subscription
 `captureElements` returns in document order, so the old `.slice(0, MAX_PROMPT_ELEMENTS)` kept the top
 of the page. On a long page the closing call to action was element four hundred and no variant could
 ever be written for it. `promptElements` in `lib/prompt-elements.ts` admits every heading and every
-`a`/`button` first, fills the rest with body copy, and **sorts back into document order** — priority
+`a`/`button` first, fills the rest with body copy, and **sorts back into document order.** Priority
 decides what survives, never what order the model reads.
 
 ```
@@ -100,10 +99,9 @@ which is the failure no rule in the prompt forbids.
 
 ### A second round is not a second draw
 
-The alternates call used to receive the recommended line and nothing else, so asking again was a
-fresh sample from the same distribution and round three could hand back round one. It now receives
-**every line already written for that element**, and the prompt says those were seen and not used, so
-repeating one is a wasted slot.
+The alternates call receives **every line already written for that element**, and the prompt says
+those were seen and not used, so repeating one is a wasted slot. Handed the recommended line alone,
+asking again is a fresh sample from the same distribution and round three can hand back round one.
 
 A reader can also point a round in a direction: `VARIANT_TONE` is a closed list, and
 `VARIANT_TONE_INSTRUCTION` in `lib/constants.ts` is what the prompt actually reads. **Every entry
@@ -193,7 +191,7 @@ the form. Nothing downstream changed: the prompts still receive prose.
 
 The labels are written in English at every locale, deliberately. They are read by the model and never
 by the reader, so translating them would make the same brief parse differently depending on which
-language the analysis happened to run in. `parseBrief` also has to stay forgiving — every brief
+language the analysis happened to run in. `parseBrief` also has to stay forgiving, every brief
 written before the fields existed is one unlabelled paragraph, and those are the rows carrying real
 business detail, so anything unrecognised lands in `audience` intact rather than being dropped.
 
@@ -227,8 +225,8 @@ const AlternateVariantsSchema = z.object({ variants: z.array(VariantSchema).leng
 
 A structured output is written in the order its fields are declared, so the object above is the shape
 of a judgement: **quote the line, say what it already does, name what it still leaves undone, and only
-then write the replacement.** `problem` used to be first, which had the model naming a defect before
-it had transcribed the line the defect was in.
+then write the replacement.** `problem` first has the model naming a defect before it has
+transcribed the line the defect was in.
 
 Nothing at runtime complains if someone sorts these alphabetically, and the analysis would go back to
 arguing before it had looked. `lib/ai/schema.test.ts` asserts the order for that reason, and it is the
@@ -238,13 +236,13 @@ only thing that would catch the change.
 
 `current_copy` must be the verbatim text of one element from the list the prompt was handed. The
 prompt says so, Zod sees a plain string, and the card renders that quote **struck through as what the
-page says today** — so a paraphrase, or two elements merged, is generated text presented as a
+page says today.** So a paraphrase, or two elements merged, is generated text presented as a
 measurement, which [invariants.md](invariants.md) forbids.
 
 `resolveTargets` in `lib/analyze.ts` therefore drops any hypothesis whose quote matches no element,
 with a `console.warn` naming it. **It is the same check `groundTerms` runs on ad terms**, in the same
 place and for the same stated reason: the prompt asks and cannot guarantee, so the guarantee is made
-on the way back. The cost is real — a usable rewrite is lost to a transcription slip — and the
+on the way back. The cost is real, a usable rewrite is lost to a transcription slip, and the
 alternative is telling somebody their page says something it does not.
 
 **`found` and `mode` answer different questions and are allowed to disagree.**
@@ -254,13 +252,13 @@ decide whether the two are close enough in length to point a selector at, and fa
 `manual`. Deciding both with the ratio would call a four-word quote of a six-word heading "not on this
 page", and now that a missing quote deletes the card it would delete a real one.
 
-So `manual` still means exactly what it always meant — we cannot point at it — and it covers a line
-the page says twice, an ambiguous near match, and a fragment too short to swap. What it no longer
-covers is a line that is not there.
+So `manual` means one thing, that we cannot point at it, and it covers a line the page says twice,
+an ambiguous near match, and a fragment too short to swap. It does not cover a line that is not
+there.
 
 It lives in `lib/prompt-elements.ts` beside `promptElements` because the two are one round trip: the
 element list leaves through one and comes back through the other. Both import from `lib/scrape.ts`
-**type-only**, for the reason `lib/competitor.ts` documents — a value import pulls puppeteer in, and
+**type-only**, for the reason `lib/competitor.ts` documents, a value import pulls puppeteer in, and
 that is also what makes these testable.
 
 ### A replacement made only of the words it replaces is dropped
@@ -283,7 +281,7 @@ now: Só a sua URL. Sem cadastro, sem cartão, sem instalar nada.
 ```
 
 **The threshold is zero new words and must not be loosened without evidence.** A quarter of real
-rewrites reuse 70% or more of the original and nearly all of them are legitimate — a rewrite keeps the
+rewrites reuse 70% or more of the original and nearly all of them are legitimate, a rewrite keeps the
 product's own nouns. A ratio here would delete finished work on a number nothing supports;
 `scripts/rewrite-stats.mts` is what would earn a tighter one.
 
@@ -291,7 +289,7 @@ product's own nouns. A ratio here would delete finished work on a number nothing
 
 `lib/rewrite-stats.ts` scores a replacement against the line it replaces, and
 `scripts/rewrite-stats.mts` runs it over every stored analysis. **It exists because every judgement
-about this generator until then was taste** — "that rewrite is worse" is a claim about somebody's
+about this generator until then was taste**, "that rewrite is worse" is a claim about somebody's
 landing page, and on that the page's owner is right and we are not, so it cannot decide whether a
 prompt change helped.
 
@@ -310,14 +308,14 @@ Three things to read carefully before trusting a comparison against it:
 - **Only `permutation` is a defect.** The others are rates that move; high reuse is the normal case.
 - **The script drops fixture runs**, matching `current_copy` against `fixtureAnalysis`. Three of the
   five analyses in a development database are fixture runs and would describe the fixtures.
-- **A single run is noisy.** Across three runs of the same page, "reuse ≥ 70%" swung from 13% to 38%.
+- **A single run is noisy.** Across three runs of the same page, "reuse >= 70%" swung from 13% to 38%.
   Compare aggregates, and treat a small movement as nothing.
 
 The 3% placeholder rate is itself a finding. `variantCopyRules` says that without a brief a variant
 should read as a usable template, and the model almost never writes one: it found a third way out,
 which is to stay abstract. Nothing forbids vagueness, so vagueness is where an honest generator goes
 when it may not invent and is not asked for the missing fact. **Every analysis ever run took that
-branch** — `analyses.brief` is null in all of them.
+branch**, `analyses.brief` is null in all of them.
 
 ### `assessment` is the half of the comparison that was never asked for
 
@@ -330,29 +328,28 @@ It is a field rather than an instruction because a judgement that is not written
 checked, by the reader or by us. `assessmentRules()` states the outcome it exists to make possible:
 **if the verdict is that the line is doing its job, there is no finding and the element is dropped.**
 
-It renders in the "why" drawer above `rationale`, labelled, for the reason `evidence` is labelled —
+It renders in the "why" drawer above `rationale`, labelled, for the reason `evidence` is labelled
 see [components.md](components.md). The column is nullable: rows written before the field existed have
 none, and null renders as no verdict rather than as a label over nothing.
 
-**No prompt asks for an effort score.** It was removed from both schemas, from all three prompts and
-from the two columns, because a model that has read one page cannot know what applying a change costs
-on someone else's stack — see
+**No prompt asks for an effort score**, and neither schema nor column carries one, because a model
+that has read one page cannot know what applying a change costs on someone else's stack. See
 [analysis-ui.md](analysis-ui.md#nothing-shows-an-effort-score-anywhere). Ranking is `impact_score`
 alone.
 
-### `rationale` argues from this page, and no longer from what generally works
+### `rationale` argues from this page, never from what generally works
 
-It used to be asked for *"grounded in CRO principles and in what this page shows"*, one field over
+Asking for a rationale *"grounded in CRO principles and in what this page shows"* sits one field over
 from an `evidence` forbidden to say *"studies show"* or name a benchmark. **Two adjacent fields, two
-opposite standards, and the loose one is where the worst changes were justified**: the rewrite that
-deleted a free-of-charge signal from a CTA argued that "CTAs naming the outcome convert better than
+opposite standards, and the loose one is where the worst changes get justified**: a rewrite that
+deletes a free-of-charge signal from a CTA argues that "CTAs naming the outcome convert better than
 CTAs naming the price", which nobody here has measured. The identical claim turned up in two separate
-runs, so it is a reflex rather than a stray sentence — 13% of rationales carry one.
+runs, so it is a reflex rather than a stray sentence: 13% of rationales carry one.
 
-The permission is gone. The claim is now forbidden by name in the same field, and the rule points at
-`evidence` as the standard it is held to.
+The claim is forbidden by name in the same field, and the rule points at `evidence` as the standard
+it is held to.
 
-**This is a prompt change, and prompt changes have a poor record here** — the same generation that
+**This is a prompt change, and prompt changes have a poor record here.** The same generation that
 wrote that the CTA "remove a objeção de custo" deleted the word anyway, in the same response. So it is
 an experiment rather than a fix, and `scripts/rewrite-stats.mts` is what says whether it held.
 
@@ -362,14 +359,14 @@ rate falls and nothing else moves, it was only producing bad justifications.
 
 ### `impactScoreRules()` says what the number measures
 
-The three prompts used to carry the identical line `impact_score is an integer from 1 to 10` and
-nothing else: a range, never a meaning. With no definition the number drifts to the **importance of
+`impact_score is an integer from 1 to 10` is a range and not a meaning, and it is what the three
+prompts would otherwise each repeat. With no definition the number drifts to the **importance of
 the thing being changed**, so an h1 scores high for being an h1 and a debatable rewrite of the hero
 outranks a small correction that is certainly right. An 8 beside a replacement its own author would
 not ship is that drift, not a miscalculation.
 
 The shared helper says it is the gain from making *this* change, that a marginal improvement scores
-low wherever it sits, and — the clause that ties it to the ceilings — that an item scoring low because
+low wherever it sits, and, the clause that ties it to the ceilings, that an item scoring low because
 it barely gains anything **should not be returned at all**. Calibration alone would only relabel the
 padding with low numbers.
 
@@ -404,13 +401,13 @@ const VisibilityOutputSchema = z.object({ fixes: z.array(VisibilityFixSchema).ma
 ### `finding` is what ties a fix to the number that caused it
 
 Both fix families carry it, and it is the field that stops the report being two disjoint lists about
-one page. The readout counts 43 things above the tabs; the fix lists carry up to 20 cards below; until
-this existed, nothing tied one to the other and the reader did the join by recognising the words —
+one page. The readout counts 43 things above the tabs and the fix lists carry up to 20 cards below.
+Without it, nothing ties one to the other and the reader makes the join by recognising the words:
 "form has 7 fields" up here, "cut the form to three" down there.
 
 The generator always had the numbers. `findingsSection` in `lib/analyze.ts` now also hands it the
 **ids and severities**, narrowed to the groups that generator can act on, and `readoutRules` in
-`lib/ai/prompt.ts` — shared by both prompts for the same reason `marketRules` is — carries three
+`lib/ai/prompt.ts`, shared by both prompts for the same reason `marketRules` is, carries three
 rules: name the one finding the fix answers, never attach one to a finding whose severity is `ok`,
 and do not restate the measurement in `problem`. That last one is what kills the duplication: eleven
 of the fifteen `declared` and `crawler_access` findings had a fix category covering the same subject,
@@ -423,23 +420,23 @@ pricing table, so a fix about that names no finding.
 findings in grows the prompt, never the budget the answer has to fit inside; the only growth on the
 output side is one short id per fix.
 
-**`section` is not the only field that degrades any more — `finding` does too, for the same reason.**
+**`section` is not the only field that degrades any more, `finding` does too, for the same reason.**
 
 **`section` is the one field that degrades instead of rejecting.** It only picks a badge colour, so an
 unrecognized value costs one mislabelled pill, while rejecting it throws away every other hypothesis
 plus the generation call already paid for. `.catch` does not strip the enum from the JSON schema, so
-the model is still told the exact allowed values — and it covers a missing or null value too, which is
+the model is still told the exact allowed values, and it covers a missing or null value too, which is
 why the parsed type stays a plain `Section`.
 
-The failure it exists for was caused by the prompt: the element list used to format each line as
-`(h2) "text"`, and the model read that tag as the section label and returned `section: 'h2'`. The list
-now uses `<tag> "text"` and `systemPrompt` says outright that an HTML tag is not a section value — but
-a schema that survives the next such slip is the actual guarantee.
+The failure it exists for comes from the prompt. Formatting each line of the element list as
+`(h2) "text"` has the model read that tag as the section label and return `section: 'h2'`. The list
+uses `<tag> "text"` and `systemPrompt` says outright that an HTML tag is not a section value, but a
+schema that survives the next such slip is the actual guarantee.
 
 `finding` uses `.catch(null)` on exactly that reasoning, and the stakes are higher: a hallucinated id
 would reject the whole `generateObject` call, and both fix generators end in `catch -> return []`, so
 one bad string would empty an entire tab **with no error anywhere**. Degrading costs one missing link.
-`lib/ai/schema.test.ts` pins this, and `category` is deliberately left rejecting beside it — a wrong
+`lib/ai/schema.test.ts` pins this, and `category` is deliberately left rejecting beside it, a wrong
 category files a fix under the wrong heading, which is a visible claim about what was audited.
 
 **The score bounds deliberately do NOT degrade.** Those catch an analysis that is genuinely wrong (a
@@ -450,7 +447,7 @@ wrong spot.** Five was a promise about what a credit buys, enforced by a schema 
 of the three generation calls. All three run in one `Promise.all`; the playbook and the visibility
 audit already swallow a failure into an empty list. So a fourth hypothesis coming back short rejected
 this object, rejected the whole `Promise.all`, and discarded a finished playbook and a finished audit
-with it — tokens already spent, work already done, thrown away over one line.
+with it, tokens already spent, work already done, thrown away over one line.
 
 `generateHypotheses` now degrades the same way its two siblings always have, and what a credit buys is
 checked afterwards over everything that came back: **nothing at all** is what refunds, which is what
@@ -468,34 +465,32 @@ discoverability problem left and genuinely have lines that are already working, 
 would buy an invented finding to fill the quota. `FlowPlaybook` renders nothing for an empty list, and
 `AnalysisSections` drops a tab whose count is zero, so a short list is a correct answer on both.
 
-## 3. Copy — `systemPrompt`
+## 3. Copy: `systemPrompt`
 
 **It assesses the page's lines and replaces the ones that are not doing their job**, and that framing
-is the load-bearing part. The prompt used to open with *"Produce 5-8 high-leverage A/B test
-hypotheses"*, ask for *"the single challenger you most recommend testing"*, and have `rationale`
-explain *"why the variants should win"* — **written for a stage this product no longer has.** The live
-A/B test was removed (see [product.md](product.md)) and the visible strings were cleaned of its
-vocabulary; the prompt was not.
+is the load-bearing part. **The experiment vocabulary is the thing to keep out of it.** Opening with
+*"Produce 5-8 high-leverage A/B test hypotheses"*, asking for *"the single challenger you most
+recommend testing"*, or having `rationale` explain *"why the variants should win"* writes the prompt
+for a stage this product does not have. See [product.md](product.md).
 
 A hypothesis generator is *supposed* to emit many cheap candidates, because in a test funnel the
-experiment does the judging afterwards. With no experiment, nothing judged: the model was generator
-and judge at once and instructed only as a generator. The quota then had to be filled, so on a page
-whose lines had already been tightened the last few slots went to rewriting lines that worked.
+experiment does the judging afterwards. With no experiment, nothing judges: the model is generator
+and judge at once, and instructed only as a generator it fills the quota, so on a page whose lines
+have already been tightened the last few slots go to rewriting lines that work.
 
-The prompt now gives it the criterion instead of the quota: a line is doing its job when you can name
+The prompt gives it the criterion instead of the quota: a line is doing its job when you can name
 what it makes the visitor understand, and failing when you can name what it leaves them to work out.
 That is the same test `evidence` already applied to a rewrite, promoted to a gatekeeper. A replacement
-that is merely *different* — another angle, another tone, fewer words for their own sake — is not a
+that is merely *different*, another angle, another tone, fewer words for their own sake, is not a
 finding, and the page that has already been worked on is where that temptation is strongest.
 
 Focus: specificity of claims, CTA strength, social proof quality, value proposition clarity, friction
 reduction. Ranked by impact descending, at most `HYPOTHESES_MAX`, each with **one** evidence-bearing
-variant. **No minimum** — see the schema notes above and `assessment`.
+variant. **No minimum.** See the schema notes above and `assessment`.
 
-**Every finding is a single-element text swap.** The prompt used to route structural ideas into a
-hypothesis whose rationale began `"Manual change:"`; that convention is gone. Structural ideas are
-flow fixes now, and `systemPrompt` explicitly instructs the model to drop such an idea rather than
-smuggling it in. **Do not reintroduce a structural escape hatch.**
+**Every finding is a single-element text swap.** Structural ideas are flow fixes, and `systemPrompt`
+explicitly instructs the model to drop such an idea rather than smuggling it into a hypothesis whose
+rationale begins `"Manual change:"`. **Do not add a structural escape hatch.**
 
 ### Only one variant is generated during the analysis
 
@@ -522,7 +517,7 @@ the "Page elements" list carries its own ceiling: `<tag> "text" (max N words, ma
 **Neither ceiling is enforced, and the measured one is only now being counted.** `warnOverLength` logs
 and returns; nothing rejects. Two reasons to leave it that way for now: 22% of real rewrites pass the
 word ceiling and the single best rewrite observed was one of them, so rejecting would throw away the
-good with the long. And the number that matters has never been counted at all — `capacity` is not
+good with the long. And the number that matters has never been counted at all, `capacity` is not
 stored, so no stored row can be scored for it after the fact and `scripts/rewrite-stats.mts` can only
 report the derived ceiling.
 
@@ -534,18 +529,18 @@ derived ceiling alone rather than borrowing a number from another element.
 ### The model chooses the emphasis for the line it wrote, never the line it replaced
 
 `captureElements` flattens `textContent`, so `<h1>Ship <strong>faster</strong> today</h1>` reaches the
-prompt as `Ship faster today`, and `copy` comes back as plain text — the swap writes into text nodes and
+prompt as `Ship faster today`, and `copy` comes back as plain text, the swap writes into text nodes and
 never sets `innerHTML`, for the fail-safe reason in
 [scraping.md](scraping.md#applying-a-variant-to-the-live-dom--applyvariantcopy), so no markup a model
 emitted could survive anyway. The prompts forbid markdown and tags outright rather than leave it to
 chance.
 
-Which words land in the `<strong>` used to be decided by the proportional split alone, which sooner or
+Which words land in the `<strong>` cannot be left to the proportional split alone, which sooner or
 later bolds *the*. So a variant carries `emphasis`: a substring **of its own `copy`**, and the split
 places exactly those words in the styled fragment.
 
 **The direction matters and is the whole design.** Asking the model to keep the *original* emphasized
-word would constrain the rewrite — and rewriting is the product. Instead it writes freely and then
+word would constrain the rewrite, and rewriting is the product. Instead it writes freely and then
 picks what deserves emphasis in the result, which is a copywriting decision rather than a preservation
 constraint. Elements carrying a styled fragment are marked `styled fragment` in the "Page elements"
 list so the field is only spent where it can be honoured; everywhere else it is `null`.
@@ -555,16 +550,16 @@ chosen an emphasis at all. `emphasis` is stored on `variants` and read by the va
 treats an emphasis matching nothing exactly like an absent one.
 
 **The character ceiling is measured, the word ceiling is derived.** `M` is `PageElement.capacity`,
-counted off the live page by `captureElements` — see
-[scraping.md](scraping.md#how-much-copy-an-element-can-hold) — because words are a poor proxy for
+counted off the live page by `captureElements`, see
+[scraping.md](scraping.md#how-much-copy-an-element-can-hold), because words are a poor proxy for
 what a box holds: six long words overflow a button that fits nine short ones, and the failure the
 reader sees is CSS, not prose. `generateAlternateVariants` never sees the element list, so it falls
 back to `variantCharBudget(currentCopy)`, the same ratio applied to characters.
 
-The prompt used to only say "match the element's length", with one qualitative rule that constrained
-labels and CTAs and said nothing about a headline — which is how a six word hero title came back as a
-50 word paragraph. The alternates call never sees the element list, so `generateAlternateVariants`
-computes the ceiling from `currentCopy` with the same function.
+"Match the element's length" is not enough on its own: a qualitative rule that constrains labels and
+CTAs and says nothing about a headline is how a six word hero title comes back as a 50 word
+paragraph. The alternates call never sees the element list, so `generateAlternateVariants` computes
+the ceiling from `currentCopy` with the same function.
 
 **This is deliberately not `TARGET_MATCH_MAX_WORD_RATIO`.** That one guards a matching heuristic, where
 being wrong means previewing the wrong element, so it stays tight; a writing budget has to leave room
@@ -579,7 +574,7 @@ Logging makes the ceiling's effectiveness measurable, which has to come before e
 fixtures in `lib/ai/fixtures.ts` all fit their own ceilings, so they stay a correct reference rendering
 of the rule.
 
-## 4. Playbook — `generatePlaybook`
+## 4. Playbook: `generatePlaybook`
 
 A second `generateObject` over `PlaybookOutputSchema`, in `Promise.all` with the hypothesis call, so it
 costs no additional latency. Fed the structure JSON and the founder brief. **Resolves to `[]` on any
@@ -588,7 +583,7 @@ failure** rather than rejecting, which keeps a playbook failure from taking the 
 Load-bearing prompt rules:
 
 - Never recommend adding something the readout says is already there.
-- Every `steps` entry is one concrete action on the founder's own site — never advice, never
+- Every `steps` entry is one concrete action on the founder's own site, never advice, never
   replacement copy.
 - `evidence` carries no quantitative claim of any kind. See
   [invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured).
@@ -597,7 +592,7 @@ Load-bearing prompt rules:
 
 **The trust signals arrived for free, and that is the point of serializing the whole record.**
 `generatePlaybook` passes `JSON.stringify(input.structure)`, so the fields the trust pass added reach
-the model the moment they exist on the object — no new prompt input, no second call. What did need
+the model the moment they exist on the object, no new prompt input, no second call. What did need
 saying is two sentences: that a field *absent* from the readout was not measured rather than absent
 from the page, and that the `trust` category argues from what was counted on this page and never from
 what people in any country expect. The existing "never recommend adding something the readout says
@@ -605,20 +600,20 @@ the page already has" then covers the new fields unchanged.
 
 ### `mobile` and `performance` are categories because the readout measured them
 
-The playbook used to receive `PageStructure` alone, and `FLOW_FIX_CATEGORY` had nothing covering a
-phone viewport or a load time. The readout counted both, both dragged the score down, and no fix could
-ever answer either — **the report told a founder their page was slow and then had nothing to say about
-it.** A measurement with no possible answer is a worse deliverable than not measuring.
+The readout counts a phone viewport and a load time, and both drag the score down. Handed
+`PageStructure` alone, with no `FLOW_FIX_CATEGORY` covering either, no fix can ever answer them:
+**the report tells a founder their page is slow and then has nothing to say about it.** A measurement
+with no possible answer is a worse deliverable than not measuring.
 
-So `generatePlaybook` now also gets `PageMobile` and `PagePerformance`, and `PLAYBOOK_MAX` went from
-6 to 8: the subject got wider, and a ceiling that did not move would have let a phone fix crowd out a
-conversion one while the list looked the same length.
+So `generatePlaybook` also gets `PageMobile` and `PagePerformance`, and `PLAYBOOK_MAX` is 8 rather
+than 6: the subject is wider, and a ceiling that did not move with it would let a phone fix crowd out
+a conversion one while the list looked the same length.
 
-The load numbers arrive with the caveat they always carry — measured from a datacentre, a floor a real
-visitor never beats — and the prompt forbids presenting one as what a visitor experiences, or saying
+The load numbers arrive with the caveat they always carry, measured from a datacentre, a floor a real
+visitor never beats, and the prompt forbids presenting one as what a visitor experiences, or saying
 what a faster page will produce. Same rule as everywhere else, see [invariants.md](invariants.md).
 
-## 5. Visibility audit — `generateVisibility`
+## 5. Visibility audit: `generateVisibility`
 
 A third `generateObject` in the same `Promise.all`, also resolving to `[]` on any failure. Fed
 `PageSeo`, the composed page text, several `PageStructure` fields, the `fetchCrawlerAccess` result
@@ -626,28 +621,28 @@ from [scraping.md](scraping.md), and the measured `PageKeywords` terms.
 
 **The page text is a late addition and it fixed a real class of invented finding.** This call had
 none of it while its `ai_answerability` category asked whether the page states in plain readable text
-what the product is, who it is for and **what it costs** — a judgement about a body the model had
+what the product is, who it is for and **what it costs.** A judgement about a body the model had
 never been given. It filled the gap: run against our own landing page it told us to publish a price
 that has been in the served HTML since the packs existed, and to add a cancellation guarantee for a
 subscription the product does not sell. Neither was a bad inference from what it had; both were
 assertions about a page it could not read.
 
 The keyword block exists so a fix can name **where** to put a term the page already uses. Its prompt
-line states the prohibition inline — these are the page's own words, never search volume and never a
-ranking opportunity — because the model is being handed a list that looks exactly like the output of a
+line states the prohibition inline, these are the page's own words, never search volume and never a
+ranking opportunity, because the model is being handed a list that looks exactly like the output of a
 keyword tool. See
 [invariants.md](invariants.md#keywords-measure-the-pages-own-words-never-the-index).
 
 `visibilityPrompt` carries the playbook's evidence discipline plus the rule the whole feature's
-credibility rests on — see
+credibility rests on, see
 [invariants.md](invariants.md#the-audit-measured-the-page-not-the-index).
 
-## 5b. Ad ideas — `generateAdIdeas`
+## 5b. Ad ideas: `generateAdIdeas`
 
 **The only generator that is not in the `Promise.all`, and it must stay out of it.** Everything there
 runs on every paid analysis; most owners of a landing page are not buying search traffic for it, so
 putting this beside them would add a Sonnet call to every run to serve a minority. It is asked for by
-a button on the report instead — `POST /api/analyses/[id]/ads`, owner only — written once, and read
+a button on the report instead, `POST /api/analyses/[id]/ads`, owner only, written once, and read
 back from `analyses.ad_ideas` afterwards. See [api.md](api.md).
 
 Fed the measured `PageKeywords` terms, the page's title and meta description, its word count and
@@ -666,12 +661,12 @@ Two more constraints are enforced outside the prompt, because a prompt cannot gu
 
 - **The character ceilings are Zod's.** `AD_HEADLINE_MAX_CHARS` (30) and
   `AD_DESCRIPTION_MAX_CHARS` (90) are Google's own limits, so a line past one is a line the reader
-  cannot upload. It rejects rather than degrades, unlike `finding` — half a set of unusable headlines
+  cannot upload. It rejects rather than degrades, unlike `finding`, half a set of unusable headlines
   is worse than an empty section with a retry, and the retry costs one call rather than a paid
   analysis.
 - **`terms` is intersected with the measured terms on the way back**, by `groundTerms`. A `terms`
   entry is a plain string, so a model that pluralises one, translates one or helpfully adds a synonym
-  produces a term this code never counted — and the entire claim the section makes is that these
+  produces a term this code never counted, and the entire claim the section makes is that these
   words came off the page. A group left with nothing is dropped whole.
 
 The causal prohibition applies here as it does to our own campaigns: a headline may say what the
@@ -683,7 +678,7 @@ product does, never what it will produce. See [ads.md](ads.md#what-the-ads-may-s
 the risk is identical in all of them and must not be phrased three ways. See
 [invariants.md](invariants.md#the-market-is-a-filter-on-what-may-be-recommended-never-a-fact-the-model-knows).
 
-Detection is `lib/market.ts`, measured from the page — see
+Detection is `lib/market.ts`, measured from the page, see
 [invariants.md](invariants.md#the-market-is-measured-from-the-page-never-taken-from-the-ui-locale).
 
 ## 7. Output language
@@ -696,7 +691,7 @@ Detection is `lib/market.ts`, measured from the page — see
 route reads that stored value. See
 [invariants.md](invariants.md#generated-content-is-pinned-to-the-locale-it-was-written-in).
 
-The typographic rule restricts **punctuation only** — see
+The typographic rule restricts **punctuation only.** See
 [invariants.md](invariants.md#pt-br-is-a-rewrite-not-a-translation).
 
 ## 7b. Voice

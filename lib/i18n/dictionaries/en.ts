@@ -127,6 +127,7 @@ export const en = {
   footer: {
     copyright: 'Copyright {year} Hunch. All rights reserved.',
     privacy: 'Privacy',
+    email: 'Send an email to {address}',
     whatsapp: 'WhatsApp'
   },
 
@@ -339,14 +340,14 @@ export const en = {
       {
         title: 'Who is responsible',
         body: [
-          'Hunch is operated by Lucas Medeiros, an individual. The channel for any request about your data is the WhatsApp link in the footer of this page.'
+          'Hunch is operated by Lucas Medeiros, an individual. For any request about your data, write to {email} or use the WhatsApp link in the footer of this page.'
         ]
       },
       {
         title: 'What we do not do',
         body: [
           'There is no Google Analytics, no Google Tag Manager, no gtag.js, no social pixel and no behaviour tool on this site. Nothing advertising-related loads on our pages, which is why there is no cookie banner here.',
-          'We do not sell, rent or trade your data with anyone for marketing.',
+          'We do not sell or rent your data. One thing we do is written below: if you left your email here after reading the note on the form, it may be sent to Google Ads in hashed form so we can show you our ads. Never in readable form, and never to sell the list to anyone.',
           'Two third-party resources appear in the browser, and only these: the product tour on the landing page, which runs inside a Supademo iframe, and the Mercado Pago payment form, which loads only when you open checkout.'
         ]
       },
@@ -368,7 +369,10 @@ export const en = {
         title: 'Your email when you ask for the report link',
         body: [
           'The report lets you ask for the link by email. The address is kept next to that analysis and is used to send you the link.',
-          'You can leave at any time. The row stays, marked as unsubscribed, precisely so a later submit does not quietly sign you up again.'
+          'Two more emails follow: one on day two, carrying one of the things we counted on your page, and one on day seven, about what is behind the unlock. That is all of it, and the sequence ends there.',
+          'That same address may be sent to Google Ads in hashed form so we can show you our ads, as described above.',
+          'You can leave at any time, with one click in any of those emails. Leaving covers everything: the emails and the ads. The row stays, marked as unsubscribed, precisely so a later submit does not quietly sign you up again.',
+          'Anyone who left an address before this note existed stays under the older promise of one email only. Those rows enter neither the sequence nor the upload to Google, and that is a column in the database rather than an intention.'
         ]
       },
       {
@@ -394,7 +398,8 @@ export const en = {
       {
         title: 'Who the data is shared with',
         body: [
-          'Anthropic receives the content of the analysed page, which is what makes writing the fixes possible. Mercado Pago and Stripe receive what they need to charge. Resend sends the emails. Google Ads receives the click and the amount, only when there is a purchase. And the infrastructure the product runs on hosts the database and the application.',
+          'Anthropic receives the content of the analysed page, which is what makes writing the fixes possible. Mercado Pago and Stripe receive what they need to charge. Resend sends the emails. And the infrastructure the product runs on hosts the database and the application.',
+          'Google Ads receives two things. When there is a purchase, it receives the ad click identifier and the amount paid. And it receives the emails of people who consented, always hashed with SHA-256 and never readable, to build the ads audience.',
           'Nobody else receives anything.'
         ]
       },
@@ -402,7 +407,7 @@ export const en = {
         title: 'Your rights',
         body: [
           'Under Brazilian data protection law you can request access to your data, correction, deletion, portability, and withdrawal of a consent you gave.',
-          'Ask through the WhatsApp link in the footer of this page. We answer and comply.'
+          'Ask at {email} or through the WhatsApp link in the footer of this page. We answer and comply.'
         ]
       },
       {
@@ -780,6 +785,16 @@ export const en = {
   },
 
   credits: {
+    // The reminder for a payment Mercado Pago still reports as pending. It names no amount on
+    // purpose: the section below is what prints a price, and two sources for one number is how the
+    // page and the mail start disagreeing about what something costs.
+    reminder: {
+      subject: 'Your payment is still pending',
+      heading: 'The payment has not been confirmed',
+      body: 'You started a purchase and Mercado Pago has not confirmed it yet. For Pix and boleto that is normal and can take minutes to a few days. If you changed your mind, ignore this email.',
+      cta: 'Back to checkout',
+      footer: 'The credits land in your account on their own as soon as the payment is confirmed.'
+    },
     eyebrow: 'Credits',
     heading: 'One credit, one full analysis.',
     body: 'The score is always free. A credit buys the half a model writes: the ranked fixes, the replacement copy, and a preview of it on your real page.',
@@ -792,6 +807,7 @@ export const en = {
     buy: 'Buy',
     opening: 'Opening checkout...',
     mostChosen: 'Most chosen',
+    freeCta: 'Measure my page',
     mercadopago: {
       loading: 'Loading the payment form...',
       failed: 'The payment form could not be loaded. Try again in a moment.',
@@ -802,10 +818,23 @@ export const en = {
       refresh: 'Refresh the balance'
     },
     packs: {
+      free: {
+        name: 'Free',
+        price: '0 reais',
+        perAnalysis: 'No credit, no card',
+        tagline: 'Your page scored, right now.',
+        features: [
+          'The score and every row that made it, on desktop and on a phone',
+          'What the page weighs and how long it takes to load',
+          'The words your page repeats and where each one appears',
+          'The report link in your inbox, so you can come back to it',
+          'The ranked fixes and the rewritten copy are not in it: those are what a credit buys'
+        ]
+      },
       single: {
         name: 'Single',
-        price: 'R$147',
-        perAnalysis: 'R$147 per analysis',
+        price: 'R$47',
+        perAnalysis: 'R$47 per analysis',
         tagline: 'One page, one look at it.',
         features: [
           'The score and every row that made it, on desktop and on a phone',
@@ -817,8 +846,8 @@ export const en = {
       },
       trio: {
         name: 'Trio',
-        price: 'R$297',
-        perAnalysis: 'R$99 per analysis',
+        price: 'R$147',
+        perAnalysis: 'R$49 per analysis',
         tagline: 'A funnel of up to three pages.',
         features: [
           'Everything in Single, across three pages',
@@ -853,7 +882,37 @@ export const en = {
     errorInvalid: 'That does not look like an email address.',
     errorRate: 'Too many tries. Give it a few minutes.',
     errorGeneric: 'Could not send it. Try again in a moment.',
-    note: 'One email with the link. Nothing else, unless you ask for it.',
+    // **It describes what actually happens**, including the sequence below. A line that stops being
+    // true is a line to change rather than to soften, the same rule that governs the privacy policy.
+    // See docs/ads.md.
+    note: 'The link now, and two more emails about what we counted on your page. The address may also be used to show you our ads. Leaving takes one click, from any of them.',
+    sequence: {
+      unsubscribe: 'Stop these emails',
+      goneHeading: 'Done, you are out',
+      goneBody:
+        'We will not send anything else to this address. Your report link keeps working: it never depended on email.',
+      measurement: {
+        subject: 'What we counted on {host}',
+        heading: 'One thing we measured on your page',
+        body: [
+          'When you asked for the report on {host}, we opened the page the way a visitor opens it and counted what is on it.',
+          'One of the things we counted was this:',
+          '{finding}',
+          'That number was read off your own page, so you can check it in one click. The full report is still at the link below.'
+        ],
+        cta: 'Open the report'
+      },
+      offer: {
+        subject: 'The fixes for {host} are written',
+        heading: 'You already have the score',
+        body: [
+          'The score for {host} and every line that formed it stay at your link, free, for good.',
+          'What is behind the unlock is the part someone has to write: ranked fixes across structure, copy, SEO and AI visibility, the replacement copy already written, and a preview of it on your real page.',
+          'If this is not the moment, ignore this email. It is the last one in the sequence.'
+        ],
+        cta: 'See what is written'
+      }
+    },
     email: {
       subject: 'Your landing page report',
       heading: 'Here is your report',

@@ -1,4 +1,4 @@
-import { PRIVACY_PATH, PRIVACY_UPDATED } from '@/lib/constants'
+import { CONTACT_EMAIL, PRIVACY_PATH, PRIVACY_UPDATED } from '@/lib/constants'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { formatDate, t as fill } from '@/lib/i18n/format'
 import { pageMetadata } from '@/lib/seo'
@@ -17,7 +17,8 @@ export async function generateMetadata() {
  * decision in docs/ads.md. A line that stops being true is a line to change here, not to soften.
  *
  * The date comes from `PRIVACY_UPDATED` rather than from the sentence, so the copy cannot disagree
- * with the file about when it last changed.
+ * with the file about when it last changed. The contact address is interpolated from `CONTACT_EMAIL`
+ * for the same reason: the footer, the mail headers and this policy all name one mailbox.
  */
 export default async function PrivacyPage() {
   const locale = await getLocale()
@@ -40,7 +41,7 @@ export default async function PrivacyPage() {
             <h2 className="font-display text-lg font-semibold tracking-tight">{section.title}</h2>
             {section.body.map((paragraph) => (
               <p key={paragraph} className="text-sm text-muted-foreground">
-                {paragraph}
+                {fill(paragraph, { email: CONTACT_EMAIL })}
               </p>
             ))}
           </section>

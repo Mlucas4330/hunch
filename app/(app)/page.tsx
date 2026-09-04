@@ -80,12 +80,12 @@ export default async function LandingPage() {
       {/* **Directly under the hero, because it answers the question the hero just raised.** Someone
           who has read the headline and not yet pasted a URL wants to know what they are about to
           get, and this is the only section that shows it: three steps and then a recording of the
-          real screens. It used to sit below the pains, so the page argued at the reader for a full
+          real screens. Below the pains it would leave the page arguing at the reader for a full
           scroll before showing them anything.
 
-          The demo stays inside this section rather than becoming a block of its own -- it is the
+          The demo stays inside this section rather than becoming a block of its own: it is the
           picture of the three steps above it, and a page of unrelated blocks is what this ordering
-          is getting away from. */}
+          avoids. */}
       <section id="how" className="space-y-10 scroll-mt-20">
         <header className="space-y-3">
           <p className="panel-label text-micro text-muted-foreground">{d.landing.how.eyebrow}</p>
@@ -98,12 +98,12 @@ export default async function LandingPage() {
         <ProductDemo copy={d.landing.demo} />
       </section>
 
-      {/* **The reality, and the reader's own experience of it, in one section.** The three pains and the
-          AI block used to be two blocks with two headings and a demo wedged between them, which is
-          what made the page read as a stack of unrelated parts. They belong together: the third pain
-          is "asking an AI gets you generic advice", and everything under the rule below is what that
-          actually means. The points are list items rather than Cards on purpose -- the page had five
-          different card treatments, and cutting one is worth more here than another bordered box. */}
+      {/* **The reality, and the reader's own experience of it, in one section.** The three pains and
+          the AI block belong together: the third pain is "asking an AI gets you generic advice", and
+          everything under the rule below is what that actually means. Split into two headings with a
+          demo wedged between them, the page reads as a stack of unrelated parts. The points are list
+          items rather than Cards on purpose: one less card treatment is worth more here than another
+          bordered box. */}
       <section id="ai" className="space-y-10 scroll-mt-20">
         <header className="space-y-3">
           <p className="panel-label text-micro text-muted-foreground">
@@ -214,8 +214,8 @@ export default async function LandingPage() {
   )
 }
 
-// This page is where ad traffic lands and it used to need no database at all, so the section it gained
-// must not be able to take it down: a query that cannot run costs the board, never the page.
+// This page is where ad traffic lands, so the board must not be able to take it down: a query that
+// cannot run costs the board, never the page.
 async function pulseData(): Promise<[PublicScore[], PulseEntry[]]> {
   try {
     return await Promise.all([publicLeaderboard(), analysisPulse()])

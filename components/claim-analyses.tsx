@@ -11,7 +11,7 @@ import { ANONYMOUS_ANALYSES_KEY } from '@/lib/constants'
  * worth a refresh. It runs client-side by necessity: the keys live in `localStorage`, which is the
  * only thing tying an ownerless analysis to the person who started it.
  *
- * **Fail-quiet on purpose.** A failed claim costs a card in a list, never the analysis — the report
+ * **Fail-quiet on purpose.** A failed claim costs a card in a list, never the analysis: the report
  * is still readable at its own URL. It is not worth an error state on the screen someone just
  * arrived at.
  */

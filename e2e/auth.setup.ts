@@ -35,7 +35,7 @@ setup('authenticate as admin', async ({ page }) => {
 
   await page.context().storageState({ path: authFile })
 
-  // Buys the run its credits, through the one function allowed to move a balance — never by updating
+  // Buys the run its credits, through the one function allowed to move a balance, never by updating
   // `users.credits` directly, which would leave the ledger disagreeing with the column and skip the
   // guard the real path depends on. See docs/invariants.md. The ref is per run, so a second run
   // grants again instead of being swallowed as a duplicate delivery.

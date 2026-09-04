@@ -10,7 +10,8 @@ import { composeBrief, parseBrief } from '@/lib/brief'
 import {
   ANALYSIS_WAIT_MAX_MS,
   ANONYMOUS_ANALYSES_KEY,
-  JOB_POLL_INTERVAL_MS
+  JOB_POLL_INTERVAL_MS,
+  URL_FIELD_ID
 } from '@/lib/constants'
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
 import { cn } from '@/lib/utils'
@@ -41,11 +42,11 @@ function remember(embedKey: string): void {
 /**
  * Polls until the page has been measured, and then leaves.
  *
- * **It used to wait for `generated` when the analysis had an owner, and that was the whole problem.**
- * `runAnalysis` now stores the readout the moment the scrape returns, so `measured` turns true about
- * twenty seconds in for everybody -- and the score is the half the reader can check against their own
- * site, which makes it the worst possible thing to sit on. The fixes carry on generating and the
- * report screen fills itself in; see app/(report)/r/[embedKey]/page.tsx.
+ * **It waits for `measured`, never for `generated`, whoever owns the analysis.** `runAnalysis`
+ * stores the readout the moment the scrape returns, so `measured` turns true about twenty seconds in
+ * for everybody, and the score is the half the reader can check against their own site: the worst
+ * possible thing to sit on. The fixes carry on generating and the report screen fills itself in; see
+ * app/(report)/r/[embedKey]/page.tsx.
  *
  * Gives up on the wall clock rather than a retry count, because what matters is how long the reader
  * has been staring at a spinner.
@@ -84,7 +85,7 @@ export function UrlInputForm({
   /**
    * Whether this form runs where a credit is actually spent.
    *
-   * The brief only reaches a prompt on a run that generates, and an ownerless run never does — so on
+   * The brief only reaches a prompt on a run that generates, and an ownerless run never does, so on
    * the landing page it would be four questions asked of someone whose answers nothing will read.
    * The competitor field is gated on exactly the same fact for exactly the same reason: only the
    * owned branch of `runAnalysis` measures a second page, so offering the field to the hero would
@@ -202,12 +203,12 @@ export function UrlInputForm({
           the visitor types, so the field they are halfway through has nothing next to it saying what
           it wanted. An `aria-label` would have satisfied the count and left that half unfixed. */}
       <div className="space-y-1">
-        <label htmlFor="url" className="panel-label text-nano text-muted-foreground">
+        <label htmlFor={URL_FIELD_ID} className="panel-label text-nano text-muted-foreground">
           {dictionary.urlForm.urlLabel}
         </label>
         <div className="flex flex-col gap-2 @md:flex-row">
           <Input
-            id="url"
+            id={URL_FIELD_ID}
             name="url"
             type="url"
             placeholder={dictionary.urlForm.urlPlaceholder}
@@ -302,10 +303,10 @@ function formatElapsed(seconds: number): string {
   return `${minutes}:${String(rest).padStart(2, '0')}`
 }
 
-// The statuses this route actually answers with, which is not what this used to check. It mapped
-// `403` and a `limit_reached` code, and `enforceRateLimit` has always answered **429** with
-// `rate_limited` -- so the one error a reader is most likely to see, having run a few analyses in a
-// row, reached them as "something went wrong while analyzing". See lib/rate-limit.ts.
+// The statuses this route actually answers with. `enforceRateLimit` answers **429** with
+// `rate_limited`, so mapping `403` and a `limit_reached` code instead would deliver the one error a
+// reader is most likely to see, having run a few analyses in a row, as "something went wrong while
+// analyzing". See lib/rate-limit.ts.
 function messageFor(dictionary: Dictionary, status: number, code?: string): string {
   const { urlForm } = dictionary
   if (status === 429) return urlForm.errorLimitReached

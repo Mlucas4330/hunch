@@ -21,9 +21,9 @@ type Response = {
 }
 
 // Four states, and the split between the last two is the whole point of the queue. `waiting` means
-// the work is queued or running and will arrive; `error` means it never can. Both used to reach the
-// reader as the same broken button, because a preview that lost the race for a browser slot was
-// indistinguishable from one that was impossible. See docs/scraping.md.
+// the work is queued or running and will arrive; `error` means it never can. Collapsed into one
+// state they reach the reader as the same broken button, and a preview that lost the race for a
+// browser slot is indistinguishable from one that was impossible. See docs/scraping.md.
 type State = 'idle' | 'waiting' | 'ready' | 'error'
 
 export function VariantPreview({
@@ -44,13 +44,13 @@ export function VariantPreview({
   const [beforeUrl, setBeforeUrl] = useState<string | null>(initialBeforeUrl)
   const [overflow, setOverflow] = useState(initialOverflow)
   const [state, setState] = useState<State>(initialUrl ? 'ready' : 'idle')
-  // **How much of the rewrite is showing**, as a percentage. Not the position of the wipe line, and
-  // the difference is the whole bug this used to have: the value was the line's offset from the left,
-  // so raising it clipped the rewrite away. Dragging toward the "Rewritten" label produced *less*
-  // rewrite, and the pair read as if the two images had been swapped.
+  // **How much of the rewrite is showing**, as a percentage. Not the position of the wipe line: as
+  // the line's offset from the left, raising it clips the rewrite away, so dragging toward the
+  // "Rewritten" label produces *less* rewrite and the pair reads as if the two images had been
+  // swapped.
   //
-  // Now the number means the thing the label under the handle names, `compareValue` is literally true
-  // rather than backwards, and the line's own offset is derived from it below.
+  // The number means the thing the label under the handle names, so `compareValue` is literally
+  // true, and the line's own offset is derived from it below.
   //
   // Starts just under halfway so both images are visible at rest: at 0 or 100 the control looks like
   // a plain screenshot with a stray slider.

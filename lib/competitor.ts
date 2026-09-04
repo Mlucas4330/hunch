@@ -12,10 +12,8 @@ import type { Market, ReadoutFinding } from '@/lib/enums'
  * A second page, measured by the same code as the first.
  *
  * **This is what makes competitor comparison honest, and it is the whole of the argument.** The
- * feature used to exist as a web-search step where a model recalled what competitors do, and it was
- * removed because everything it produced was remembered rather than counted. It comes back inverted:
- * the reader names the URL, `lib/readout.ts` counts the same facts off it, and a number about that
- * page is now a measurement this code took. See docs/invariants.md.
+ * reader names the URL, `lib/readout.ts` counts the same facts off it, and a number about that page
+ * is a measurement this code took rather than something a model recalled. See docs/invariants.md.
  *
  * No `crawlerAccess`. The `visibility` group is about the reader's own robots.txt, and fetching
  * somebody else's compares nothing worth comparing.

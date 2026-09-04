@@ -1,22 +1,20 @@
 # The report surface
 
-**One document comes out of an analysis, and now it has one route.** `/r/<embedKey>` is opened with
-no session and authorized by the opaque key alone, and it is the same page for everybody -- the
-reader who paid for it, the colleague they sent it to, and the visitor who ran a free score before
-they had an account.
+**One document comes out of an analysis, and it has one route.** `/r/<embedKey>` is opened with no
+session and authorized by the opaque key alone, and it is the same page for everybody: the reader who
+paid for it, the colleague they sent it to, and the visitor who ran a free score before they had an
+account. `/analyses/[id]` is a redirect onto it and nothing else.
 
-**It used to be two routes**, and that is the change worth reading this file for. `/analyses/[id]`
-authorized by owner and carried the app chrome, the readout trend, the re-measure button and the
-share card; this one authorized by key and carried the cover. They rendered the same four tabs off
-the same components, and predictably they drifted: the copy panel was written twice in two shapes,
-the `generated` predicate said `hypotheses || flowFixes` on one and `hypotheses` on the other, and
-they disagreed about which cards start open. `/analyses/[id]` is now a redirect and nothing else.
+**Two routes is the shape to keep out.** Splitting this into one authorized by owner, carrying the
+app chrome, the readout trend, the re-measure button and the share card, and one authorized by key
+carrying the cover, gives two renderings of the same four tabs off the same components. They drift:
+the copy panel written twice in two shapes, a `generated` predicate that says `hypotheses ||
+flowFixes` on one side and `hypotheses` on the other, two answers to which cards start open.
 
-**`embedKey` is the surviving key because it is the only one that addresses every row.** An analysis
-nobody has claimed has no `user_id` -- see the free/paid split in [invariants.md](invariants.md) --
-so it could never have been addressed by owner. Anonymous analysis has landed and so has its wider
-case: a signed-in reader with an empty balance gets an ownerless analysis too, so this page is where
-**every** unpaid run ends up.
+**`embedKey` is the key because it is the only one that addresses every row.** An analysis nobody has
+claimed has no `user_id` (see the free/paid split in [invariants.md](invariants.md)), so it cannot be
+addressed by owner. A signed-in reader with an empty balance gets an ownerless analysis too, so this
+page is where **every** unpaid run ends up.
 
 ## One axis through the document: `isOwner`
 
@@ -59,21 +57,21 @@ check in place `/analyses` stays in `PROTECTED_PREFIXES` and `app/robots.ts` nee
 `/r/<embedKey>` now, so the redirect exists for links already in the wild rather than for anything
 the app itself emits.
 
-**Both surfaces used to carry the reader's own brand.** The print report existed because the landing
-page sold "hand the printed version to your client", and white-label existed because the reader was
-an agency. Neither reader exists now, so the PDF, the brand resolver (`lib/report.ts`),
-`ReportBrandMark`, `/settings` and the three brand columns are gone.
+**Nothing here carries anybody's brand but ours.** There is no PDF, no brand resolver, no
+`/settings` and no brand columns: a printed version to hand to a client and a white-labelled report
+both belong to a reader who sells audits to somebody else, and that is not this reader. See
+[product.md](product.md).
 
 ## A measured-only report says so, and never prints zeroes
 
 `generated` is `hypotheses.length > 0 || flowFixes.length > 0`, and when it is false the report is a
-readout plus the unlock wall. **The `||` is the point**: the two routes used to disagree here, one
-counting both lists and one counting hypotheses alone, so an analysis with structural fixes and no
-copy ideas showed four tabs on one screen and a paywall on the other. One predicate now, on one page.
+readout plus the unlock wall. **The `||` is the point**: counting hypotheses alone would put an
+analysis with structural fixes and no copy ideas behind the paywall while its four tabs were sitting
+there full. One predicate, on one page.
 
 When it is false, two things must stay off that page: the cover's count sentence, and the "Changes
 recommended / Copy already written" strip. Both are filled from counts of generated work, so on a
-free run they read `0` — and **"we found 0 changes worth making" is the opposite of "nobody has
+free run they read `0`, and **"we found 0 changes worth making" is the opposite of "nobody has
 written them yet"**. A page scored 47 sitting under a zero reads as a clean bill of health, which is
 the one thing the report must never claim by accident.
 
@@ -83,7 +81,7 @@ sentence, `report.summaryMeasured` instead. Covered by `e2e/free-analysis.spec.t
 ## Five states, one helper, and three of them are the same row
 
 A reader who has paid now lands here **about twenty seconds in**, as soon as the page has been
-measured — `runAnalysis` commits the readout before it calls a single model, and the form navigates on
+measured, `runAnalysis` commits the readout before it calls a single model, and the form navigates on
 `measured` rather than on `generated`. See [api.md](api.md).
 
 That leaves `generated: false` covering three situations that are **identical in Postgres**:
@@ -97,13 +95,12 @@ That leaves `generated: false` covering three situations that are **identical in
 `analysisState` in `lib/analysis-state.ts` is the pure function that orders those tests, and
 `analysisStateFor` in `lib/run-analysis.ts` pays for the two reads only once a row reaches the
 ambiguous middle. **Both this page and `GET /api/analyses` go through it**, so the screen and the
-client polling it cannot come to different conclusions about the same row — which is exactly what the
-two analysis routes used to do about `generated` before they were merged.
+client polling it cannot come to different conclusions about the same row.
 
 Three orderings in that function are load bearing:
 
 - **Ownership before the job.** An anonymous run commits its measurement and returns, and the queue
-  writes the job's terminal status a moment later — so the job still says `running` exactly when the
+  writes the job's terminal status a moment later, so the job still says `running` exactly when the
   form navigates the reader here. Asking the job first would show a stranger four placeholders for
   fixes nobody bought.
 - **A refund before a running job.** `refundCredit` commits before `runAnalysis` rethrows, so both are
@@ -116,12 +113,12 @@ Three orderings in that function are load bearing:
 ### `failed` exists because the alternative was asking for money back
 
 A generation that throws refunds the credit and leaves a row byte for byte identical to a claimed free
-run — so the reader who had paid, waited and been refunded was shown the `UnlockWall` and a button to
+run, so the reader who had paid, waited and been refunded was shown the `UnlockWall` and a button to
 buy a credit. **Telling somebody to buy the thing they were just given back** is the worst sentence
 available at that moment, and it was the only one the report had.
 
 **The ledger is the record, and nothing new was added to hold it.** `refundCredit` runs from exactly
-one `catch`, so a `refund` row against an analysis exists if and only if that generation threw — see
+one `catch`, so a `refund` row against an analysis exists if and only if that generation threw, see
 `wasRefunded` in `lib/credits.ts`. It being durable is the point: `JOB_TTL_MS` is ten minutes, and
 someone opening the link an hour later gets the same answer as someone who never closed the tab.
 
@@ -134,7 +131,7 @@ knows, and naming a cause we did not observe is the invention the rest of the pr
 ### A report can arrive without its copy tab
 
 `generated` is `hypotheses.length > 0 || flowFixes.length > 0`, and the `||` earns its keep now that
-the copy call degrades to an empty list instead of failing the analysis — see
+the copy call degrades to an empty list instead of failing the analysis, see
 [ai-pipeline.md](ai-pipeline.md). A report with flow and visibility fixes and no copy is a finished
 report, and `AnalysisSections` already renders it correctly without being told: it filters on
 `counts[tab] > 0`, so the tab is simply absent rather than empty.
@@ -142,9 +139,9 @@ report, and `AnalysisSections` already renders it correctly without being told: 
 **Two other places counted only hypotheses and had to be taught the same predicate**, because both
 were safe only while a copy shortfall took everything else down with it:
 
-- `analysisProgress` — otherwise the endpoint answers `generating` forever on a report the page has
+- `analysisProgress`, otherwise the endpoint answers `generating` forever on a report the page has
   already rendered, and `GeneratingSections` polls until its deadline over a finished document.
-- the idempotency guard in `runAnalysis` — otherwise a requeued job regenerates a copy-less analysis
+- the idempotency guard in `runAnalysis`, otherwise a requeued job regenerates a copy-less analysis
   and inserts a second set of flow fixes beside the first, which is the duplication that guard exists
   to prevent.
 
@@ -154,8 +151,8 @@ were safe only while a copy shortfall took everything else down with it:
 shimmering placeholder. Naming them is what makes a half-filled report read as deliberate rather than
 as one that failed to load.
 
-It was `setInterval(router.refresh)`, which re-ran this whole server component every two seconds —
-`loadReport` with its joins, the current user, the readout history and a Redis read — and had a worse
+It was `setInterval(router.refresh)`, which re-ran this whole server component every two seconds
+`loadReport` with its joins, the current user, the readout history and a Redis read, and had a worse
 second cost: the state was recomputed from a transient signal on every pass, so a momentary Redis blip
 dropped the page to the wall and the next pass brought the placeholder back. **It flickered between
 "still writing" and "buy a credit".**
@@ -168,98 +165,83 @@ the note rather than continuing to ask.
 No percentage bar anywhere: nothing measures a percentage, and a bar that advances on its own is the
 timer this replaced wearing a different hat.
 
-## The page — `app/(report)/r/[embedKey]/page.tsx`
+## The page: `app/(report)/r/[embedKey]/page.tsx`
 
 Read by someone who may never have opened the app, so nothing here may 404 loudly or leak whether an
 unknown key exists. Authorization is the opaque `embedKey` alone; `isOwner` is layered on top of it
 and never decides whether the row is readable.
 
-**It has one shape.** It used to have two, decided by the owner's plan: a free lead magnet with our
-`Wordmark` and an email wall per tab, and a paid deliverable with no mark of ours and nothing
-blurred. Plans are gone, so `reportIsWhiteLabelled`, `canWhiteLabel` and the `gate()` helper went
-with them.
+**It has one shape**, not one per plan. There is no white-label flag and no `gate()` helper.
 
-What the layout sets for everybody is the shared `CONTAINER_CLASS`, the same measure the app pages
-use, so the report is not a different width from the screen the owner sent it from. The navbar and
-site footer above it are session-gated, for the reason in the `isOwner` section above — for a long
-time this layout mounted no chrome at all, which was right while this was a second route and is
-wrong now that it is the only one.
+The layout sets the shared `CONTAINER_CLASS` for everybody, the same measure the app pages use, so
+the report is not a different width from the screen the owner sent it from. The navbar and site
+footer above it are session-gated, for the reason in the `isOwner` section above.
 
-The `Wordmark` is still wrapped in `data-testid="report-brand"`. Its **presence** is now the thing
-worth asserting, which is the opposite of what the wrapper was added for.
+The `Wordmark` is wrapped in `data-testid="report-brand"`, and its **presence** is what the suite
+asserts.
 
 ### Layout
 
-- Header, `ReportCover`, the two summary cells and `MeasuredReadout` stay **above** the tabs — the
+- Header, `ReportCover`, the two summary cells and `MeasuredReadout` stay **above** the tabs, the
   readout ungated, for the reason in [readout.md](readout.md).
-- **There is no footer.** It read "Want a score like this for your own page? / Generated by Hunch",
-  which was a house ad on a document the reader is being asked to trust — and on the owner's own
-  screen it was the product advertising itself to the person who had already paid for it.
-- The cover carries the `InfoHint` that used to sit beside the old screen's `What to change`
-  heading. `ReportCover` takes it as a `hint` slot rather than building it: `InfoHint` is a client
-  component and the page is not, so the page composes it and hands it down already built.
-- Then `AnalysisSections` — the same **four fix lists**, with nothing held out. They were tabs; they
-  are stacked `PanelCard`s now. This surface used to pass `tests: 0` to keep a fifth one away from a
-  reader; that stage is gone entirely, so there is nothing to exclude. See
-  [analysis-ui.md](analysis-ui.md).
-- Then `PageTerms` — the terms counted on the page, and the ad groups the owner can have written off
-  them. **It starts closed now.** It was open on the reasoning that nothing is buried by the last
-  block on the page, which stopped being the argument once the rail existed: open it is a ten by six
-  table plus four ad-group cards with a character counter on every line, the largest single thing in
-  the document, expanded for every reader whether or not they came for it. It was open because it was
-  unreachable; the rail makes it reachable in one click from anywhere.
+- **There is no footer.** "Want a score like this for your own page? / Generated by Hunch" is a
+  house ad on a document the reader is being asked to trust, and on the owner's own screen it is the
+  product advertising itself to the person who has already paid for it.
+- The cover carries an `InfoHint`. `ReportCover` takes it as a `hint` slot rather than building it:
+  `InfoHint` is a client component and the page is not, so the page composes it and hands it down
+  already built.
+- Then `AnalysisSections`, the same **four fix lists**, with nothing held out, as stacked
+  `PanelCard`s. See [analysis-ui.md](analysis-ui.md).
+- Then `PageTerms`, the terms counted on the page and the ad groups the owner can have written off
+  them. **It starts closed.** Open it is a ten by six table plus four ad-group cards with a character
+  counter on every line, the largest single thing in the document, expanded for every reader whether
+  or not they came for it. The rail makes it reachable in one click from anywhere, so nothing is
+  buried by closing it.
 
-  **Closing it exposed a print bug that predated it**, and `@media print` in `app/globals.css` now
-  fixes the general case: every `<details>` prints open. Progressive disclosure answers a screen,
-  where the reader can click; on paper a closed panel is content deleted from the deliverable. Three
-  of the four analysis panels already started closed, as does every readout group whose checks all
-  passed — so a printed report was mostly headings before this, and `PageTerms` would have been the
-  next thing lost.
+  **A closed panel is a print bug**, and `@media print` in `app/globals.css` fixes the general case:
+  every `<details>` prints open. Progressive disclosure answers a screen, where the reader can click;
+  on paper a closed panel is content deleted from the deliverable. Three of the four analysis panels
+  start closed, as does every readout group whose checks all passed, so without that rule a printed
+  report is mostly headings.
 
 ### The rail and the triage block
 
 Two additions that carry no new information and exist entirely to make the rest of it navigable.
 
-- **`components/report-rail.tsx`** — a sticky column of anchors above `lg`, marking the section in
+- **`components/report-rail.tsx`**: a sticky column of anchors above `lg`, marking the section in
   view. `REPORT_SECTION` in `lib/enums.ts` is its order, and the four middle values are spread from
   `ANALYSIS_TAB` rather than retyped, so a rail can never offer a section the page does not render.
   The page builds the list from the same conditions that decide each block; the rail never derives it.
   The scrollspy and the anchor-reveal helper are documented in [components.md](components.md).
-- **`components/start-here.tsx`** — the three highest-impact fixes, linking to their own cards. It is
+- **`components/start-here.tsx`**: the three highest-impact fixes, linking to their own cards. It is
   a **re-presentation and never a new claim**: each row is an existing `flow_fixes` row with its own
   title, badge and impact number. Nothing is summarised or re-scored, and **no predicted outcome may
-  ever appear in it** — a block called "what to change first" is exactly where that sentence wants to
+  ever appear in it.** A block called "what to change first" is exactly where that sentence wants to
   be written, and [invariants.md](invariants.md) forbids it on every surface. It renders only when
   `generated` is true, so a free report gets the `UnlockWall` and the readout grows no affordance that
   reads as a tease.
-- **The readout's fix pointer is a link.** It was the title of the answering fix printed as text: the
-  reader was told the name of a card and left to find it several sections down, possibly inside a
-  closed panel. `fixAnchor()` in `lib/constants.ts` is the one place the id is derived, because a link
-  and its target live in different files and have to agree.
-- **Nothing is gated by plan today.** The wall was an email capture for an agency's lead magnet, and
-  it went with the waitlist. What replaces it is `UnlockWall` — log in, buy credits — shown when
-  `generated` is false. `gate()`, `Gated` and `BlurredRow` were removed rather than left behind as a
-  pass-through with a misleading name.
-- **An address is asked for again, and this time it gates nothing.** `WatchPageForm` sits below
-  `MeasuredReadout` for a reader who is not the owner, and offers to email them the link to the
-  report. The difference from the wall that was removed is the whole point: that one held someone
-  else's report hostage to a stranger's address, this one hands the reader something they cannot
-  otherwise keep — an `embed_key` lives in one browser's `localStorage`, so the email is their only
-  durable way back. It is skipped for an owner, who reaches the report from their dashboard. The
-  offer must never move above the readout; see [invariants.md](invariants.md) and
+- **The readout's fix pointer is a link**, not the title of the answering fix printed as text: that
+  tells the reader the name of a card and leaves them to find it several sections down, possibly
+  inside a closed panel. `fixAnchor()` in `lib/constants.ts` is the one place the id is derived,
+  because a link and its target live in different files and have to agree.
+- **Nothing is gated by plan.** `UnlockWall` (log in, buy credits) is shown when `generated` is
+  false, and it is the only wall on the page.
+- **An address is asked for, and it gates nothing.** `WatchPageForm` sits below `MeasuredReadout` for
+  a reader who is not the owner, and offers to email them the link to the report. It hands the reader
+  something they cannot otherwise keep: an `embed_key` lives in one browser's `localStorage`, so the
+  email is their only durable way back. That is the opposite of a wall holding someone else's report
+  hostage to a stranger's address. It is skipped for an owner, who reaches the report from their
+  dashboard. The offer must never move above the readout; see [invariants.md](invariants.md) and
   [api.md](api.md).
-- Copy-tab rows are `HypothesisList`, the same component on the same page for everyone. It used to
-  be that component on one route and eighty-five lines of inline JSX on the other; the inline copy
-  is gone. `HYPOTHESIS_EXPANDED_COUNT` rows start open here as everywhere, which is a change for
-  this route — it opened every card, on the argument that a reader who has to click sees nothing.
-  The cards got much shorter (see the drawers in [components.md](components.md)), so the counted
-  rule is enough and a reader is no longer handed six full-height cards at once.
-- **Hypotheses are ranked by impact and by nothing else.** This route used to float auto-targetable
-  ideas to the top so the previews on top were real ones. That is gone: the first row wears "Start
-  here", and a second sort key quietly hands that label to a lesser idea for being easier to
-  photograph.
+- Copy-tab rows are `HypothesisList`, the same component on the same page for everyone.
+  `HYPOTHESIS_EXPANDED_COUNT` rows start open here as everywhere. The cards are short (see the
+  drawers in [components.md](components.md)), so the counted rule is enough and nobody is handed six
+  full-height cards at once.
+- **Hypotheses are ranked by impact and by nothing else.** Floating auto-targetable ideas to the top
+  so the previews on top are real ones quietly hands "Start here", which the first row wears, to a
+  lesser idea for being easier to photograph.
 
-### The cover — `components/report-cover.tsx`
+### The cover: `components/report-cover.tsx`
 
 It opens with the accent rule, `report.preparedBy` (or the generic eyebrow when no name is set), the
 **host** as the `<h1>` with the analysis `InfoHint` beside it, the full URL beneath it, a
@@ -274,12 +256,12 @@ purple monospace treatment. Both date from when this document was written for an
 both survived the pivot because they were right for either reader.
 
 **The section labels did not.** `analysis.sections` read *Page structure / Wording / Search visibility
-/ AI visibility* for that reader and now reads *Structure / Copy / SEO / AI* — the reasoning for going
+/ AI visibility* for that reader and now reads *Structure / Copy / SEO / AI*, the reasoning for going
 back is in [analysis-ui.md](analysis-ui.md). Only the **labels** ever moved: the `PlaybookSection`
 values in `lib/enums.ts` are persisted in Postgres and are not renamed.
 
-`report.summaryBody` is **assembled in code** from counted facts — total recommendations, how many are
-copy the product already wrote, how many are structural — interpolated into a dictionary string, the
+`report.summaryBody` is **assembled in code** from counted facts, total recommendations, how many are
+copy the product already wrote, how many are structural, interpolated into a dictionary string, the
 same mechanism as `dictionary.readout.findings[id]` in [readout.md](readout.md). It is deliberately
 **not** a generation call: a model writing this paragraph would be writing prose around numbers, which
 is the failure [invariants.md](invariants.md#a-generated-evidence-carries-a-number-only-from-a-page-this-code-measured) exists to
@@ -287,34 +269,33 @@ prevent.
 
 The two summary cells are `report.changesFound` and `report.copyWritten`, both counts of what is in
 the document. `topImpact` came out: `7/10` is our internal score and means nothing to this reader.
-**Neither cell may ever become a predicted outcome** — see
+**Neither cell may ever become a predicted outcome.** See
 [invariants.md](invariants.md#the-readout-says-what-was-counted-never-what-it-will-produce).
 
-### Variant preview — `components/variant-preview.tsx`
+### Variant preview: `components/variant-preview.tsx`
 
-Rendered for everyone, behind the copy card's **On your page** drawer. It was on the public route
-alone for a while, which meant the picture reached everyone the link was shared with and never the
-person who paid for it; with one route that whole class of mistake is gone. It is a drawer rather
-than a stacked panel for the reason in [components.md](components.md) -- and it is still a click to
-render, so a drawer nobody opens costs no browser.
+Rendered for everyone, behind the copy card's **On your page** drawer. One route is what keeps the
+picture from reaching everyone the link was shared with and not the person who paid for it. It is a
+drawer rather than a stacked panel for the reason in [components.md](components.md), and it is a
+click to render, so a drawer nobody opens costs no browser.
 
 Renders the landing page with the recommended copy swapped in, **on request only**. Each preview boots a
-browser against the customer's real page, so it POSTs to `/api/report/screenshot` from a click and never
-from mount — three of these on a cold report used to launch three browsers before anyone scrolled to
-them.
+browser against the customer's real page, so it POSTs to `/api/report/screenshot` from a click and
+never from mount: three of these on a cold report would otherwise launch three browsers before
+anyone scrolled to them.
 
 Four states:
 
 | State | What renders |
 | ----- | ------------ |
 | `idle` | button + a hint naming `PREVIEW_ESTIMATE_SECONDS` |
-| `waiting` | button disabled, label swapped, skeleton — **the label is what carries a 10s+ wait**, a pulse alone is not enough. It covers both `queued` and `running`: the reader does not care which, only that it is coming |
+| `waiting` | button disabled, label swapped, skeleton: **the label is what carries a 10s+ wait**, a pulse alone is not enough. It covers both `queued` and `running`: the reader does not care which, only that it is coming |
 | `ready` | the image, plus `report.previewOverflow` in amber when the copy did not fit |
-| `error` | a note plus a retry that returns to `idle`. **Reached only on `unavailable`**, never on a slow queue — that split is what the queue bought |
+| `error` | a note plus a retry that returns to `idle`. **Reached only on `unavailable`**, never on a slow queue: that split is what the queue bought |
 
 **The overflow note is not an error state.** The render worked; what it shows is the recommendation
 being too long for the box the page gives that element, which the reader has to know before shipping it
-and which no retry fixes. It reads as a caption on a real image rather than a failure of one — see
+and which no retry fixes. It reads as a caption on a real image rather than a failure of one, see
 [scraping.md](scraping.md#fitting-the-copy-back-into-its-box).
 
 A cached `screenshot_url` arrives as `initialUrl` and renders straight to `ready` with no button and no
@@ -324,22 +305,22 @@ same caption a fresh one does. `manual` hypotheses never mount it at all and sho
 ### The before/after wipe
 
 A render produces two images, and **both come out of one page load**. Same navigation, same viewport,
-same scroll offset, same lazy images already settled — so the pair lines up pixel for pixel and the
+same scroll offset, same lazy images already settled, so the pair lines up pixel for pixel and the
 only thing that differs between them is the copy that was swapped. Loading the page twice would let a
 carousel advance or an ad slot fill differently, and the wipe would read as the whole page twitching
 rather than as one line changing.
 
 Two things have to happen **before either shot**, and both were learned by getting them wrong:
 
-- **The scroll.** `scrollIntoView` used to live inside `applyVariantCopy`, which runs *between* the
-  two shots — so the "before" framed the top of the page and the "after" framed the element, and the
-  wipe compared two different parts of the page. `scrollToTarget` now runs once, ahead of both, and
-  never again: replacing the text can make the element taller, and re-centring on the new height
-  would slide the page under the wipe.
+- **The scroll.** `scrollToTarget` runs once, ahead of both shots, and never again. Inside
+  `applyVariantCopy`, which runs *between* the two, the "before" frames the top of the page and the
+  "after" frames the element, so the wipe compares two different parts of the page. Re-centring
+  afterwards is just as wrong: replacing the text can make the element taller, and the page would
+  slide under the wipe.
 - **The motion.** `freezeMotion` injects `animation-play-state: paused` and kills transitions. A
   marquee or a looping hero advances in the milliseconds between the two captures, and the wipe shows
   it jumping. Paused rather than `animation: none`, which would drop an element back to its
-  unanimated rule — invisible, for the common fade-in-from-zero.
+  unanimated rule, which for the common fade-in-from-zero is invisible.
 
 Measured on a real page with an animated ticker: the rows above the swapped element differ by **0.0%**
 and the first difference appears on the row the element starts on. Everything below it differs
@@ -349,12 +330,12 @@ The rewrite sits on top of the current page and is revealed by `clip-path`, neve
 shows the right-hand slice of an image still laid out at full size, so the two stay registered.
 Resizing it would slide the content sideways under the wipe and nothing would line up.
 
-**The slider's value is how much of the rewrite is showing, never the wipe line's offset**, and the
-distinction is a bug that shipped. It used to be the offset: `clip-path: inset(0 0 0 ${wipe}%)` with
-the line at `left: ${wipe}%`, so *raising* it clipped the rewrite away. Dragging the handle toward the
-`Rewritten` label produced less rewrite and more of the current page — and a reader watching the
-picture fill with the page they already have, while the handle sits under the word "Rewritten",
-reads it as the two images being the wrong way round. Nothing was ever swapped: `before` is captured
+**The slider's value is how much of the rewrite is showing, never the wipe line's offset.** As the
+offset, `clip-path: inset(0 0 0 ${wipe}%)` with the line at `left: ${wipe}%`, *raising* it clips the
+rewrite away: dragging the handle toward the `Rewritten` label produces less rewrite and more of the
+current page, and a reader watching the picture fill with the page they already have, while the
+handle sits under the word "Rewritten", reads it as the two images being the wrong way round. Nothing
+is ever swapped: `before` is captured
 before the copy is applied, saved to `screenshot_before_url`, and rendered as the base layer, end to
 end.
 
@@ -363,19 +344,19 @@ handle says, `report.compareValue` ("{percent}% of the rewritten page shown") is
 than backwards, and the default sits just under halfway so both images are visible at rest.
 
 The handle is an `<input type="range">`. That is the reason it works with a keyboard and a screen
-reader at all — arrows move the wipe and the value is announced, none of which exists behind a
+reader at all, arrows move the wipe and the value is announced, none of which exists behind a
 `pointerdown` listener.
 
 `overflow` describes the `after` image alone: nothing was changed in `before` to overflow anything.
 
 **A variant rendered before the pair existed shows its one image, and that is not a degraded
-rendering** — one image is all that was ever captured for that row. `screenshot_before_url` is null
+rendering.** One image is all that was ever captured for that row. `screenshot_before_url` is null
 there and the slider simply does not appear.
 
-The `POST` is bounded by `PREVIEW_REQUEST_TIMEOUT_MS` — derived from the server's real budget, never
+The `POST` is bounded by `PREVIEW_REQUEST_TIMEOUT_MS`, derived from the server's real budget, never
 written down. **That deadline is for one path only**: normally the POST returns the moment the job is
 queued, and it runs long only when Redis is unreachable and the route renders inline instead. The polls
-carry no deadline, because a dropped poll is not a verdict — the worker still holds the job, so the
+carry no deadline, because a dropped poll is not a verdict, the worker still holds the job, so the
 client retries rather than telling the reader the preview failed.
 
 **`onError` on the `<Image>` returns to `idle`.** Since `initialUrl` renders without ever calling the
@@ -394,15 +375,15 @@ an unknown key exists.
 
 ### `POST /api/report/screenshot` and `GET` beside it
 
-Body `{ embedKey, hypothesisId }`. **The POST no longer renders anything**: it resolves the variant,
+Body `{ embedKey, hypothesisId }`. **The POST renders nothing itself**: it resolves the variant,
 returns a cached `screenshot_url` when there is one, and otherwise queues a job and answers
 `queued`. The client then polls the `GET` on the same route until it reads `ready` or
 `unavailable`. See [scraping.md](scraping.md#the-job-queue--libqueuets) for why the wait moved off
 the request.
 
-Both answer `{ status, url, overflow }`, and **`status` is the field that carries the meaning the
-old shape could not**: a `url: null` used to mean both "still working" and "this can never work", so
-the reader saw one broken button for two different situations.
+Both answer `{ status, url, overflow }`, and **`status` is the field that carries the meaning**: a
+`url: null` alone means both "still working" and "this can never work", which reaches the reader as
+one broken button for two different situations.
 
 `overflow` is the swap's own verdict on whether the copy still got cut off, persisted alongside the
 path on `variants.screenshot_overflow` so a cached hit answers the same thing the fresh render did.
@@ -411,7 +392,7 @@ It is **not** a reason to withhold the image: the picture of the copy not fittin
 The filename carries a random suffix because the file is world-readable once served: a path derivable
 from the variant id would make every screenshot guessable, and that id is returned by the
 authenticated API. Being same-origin is why `next/image` needs no `remotePatterns` entry and the CSP
-needs no `img-src` host — object storage would cost both.
+needs no `img-src` host, object storage would cost both.
 
 **A cached URL never reaches the render path** (the report server-renders it into `initialUrl`). So a
 file that has been pruned, lost with its volume, or left truncated by an interrupted write cannot be
@@ -419,11 +400,11 @@ detected server-side. **Do not add an existence check in its place**: it cannot 
 breakage actually shows, and it reads a truncated PNG as present. `onError` on the `<Image>` is the
 only place that catches it.
 
-**The duplicate render is now closed by construction.** The job id is `screenshot:<variantId>`, so two
+**The duplicate render is closed by construction.** The job id is `screenshot:<variantId>`, so two
 readers asking for the same preview share one job instead of starting two renders and orphaning a
-file. That used to be an accepted cost bounded by `RATE_LIMITS.screenshot`.
+file.
 
-## Copy report link — `components/copy-report-link.tsx`
+## Copy report link: `components/copy-report-link.tsx`
 
 **A control needs a name, and `aria-label` on an icon button is not one.** That is the rule this
 component was written for and the one part of it that survived every rewrite.
@@ -432,18 +413,13 @@ What renders in the header, **for the owner only**: one `Copy link` button besid
 dashboard`. Owner-gated because the link it copies *is* the embed key, and the report's only
 credential must not be handed to a reader who was merely sent it.
 
-**It used to be a named card with an `Open` button**, and the card made sense while the owner read
-this document on a *different* route: it named the thing the link pointed at. With one route the
-card described the page it was sitting on, and `Open` opened the current URL in a new tab. What
-survives is the only part that still does something.
-
-**It used to be two cards, then one, now none** — the doc once argued for "two named documents, not
-three unlabelled controls", because there was a PDF to tell apart from the link. The PDF went, then
-the second route went, and with it the last reason to name a destination at all.
+**There is no named card and no `Open` button.** With one route a card would describe the page it
+is sitting on, and `Open` would open the current URL in a new tab. Naming a destination is worth
+doing when there is more than one, and there is not.
 
 - **One component, two mounts**: the report header and each `/dashboard` card. The dashboard one
   passes `relative z-10` to escape the card's `absolute inset-0` overlay link, the same escape the
-  delete cluster uses — see [analysis-ui.md](analysis-ui.md).
+  delete cluster uses. See [analysis-ui.md](analysis-ui.md).
 - **The label stays a word, never an icon alone.** Shrinking the words is allowed and dropping them
   is not. It is `flex-wrap` so the long transient `copyFailed` string wraps instead of overflowing.
 - The copy button keeps its explicit failure state and `document.execCommand` fallback, because

@@ -20,7 +20,7 @@ export async function BlogCta() {
         </div>
         <Button asChild size="lg">
           {/* Signed out goes to the form on the landing page, not to a sign in screen: the score
-              needs no account and this button used to say otherwise. */}
+              needs no account. */}
           <Link href={user ? POST_SIGNIN_REDIRECT : '/#top'}>{blog.cta.button}</Link>
         </Button>
       </CardContent>

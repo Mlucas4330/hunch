@@ -20,9 +20,9 @@ async function main() {
   console.log(`Selector : ${selector}`)
   console.log(`Variant  : ${VARIANT_COPY}\n`)
 
-  // One call, one page load, both images. This used to load the page twice and diff two navigations,
-  // which is precisely the thing the slider cannot tolerate: a carousel advancing or an ad slot
-  // filling differently between the two shots reads as the whole page twitching.
+  // One call, one page load, both images. Two navigations are precisely what the slider cannot
+  // tolerate: a carousel advancing or an ad slot filling differently between the two shots reads as
+  // the whole page twitching.
   console.log('Capturing both shots from one load ...')
   const { before, after, overflow } = await screenshotVariant(url, selector, VARIANT_COPY)
 

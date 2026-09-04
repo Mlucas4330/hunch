@@ -1,4 +1,4 @@
-﻿import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { answerBrief } from './brief'
 import { pinEnglish } from './locale'
 
@@ -42,7 +42,7 @@ test.describe('core features', () => {
 
     // `/analyses` is a protected prefix with no page of its own, so it renders not-found once the
     // redirect lands. That is fine and deliberate: what is under test is the callbackUrl round trip,
-    // and the URL is the whole assertion. It used to point at `/admin/leads`, which no longer exists.
+    // and the URL is the whole assertion.
     await page.goto('/analyses')
     await expect(page).toHaveURL(/callbackUrl=%2Fanalyses/)
 
@@ -159,10 +159,14 @@ test.describe('core features', () => {
     await page.goto('/')
 
     const packs = page.getByTestId('credit-packs')
+    await expect(packs.getByText('0 reais').first()).toBeVisible()
+    await expect(packs.getByText('R$47').first()).toBeVisible()
     await expect(packs.getByText('R$147').first()).toBeVisible()
-    await expect(packs.getByText('R$297').first()).toBeVisible()
     await expect(packs.getByText('Most chosen')).toHaveCount(1)
+    // Dois, e nao tres: o card gratuito nao vende nada, entao o que ele tem e o botao que volta para
+    // o campo de URL. Ver components/credit-packs.tsx.
     await expect(packs.getByRole('button', { name: 'Buy' })).toHaveCount(2)
+    await expect(packs.getByRole('button', { name: 'Measure my page' })).toHaveCount(1)
 
     await expect(page.locator('#contact')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Score my page' }).first()).toBeVisible()
@@ -250,24 +254,30 @@ test.describe('core features', () => {
   })
 
   // **The one context in this file that is not pinned to English**, because what a reader with no
-  // cookie gets is the thing being asserted. `DEFAULT_LOCALE` is pt-BR, and the switch back is the
-  // same cookie the toggle writes. See e2e/locale.ts.
-  test('lands in pt-BR with no cookie, and in English with one', async ({ browser }) => {
+  // cookie gets is the thing being asserted. `DEFAULT_LOCALE` is pt-BR, `DEFAULT_THEME` is dark, and
+  // the switch back is the same cookie the toggle writes. See e2e/locale.ts.
+  test('lands in pt-BR and dark with no cookie, and in English with one', async ({ browser }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
     const page = await context.newPage()
 
     await page.goto('/')
     await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR')
+    await expect(page.locator('html')).toHaveClass(/dark/)
     await expect(
       page.getByRole('link', { name: 'Ver minha nota agora, de graça' }).first()
     ).toBeVisible()
     await expect(page.getByText('Score my page')).toHaveCount(0)
 
-    await pinEnglish(context)
-    await page.reload()
+    // O botao voltou para a navbar, entao ele e um caminho de verdade para trocar de idioma e nao so
+    // um cookie escrito por fora. Ver docs/i18n.md.
+    await page.getByRole('button', { name: 'EN', exact: true }).first().click()
     await expect(page.locator('html')).toHaveAttribute('lang', 'en')
     await expect(page.getByRole('link', { name: 'Score my page' }).first()).toBeVisible()
     await expect(page.getByText('Ver minha nota agora, de graça')).toHaveCount(0)
+
+    await pinEnglish(context)
+    await page.reload()
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en')
 
     await context.close()
   })
@@ -286,10 +296,9 @@ test.describe('core features', () => {
 
 
 
-    // **Copying the link is the whole of it, and there is nothing to open.** This used to assert a
-    // named "Interactive report" card with an `Open` button, which made sense while the owner read
-    // this document on a different route -- the link now points at the page it sits on. An `Open`
-    // control reappearing here means somebody reintroduced the second route -- see docs/report.md.
+    // **Copying the link is the whole of it, and there is nothing to open.** The link points at the
+    // page it sits on, so an `Open` control appearing here means somebody reintroduced the second
+    // route. See docs/report.md.
     await expect(page.getByTestId('copy-report-link')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open' })).toHaveCount(0)
 
@@ -299,7 +308,7 @@ test.describe('core features', () => {
     await page.goto('/dashboard')
     const history = page.getByTestId('analysis-history')
     await expect(history.getByText(url)).toBeVisible()
-    // Two documents on the client card, and nothing else. Stage 2 is gone.
+    // Two documents on the client card, and nothing else.
     await expect(history.getByRole('link', { name: 'Tests' })).toHaveCount(0)
     await expect(page.getByTestId('copy-report-link').first()).toBeVisible()
   })

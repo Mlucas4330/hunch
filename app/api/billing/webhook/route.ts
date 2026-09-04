@@ -10,7 +10,7 @@ import { creditsForPrice, stripe } from '@/lib/stripe'
 //
 // `payment_events` claims the delivery, so a retried webhook does no work twice. The unique on
 // `(provider, provider_ref)` in the ledger claims the payment, so even a delivery that slipped past
-// the first guard — a different event id for the same session, a manual replay — cannot credit twice.
+// the first guard (a different event id for the same session, a manual replay) cannot credit twice.
 // The second one is the guarantee that actually matters, because it is keyed on the payment rather
 // than on the message about it.
 async function claimEvent(event: Stripe.Event): Promise<boolean> {

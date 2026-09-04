@@ -15,13 +15,13 @@ import { t } from '@/lib/i18n/format'
  *
  * - `backfill` is the whole section, for an analysis that has no readout at all.
  * - `again` is the bare button, and it lives in the page header. **Re-measuring is the action an
- *   owner repeats most and it used to sit below the entire readout**, which is the last place they
- *   reach. There is no width for `againHint` up there and no need for it either: that sentence
- *   explains what a re-measure costs, which is read once rather than every visit.
+ *   owner repeats most**, so it sits where they reach rather than below the entire readout. There is
+ *   no width for `againHint` up there and no need for it either: that sentence explains what a
+ *   re-measure costs, which is read once rather than every visit.
  * - `trend_start` is the dashed panel naming what a second measurement unlocks, for the owner who
  *   has never pressed the button. It is a section, not a control, so it does not go in a header row
- *   and the page renders it separately -- which is why this component no longer takes a `hasHistory`
- *   flag. Whether there is a history is the page's question and only the page has the answer.
+ *   and the page renders it separately. This component takes no `hasHistory` flag: whether there is
+ *   a history is the page's question and only the page has the answer.
  *
  * See docs/analysis-ui.md.
  */

@@ -5,8 +5,7 @@ import { analyses } from '@/db/schema'
 import { getCurrentUser } from '@/lib/current-user'
 
 /**
- * Where this screen used to be. The document now lives at `/r/<embedKey>` for everyone, so all this
- * does is trade an id for a key.
+ * The document lives at `/r/<embedKey>` for everyone, so all this does is trade an id for a key.
  *
  * **The owner check is not ceremony.** The embed key is the public report's only credential, so a
  * redirect that resolved any id into one would turn a leaked id into a leaked report. With the check

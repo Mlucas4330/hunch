@@ -57,17 +57,14 @@ export function DisclosureCard({
       <details open={defaultOpen} className="group">
         {/* **The score is a rail, not a chip in the header row.**
          *
-         * It used to be five typographic treatments fighting over one wrapping line -- a mono rank,
-         * a coloured pill, a coral flag, and the word IMPACTO next to ten bars next to `9/10` --
-         * with the title pushed underneath them. The meter alone was `shrink-0` and ate roughly
-         * 290px, which is what forced the title onto its own row and what made an open card need a
-         * whole second set of score elements swapped in by CSS.
+         * The number is a fixed-width block down the left edge, coloured by impact, so scanning the
+         * list reads 9, 8, 7, 7, 5, 4 in a column: the ranking made visual. A header chip instead
+         * costs a `shrink-0` meter of roughly 290px, which forces the title onto its own row and
+         * makes an open card need a second set of score elements swapped in by CSS.
          *
-         * The rail fixes all of it at once. The number is a fixed-width block down the left edge,
-         * coloured by impact, so scanning the list reads 9, 8, 7, 7, 5, 4 in a column -- the
-         * ranking made visual. **It absorbs the rank**, which was a second number saying nearly the
-         * same thing: the list is sorted by impact, so `01` beside `9/10` was the same fact twice.
-         * And it is identical open or closed, so the `scores` / `openScores` pair is gone.
+         * **It absorbs the rank**, which would be a second number saying nearly the same thing: the
+         * list is sorted by impact, so `01` beside `9/10` is the same fact twice. It is identical
+         * open or closed, so one set of score elements covers both.
          */}
         <summary className="flex list-none items-stretch rounded-lg hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
           {score}

@@ -8,7 +8,7 @@ import { analyses, pageSnapshots } from '../db/schema.ts'
  * **Local only, and it exists because the board counts domains rather than analyses.** Every test run
  * measures `example.com`, and `publicLeaderboard` keeps one entry per domain, so a hundred e2e
  * analyses collapse into a single chip and the section stays below `PULSE_MIN_ENTRIES`. That is the
- * intended behaviour, not a bug to work around — which is why this is a script you run on purpose and
+ * intended behaviour, not a bug to work around, which is why this is a script you run on purpose and
  * never a seed the app performs for itself. **Nothing may ever plant rows on a real database**: the
  * board's whole claim is that every entry is a page this tool actually measured. See
  * docs/invariants.md.

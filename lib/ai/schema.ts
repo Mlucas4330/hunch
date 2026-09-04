@@ -50,24 +50,22 @@ export const HypothesisSchema = z.object({
 })
 
 /**
- * **The floor is 1, and it used to be 5.**
+ * **There is no floor, and that is the prompt's rule rather than a concession.**
  *
- * Five was a promise about what a credit buys, enforced in the wrong place. The three generation
- * calls run in one `Promise.all` and the other two never throw — they degrade to an empty list — so a
- * fourth hypothesis coming back short rejected this object, rejected the whole `Promise.all`, and
- * threw away up to eight flow fixes and six visibility fixes that had already finished and already
- * cost their tokens. That is not "paid for a call and got nothing"; it is most of a report discarded
- * over one line.
+ * A page whose lines are doing their job should come back with the ones that are not and nothing
+ * else, and on a page where that set is empty a floor of one buys exactly one invented finding. It
+ * also has to be zero to be honest downstream: `resolveTargets` drops a hypothesis whose
+ * `current_copy` is on no element, so an empty list is a shape this pipeline already produces and
+ * already renders. `AnalysisSections` omits a tab with no rows.
  *
- * What a credit buys is now checked where it can see everything that came back — see the refund in
- * lib/run-analysis.ts, which triggers on nothing at all being generated rather than on this floor.
+ * A floor would also be in the wrong place. The three generation calls run in one `Promise.all` and
+ * the other two never throw, degrading to an empty list instead, so a short hypothesis list would
+ * reject this object, reject the whole `Promise.all`, and throw away up to eight flow fixes and six
+ * visibility fixes that had already finished and already cost their tokens. What a credit buys is
+ * checked where it can see everything that came back: the refund in lib/run-analysis.ts, which
+ * triggers on nothing at all being generated.
  *
- * **There is no floor, and that is the prompt's rule rather than a concession.** A page whose lines
- * are doing their job should come back with the ones that are not and nothing else, and on a page
- * where that set is empty a floor of one buys exactly one invented finding. It also has to be zero to
- * be honest downstream: `resolveTargets` drops a hypothesis whose `current_copy` is on no element, so
- * an empty list is a shape this pipeline already produces and already renders — `AnalysisSections`
- * omits a tab with no rows. `HYPOTHESES_MAX` is a ceiling on cost and length, which is a different job.
+ * `HYPOTHESES_MAX` is a ceiling on cost and length, which is a different job.
  */
 export const AnalysisOutputSchema = z.object({
   hypotheses: z.array(HypothesisSchema).max(HYPOTHESES_MAX)
@@ -87,11 +85,11 @@ const fixFields = {
    * Which measured finding this fix answers, or null when no measurement backs it.
    *
    * **This is what stops the readout and the fix lists being two disjoint lists about one page.**
-   * The reader used to correlate "form has 7 fields" with "cut the form to three" by recognising the
-   * words; the model already had the number, and the reference was thrown away on the way back.
+   * The model already has the number, so it names it rather than leaving the reader to correlate
+   * "form has 7 fields" with "cut the form to three" by recognising the words.
    *
    * **`.catch(null)` is not decoration.** A hallucinated id would otherwise reject the whole
-   * `generateObject` call, and `generatePlaybook` swallows that in `catch -> return []` — so one bad
+   * `generateObject` call, and `generatePlaybook` swallows that in `catch -> return []`, so one bad
    * string would empty an entire tab with no error anywhere. Degrading costs one missing link; the
    * same trade `section` makes, for the same reason. See docs/ai-pipeline.md.
    */

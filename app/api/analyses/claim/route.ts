@@ -16,7 +16,7 @@ const BodySchema = z.object({
  * unguessable uuid that never appears anywhere except the browser that started the run, so holding
  * one is evidence of having started it. What keeps that from being a hole is the `isNull(userId)`
  * filter: a key that already belongs to someone cannot be re-claimed, so the worst a leaked key does
- * is what it already did — let its holder read that report.
+ * is what it already did: let its holder read that report.
  */
 export async function POST(request: Request) {
   const user = await getCurrentUser()

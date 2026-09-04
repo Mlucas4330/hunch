@@ -37,14 +37,14 @@ function unavailable(headers?: HeadersInit): NextResponse {
  * Returns a response to send when the caller is over the limit, or `null` to let the request
  * through.
  *
- * **The default fails open, deliberately** — a missing or broken Redis means no limit rather than an
- * outage. See docs/invariants.md.
+ * **The default fails open, deliberately.** A missing or broken Redis means no limit rather than
+ * an outage. See docs/invariants.md.
  *
  * `failClosed` is the one documented exception, and it exists because the trade reverses on an
  * unauthenticated route that spends real money: with anonymous analysis, failing open means every
  * stranger on the internet can open a browser against our three slots, unmetered. That is not a
  * degraded feature, it is the bill and the outage at once. Use it only where those two things are
- * true — no session, and real cost per call.
+ * true: no session, and real cost per call.
  */
 export async function enforceRateLimit(
   kind: RateLimitKind,
@@ -52,14 +52,14 @@ export async function enforceRateLimit(
   headers?: HeadersInit,
   options: { failClosed?: boolean } = {}
 ): Promise<NextResponse | null> {
-  // **The budgets are sized by what a route costs us, and under fixtures a route costs nothing** —
+  // **The budgets are sized by what a route costs us, and under fixtures a route costs nothing.**
   // `E2E_FIXTURES` replaces the scrape and the model call, so no browser opens and no tokens are
   // spent. `analysis` is 5/hour against a suite that creates six, which made a full run impossible:
   // the sixth answered 429 with Redis reachable, and the first answered 503 without it.
   //
   // This is safe only because the flag is already a total-breakage switch: an app running with it set
   // serves fixture data instead of measuring anything, so it can never be production. **Never reach
-  // for a flag that only disables the limiter** — that one would be worth setting by mistake.
+  // for a flag that only disables the limiter.** That one would be worth setting by mistake.
   if (process.env.E2E_FIXTURES === '1') return null
 
   const client = redis()

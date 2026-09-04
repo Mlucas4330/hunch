@@ -221,7 +221,7 @@ const PLASTIC_RATIO = 0.7548776662466927
 /**
  * Evenly spaced points on a unit sphere, handed out in a scattered order.
  *
- * The spacing is the usual Fibonacci lattice — the golden angle is what keeps the points from banding
+ * The spacing is the usual Fibonacci lattice, where the golden angle keeps the points from banding
  * into rings the way a naive latitude and longitude grid does. Two corrections sit on top of it,
  * because at two dozen labels a textbook lattice does not read as a ball:
  *
@@ -232,7 +232,7 @@ const PLASTIC_RATIO = 0.7548776662466927
  *
  * The **shuffle** decorrelates rank from height. The entries arrive ranked and the lattice walks pole
  * to pole in order, so handing point `i` to entry `i` puts the best score at one pole and the worst at
- * the other — a colour gradient down the screen that reads as a sorted list, not a sphere.
+ * the other: a colour gradient down the screen that reads as a sorted list, not a sphere.
  *
  * Both are fixed functions of the count, so a chip does not jump when the board refreshes.
  */

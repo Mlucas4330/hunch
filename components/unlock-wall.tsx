@@ -12,7 +12,7 @@ import { CREDITS_ANCHOR } from '@/lib/constants'
  * It stands in the same place the old email wall did, and answers a different question. That one
  * traded a stranger's address for a preview of someone else's report; this one asks the person
  * looking at their **own** page whether they want the half a model has to write. The score and the
- * readout above it are never behind this — they are the part the reader can check against their own
+ * readout above it are never behind this: they are the part the reader can check against their own
  * site in one click, and gating a measurement of someone's own page reads as a trick. See
  * docs/readout.md.
  */

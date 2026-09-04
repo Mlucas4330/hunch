@@ -131,12 +131,26 @@ export default defineRailway(() => {
 
   const cronPrune = cron("cron-prune", "/api/cron/prune-screenshots", "0 9 * * *");
 
+  // Staggered rather than all at 09:00: three services waking together against one app instance is
+  // a self-inflicted burst, and none of these is urgent to the minute.
+  //
+  // The lead sequence is idempotent on `leads.stage`, and the audience sync replaces a whole list,
+  // so a missed run costs a day rather than anything permanent. The pending-payment reminder is the
+  // one to leave alone: its idempotency is the window it looks at, so moving it to a schedule that
+  // fires twice a day would mail the same person twice. See docs/api.md.
+  const cronLeadSequence = cron("cron-lead-sequence", "/api/cron/lead-sequence", "0 12 * * *");
+  const cronPendingPayments = cron("cron-pending-payments", "/api/cron/pending-payments", "0 15 * * *");
+  const cronAudienceSync = cron("cron-audience-sync", "/api/cron/audience-sync", "0 6 * * *");
+
   return project("Hunch", {
     resources: [
       app,
       redisDatabase,
       postgresDatabase,
       cronPrune,
+      cronLeadSequence,
+      cronPendingPayments,
+      cronAudienceSync,
       browser,
       postgresVolume,
       redisVolume,

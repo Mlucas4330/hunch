@@ -5,11 +5,10 @@ import type { JobStatus } from '@/lib/enums'
 
 // A job queue over Redis, drained by a worker inside this process.
 //
-// The point is to separate two waits that used to be the same one. A preview holds a browser slot
-// for as long as it takes; the reader holds an HTTP connection for as long as they are willing.
-// Tying them together meant the slot wait had to fit inside the reader's patience, which is why
-// `screenshotVariant` gave up after five seconds and a busy moment showed a broken button. Now the
-// request returns the moment the job is queued and the worker waits on the slot alone.
+// It separates two waits. A preview holds a browser slot for as long as it takes; the reader holds
+// an HTTP connection for as long as they are willing. Tying them together forces the slot wait to
+// fit inside the reader's patience, and a busy moment then shows a broken button. The request
+// returns the moment the job is queued and the worker waits on the slot alone.
 //
 // The worker lives here rather than in its own service for two reasons that are not negotiable
 // today: a separate Railway service costs money, and the screenshot volume pins the app to
@@ -18,7 +17,7 @@ import type { JobStatus } from '@/lib/enums'
 
 /**
  * What a runner reports back. `ok: false` means the work can never succeed for this input, which the
- * queue turns into `unavailable` — a different answer from a crash, and the distinction the whole
+ * queue turns into `unavailable`, a different answer from a crash and the distinction the whole
  * design exists for. `result` is whatever the route that owns the kind wants to hand its client.
  */
 export type RunOutcome<T = unknown> = { ok: boolean; result?: T }
@@ -96,7 +95,7 @@ async function writeJob(id: string, job: Job): Promise<void> {
 
 /**
  * Puts a job on the queue and returns what the caller should tell the client. `null` means Redis is
- * unreachable and the caller must do the work inline instead — see the fail-open note below.
+ * unreachable and the caller must do the work inline instead. See the fail-open note below.
  */
 export async function enqueue(id: string): Promise<Job | null> {
   const client = redis()
@@ -134,24 +133,24 @@ export async function enqueue(id: string): Promise<Job | null> {
  * **This version is correct only because there is exactly one process.** `.railway/railway.ts` pins
  * `numReplicas: 1` and the screenshot volume is what pins it, so anything sitting in PROCESSING_KEY
  * at startup was orphaned by definition and can be requeued on sight. The day a second replica
- * exists this becomes a bug of the worst kind — it would requeue a job another replica is running
- * right now — and the fix then is a per-entry timestamp and a reaper that only takes what has been
- * held longer than any job can legitimately take. See docs/scraping.md.
+ * exists this becomes a bug of the worst kind, requeuing a job another replica is running right
+ * now, and the fix then is a per-entry timestamp and a reaper that only takes what has been held
+ * longer than any job can legitimately take. See docs/scraping.md.
  *
  * Orphans go back to the FRONT of the queue: they were accepted before anything now waiting.
  *
  * **It runs from `drain`, not at module load, and that ordering is deliberate.** `registerRunner` is
  * called at the module scope of the route that owns the work, and that route is what imports this
- * file — so at import time the runner map is still empty and a reaped job would be answered
+ * file, so at import time the runner map is still empty and a reaped job would be answered
  * `unavailable` by a worker that simply had not learned its handler yet. By the time anything calls
  * `drain` the registration has happened. The cost is that an orphan waits for the next enqueue, and
  * on this workload the next enqueue is somebody clicking Analyze.
  *
  * **It runs at the top of every drain rather than once per process, and that is safe rather than
  * wasteful.** `drain` is serial behind `queueDraining` and its `finally` releases every id it took,
- * so at the moment a drain begins this process holds nothing in the processing list — anything there
- * still belongs to a dead one. Doing it once behind a flag would have meant a single transient Redis
- * error stranded an orphan until the next deploy; on a healthy queue this costs one LMOVE that
+ * so at the moment a drain begins this process holds nothing in the processing list, and anything
+ * there still belongs to a dead one. Doing it once behind a flag would mean a single transient
+ * Redis error stranded an orphan until the next deploy; on a healthy queue this costs one LMOVE that
  * answers nil.
  */
 async function reap(): Promise<void> {
@@ -172,19 +171,16 @@ type QueueClient = NonNullable<ReturnType<typeof redis>>
 /**
  * One worker loop: takes ids until the queue is empty, runs each to a terminal answer.
  *
- * **A job in flight when the process restarts is picked back up.** It used to be lost: the id was
- * popped off the list before it ran, so nothing was left holding it, and the client polled a
- * `running` job until its TTL lapsed. That was a defensible trade while the work was a screenshot —
- * idempotent, cheap, free to redo. It stopped being defensible the moment a job spent a credit, and
- * `POST /api/analyses` now spends one before it enqueues: a restart mid-drain lost the analysis
- * **and** the money, because `refundCredit` only runs when the generation throws, never when the
+ * **A job in flight when the process restarts is picked back up.** The id moves to PROCESSING_KEY
+ * rather than being popped off the list, comes off it in a `finally` so success and failure clean
+ * up identically, and `reap` puts back whatever a dead process left behind.
+ *
+ * Dropping it would cost the analysis **and** the money together: `POST /api/analyses` spends a
+ * credit before it enqueues, and `refundCredit` only runs when the generation throws, never when the
  * process dies under it.
  *
- * So the id moves to PROCESSING_KEY instead of vanishing, comes off it in a `finally` so success and
- * failure clean up identically, and `reap` puts back whatever a dead process left behind.
- *
  * A requeued job runs its handler a second time, which is why `runAnalysis` returns early on a row
- * that already has its results — see lib/run-analysis.ts. The credit is not at risk either way: it
+ * that already has its results. See lib/run-analysis.ts. The credit is not at risk either way: it
  * is spent by the route, not by the job.
  */
 async function worker(client: QueueClient): Promise<void> {
@@ -229,16 +225,14 @@ async function worker(client: QueueClient): Promise<void> {
 /**
  * Drains the queue with QUEUE_DRAIN_CONCURRENCY workers side by side.
  *
- * **It used to be serial, and the reason given for that was wrong.** The argument was that
- * `withBrowserSlot` already caps how many pages exist at once, so a second limiter here would
- * either fight it or hide it. The cap does still do exactly that and nothing here changes it — but
- * most of an owned analysis is not holding a slot. It scrapes, releases, then spends 30-60s in
- * three Sonnet calls competing for nothing while the whole queue waits behind it. The throughput
- * ceiling was one job at a time, never the three tabs.
+ * **This is not the browser cap and does not overlap with it.** `withBrowserSlot` caps how many
+ * pages exist at once and is the only thing limiting Chromium; this caps how many jobs are in
+ * flight. Most of an owned analysis is not holding a slot: it scrapes, releases, then spends 30-60s
+ * in three Sonnet calls competing for nothing. Draining one job at a time puts the throughput
+ * ceiling there rather than on the three tabs.
  *
- * So the slot cap goes on limiting Chromium and this limits jobs in flight. A burst of scrape-heavy
- * work now waits at `withBrowserSlot`, bounded by SCRAPE_QUEUE_MAX_WAIT_MS, instead of at the head
- * of this list where nothing bounded it.
+ * A burst of scrape-heavy work waits at `withBrowserSlot`, bounded by SCRAPE_QUEUE_MAX_WAIT_MS,
+ * instead of at the head of this list where nothing bounds it.
  *
  * **`queueDraining` still admits one drain at a time, and `reap` depends on that.** Reaping on
  * sight is sound only while this process holds nothing in the processing list, and it holds nothing

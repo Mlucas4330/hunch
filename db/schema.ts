@@ -7,6 +7,7 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   unique,
@@ -271,6 +272,19 @@ export const leads = pgTable(
     // Set the moment they ask to stop. The row is kept rather than deleted, because deleting it
     // would let the next submit of the same address silently re-subscribe them.
     unsubscribedAt: timestamp('unsubscribed_at'),
+    // The credential on the unsubscribe link, and the only one. Unguessable like `embed_key`, so a
+    // mail client that prefetches links can only ever unsubscribe the person who was mailed, and a
+    // stranger cannot walk ids to unsubscribe anyone else.
+    unsubscribeToken: uuid('unsubscribe_token').notNull().defaultRandom().unique(),
+    // Which mail of LEAD_SEQUENCE has gone out. Idempotency for the cron lives here rather than in a
+    // timestamp comparison: a run that crashes after sending has already written the stage.
+    stage: smallint('stage').notNull().default(0),
+    lastEmailedAt: timestamp('last_emailed_at'),
+    // **What the reader was actually promised.** A row captured under a form that said one mail and
+    // nothing else may not be enrolled in a sequence or uploaded to an ad network however the policy
+    // reads today. Set only by the form that states the current terms, so a null here is an older
+    // promise and is honoured by being left alone. See docs/ads.md.
+    consentedAt: timestamp('consented_at'),
     createdAt: timestamp('created_at').notNull().defaultNow()
   },
   (table) => [

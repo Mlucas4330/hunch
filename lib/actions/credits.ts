@@ -12,7 +12,7 @@ import { ADMIN_CREDITS_PATH, ADMIN_PROVIDER, ADMIN_GRANT_MAX } from '@/lib/const
  * An operator handing credits over with no payment behind them.
  *
  * **It goes through `grantCredits` like every other source, and touches neither table itself.** That
- * is the rule the whole billing side is built on — see docs/invariants.md — and an operator screen is
+ * is the rule the whole billing side is built on (see docs/invariants.md), and an operator screen is
  * exactly the place it would be tempting to break, because `update users set credits = ...` is one
  * line and leaves no ledger row behind.
  *

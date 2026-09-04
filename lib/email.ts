@@ -1,4 +1,4 @@
-import { EMAIL_API_ORIGIN } from '@/lib/constants'
+import { CONTACT_EMAIL, EMAIL_API_ORIGIN } from '@/lib/constants'
 import { log } from '@/lib/log'
 
 /**
@@ -19,6 +19,19 @@ type Message = {
   subject: string
   html: string
   text: string
+  /**
+   * The unsubscribe link, for the mails that carry one.
+   *
+   * **Given here it becomes a header, not only a line in the body.** Gmail and Yahoo ask bulk
+   * senders for `List-Unsubscribe`, and a mail without it is likelier to land in spam than in the
+   * inbox. The header also puts the unsubscribe button next to the sender's name, where somebody
+   * annoyed enough to leave finds it before they find the spam button, which is the outcome that
+   * actually protects the domain.
+   *
+   * `One-Click` means the mail client POSTs this URL itself, so the route answers POST as well as
+   * GET. See docs/api.md.
+   */
+  unsubscribeUrl?: string
 }
 
 export function emailEnabled(): boolean {
@@ -43,10 +56,23 @@ export async function sendEmail(message: Message): Promise<boolean> {
       },
       body: JSON.stringify({
         from: process.env.EMAIL_FROM,
+        // A reply is the one thing every message here invites and none of them handles: the sequence
+        // writes to somebody who is not a customer yet, and the reply-to is where that answer lands.
+        // It is `CONTACT_EMAIL` rather than `EMAIL_FROM` because the sender address is a deploy
+        // setting and the mailbox a reader is promised is the one in the privacy policy.
+        reply_to: CONTACT_EMAIL,
         to: message.to,
         subject: message.subject,
         html: message.html,
-        text: message.text
+        text: message.text,
+        ...(message.unsubscribeUrl
+          ? {
+              headers: {
+                'List-Unsubscribe': `<${message.unsubscribeUrl}>`,
+                'List-Unsubscribe-Post': 'List=One-Click'
+              }
+            }
+          : {})
       })
     })
 

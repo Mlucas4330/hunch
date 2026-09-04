@@ -84,11 +84,11 @@ export async function POST(request: Request) {
     // -- means a crash between the two hands out a free analysis, and there is no way to tell
     // afterwards which of the two happened. Nothing has been queued yet, so this is still before.
     //
-    // **An empty balance is no longer a refusal.** It used to delete the row and answer 402, which
-    // made signing in strictly worse than being signed out: a visitor with no session got the free
-    // readout and the same person signed in got nothing. Now the run simply stays ownerless, which is
-    // the existing free half rather than a new mode -- `runAnalysis` measures and calls no model, and
-    // the report renders the readout with the unlock wall where the fixes would be. See
+    // **An empty balance is not a refusal.** Deleting the row and answering 402 would make signing
+    // in strictly worse than being signed out: a visitor with no session gets the free readout and
+    // the same person signed in would get nothing. The run stays ownerless instead, which is the
+    // existing free half rather than a new mode: `runAnalysis` measures and calls no model, and the
+    // report renders the readout with the unlock wall where the fixes would be. See
     // docs/invariants.md.
     // **The four answers are the other half of the price, and they are charged here rather than at
     // the form.** Blocking the submit would leave a reader with a credit unable to see their own
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
         ? (await spendCredit(user.id, created.id)).spent
         : false
 
-    // Ownership is the whole record of having paid, so it is written only once a credit is gone --
+    // Ownership is the whole record of having paid, so it is written only once a credit is gone,
     // and before the job is queued, since `runAnalysis` reads this column to decide what to run.
     if (paid) {
       await db.update(analyses).set({ userId: user!.id }).where(eq(analyses.id, created.id))

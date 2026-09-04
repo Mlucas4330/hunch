@@ -19,7 +19,7 @@ export async function generateMetadata() {
  * Credits granted by hand, with no payment behind them.
  *
  * **`notFound()` rather than a 403.** Middleware has already turned away anyone with no session, so
- * whoever reaches this line is signed in and simply not an operator — and telling them a screen
+ * whoever reaches this line is signed in and simply not an operator, and telling them a screen
  * exists that they may not have is an invitation, not a security boundary. A 404 is the same answer
  * the route would give if it did not exist.
  *

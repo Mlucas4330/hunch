@@ -3,10 +3,9 @@ import { expect, type Page } from '@playwright/test'
 /**
  * Answers the four questions a credit is spent on.
  *
- * **Every spec that expects a generated analysis needs this now.** Filling the URL and pressing
- * Analyze used to buy the paid half on its own; it buys the free half, so a spec that skips this
- * lands on the unlock wall and reports a bug in whatever it was actually testing. See
- * `app/api/analyses/route.ts`.
+ * **Every spec that expects a generated analysis needs this.** Filling the URL and pressing Analyze
+ * buys the free half, so a spec that skips this lands on the unlock wall and reports a bug in
+ * whatever it was actually testing. See `app/api/analyses/route.ts`.
  *
  * The panel is already open wherever the reader has a credit, which is every signed in spec in this
  * suite. Tapping an option advances on its own, so four taps is the whole interaction.

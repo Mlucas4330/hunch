@@ -13,7 +13,7 @@ import { usePathname } from 'next/navigation'
  *
  * Three ways out, and each is a different intent: a click outside is "I am done with this", Escape is
  * the keyboard's version of the same, and a route change is "I used it". They are one component
- * rather than one per menu because the nav has two of these — the hamburger and the account panel —
+ * rather than one per menu because the nav has two of these (the hamburger and the account panel),
  * and a dismissal that worked in one and not the other is the bug this replaces.
  *
  * `pointerdown` rather than `click`: it fires before focus moves, so a menu never closes and reopens

@@ -57,6 +57,36 @@ test.describe('brief wizard', () => {
     expect(await page.evaluate(() => window.scrollY)).toBe(before)
   })
 
+  // The state a carried-over brief opens straight into. Getting there by answering all four is the
+  // same code path the dashboard reaches when `defaultBrief` already holds every answer, and it
+  // needs no seeded history to arrange.
+  test('the fourth answer lands on a summary of all four, each changeable', async ({ page }) => {
+    await openBrief(page)
+
+    for (const option of [
+      'Small businesses and their owners',
+      'Software or an app',
+      'Buy, right here',
+      'They cannot tell what it actually does'
+    ]) {
+      await page.getByRole('button', { name: option }).click()
+    }
+
+    await expect(page.getByText('Step 4 of 4')).toHaveCount(0)
+    await expect(page.getByText('Audience')).toBeVisible()
+    await expect(page.getByText('Objection')).toBeVisible()
+    await expect(page.getByText('Small businesses and their owners')).toBeVisible()
+
+    // Changing one reopens that question alone, and answering it returns to the summary rather than
+    // walking the reader through the three they did not ask to change.
+    await page.getByRole('button', { name: 'Change' }).nth(1).click()
+    await expect(page.getByText('What are you selling them?')).toBeVisible()
+
+    await page.getByRole('button', { name: 'A service I deliver myself' }).click()
+    await expect(page.getByText('A service I deliver myself')).toBeVisible()
+    await expect(page.getByText('What are you selling them?')).toHaveCount(0)
+  })
+
   test('something else takes free text, and Enter does not submit the analysis', async ({
     page
   }) => {

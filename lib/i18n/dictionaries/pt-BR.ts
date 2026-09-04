@@ -124,6 +124,7 @@ export const ptBR: Dictionary = {
   footer: {
     copyright: 'Copyright {year} Hunch. Todos os direitos reservados.',
     privacy: 'Privacidade',
+    email: 'Mandar e-mail para {address}',
     whatsapp: 'WhatsApp'
   },
 
@@ -325,14 +326,14 @@ export const ptBR: Dictionary = {
       {
         title: 'Quem é o responsável',
         body: [
-          'O Hunch é operado por Lucas Medeiros, pessoa física. O canal de contato para qualquer pedido sobre os seus dados é o WhatsApp no rodapé desta página.'
+          'O Hunch é operado por Lucas Medeiros, pessoa física. Para qualquer pedido sobre os seus dados, escreva para {email} ou use o WhatsApp no rodapé desta página.'
         ]
       },
       {
         title: 'O que a gente não faz',
         body: [
           'Não tem Google Analytics, Google Tag Manager, gtag.js, pixel de rede social nem ferramenta de comportamento neste site. Nada de anúncio é carregado nas nossas páginas, e por isso não existe banner de cookie aqui.',
-          'A gente não vende, não aluga e não troca os seus dados com ninguém para marketing.',
+          'A gente não vende e não aluga os seus dados. Uma coisa a gente faz e está escrita abaixo: se você deixou o seu e-mail aqui depois de ler o aviso do formulário, ele pode ser enviado ao Google Ads em forma embaralhada, para te mostrar anúncios nossos. Nunca em texto legível, e nunca para vender a lista a ninguém.',
           'Dois recursos de terceiro aparecem no navegador, e só esses: a demonstração do produto na landing page, que roda dentro de um iframe do Supademo, e o formulário de pagamento do Mercado Pago, que só carrega quando você abre o checkout.'
         ]
       },
@@ -354,7 +355,10 @@ export const ptBR: Dictionary = {
         title: 'O seu e-mail quando você pede o link do relatório',
         body: [
           'No relatório dá para pedir o link por e-mail. O endereço fica guardado junto daquela análise e serve para te mandar o link.',
-          'Dá para sair a qualquer momento. A linha continua existindo, marcada como descadastrada, justamente para que um envio seguinte não te inscreva de novo sem querer.'
+          'Depois disso vêm mais dois e-mails: um no segundo dia, com uma das coisas que a gente contou na sua página, e um no sétimo, sobre o que está atrás do desbloqueio. Só isso, e a sequência acaba aí.',
+          'Esse mesmo endereço pode ser enviado embaralhado ao Google Ads para te mostrar anúncios nossos, como está descrito acima.',
+          'Dá para sair a qualquer momento, com um clique em qualquer um dos e-mails. Sair vale para tudo: os e-mails e os anúncios. A linha continua existindo, marcada como descadastrada, justamente para que um envio seguinte não te inscreva de novo sem querer.',
+          'Quem deixou o endereço antes deste aviso existir continua sob a promessa antiga, de um e-mail só. Essas linhas não entram na sequência nem no envio ao Google, e isso é uma coluna no banco e não uma intenção.'
         ]
       },
       {
@@ -380,7 +384,8 @@ export const ptBR: Dictionary = {
       {
         title: 'Com quem os dados são compartilhados',
         body: [
-          'A Anthropic recebe o conteúdo da página analisada, que é o que permite escrever as correções. O Mercado Pago e a Stripe recebem o necessário para cobrar. A Resend envia os e-mails. O Google Ads recebe o clique e o valor, só quando existe uma compra. E a infraestrutura onde o produto roda hospeda o banco e a aplicação.',
+          'A Anthropic recebe o conteúdo da página analisada, que é o que permite escrever as correções. O Mercado Pago e a Stripe recebem o necessário para cobrar. A Resend envia os e-mails. E a infraestrutura onde o produto roda hospeda o banco e a aplicação.',
+          'O Google Ads recebe duas coisas. Quando existe uma compra, recebe o identificador do clique do anúncio e o valor pago. E recebe os e-mails de quem consentiu, sempre embaralhados com SHA-256 e nunca legíveis, para montar o público de anúncios.',
           'Ninguém mais recebe nada.'
         ]
       },
@@ -388,7 +393,7 @@ export const ptBR: Dictionary = {
         title: 'Os seus direitos',
         body: [
           'Pela LGPD você pode pedir acesso aos seus dados, correção, exclusão, portabilidade e a revogação de um consentimento que tenha dado.',
-          'É só pedir pelo WhatsApp que está no rodapé desta página. A gente responde e cumpre.'
+          'É só pedir por {email} ou pelo WhatsApp que está no rodapé desta página. A gente responde e cumpre.'
         ]
       },
       {
@@ -771,6 +776,16 @@ export const ptBR: Dictionary = {
   },
 
   credits: {
+    // O lembrete de um pagamento que o Mercado Pago ainda reporta como pendente. Não diz valor de
+    // propósito: quem imprime preço é a seção abaixo, e duas fontes para o mesmo número é como a
+    // página e o email começam a discordar do que a coisa custa.
+    reminder: {
+      subject: 'Seu pagamento ainda está pendente',
+      heading: 'O pagamento não foi confirmado',
+      body: 'Você começou uma compra e o Mercado Pago ainda não confirmou. Se foi Pix ou boleto, isso é normal e pode levar de minutos a alguns dias. Se você desistiu no meio, pode ignorar este email.',
+      cta: 'Voltar para o checkout',
+      footer: 'Assim que o pagamento for confirmado, os créditos entram sozinhos na sua conta.'
+    },
     eyebrow: 'Créditos',
     heading: 'Um crédito, uma análise completa.',
     body: 'A nota é sempre gratuita. O crédito compra a metade que um modelo escreve: as correções priorizadas, a copy substituta e uma prévia dela na sua página real.',
@@ -783,6 +798,7 @@ export const ptBR: Dictionary = {
     buy: 'Comprar',
     opening: 'Abrindo o checkout...',
     mostChosen: 'Mais escolhido',
+    freeCta: 'Medir a minha página',
     mercadopago: {
       loading: 'Carregando o formulário de pagamento...',
       failed: 'Não deu para carregar o formulário de pagamento. Tente de novo daqui a pouco.',
@@ -793,10 +809,23 @@ export const ptBR: Dictionary = {
       refresh: 'Atualizar o saldo'
     },
     packs: {
+      free: {
+        name: 'Gratuito',
+        price: '0 reais',
+        perAnalysis: 'Sem crédito e sem cartão',
+        tagline: 'A nota da sua página, medida na hora.',
+        features: [
+          'A nota e cada linha que a formou, no desktop e no celular',
+          'Quanto a página pesa e quanto demora para carregar',
+          'As palavras que a sua página repete e onde cada uma aparece',
+          'O link do relatório no seu email, para voltar nele depois',
+          'As correções priorizadas e a copy reescrita ficam de fora: essas precisam de um crédito'
+        ]
+      },
       single: {
         name: 'Avulso',
-        price: 'R$147',
-        perAnalysis: 'R$147 por análise',
+        price: 'R$47',
+        perAnalysis: 'R$47 por análise',
         tagline: 'Uma página, um diagnóstico dela.',
         features: [
           'A nota e cada linha que a formou, no desktop e no celular',
@@ -808,8 +837,8 @@ export const ptBR: Dictionary = {
       },
       trio: {
         name: 'Trio',
-        price: 'R$297',
-        perAnalysis: 'R$99 por análise',
+        price: 'R$147',
+        perAnalysis: 'R$49 por análise',
         tagline: 'Um funil de até três páginas.',
         features: [
           'Tudo do Avulso, nas três páginas',
@@ -844,7 +873,37 @@ export const ptBR: Dictionary = {
     errorInvalid: 'Isso não parece um endereço de email.',
     errorRate: 'Tentativas demais. Espere alguns minutos.',
     errorGeneric: 'Não deu para enviar. Tente de novo daqui a pouco.',
-    note: 'Um email com o link. Nada além disso, a não ser que você peça.',
+    // **Descreve o que acontece de verdade.** Antes prometia um email só, e a sequência abaixo
+    // tornaria essa frase falsa. Uma linha que deixa de ser verdade é uma linha para mudar, e não
+    // para suavizar: a mesma regra que governa a política de privacidade. Ver docs/ads.md.
+    note: 'O link agora, e mais dois emails com o que foi medido na sua página. O endereço também pode ser usado para te mostrar anúncios nossos. Sair é um clique, em qualquer email.',
+    sequence: {
+      unsubscribe: 'Não quero mais receber',
+      goneHeading: 'Pronto, você saiu',
+      goneBody:
+        'Não mandamos mais nada para este endereço. O link do seu relatório continua funcionando: ele nunca dependeu de email.',
+      measurement: {
+        subject: 'O que a gente contou em {host}',
+        heading: 'Uma coisa que medimos na sua página',
+        body: [
+          'Quando você pediu o relatório de {host}, a gente abriu a página do jeito que um visitante abre e contou o que tem nela.',
+          'Uma das coisas contadas foi esta:',
+          '{finding}',
+          'Esse número foi lido na sua própria página, então dá para conferir em um clique. O relatório inteiro continua no link abaixo.'
+        ],
+        cta: 'Ver o relatório'
+      },
+      offer: {
+        subject: 'As correções de {host} estão escritas',
+        heading: 'A nota você já tem',
+        body: [
+          'A nota de {host} e cada linha que a formou continuam no seu link, de graça, para sempre.',
+          'O que está atrás do desbloqueio é a parte que alguém precisa escrever: as correções priorizadas de estrutura, copy, SEO e visibilidade para IA, a copy substituta já pronta, e uma prévia dela na sua página real.',
+          'Se não for a hora, ignore este email. Ele é o último da sequência.'
+        ],
+        cta: 'Ver o que está escrito'
+      }
+    },
     email: {
       subject: 'O relatório da sua landing page',
       heading: 'Aqui está o seu relatório',

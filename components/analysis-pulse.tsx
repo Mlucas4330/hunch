@@ -16,7 +16,7 @@ type Pulse = { leaderboard: PublicScore[]; pulse: PulseEntry[] }
  * poll the same route twice. The server renders the first frame from its own query, so the board is
  * in the HTML and the poll only ever replaces it.
  *
- * The interval is slow on purpose — nobody is waiting on this the way they wait on an analysis they
+ * The interval is slow on purpose: nobody is waiting on this the way they wait on an analysis they
  * started, and the route it hits is cached per PULSE_CACHE_SECONDS anyway.
  */
 export function AnalysisPulse({ initial }: { initial: Pulse }) {

@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/current-user'
 import { isAdmin } from '@/lib/auth-policy'
 import { AccountMenu, AccountPanel } from '@/components/account-menu'
 import { MobileMenu } from '@/components/mobile-menu'
+import { LanguageToggle } from '@/components/language-toggle'
 import { NavLinks } from '@/components/nav-links'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Wordmark } from '@/components/wordmark'
@@ -34,7 +35,10 @@ export async function Navbar() {
           <NavLinks signedIn={Boolean(user)} admin={isAdmin(user)} />
           {/* Outside the account menu on purpose: a signed-out reader on the landing page or a
               public report is exactly who needs it, and burying it behind a sign-in would be a
-              preference only paying readers get. */}
+              preference only paying readers get. The language switch is beside it for the same
+              reason, and the pair is one cluster: both write a preference cookie about this browser
+              and neither needs an account. */}
+          <LanguageToggle locale={locale} />
           <ThemeToggle theme={theme} />
           {user ? (
             <AccountMenu user={user} />
@@ -49,7 +53,8 @@ export async function Navbar() {
           <div className="flex flex-col items-start gap-2">
             <NavLinks signedIn={Boolean(user)} admin={isAdmin(user)} />
           </div>
-          <div className="border-t pt-3">
+          <div className="flex items-center gap-2 border-t pt-3">
+            <LanguageToggle locale={locale} />
             <ThemeToggle theme={theme} />
           </div>
           {user ? (

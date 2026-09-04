@@ -11,11 +11,10 @@ type CopyState = 'idle' | 'copied' | 'failed'
 /**
  * One control: copy the link to this analysis.
  *
- * **It used to be a named card with an `Open` button beside it**, and that card made sense while the
- * owner was reading a *different* page from the one it linked to. With one route there is nothing to
- * open -- the reader is already on the page the link points at -- so a card describing "an
- * interactive report anyone can open with the link" was describing the page it was sitting on. What
- * survives is the only part that still does something: putting the URL on the clipboard.
+ * **There is deliberately no `Open` button beside it.** With one route the reader is already on the
+ * page the link points at, so a card describing "an interactive report anyone can open with the
+ * link" would be describing the page it sits on. Putting the URL on the clipboard is the only part
+ * that does something.
  *
  * The clipboard fallback stays: `navigator.clipboard` is undefined outside a secure context, and
  * without it the button is simply dead on plain http.

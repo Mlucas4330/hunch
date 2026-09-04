@@ -242,9 +242,9 @@ async function withBrowserSlot<T>(maxWaitMs: number, run: () => Promise<T>): Pro
     await new Promise<void>((resolve, reject) => {
       const grant = () => {
         // Cleared on the way in, not left to fire against a waiter that is no longer queued. The
-        // splice below already made the late timer harmless, but harmless is not free: it held this
-        // closure and a live handle for the rest of the wait, on every job that queued and was then
-        // served. Under a burst that is the common path, not the rare one.
+        // splice below makes a late timer harmless, but harmless is not free: it holds this closure
+        // and a live handle for the rest of the wait, on every job that queues and is then served.
+        // Under a burst that is the common path, not the rare one.
         clearTimeout(expiry)
         pool.active += 1
         resolve()
@@ -519,7 +519,7 @@ export async function screenshotVariant(
       // **Scrolling comes first, before either shot.** The element being rewritten is usually below
       // the fold, so a shot taken at the top of the page is a picture of something the change does
       // not touch. Scrolling once here and never again is what keeps the pair registered: doing it
-      // after the swap, which is where it used to live, framed the two shots at different offsets.
+      // after the swap frames the two shots at different offsets.
       await page.evaluate(freezeMotion)
       if (selector) await page.evaluate(scrollToTarget, selector)
       await awaitPaint(page)
@@ -725,11 +725,10 @@ export function applyVariantCopy(options: {
     return 'overflow'
   }
 
-  // **The scroll is deliberately not here.** It used to be, and it had to move out the moment the
-  // preview became a pair: this function runs between the two shots, so scrolling inside it framed
-  // the "before" at the top of the page and the "after" centred on the element, and the wipe
-  // compared two different parts of the page. `scrollToTarget` now runs before either shot, so both
-  // share one offset. See docs/scraping.md.
+  // **The scroll is deliberately not here.** This function runs between the two shots, so scrolling
+  // inside it would frame the "before" at the top of the page and the "after" centred on the
+  // element, and the wipe would compare two different parts of the page. `scrollToTarget` runs
+  // before either shot, so both share one offset. See docs/scraping.md.
   return fitToBox(el as HTMLElement)
 }
 
@@ -1389,10 +1388,9 @@ async function capturePerformance(options: { lcpFlushMs: number }): Promise<Page
 /**
  * The page's readable text, with the markup taken out.
  *
- * It used to end in `.slice(0, 8000)` with no caller aware of it and no doc mentioning it, which is
- * how a long page reached every prompt as its own top third. The budget now belongs to whoever is
- * building a prompt -- see composePageText in lib/page-text.ts -- and this function's only job is to
- * flatten.
+ * **It does not truncate.** A `.slice` here, invisible to every caller, is how a long page reaches
+ * every prompt as its own top third. The budget belongs to whoever is building a prompt (see
+ * composePageText in lib/page-text.ts) and this function's only job is to flatten.
  */
 export function preprocessHtml(html: string): string {
   const text = html

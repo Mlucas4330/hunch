@@ -1,4 +1,4 @@
-﻿import { generateObject } from 'ai'
+import { generateObject } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import {
   AdIdeasSchema,
@@ -172,10 +172,9 @@ export async function measureNeighbours(
 /**
  * Everything one scrape produced: the columns a row stores, and the raw material a generation needs.
  *
- * The two used to be inseparable because `analyzeLandingPage` measured and generated in one call and
- * handed back a finished analysis. That is what made an owned run write nothing for three minutes --
- * see lib/run-analysis.ts. Splitting the return is what lets the measurement be persisted the moment
- * it exists, which is roughly twenty seconds in.
+ * The two are separate so the measurement can be persisted the moment it exists, roughly twenty
+ * seconds in. Measuring and generating in one call and handing back a finished analysis is what
+ * makes an owned run write nothing for three minutes. See lib/run-analysis.ts.
  */
 export type MeasuredPage = PageMeasurement & {
   html: string
@@ -344,8 +343,8 @@ export async function generateFromMeasurement(
     measured
 
   // The reader's own page is already measured and already stored. This is the only page still to
-  // fetch, and it waits on its own browser slot -- which is exactly why it is no longer taken
-  // together with theirs. See docs/invariants.md.
+  // fetch, and it waits on its own browser slot, which is why it is not taken together with theirs.
+  // See docs/invariants.md.
   const competitor = options.competitorUrl ? await measureCompetitor(options.competitorUrl) : null
 
   // **Only here, never in measurePage.** An ownerless run measures the page and calls no model, and
@@ -524,15 +523,15 @@ function findingsSection(findings: MeasuredFinding[]): string {
 }
 
 /**
- * The copy hypotheses, and **the only one of the three that used to be able to fail the analysis.**
+ * The copy hypotheses.
  *
- * `generatePlaybook` and `generateVisibility` have always swallowed a failure into an empty list, on
- * the reasoning that a missing tab is better than a lost report. This call sat in the same
- * `Promise.all` without that treatment, so anything it threw rejected all three — discarding a flow
- * playbook and a visibility audit that had finished, and whose tokens were already spent.
+ * **It degrades into an empty list like the other two.** `generatePlaybook` and `generateVisibility`
+ * swallow a failure the same way, on the reasoning that a missing tab is better than a lost report.
+ * Throwing from inside the shared `Promise.all` would reject all three, discarding a flow playbook
+ * and a visibility audit that had finished and whose tokens were already spent.
  *
- * It degrades the same way now. What a credit is worth is decided afterwards, over everything that
- * came back, rather than by whichever generator threw first: see the refund in lib/run-analysis.ts.
+ * What a credit is worth is decided afterwards, over everything that came back, rather than by
+ * whichever generator threw first: see the refund in lib/run-analysis.ts.
  */
 /**
  * Runs the critique and applies it, or returns the set untouched.
@@ -598,9 +597,9 @@ async function generateHypotheses(input: {
 
 export type PlaybookInput = {
   structure: PageStructure
-  // Added when `mobile` and `performance` became fix categories. This generator used to receive the
-  // structural readout alone, which is exactly why it could never answer a mobile or a load finding
-  // -- the report counted both and then had nothing to say about either.
+  // Here because `mobile` and `performance` are fix categories. Handed the structural readout alone,
+  // this generator could not answer a mobile or a load finding: the report would count both and then
+  // have nothing to say about either.
   mobile: PageMobile
   performance: PagePerformance
   /**

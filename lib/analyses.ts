@@ -34,7 +34,7 @@ const PagingSchema = z.coerce.number().int().positive().optional().catch(undefin
  * Reads a page number off a query string, for the dashboard and for `GET /api/analyses` alike.
  *
  * Anything that is not a positive integer comes back `undefined`, which `listAnalysesForUser` reads
- * as page one — a hand-edited `?page=banana` is a typo, not an error worth a screen. It lives here
+ * as page one: a hand-edited `?page=banana` is a typo, not an error worth a screen. It lives here
  * rather than in either caller because both are reading the same parameter for the same query, and a
  * second copy is what lets the two drift.
  */
@@ -42,9 +42,8 @@ export function parsePaging(value: string | null | undefined): number | undefine
   return PagingSchema.parse(value ?? undefined)
 }
 
-// The public report's one query, authorized by the opaque embed key alone. It moved here from
-// lib/report.ts when white-label was removed: that file existed to resolve a brand, and the brand is
-// gone, but the lookup is not. It stays `cache()`d because the page and its OG route both call it.
+// The public report's one query, authorized by the opaque embed key alone. It stays `cache()`d
+// because the page and its OG route both call it.
 export const loadReport = cache(async (embedKey: string) => {
   if (!isUuid(embedKey)) return null
 
@@ -77,10 +76,10 @@ export function splitVisibility(fixes: FlowFix[]): { seo: FlowFix[]; ai: FlowFix
 /**
  * Which fixes answer which measured finding.
  *
- * **This is the join the reader used to do in their head.** The readout counts 43 things above and
- * the tabs carry up to 20 generated cards below, and until `flow_fixes.finding` existed nothing tied
- * one to the other -- correlating "form has 7 fields" with "cut the form to three" was a matter of
- * recognising the words.
+ * **This is the join, so the reader does not have to make it themselves.** The readout counts 43
+ * things above and the tabs carry up to 20 generated cards below; `flow_fixes.finding` is what ties
+ * "form has 7 fields" to "cut the form to three" instead of leaving the reader to recognise the
+ * words.
  *
  * An array per finding rather than a single fix: nothing stops two fixes answering one number, and
  * silently dropping the second would be a worse answer than showing both.
