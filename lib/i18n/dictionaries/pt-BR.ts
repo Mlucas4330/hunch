@@ -1,5 +1,26 @@
-import type { Dictionary } from '@/lib/i18n/dictionaries/en'
+import type { Dictionary, LandingHero } from '@/lib/i18n/dictionaries/en'
 import { ptBrBlog } from '@/lib/i18n/dictionaries/pt-BR.blog'
+import type { AdGroup } from '@/lib/enums'
+
+// **Esta é a versão que os anúncios veem.** Toda a campanha é brasileira, então o inglês ao lado
+// existe porque `: Dictionary` exige e não porque algum clique vai lê-lo. Ver docs/i18n.md.
+const landingAdGroups: Record<AdGroup, LandingHero> = {
+  fix: {
+    headlineTop: 'Você sente que tem coisa errada na página.',
+    headlineBottom: 'Não sabe qual linha trocar.',
+    lead: 'O Hunch abre a sua página do jeito que um visitante abre, conta o que tem nela e põe as correções em ordem de peso. Cada uma vem com o texto substituto já escrito, e o relatório inteiro vira um prompt para colar de volta na ferramenta que fez a página. Cole a URL. Ver a nota não custa nada e não pede cadastro.'
+  },
+  'built-with-ai': {
+    headlineTop: 'A ferramenta subiu a sua página em uma tarde.',
+    headlineBottom: 'Ninguém te disse se ela funciona.',
+    lead: 'Lovable, v0, Bolt, Cursor: a página fica pronta antes de você conseguir avaliar. O Hunch abre a sua num navegador de verdade, conta o que tem nela de verdade e dá uma nota de 0 a 100, com as correções priorizadas e a copy substituta já escrita. Cole a URL. Ver a nota não custa nada e não pede cadastro.'
+  },
+  audit: {
+    headlineTop: 'Uma auditoria da sua landing page, contada.',
+    headlineBottom: 'Medida na página, em menos de um minuto.',
+    lead: 'Campos do formulário, CTAs acima da dobra, LCP, peso da página, meta description, alt text. O Hunch abre a sua página num navegador de verdade e conta cada um deles, depois prioriza o que trocar com o texto novo já escrito. Cole a URL. Ver a nota não custa nada e não pede cadastro.'
+  }
+}
 
 export const ptBR: Dictionary = {
   metadata: {
@@ -151,6 +172,8 @@ export const ptBR: Dictionary = {
     cta: 'Ver minha nota agora, de graça',
     ctaNote: 'Só a sua URL. A gente não pede cadastro, nem cartão, nem acesso ao seu código.',
     howItWorksLink: 'Como funciona',
+
+    adGroups: landingAdGroups,
 
     heroCard: {
       domain: 'sualandingpage.com',

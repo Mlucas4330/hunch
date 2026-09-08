@@ -355,9 +355,16 @@ the reasoning does not change because the funnel got longer.
   rails, the default locale and the pt-BR rewrite all point one way.
 
 **Bidding: Maximize Clicks with a CPC ceiling until roughly 30 purchase conversions a month
-exist**, then Target CPA. **Set the ceiling near R$1.50.** The arithmetic above only clears on the
-cheap tail, and an uncapped bid buys ad groups 1 and 2 at R$3 to R$5 -- the terms this cannot afford
-until a sale is worth more or the funnel converts better.
+exist**, then Target CPA. **The ceiling the arithmetic supports is R$1,50**, because the tables above
+only clear on the cheap tail and an uncapped bid buys ad groups 1 and 2 at R$3 to R$5.
+
+**It sits at R$3 as of 2026-09-08, deliberately and temporarily.** The first five days produced 162
+impressions and zero clicks, and at R$1,50 there is no way to tell a market that will not click from
+a bid that never reached a readable position. Two weeks at R$3 buys that answer at up to about R$700.
+**It is buying information, not traffic**, and the break-even tables above are in the red for as long
+as it lasts. **Review it on 2026-09-22**: back to R$1,50 unless a click has proved to be worth more
+than the tables assume. Nothing here makes R$3 the number the arithmetic supports, and reading it
+that way later would invert the whole section.
 
 The lead action does not change this. It is secondary, so it steers nothing; it exists so the manual
 tuning has something to read. Smart Bidding on payment-only conversions still has almost nothing to
@@ -391,14 +398,22 @@ the pronoun rather than arguing with the classifier.
 
 **2. Built with AI** -- recognition rather than intent, and the cheapest of the high intent themes
 because almost nobody is bidding on it yet.
-`site feito com ia`, `landing page com ia`, `criei meu site com ia`, `lovable`, `bolt new`,
-`v0 vercel`, `cursor ai site`, `replit landing page`, `meu site do lovable`,
-`avaliar site feito com ia`.
+`site feito com ia`, `landing page com ia`, `criei meu site com ia`, `avaliar site feito com ia`,
+`meu site do lovable`, `landing page lovable`, `site feito no lovable`, `site feito no bolt`,
+`landing page do v0`, `site feito no cursor`.
 Lands on `/`.
 
-**Two of those are ambiguous bare and are written long for that reason.** `cursor` alone is a mouse
-pointer and a CSS property, and `replit` alone is mostly people looking for the IDE, so both carry a
-qualifier. The tool names that are unambiguous stay short.
+**Every tool name is qualified, and the first five days are why.** `lovable`, `bolt new`, `v0 vercel`
+and `cursor ai site` ran bare and produced 148 impressions with no clicks, against search terms that
+were almost entirely somebody wanting to **build**: `como criar site com ia`, `criar site com claude`,
+`melhor ia para criar sites`, `como fazer site no lovable`, `vendendo sites com ia`. `lovable` on its
+own took 26 impressions from people looking for Lovable. The ad asked whether their AI page was any
+good, of readers who had not made a page yet.
+
+**A bare tool name is a question about the tool; a qualified one is a question about a page that
+exists.** `site feito no lovable` and `landing page do v0` can only be typed by somebody who already
+shipped, which is the entire buyer. `replit landing page` came off with no replacement, because the
+term is about the IDE rather than about anything deployed.
 
 **Bidding on a tool's name is allowed as a keyword and constrained in the ad text.** Google permits
 trademark terms as keywords; using one *in the ad copy* is what draws a complaint, and it is also
@@ -432,18 +447,72 @@ blog posts that still exist, and the group's job was to prove whether the blog c
 four ad groups and a R$1,50 ceiling it buys readers ahead of the themes that buy addresses, so it
 waits until the lead column shows the other four producing any.
 
+### The hero continues the sentence that was clicked
+
+Each ad group that lands on `/` carries its own value in the final URL, and the landing page reads it
+to choose the hero:
+
+| Ad group | Final URL | `AD_GROUP` |
+| --- | --- | --- |
+| Fixing a page a tool built | `https://hunch.solutions/?ag=fix` | `fix` |
+| Built with AI | `https://hunch.solutions/?ag=built-with-ai` | `built-with-ai` |
+| Landing page audit | `https://hunch.solutions/?ag=audit` | `audit` |
+| AI visibility | `/blog/ai-is-the-new-google`, unchanged | none |
+
+**This is message match and it is not a test.** One reader sees one hero, chosen by the ad they
+clicked. There is no split, no holdout and no control group, so there is nothing here that a lift
+could be read out of, and nothing may try: each ad group has a different hero **and** a different
+audience, so a difference in their address rates says nothing about the copy. That is the delta rule
+reaching the one surface where it would be easiest to forget it, see
+[invariants.md](invariants.md#a-delta-is-arithmetic-between-two-measurements-never-a-result-attributed-to-a-change).
+
+**The ad group is the finest grain that exists.** Google rotates the fifteen unpinned headlines of a
+responsive search ad and reports nothing about which one served, so the hero can echo the job the
+query described and can never echo the sentence the reader saw. Copy written as if it could is copy
+that is wrong fourteen times out of fifteen.
+
+**Only three lines move**: the two halves of the headline and the paragraph under it. The eyebrow is
+the price of clicking and is the same whichever ad was clicked; the button and its note are read a
+second time by the closing card, two thousand pixels below the ad's context, so theming them would
+either move that card too or duplicate the strings. See [analysis-ui.md](analysis-ui.md).
+
+**Anything absent, unknown, misspelt, hostile or repeated renders the copy the page has always had**,
+and so does every crawler, since it arrives with no query string. The parameter only ever selects a
+key out of a closed union in `lib/enums.ts`; its own text is never rendered, which is what keeps a
+stranger from writing our headline.
+
+It is read from the query string and never stored. The claim is that this page continues the sentence
+you just clicked, and that is true of exactly one pageview: a cookie would keep it "true" for ninety
+days and show ad copy to somebody who arrived organically weeks later with no way to notice. The
+click id next door is a cookie because it has to survive to a payment that confirms days afterwards;
+a headline has to survive one render.
+
+Two traps that are worth knowing rather than fixing. **A sitelink carries its own final URL**, so a
+sitelink click lands with no parameter and gets the control hero, which is correct. And **an ad
+created without the parameter serves the control hero forever**, with nothing in the account or in
+any report saying so; the only defence is that the URL is written down beside the copy in
+[ads-assets.md](ads-assets.md).
+
 ### Negatives
 
 Set at campaign level from day one. The list matters more than the keywords do at this budget.
 
 `curso`, `cursos`, `certificacao`, `vaga`, `vagas`, `emprego`, `salario`, `agencia`, `contratar`,
 `pdf`, `apostila`, `download`, `gratis para sempre`, `como criar landing page`, `criar site gratis`,
-`hospedagem`.
+`hospedagem`, `criar site`, `criar sites`, `como criar site`, `fazer site`, `como fazer site`,
+`criar pagina`, `criacao de site`, `melhor ia`, `qual melhor ia`, `vender sites`, `ia para criar`,
+`brizy`, `hostgator`.
 
-**Three of those are new and they exclude the reader one step too early.** Somebody searching how to
-build a landing page, where to make a free site, or who hosts it has not deployed anything, and this
-product needs a URL that already answers. They are the same person a month before they are worth a
-click.
+**Everything from `criar site` down is one category, and it is the largest single correction this
+campaign has needed.** Somebody searching how to build a page, which AI builds one best, or where to
+host it has not deployed anything, and this product needs a URL that already answers. They are the
+same person a month before they are worth a click, and for those five days they were the audience.
+`brizy` and `hostgator` are there because they arrived in the search terms as builder shopping rather
+than as anything about a page.
+
+**They are phrase and not broad, on purpose.** `criar site` as a broad negative would also block
+`o que corrigir na minha landing page` the moment somebody phrased it with those two words, and the
+whole point of ad group 1 is the reader who already has the page.
 
 **Four came off this list with the repositioning, and it is worth saying why rather than editing them
 away.** `template`, `templates`, `figma` and `freelancer` were negatives because they described the
@@ -507,8 +576,8 @@ or an address; the database cannot see which ad group bought them.
 
 **Volume is the first question and it disqualifies every other one.** A group with fewer than about
 30 clicks is not a group that converted badly, it is a group nobody has read yet. At the R$1,50
-ceiling that is roughly R$45 of spend per group, and R$150 is the smallest number that says anything
-at all. **Below that, change nothing**: rewriting copy against six clicks is how a campaign gets
+ceiling that is roughly R$45 of spend per group, at the R$3 one it is R$90, and R$150 is the
+smallest number that says anything at all. **Below that, change nothing**: rewriting copy against six clicks is how a campaign gets
 churned into noise, and the terms here are new enough in Brazil that "no impressions" is a plausible
 outcome on its own.
 

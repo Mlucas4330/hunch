@@ -9,6 +9,7 @@ import { LandingFaq } from '@/components/landing-faq'
 import { LandingSchema } from '@/components/landing-schema'
 import { LandingSteps } from '@/components/landing-steps'
 import { ProductDemo } from '@/components/product-demo'
+import { SectionLink } from '@/components/section-link'
 import { SwipeTrack } from '@/components/swipe-track'
 import {
   analysisPulse,
@@ -17,6 +18,7 @@ import {
   type PulseEntry
 } from '@/lib/analyses'
 import {
+  AD_GROUP_PARAM,
   BLOG_PATH,
   MERCADOPAGO_PROVIDER,
   PAIN_CHANNEL_CLASS,
@@ -25,10 +27,10 @@ import {
   STRIPE_PROVIDER
 } from '@/lib/constants'
 import { mercadoPagoEnabled } from '@/lib/mercadopago'
-import { AI_POST_SLUG, type ReadoutSeverity } from '@/lib/enums'
+import { AI_POST_SLUG, isAdGroup, type ReadoutSeverity } from '@/lib/enums'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 import { pageMetadata } from '@/lib/seo'
-import type { Dictionary } from '@/lib/i18n/dictionaries/en'
+import type { Dictionary, LandingHero } from '@/lib/i18n/dictionaries/en'
 import { cn } from '@/lib/utils'
 
 export async function generateMetadata() {
@@ -36,10 +38,23 @@ export async function generateMetadata() {
   return pageMetadata({ ...metadata.pages.landing, path: '/', index: true })
 }
 
-export default async function LandingPage() {
+export default async function LandingPage({
+  searchParams
+}: {
+  // Typed as it actually arrives: `?ag=fix&ag=audit` hands over an array, and calling it a string
+  // would be the type system lying about a URL a stranger writes.
+  searchParams: Promise<{ [AD_GROUP_PARAM]?: string | string[] }>
+}) {
   const session = await auth()
   const locale = await getLocale()
   const d = dictionaryFor(locale)
+
+  // **The hero continues the sentence the reader clicked, and nothing else on the page moves.**
+  // `d.landing` already carries these three keys, so the fallback is the control copy itself rather
+  // than a branch that has to be kept in step with it. Anything absent, unknown, hostile or repeated
+  // lands there, which is also what a crawler arriving with no query string sees. See docs/ads.md.
+  const adGroup = (await searchParams)[AD_GROUP_PARAM]
+  const hero: LandingHero = isAdGroup(adGroup) ? d.landing.adGroups[adGroup] : d.landing
 
   // Rendered here so the board is in the HTML rather than appearing a poll later. Below
   // PULSE_MIN_ENTRIES there is no board, only a couple of rows dressed as one, so the whole section
@@ -53,10 +68,10 @@ export default async function LandingPage() {
         <div className="space-y-6">
           <p className="panel-label text-micro text-muted-foreground">{d.landing.eyebrow}</p>
           <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
-            {d.landing.headlineTop}
-            <span className="block text-muted-foreground">{d.landing.headlineBottom}</span>
+            {hero.headlineTop}
+            <span className="block text-muted-foreground">{hero.headlineBottom}</span>
           </h1>
-          <p className="max-w-md text-base text-muted-foreground">{d.landing.lead}</p>
+          <p className="max-w-md text-base text-muted-foreground">{hero.lead}</p>
           {/* **The form, not a link to a sign in screen.** The page promises a score with no account and
               `POST /api/analyses` has always delivered one -- an ownerless run is measured, costs zero
               tokens and lands on `/r/<embedKey>`. What was missing was any way to reach it: every CTA
@@ -66,12 +81,12 @@ export default async function LandingPage() {
             <p className="text-sm text-muted-foreground">{d.landing.ctaNote}</p>
           </div>
 
-          <Link
-            href="#how"
-            className="panel-label inline-block text-micro text-muted-foreground transition-colors hover:text-foreground max-sm:inline-flex max-sm:min-h-11 max-sm:items-center"
+          <SectionLink
+            target="how"
+            className="panel-label inline-block text-micro text-muted-foreground hover:text-foreground max-sm:inline-flex max-sm:min-h-11 max-sm:items-center"
           >
             {d.landing.howItWorksLink}
-          </Link>
+          </SectionLink>
         </div>
 
         <HeroReadout dictionary={d} />
@@ -198,7 +213,7 @@ export default async function LandingPage() {
               {d.landing.finalCta.heading}
             </h2>
             <Button asChild size="lg">
-              <Link href="#top">{d.landing.cta}</Link>
+              <SectionLink target="top">{d.landing.cta}</SectionLink>
             </Button>
             <p className="text-sm text-muted-foreground">{d.landing.ctaNote}</p>
           </CardContent>

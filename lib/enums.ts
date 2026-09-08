@@ -35,6 +35,30 @@ export const AI_POST_SLUG: BlogSlug = 'ai-is-the-new-google'
 export const MARKET = ['us', 'br'] as const
 export type Market = (typeof MARKET)[number]
 
+// The ad groups in the Google Ads account that land on `/`, and the hero the landing page shows each
+// of them. Named after the account rather than after the page, because the account is where a value
+// here is bought and where a wrong one is diagnosed. See docs/ads.md.
+//
+// **This is message match and never a test.** One reader is shown one hero, chosen by the ad they
+// clicked. There is no split, no holdout and no comparison, so nothing anywhere may read a
+// difference between these as a lift -- see docs/invariants.md.
+//
+// **The ad group is the finest grain there is.** Google rotates the fifteen unpinned headlines of a
+// responsive search ad and reports nothing about which one served, so the page can echo the theme
+// the query described and can never echo the sentence the reader saw.
+//
+// The AI visibility group is deliberately absent: it lands on a blog post with a hero of its own, so
+// a member for it would be copy in two dictionaries that nothing renders. Pointing it at `/` starts
+// by adding it here, which fails typecheck until both locales carry the hero.
+export const AD_GROUP = ['fix', 'built-with-ai', 'audit'] as const
+export type AdGroup = (typeof AD_GROUP)[number]
+
+// The value arrives in a query string a stranger controls, so it is narrowed before it keys anything
+// and the raw text is never rendered. Same shape as `isReadoutFinding` below, for the same reason.
+export function isAdGroup(value: unknown): value is AdGroup {
+  return AD_GROUP.includes(value as AdGroup)
+}
+
 export const SECTIONS = [
   'headline',
   'subheadline',

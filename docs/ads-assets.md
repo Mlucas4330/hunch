@@ -21,9 +21,14 @@ One ad per ad group, fifteen headlines and four descriptions each, **nothing pin
 headline to position one buys consistency and costs the auction most of what it had to work with,
 and at this volume there is nothing to consistently protect yet.
 
+**The final URL is part of the ad, not decoration.** Its `?ag=` value is what tells the landing
+page which hero to show, so an ad created without it serves the control hero forever and nothing
+in any report says so. That is the whole reason the URLs are written down here beside the copy.
+See [ads.md](ads.md).
+
 ### Consertar site feito com IA
 
-Final URL `https://hunch.solutions/`, paths `/nota/gratis`.
+Final URL `https://hunch.solutions/?ag=fix`, paths `/nota/gratis`.
 
 Keywords, phrase match:
 
@@ -37,13 +42,13 @@ Keywords, phrase match:
 | 4 | Nota de 0 a 100 na sua URL |
 | 5 | As correções priorizadas |
 | 6 | A copy nova já escrita |
-| 7 | Contado na sua página |
+| 7 | Melhorar landing page |
 | 8 | Um prompt para colar de volta |
 | 9 | Sem cadastro e sem cartão |
-| 10 | A nota sai de graça |
+| 10 | Arrumar landing page |
 | 11 | Medimos, não adivinhamos |
 | 12 | Sem acesso ao seu código |
-| 13 | Sua página em um minuto |
+| 13 | Revisar a sua landing page |
 | 14 | Um crédito, uma análise |
 | 15 | Estrutura, copy, SEO e IA |
 
@@ -56,11 +61,11 @@ Keywords, phrase match:
 
 ### Feito com IA
 
-Final URL `https://hunch.solutions/`, paths `/nota/gratis`.
+Final URL `https://hunch.solutions/?ag=built-with-ai`, paths `/nota/gratis`.
 
 Keywords, phrase match:
 
-`site feito com ia`, `landing page com ia`, `criei meu site com ia`, `lovable`, `bolt new`, `v0 vercel`, `cursor ai site`, `replit landing page`, `meu site do lovable`, `avaliar site feito com ia`
+`site feito com ia`, `landing page com ia`, `criei meu site com ia`, `avaliar site feito com ia`, `meu site do lovable`, `landing page lovable`, `site feito no lovable`, `site feito no bolt`, `landing page do v0`, `site feito no cursor`
 
 | # | Headline |
 | --- | --- |
@@ -70,15 +75,15 @@ Keywords, phrase match:
 | 4 | Nota de 0 a 100, de graça |
 | 5 | Cole a URL. Receba a nota |
 | 6 | Um chat não abre a sua página |
-| 7 | A gente abre e conta |
+| 7 | Site feito com IA tem nota? |
 | 8 | O que tem na sua página |
 | 9 | Sem cadastro, sem cartão |
 | 10 | Uma nota, não um palpite |
 | 11 | Pronta em uma tarde. E aí? |
 | 12 | Sua landing page tem nota? |
 | 13 | Veja em menos de um minuto |
-| 14 | Só a URL, mais nada |
-| 15 | Medido, nunca chutado |
+| 14 | Landing page feita com IA |
+| 15 | Avaliar site feito com IA |
 
 | # | Description |
 | --- | --- |
@@ -89,7 +94,7 @@ Keywords, phrase match:
 
 ### Auditoria de landing page
 
-Final URL `https://hunch.solutions/`, paths `/nota/gratis`.
+Final URL `https://hunch.solutions/?ag=audit`, paths `/nota/gratis`.
 
 Keywords, phrase match:
 

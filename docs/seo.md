@@ -51,6 +51,23 @@ The locale is a cookie with no route segment, so `en` and `pt-BR` are genuinely 
 `alternates.languages` would be a lie to crawlers; the cookie-less render (`DEFAULT_LOCALE`) is what
 gets indexed. **Do not add hreflang without first giving the locales real URLs.**
 
+## `?ag=` changes the hero and nothing a crawler sees
+
+The landing page reads an ad group out of the query string and swaps three lines of the hero, see
+[ads.md](ads.md). It is safe here for one reason and it is worth stating rather than assuming:
+`pageMetadata` emits a hard self-canonical to `/`, so `/?ag=fix` folds into `/` and never becomes a
+second indexable URL.
+
+**`generateMetadata` deliberately does not read the parameter.** Title, description, the OG unfurl
+and the JSON-LD stay on the control copy, so a shared ad link unfurls as `/` does and the structured
+data cannot disagree with the page that is actually indexed. A crawler arrives with no query string
+and no cookie, so what it gets is the control hero in `DEFAULT_LOCALE`.
+
+**A route per ad group would break all of this**, which is why there is not one: `/consertar` would be
+an indexable near-duplicate of the homepage, `app/robots.ts` allows `/` broadly and would not catch
+it, and it would be missing from `app/sitemap.ts`. The parameter is the shape that fits the rules
+already here.
+
 ## Structured data: `FAQPage` and `SoftwareApplication`
 
 `components/landing-faq.tsx` emits `FAQPage` JSON-LD on `/`, and it is **generated from

@@ -1,4 +1,38 @@
 import { enBlog } from '@/lib/i18n/dictionaries/en.blog'
+import type { AdGroup } from '@/lib/enums'
+
+/** The three lines of the hero that move with the ad, and the only ones that do. */
+export type LandingHero = {
+  headlineTop: string
+  headlineBottom: string
+  lead: string
+}
+
+/**
+ * One hero per ad group that lands on `/`, chosen by the ad the reader clicked.
+ *
+ * Annotated rather than cast, so a missing key fails here as well as in pt-BR: `as Record<...>`
+ * would only bind the second locale. `eyebrow`, `cta` and `ctaNote` are deliberately not in the
+ * shape -- the last two are read again by the closing card, two thousand pixels away from the ad's
+ * context. See docs/i18n.md.
+ */
+const landingAdGroups: Record<AdGroup, LandingHero> = {
+  fix: {
+    headlineTop: 'You can tell something is off on the page.',
+    headlineBottom: 'You cannot tell which line to change.',
+    lead: 'Hunch opens your page the way a visitor does, counts what is on it, and puts the fixes in order of weight. Each one arrives with the replacement copy written, and the whole report assembles into one prompt you paste back into the tool that built the page. Paste your URL. Seeing the score costs nothing and needs no account.'
+  },
+  'built-with-ai': {
+    headlineTop: 'The tool shipped your page in an afternoon.',
+    headlineBottom: 'Nobody has told you whether it works.',
+    lead: 'Lovable, v0, Bolt, Cursor: the page is finished before you can judge it. Hunch opens yours in a real browser, counts what is actually on it, and scores it out of 100, with ranked fixes and the replacement copy already written. Paste your URL. Seeing the score costs nothing and needs no account.'
+  },
+  audit: {
+    headlineTop: 'An audit of your landing page, counted.',
+    headlineBottom: 'Measured on the page, in under a minute.',
+    lead: 'Form fields, CTAs above the fold, LCP, page weight, meta description, alt text. Hunch opens your page in a real browser and counts every one of them, then ranks what to change with the new copy already written. Paste your URL. Seeing the score costs nothing and needs no account.'
+  }
+}
 
 export const en = {
   metadata: {
@@ -157,6 +191,8 @@ export const en = {
     cta: 'Score my page now, free',
     ctaNote: 'Just your URL. We do not ask for a signup, a card, or access to your code.',
     howItWorksLink: 'How it works',
+
+    adGroups: landingAdGroups,
 
     heroCard: {
       domain: 'yourlandingpage.com',

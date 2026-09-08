@@ -31,6 +31,24 @@ self-serve funnel: paste a URL, get a score, unlock the fixes. All copy comes fr
 because it is the half that costs no model tokens, the half the reader can check against their own
 page in one click, and the only thing here anyone shares unprompted.
 
+- **Three lines of the hero move with the ad that was clicked, and nothing else on the page does.**
+  `?ag=` names an ad group, `isAdGroup` narrows it, and `d.landing.adGroups[adGroup]` supplies
+  `headlineTop`, `headlineBottom` and `lead`. Everything absent or unrecognised falls through to
+  `d.landing` itself, which already carries those three keys, so the fallback **is** the control copy
+  rather than a second branch that has to be kept in step with it. `eyebrow` never moves, because the
+  price of clicking is the same whichever ad was clicked, and `cta` and `ctaNote` never move because
+  the closing card reads them again far below the ad's context. This is message match and not a test,
+  see [ads.md](ads.md).
+- **The two in-page anchors are `SectionLink`, and that is load bearing rather than cosmetic.** A
+  `<Link href="#how">` resolves against the pathname, which drops the query string: clicking it
+  re-rendered the page without the ad group and swapped the headline back with the reader two screens
+  down, having also lost the parameter from any URL they might then share. A native fragment link
+  resolves against the whole URL and does not navigate at all.
+  `e2e/ad-message-match.spec.ts` holds that case.
+
+  **The navbar's own "How it works" is `/#how` and drops the parameter, by design.** It has to reach
+  the landing page from the blog as well, so it is an address rather than a fragment. The reader who
+  takes that route back lands on the control hero, which is the same thing every other visitor sees.
 - **The hero carries the form, not a link to a sign in screen.** `POST /api/analyses` has always
   served an ownerless run, measured, zero tokens, landing on `/r/<embedKey>`, but every CTA pointed
   at `/auth/signin` and `UrlInputForm` rendered only on the protected dashboard, so **the page

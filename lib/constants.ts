@@ -77,6 +77,11 @@ export const CALLBACK_URL_PARAM = 'callbackUrl'
 // shipping Google's tag onto our own landing page would be the product failing its own audit.
 export const GCLID_PARAM = 'gclid'
 
+// Which ad group bought the click, so the hero can continue the sentence the reader clicked.
+// Read straight off the query string by the landing page and never stored: unlike the click id
+// below, it is needed only while the request that carried it renders. See docs/ads.md.
+export const AD_GROUP_PARAM = 'ag'
+
 export const GCLID_COOKIE = 'hunch.gclid'
 
 // Google's own longest click-to-conversion window. A click older than this is refused on upload, so

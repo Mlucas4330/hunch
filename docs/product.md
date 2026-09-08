@@ -204,7 +204,9 @@ and a wider margin is not worth making before there is a measured rate to make i
   anybody. Mail that does go out is the report link, a two-mail follow-up, and a reminder about a
   payment the provider still reports as pending. **Every one of them is leaveable in one click**, and
   none of them is required to use anything
-- **No live A/B testing, no snippet, no significance.** See the section above for why
+- **No live A/B testing, no snippet, no significance.** See the section above for why. The landing
+  page showing a different hero per ad group is not this returning: it is message match, one reader
+  seeing one hero with no split and no comparison, see [ads.md](ads.md)
 - **No third-party tracker on any surface.** This is not "no tracking" flatly: the product buys
   traffic, so a paid click leaves a first-party cookie holding its Google Ads click id, and a
   confirmed payment is reported to Google from the server. What holds, and is the part worth stating,
