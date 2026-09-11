@@ -45,6 +45,8 @@ push goes live: Railway ships whatever is on `main`.
   with the fixtures in `lib/ai/fixtures.ts`.
 - **`PAGESPEED_API_KEY` unset** means every analysis is saved with no PageSpeed section and a
   `pagespeed.failed` warning in the log. Everything else still runs.
+- **`BRAND_DIR`** is where uploaded logos are written, `./.brand` locally. Unset, the name still saves
+  and a logo upload answers `503 brand_storage_unavailable`. The e2e suite writes to `.brand-e2e`.
 - **`PUPPETEER_SKIP_DOWNLOAD` must stay unset locally**, where Chrome is launched in-process.
 - **`E2E_FAIL_GENERATION`** (`throw`, `empty` or `copy`) makes the fixture generation fail on purpose.
   It is nested inside the `E2E_FIXTURES` branch, so no production deploy can reach it.

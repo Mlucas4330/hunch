@@ -49,7 +49,9 @@ and call `router.refresh()` once when the state stops being `generating` or `rer
 ## The page: `app/(report)/r/[embedKey]/page.tsx`
 
 - **Header**: back link, copy link and "Run again" for the owner, disabled with its reason when the
-  month's quota is spent; the wordmark otherwise; the language switch for everyone.
+  month's quota is spent; otherwise `ReportBrandMark`, the agency's logo, else its name, else the
+  wordmark; the language switch for everyone. See
+  [invariants.md](invariants.md#the-agencys-brand-comes-from-one-resolver-on-three-surfaces).
 - **`ReportCover`**: the host as the `<h1>`, the full URL, the date of the last finished run, and a
   summary sentence assembled in code from counted facts. With nothing generated it prints `report.summaryPending` instead, because
   "0 errors" would read as a clean page.
@@ -76,5 +78,5 @@ because `navigator.clipboard` is undefined outside a secure context.
 ## Open Graph
 
 `app/(report)/r/[embedKey]/opengraph-image.tsx` renders the host, the number of errors and the
-PageSpeed score. An unknown embed key produces the same card shape as a real one rather than revealing
+PageSpeed score, under the agency's name when the owner set a brand. An unknown embed key produces the same card shape as a real one rather than revealing
 that it does not exist. See [seo.md](seo.md).

@@ -121,7 +121,7 @@ export type AnalysisState = (typeof ANALYSIS_STATE)[number]
 
 // Abuse gates. Windows live in RATE_LIMITS, so a kind added here fails typecheck until it is given
 // one.
-export const RATE_LIMIT_KIND = ['analysis', 'job_status', 'signin'] as const
+export const RATE_LIMIT_KIND = ['analysis', 'job_status', 'signin', 'brand'] as const
 export type RateLimitKind = (typeof RATE_LIMIT_KIND)[number]
 
 // The four Lighthouse categories PageSpeed Insights scores, in render order. The values are the ids

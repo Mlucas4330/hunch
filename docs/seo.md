@@ -45,6 +45,12 @@ The locale is a cookie with no route segment, so `en` and `pt-BR` are genuinely 
   `OG_COLORS`, **the one place hex values are legitimate**.
 - The images resolve their dictionary with `dictionaryFor(DEFAULT_LOCALE)`: unfurlers send no cookies.
 
-## There is no agency branding in metadata
+## A report's metadata carries the agency's brand
 
-`pageMetadata()` always says `Hunch`, and `OgWordmark` is the only mark `components/og.tsx` draws.
+`pageMetadata()` takes an optional `brand`. With a name or a logo set, the report's title is written as
+`absolute`, `<title> | <agency>` or the bare title, so the root layout's `%s | Hunch` template never
+applies, and `siteName` and `applicationName` become the agency's. The report's OG card prints the
+agency name through `OgBrandName`, and its `alt` is `metadata.reportOgImageAlt`, which names no brand.
+See [invariants.md](invariants.md#the-agencys-brand-comes-from-one-resolver-on-three-surfaces).
+
+Every other page says Hunch.

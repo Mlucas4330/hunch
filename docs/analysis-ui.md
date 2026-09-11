@@ -12,6 +12,7 @@
 | `/analyses/[id]` | Redirect | Owner-checked, then `redirect('/r/<embedKey>')`. See [report.md](report.md) |
 | `/r/[embedKey]` | The analysis | Cover, overall PageSpeed score, then four sections. Public, authorized by the key. See [report.md](report.md) |
 | `/admin/accounts` | Accounts | Operator only. Sets each account's monthly quota |
+| `/settings` | Your brand | The agency name and logo its reports carry. See [components.md](components.md#brand-componentsbrand-settings-formtsx-and-componentsreport-brand-marktsx) |
 | `/privacy` | Policy | |
 
 **There is one analysis screen, not two.** See [report.md](report.md).

@@ -34,9 +34,8 @@ const LOCALE_FLAG: Record<Locale, typeof BR> = {
  * `LOCALE_LABEL`** exactly as the theme switch carries its own from the dictionary. A flag is a
  * country and not a language, which is why the name a screen reader reads is the language.
  *
- * It sits in the navbar cluster next to the theme switch, in the mobile menu, and in the public
- * report's header, because a signed out reader on the landing page or on somebody else's report is
- * exactly who needs it. See docs/i18n.md.
+ * Not mounted anywhere for now. Its place is next to the theme switch in the navbar, in the mobile
+ * menu, and in the public report's header. See docs/i18n.md.
  */
 export function LanguageToggle({ locale }: { locale: Locale }) {
   const t = dictionaryFor(locale)

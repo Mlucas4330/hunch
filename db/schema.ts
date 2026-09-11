@@ -44,6 +44,9 @@ export const users = pgTable('users', {
   // Runs per calendar month (UTC), set by an operator. Never carried in the JWT. See
   // docs/invariants.md.
   monthlyQuota: integer('monthly_quota').notNull().default(DEFAULT_MONTHLY_QUOTA),
+  // What the agency signs its reports with. Read only through brandFor(). See docs/invariants.md.
+  brandName: text('brand_name'),
+  brandLogoUrl: text('brand_logo_url'),
   lastSignInAt: timestamp('last_sign_in_at'),
   createdAt: timestamp('created_at').notNull().defaultNow()
 })

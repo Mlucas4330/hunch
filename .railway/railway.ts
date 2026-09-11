@@ -14,6 +14,7 @@ const REGION = "us-west2";
 const DOMAIN = "hunch.solutions";
 const BROWSER_IMAGE = "Dockerfile.browser";
 const BROWSER_SCRIPT = "scripts/browser-entrypoint.sh";
+const APP_DATA_MOUNT = "/data";
 
 const DB_VOLUME = {
   alerts: { usage: { "80": {}, "95": {}, "100": {} } },
@@ -34,6 +35,8 @@ export default defineRailway(() => {
       '/bin/sh -c "rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH"',
   };
   const redisVolume = volume("redis-volume", DB_VOLUME);
+
+  const brandVolume = volume("brand-volume", { ...DB_VOLUME, sizeMB: 1000 });
 
   const browser = service("browser", {
     source,
@@ -64,6 +67,9 @@ export default defineRailway(() => {
       healthcheckTimeout: 300,
       restartPolicyMaxRetries: 5,
     },
+    volumeMounts: {
+      [APP_DATA_MOUNT]: brandVolume,
+    },
     env: {
       ADMIN_EMAIL: preserve(),
       ANTHROPIC_API_KEY: preserve(),
@@ -74,6 +80,7 @@ export default defineRailway(() => {
       AUTH_SECRET: preserve(),
       AUTH_TRUST_HOST: preserve(),
       AUTH_URL: preserve(),
+      BRAND_DIR: preserve(),
       BROWSER_URL: preserve(),
       CSP_ENFORCE: preserve(),
       DATABASE_URL: preserve(),
@@ -92,6 +99,7 @@ export default defineRailway(() => {
       browser,
       postgresVolume,
       redisVolume,
+      brandVolume,
     ],
   });
 });

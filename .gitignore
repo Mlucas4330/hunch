@@ -45,6 +45,7 @@ screenshot-preview/
 # Local SCREENSHOT_DIR and BRAND_DIR
 .screenshots/
 .brand/
+.brand-e2e/
 
 
 .vscode/

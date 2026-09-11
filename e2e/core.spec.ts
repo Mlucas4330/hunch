@@ -159,7 +159,8 @@ test.describe('core features', () => {
     await expect(page.locator('html')).toHaveClass(/dark/)
     await expect(page.getByRole('button', { name: 'Continuar com o Google' })).toBeVisible()
 
-    await page.getByRole('button', { name: 'English', exact: true }).first().click()
+    await pinEnglish(context)
+    await page.reload()
     await expect(page.locator('html')).toHaveAttribute('lang', 'en')
     await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
 

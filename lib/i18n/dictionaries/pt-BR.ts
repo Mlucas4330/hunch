@@ -7,7 +7,12 @@ export const ptBR: Dictionary = {
     description:
       'Auditoria de landing page para agências: notas do Google PageSpeed Insights, acesso de crawlers de IA e os erros de estrutura, copy, SEO e visibilidade para IA.',
     ogImageAlt: 'Hunch - auditoria de landing page',
+    reportOgImageAlt: 'Auditoria de landing page',
     pages: {
+      settings: {
+        title: 'Sua marca',
+        description: 'O logo e o nome que vão em todo relatório que você manda.'
+      },
       landing: {
         title: 'Auditoria de landing page para agências',
         description:
@@ -104,6 +109,7 @@ export const ptBR: Dictionary = {
     homeAria: 'Início do Hunch',
     blog: 'Blog',
     dashboard: 'Minhas páginas',
+    settings: 'Sua marca',
     admin: 'Admin',
     signIn: 'Entrar',
     signOut: 'Sair',
@@ -122,6 +128,27 @@ export const ptBR: Dictionary = {
     privacy: 'Privacidade',
     email: 'Mandar e-mail para {address}',
     whatsapp: 'WhatsApp'
+  },
+
+  settings: {
+    eyebrow: 'White label',
+    title: 'Sua marca',
+    hintLabel: 'Onde a sua marca aparece',
+    hint: 'Com um logo ou um nome salvo aqui, os relatórios que você manda saem *com a sua marca no lugar da nossa*: no topo do relatório que o cliente abre, no card de prévia quando o link é colado no WhatsApp ou no e-mail e no título da aba do navegador.',
+    nameLabel: 'Nome da agência',
+    namePlaceholder: 'Sua agência',
+    nameHint: 'Aparece quando não há logo e no card de prévia quando o link é compartilhado.',
+    logoLabel: 'Logo',
+    logoHint: 'PNG ou JPEG, até {kb} KB. Aparece no topo de todo relatório.',
+    logoRemove: 'Remover o logo',
+    save: 'Salvar',
+    saving: 'Salvando...',
+    saved: 'Salvo',
+    error: 'Não deu para salvar. Confira o arquivo e tente de novo.',
+    errorLogoTooLarge: 'Esse arquivo passa de {kb} KB. Exporte menor e tente de novo.',
+    errorUnsupportedLogo: 'Esse arquivo não é PNG nem JPEG.',
+    errorNameTooLong: 'O nome pode ter até {max} caracteres.',
+    errorStorage: 'O envio de logo não está disponível agora. Tente de novo mais tarde.'
   },
 
   landing: {
@@ -220,7 +247,7 @@ export const ptBR: Dictionary = {
         },
         {
           question: 'O relatório sai com a marca da minha agência?',
-          answer: 'Ainda não. Hoje ele sai com a marca Hunch.'
+          answer: 'Sim. Em Sua marca você envia o logo e o nome da agência, e os relatórios que você manda saem com eles no lugar do Hunch, inclusive no card de prévia e no título da aba.'
         },
         {
           question: 'O que vocês guardam?',
@@ -276,6 +303,7 @@ export const ptBR: Dictionary = {
         title: 'A sua conta',
         body: [
           'Se você entrar, guardamos o e-mail, o nome e a foto que o Google ou o GitHub devolvem, e a cota mensal definida para a sua conta. A gente só aceita e-mail que o provedor confirma como verificado, e nunca guarda senha.',
+          'Se você configurar a sua marca, guardamos também o nome da agência e o logo que você enviar. O logo fica num endereço público, porque aparece no relatório para quem tiver o link.',
           'A sua assinatura é cobrada fora deste site. Nenhum dado de pagamento passa por aqui.'
         ]
       },

@@ -10,6 +10,8 @@ performance detail, not the security boundary. See [security.md](security.md).
 | `GET /api/analyses` | session, or embed key for `?embedKey=` | history, or one analysis' progress |
 | `GET\|DELETE /api/analyses/[id]` | session + ownership | |
 | `POST /api/analyses/[id]/runs` | session + ownership, quota | runs the page again: measures it and rewrites the error lists |
+| `POST /api/brand` | session | saves the agency name and logo the account's reports carry |
+| `GET /brand/[file]` | none | serves an uploaded logo; not under `/api`, see [security.md](security.md#uploads-post-apibrand-and-appbrandfileroutets) |
 | `GET /api/health` | none | Railway's deploy probe, imports nothing: see [deployment.md](deployment.md#healthcheck) |
 
 The operator screen sets quotas through a server action, `setQuotaAction` in
@@ -97,3 +99,23 @@ Answers `202 { runId }`.
 
 Errors: `401` no session · `403 quota_exhausted` · `404` unknown or unowned id · `409 run_in_progress`
 · `429` rate limited · `503 queue_unavailable`.
+
+## Brand
+
+### `POST /api/brand`
+
+Multipart form data: `name`, `logo` (file) and `removeLogo`, because the name and the logo are saved
+together from one form.
+
+Chain: session -> rate limit (`brand`) -> name length -> logo size -> logo type -> write the file ->
+update the row -> delete the previous file. Answers `{ brandName, brandLogoUrl }`.
+
+- An empty `name` saves as `null`. `removeLogo=1` clears the logo and wins over a file in the same
+  request.
+- **The type is sniffed from the file's bytes**, never from its declared `Content-Type`. See
+  [security.md](security.md#uploads-post-apibrand-and-appbrandfileroutets).
+- **No `BRAND_DIR` means no upload**, answered as `503 brand_storage_unavailable` rather than a crash.
+  Saving the name alone still works.
+
+Errors: `401` no session · `422 name_too_long` · `422 logo_too_large` · `422 unsupported_logo` · `429`
+rate limited · `503 brand_storage_unavailable`.

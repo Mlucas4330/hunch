@@ -20,7 +20,10 @@ import type {
 export const FALLBACK_APP_ORIGIN = 'http://localhost:3000'
 
 // Shared by middleware.ts and app/robots.ts so the two can never drift.
-export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/admin']
+export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/admin', '/settings']
+
+// Where an agency sets the brand its reports carry. See docs/invariants.md.
+export const SETTINGS_PATH = '/settings'
 
 export const POST_SIGNIN_REDIRECT = '/dashboard'
 
@@ -373,8 +376,32 @@ export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: numb
   analysis: { tokens: 20, windowMs: HOUR_MS },
   // Deliberately loose: polling costs one Redis read.
   job_status: { tokens: 600, windowMs: HOUR_MS },
-  signin: { tokens: 5, windowMs: 15 * MINUTE_MS }
+  signin: { tokens: 5, windowMs: 15 * MINUTE_MS },
+  // Each accepted call can write a file to the volume.
+  brand: { tokens: 20, windowMs: HOUR_MS }
 }
+
+// The agency's logo, served from BRAND_DIR under this path. See docs/security.md.
+export const BRAND_PUBLIC_PATH = '/brand'
+
+// Exactly what saveBrandLogo() writes, so the serving route can refuse every other name.
+export const BRAND_FILENAME_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.(?:png|jpg)$/
+
+export const BRAND_LOGO_MAX_KB = 512
+export const BRAND_LOGO_MAX_BYTES = BRAND_LOGO_MAX_KB * 1024
+
+// Sniffed from the file's own bytes, never from the declared Content-Type. SVG is deliberately absent:
+// it is served from our own origin and can carry script. See docs/security.md.
+export const BRAND_LOGO_SIGNATURES = [
+  { ext: 'png', bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
+  { ext: 'jpg', bytes: [0xff, 0xd8, 0xff] }
+] as const
+
+export const BRAND_NAME_MAX_LENGTH = 40
+
+// next/image needs intrinsic dimensions; the drawn size comes from CSS, so these bound the box.
+export const BRAND_LOGO_DISPLAY_HEIGHT = 32
+export const BRAND_LOGO_DISPLAY_MAX_WIDTH = 200
 
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 

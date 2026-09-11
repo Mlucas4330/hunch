@@ -16,6 +16,10 @@ agencies cannot produce with the tools they already pay for.
 **The report is shared by link.** `/r/<embedKey>` is readable by anyone holding the link, so the
 agency can send it to its client. See [report.md](report.md).
 
+**The report carries the agency's brand.** At `/settings` the agency uploads a logo and sets its name
+once, and every report it owns shows them in place of Hunch. See
+[invariants.md](invariants.md#the-agencys-brand-comes-from-one-resolver-on-three-surfaces).
+
 ## How an account works
 
 **The subscription is sold and billed outside the app.** Once the agency has paid, an operator sets
@@ -72,4 +76,4 @@ stays public. See [analysis-ui.md](analysis-ui.md#landing-appapppagetsx).
 - **No third-party tracker on any surface.** No tag manager, no analytics script, no ad pixel.
 - **No live A/B testing.** It would need a snippet on the client's site and traffic most landing pages
   do not have.
-- **No agency branding on the report yet.** The report carries the Hunch wordmark.
+- **No colour or layout customisation.** The agency's brand is its logo and its name, nothing else.

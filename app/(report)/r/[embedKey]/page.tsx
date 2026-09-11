@@ -2,14 +2,13 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ReportCover } from '@/components/report-cover'
-import { Wordmark } from '@/components/wordmark'
+import { ReportBrandMark } from '@/components/report-brand-mark'
 import { GeneratingNotice, PendingList } from '@/components/generating-notice'
 import { GenerationFailed } from '@/components/generation-failed'
 import { HypothesisList } from '@/components/hypothesis-list'
 import { FlowPlaybook } from '@/components/flow-playbook'
 import { AnalysisSections } from '@/components/analysis-sections'
 import { InfoHint } from '@/components/info-hint'
-import { LanguageToggle } from '@/components/language-toggle'
 import { RichText } from '@/components/rich-text'
 import { CopyReportLink } from '@/components/copy-report-link'
 import { Button } from '@/components/ui/button'
@@ -18,6 +17,7 @@ import { RunAgain, RunInProgress } from '@/components/run-again'
 import { ReportRail } from '@/components/report-rail'
 import { SectionEvidence } from '@/components/section-evidence'
 import { StartHere } from '@/components/start-here'
+import { brandFor, type ReportBrand } from '@/lib/brand'
 import { getCurrentUser } from '@/lib/current-user'
 import { analysisStateFor, lastFinishedAt, latestRun } from '@/lib/run-analysis'
 import { quotaFor, quotaLeft } from '@/lib/quota'
@@ -39,7 +39,6 @@ import {
   ANALYSIS_TAB,
   REPORT_SECTION,
   type AnalysisTab,
-  type Locale,
   type PlaybookSection
 } from '@/lib/enums'
 import { dictionaryFor, getDictionary, getLocale, type Dictionary } from '@/lib/i18n'
@@ -62,7 +61,8 @@ export async function generateMetadata({ params }: { params: Promise<{ embedKey:
     description: fill(metadata.pages.report.description, vars),
     path: `/r/${embedKey}`,
     index: false,
-    ownImage: true
+    ownImage: true,
+    brand: brandFor(analysis?.user ?? null)
   })
 }
 
@@ -83,6 +83,8 @@ export default async function ReportPage({
 
   const analysis = await loadReport(embedKey)
   if (!analysis) notFound()
+
+  const brand = brandFor(analysis.user)
 
   const user = await getCurrentUser()
   const isOwner = user !== null && analysis.userId === user.id
@@ -137,7 +139,12 @@ export default async function ReportPage({
   if (!measured) {
     return state === 'failed' ? (
       <div className="animate-fade-up space-y-6">
-        <ReportHeader isOwner={isOwner} t={t} locale={locale} embedKey={analysis.embedKey} />
+        <ReportHeader
+          isOwner={isOwner}
+          t={t}
+          embedKey={analysis.embedKey}
+          brand={brand}
+        />
         <GenerationFailed measured={false} />
       </div>
     ) : (
@@ -206,8 +213,8 @@ export default async function ReportPage({
       <ReportHeader
         isOwner={isOwner}
         t={t}
-        locale={locale}
         embedKey={analysis.embedKey}
+        brand={brand}
         runControl={runControl}
       />
 
@@ -264,19 +271,19 @@ export default async function ReportPage({
   )
 }
 
-// A signed-in reader already has the wordmark in the navbar the layout renders; a signed-out one has
-// no navbar at all, and the report has to say whose document it is.
+// A signed-in reader already has the navbar the layout renders; a signed-out one has no navbar at all,
+// and the report has to say whose document it is: the agency's, when it set a brand.
 function ReportHeader({
   isOwner,
   t,
-  locale,
   embedKey,
+  brand,
   runControl = null
 }: {
   isOwner: boolean
   t: Dictionary
-  locale: Locale
   embedKey: string
+  brand: ReportBrand
   runControl?: ReactNode
 }) {
   return (
@@ -290,14 +297,11 @@ function ReportHeader({
           {runControl}
         </div>
       ) : (
-        <Wordmark />
+        <ReportBrandMark brand={brand} />
       )}
-      <div className="flex items-end gap-4">
-        <LanguageToggle locale={locale} />
-        <div className="text-right">
-          <p className="panel-label text-micro text-muted-foreground">{t.report.teardown}</p>
-          <p className="font-display text-sm font-medium">{t.report.plan}</p>
-        </div>
+      <div className="text-right">
+        <p className="panel-label text-micro text-muted-foreground">{t.report.teardown}</p>
+        <p className="font-display text-sm font-medium">{t.report.plan}</p>
       </div>
     </header>
   )

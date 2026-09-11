@@ -6,7 +6,12 @@ export const en = {
     description:
       'Landing page audits for agencies: Google PageSpeed Insights scores, AI crawler access, and the errors in structure, copy, SEO and AI visibility.',
     ogImageAlt: 'Hunch - a landing page audit',
+    reportOgImageAlt: 'A landing page audit',
     pages: {
+      settings: {
+        title: 'Your brand',
+        description: 'The logo and name every report you send carries.'
+      },
       landing: {
         title: 'Landing page audits for agencies',
         description:
@@ -109,6 +114,7 @@ export const en = {
     homeAria: 'Hunch home',
     blog: 'Blog',
     dashboard: 'My pages',
+    settings: 'Your brand',
     admin: 'Admin',
     signIn: 'Sign in',
     signOut: 'Sign out',
@@ -127,6 +133,27 @@ export const en = {
     privacy: 'Privacy',
     email: 'Send an email to {address}',
     whatsapp: 'WhatsApp'
+  },
+
+  settings: {
+    eyebrow: 'White label',
+    title: 'Your brand',
+    hintLabel: 'Where your brand shows up',
+    hint: 'Once you save a logo or a name, the reports you send carry *your brand instead of ours*: at the top of the report your client opens, on the preview card when the link is pasted into WhatsApp or email, and in the browser tab title.',
+    nameLabel: 'Agency name',
+    namePlaceholder: 'Your agency',
+    nameHint: 'Shown when there is no logo, and on the preview card when a link is shared.',
+    logoLabel: 'Logo',
+    logoHint: 'PNG or JPEG, up to {kb} KB. Shown at the top of every report.',
+    logoRemove: 'Remove the logo',
+    save: 'Save',
+    saving: 'Saving...',
+    saved: 'Saved',
+    error: 'That did not save. Check the file and try again.',
+    errorLogoTooLarge: 'That file is over {kb} KB. Export it smaller and try again.',
+    errorUnsupportedLogo: 'That file is not a PNG or a JPEG.',
+    errorNameTooLong: 'The name can be up to {max} characters.',
+    errorStorage: 'Logo uploads are not available right now. Try again later.'
   },
 
   landing: {
@@ -225,7 +252,7 @@ export const en = {
         },
         {
           question: "Does the report carry my agency's brand?",
-          answer: 'Not yet. Today it carries the Hunch brand.'
+          answer: 'Yes. In Your brand you upload a logo and set the agency name, and the reports you send carry them instead of Hunch, on the preview card and in the tab title too.'
         },
         {
           question: 'What do you keep?',
@@ -281,6 +308,7 @@ export const en = {
         title: 'Your account',
         body: [
           'If you sign in, we keep the email, name and picture Google or GitHub returns, and the monthly quota set for your account. We only accept an address the provider confirms as verified, and we never store a password.',
+          'If you set up your brand, we also keep the agency name and the logo you upload. The logo is served from a public address, because it shows on the report for anyone holding the link.',
           'Your subscription is billed outside this site. No payment details pass through it.'
         ]
       },

@@ -28,7 +28,7 @@ Read the file that covers what you are about to touch. Paths are relative to the
 | --- | ------------ |
 | `docs/product.md` | you need what the product does and for whom |
 | `docs/data-model.md` | touching the schema, a column's contract, or how rows are split |
-| `docs/api.md` | touching a route under `/api` (analyses, runs) |
+| `docs/api.md` | touching a route under `/api` (analyses, runs, brand) |
 | `docs/ai-pipeline.md` | touching a prompt, a Zod schema, or generation |
 | `docs/scraping.md` | touching `lib/scrape.ts`, the readouts, or browser concurrency |
 | `docs/readout.md` | touching anything that shows a number to a reader |

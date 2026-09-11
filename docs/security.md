@@ -89,11 +89,21 @@ profile blocks the syscalls Chrome's sandbox needs and Railway does not support 
 **What makes it survivable is the browser service having no environment variables at all.** No secret
 may live in project-level shared variables, which Railway propagates into every service.
 
-## There is no upload
+## Uploads: `POST /api/brand` and `app/brand/[file]/route.ts`
 
-Nothing in this product accepts a file. **These are the rules to re-read before any upload ships**:
-sniff the type from the leading bytes, derive the stored extension from the sniff, and refuse SVG,
-which can carry `<script>` from our own origin.
+The agency logo is the only file this product accepts.
+
+- **The type is sniffed from the leading bytes** against `BRAND_LOGO_SIGNATURES`. The declared
+  `Content-Type` is the caller's to choose and decides nothing.
+- **SVG is deliberately absent and must not be added.** The file is served from our own origin, and an
+  SVG can carry `<script>`: accepting one would be stored XSS on the domain that holds the session.
+- **The stored name is a fresh uuid and its extension comes from the sniff**, so
+  `brandLogoContentType()` derives the response header from a name the caller never controlled.
+- **`brandLogoPath()` in `lib/brand-assets.ts` is the only way from a request to a file.** It refuses
+  any name that does not match `BRAND_FILENAME_PATTERN` and any path that resolves outside `BRAND_DIR`,
+  and the serving route answers `404` for both.
+- The size is capped at `BRAND_LOGO_MAX_BYTES` and the route is rate limited as `brand`, because each
+  accepted call writes to the volume.
 
 ## Rate limiting: `lib/rate-limit.ts`
 

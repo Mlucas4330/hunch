@@ -14,6 +14,9 @@ users
                   /admin/accounts. Read from the row per request, NEVER carried in the JWT)
                   <- a row may be created by setQuota before its owner has ever signed in; name is
                   then the email until they do, see invariants.md
+- brand_name      (text, nullable: the agency name its reports carry, at most BRAND_NAME_MAX_LENGTH)
+- brand_logo_url  (text, nullable: a path under BRAND_PUBLIC_PATH, never an external URL)
+                  <- both read only through brandFor(), see invariants.md
 - last_sign_in_at (timestamp, nullable: null means the row was provisioned and nobody has claimed it)
 - created_at      (timestamp)
 
@@ -126,6 +129,15 @@ an analysis never gives the month's runs back.
 
 **A new run replaces the lists in one transaction**, after the generation succeeds. Until then the
 previous lists stay on the report, and a run that fails leaves them as they were.
+
+### The brand lives on `users`, not on `analyses`
+
+It belongs to the agency, not to the client being analysed, so it is set once and every report the
+account owns reads it at render time. A rebrand changes every report behind every link already sent.
+See [invariants.md](invariants.md#the-agencys-brand-comes-from-one-resolver-on-three-surfaces).
+
+`brand_logo_url` names a file in `BRAND_DIR`. The row is updated before the previous file is deleted,
+so a failed write never leaves the column pointing at nothing.
 
 ### `analyses.locale` and `analyses.market` are pinned at creation
 

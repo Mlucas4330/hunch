@@ -33,7 +33,8 @@ export const loadReport = cache(async (embedKey: string) => {
     where: eq(analyses.embedKey, embedKey),
     with: {
       hypotheses: true,
-      flowFixes: { orderBy: (f, { asc }) => asc(f.position) }
+      flowFixes: { orderBy: (f, { asc }) => asc(f.position) },
+      user: { columns: { brandName: true, brandLogoUrl: true } }
     }
   })
 

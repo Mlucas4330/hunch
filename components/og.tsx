@@ -37,6 +37,14 @@ export function OgWordmark() {
   )
 }
 
+// The agency's name in text, never its logo: satori cannot read a file off the volume. With a logo and
+// no name the corner stays empty rather than going back to ours. See docs/invariants.md.
+export function OgBrandName({ name }: { name: string | null }) {
+  if (!name) return <div style={{ display: 'flex' }} />
+
+  return <div style={{ display: 'flex', fontSize: 34, fontWeight: 600, color: OG_COLORS.ink }}>{name}</div>
+}
+
 export function OgStat({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
     <div

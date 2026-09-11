@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useI18n } from '@/components/i18n-provider'
-import { ADMIN_ACCOUNTS_PATH, BLOG_PATH, POST_SIGNIN_REDIRECT } from '@/lib/constants'
+import { ADMIN_ACCOUNTS_PATH, BLOG_PATH, POST_SIGNIN_REDIRECT, SETTINGS_PATH } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
 // `requiresAdmin` hides a link, and hiding is all it does: the screen behind it re-checks the stored
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 const LINKS = [
   { href: BLOG_PATH, key: 'blog', requiresSession: false, requiresAdmin: false },
   { href: POST_SIGNIN_REDIRECT, key: 'dashboard', requiresSession: true, requiresAdmin: false },
+  { href: SETTINGS_PATH, key: 'settings', requiresSession: true, requiresAdmin: false },
   { href: ADMIN_ACCOUNTS_PATH, key: 'admin', requiresSession: true, requiresAdmin: true }
 ] as const
 

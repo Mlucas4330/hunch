@@ -75,6 +75,22 @@ role is.
 
 *Governs:* [api.md](api.md), [data-model.md](data-model.md), [product.md](product.md)
 
+## Brand
+
+### The agency's brand comes from one resolver, on three surfaces
+
+`brandFor()` in `lib/brand.ts` reads the owner's `brand_name` and `brand_logo_url`, and the three places
+Hunch reaches someone holding the report link all answer to it:
+
+1. **The report header**: `ReportBrandMark`, the logo, else the name, else the wordmark.
+2. **The metadata**: `pageMetadata`'s `brand`, which replaces the `%s | Hunch` title and the site name.
+3. **The OG card**: `OgBrandName` in place of `OgWordmark`. It prints the name and never the logo.
+
+**A surface that keeps Hunch while the others show the agency ships a report that advertises us to the
+agency's own client.** With neither column set, all three show Hunch.
+
+*Governs:* [report.md](report.md), [seo.md](seo.md), [data-model.md](data-model.md)
+
 ## Security
 
 ### A user row may exist before its first sign-in, and only a provider-verified email may claim one

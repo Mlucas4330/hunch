@@ -30,7 +30,7 @@ the transitions and the keyframe animations.
 **A click that starts a round trip says so.** Anything driving a `fetch` already owns its own pending
 state; server action forms had none, which is the click that reads as ignored. `SubmitButton` and
 `PendingFieldset` in `components/submit-button.tsx` wrap `useFormStatus` and are used by the sign in
-page, the sign out form, the quota form and the language toggle. The spinner is added beside the
+page, the sign out form and the quota form. The spinner is added beside the
 label rather than replacing it, so no button needs a second dictionary string.
 
 **There is no scroll reveal, and adding one is the mistake to avoid.** The shape is an
@@ -110,8 +110,7 @@ about the desktop scale moves:
   **utilities**, not the custom properties: `@theme inline` inlines the value into the generated
   class, so redefining `--text-micro` in a media query changes nothing.
 - **Icon-only controls grow their box, never their glyph.** The theme toggle's icons stay `size-3.5`;
-  the buttons around them go to `size-11`. The same buttons are squared off at `size-6` above `sm`, see
-  [the language toggle](#language-toggle-componentslanguage-toggletsx).
+  the buttons around them go to `size-11`. The same buttons are squared off at `size-6` above `sm`.
 - **Standalone links get `min-h`, not padding.** Nav items and footer links centre their text in a
   44px box, so the row grows without the baseline drifting.
 
@@ -238,10 +237,12 @@ A signed-out reader gets the report's own header and footer.
 
 ### Language toggle: `components/language-toggle.tsx`
 
+**Not mounted anywhere for now.** Its place is the navbar cluster, the mobile menu and the public
+report's own header, which a signed-out reader sees without a navbar.
+
 A pair of submit buttons in one `<form>` posting to the `setLocale` server action, wrapped in
 `PendingFieldset`: the action calls `revalidatePath('/', 'layout')`, so it is the most expensive click
-in the chrome. Mounted in `components/navbar.tsx` and, **separately, in the public report's own
-header**, which is read signed-out by someone who may not read English.
+in the chrome.
 
 **Each segment is a flag from `country-flag-icons`, not the flag emoji.** Windows ships no flag faces
 in Segoe UI Emoji, so Chrome and Edge render the regional indicator pair as boxed letters. `LOCALE_FLAG`
@@ -308,6 +309,16 @@ so the owner learns why rather than finding a control gone. The route refuses an
 `RunInProgress` takes its place in the header while the state is `rerunning`, polling through
 `components/use-analysis-poll.ts`, the same hook `GeneratingNotice` uses. See
 [report.md](report.md).
+
+## Brand: `components/brand-settings-form.tsx` and `components/report-brand-mark.tsx`
+
+**The form** lives at `/settings` ("Your brand" in the nav) and posts the agency name and logo to
+`POST /api/brand` as multipart. It keeps the logo preview beside a "Remove the logo" checkbox, maps each
+error code to its own sentence, and calls `router.refresh()` on success.
+
+**The mark** is the report header's brand: the logo through `next/image` with `unoptimized` (the file is
+already small and served immutable), else the name, else `Wordmark`. See
+[invariants.md](invariants.md#the-agencys-brand-comes-from-one-resolver-on-three-surfaces).
 
 ## Card drawers: `components/card-drawers.tsx`
 

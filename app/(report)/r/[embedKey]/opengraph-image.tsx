@@ -4,11 +4,12 @@ import { DEFAULT_LOCALE, OG_COLORS, OG_IMAGE_SIZE } from '@/lib/constants'
 import { displayHost } from '@/lib/host'
 import { loadReport } from '@/lib/analyses'
 import { pageSpeedScore } from '@/lib/pagespeed'
-import { OgFrame, OgStat, OgWordmark } from '@/components/og'
+import { OgBrandName, OgFrame, OgStat, OgWordmark } from '@/components/og'
+import { brandFor, hasBrand } from '@/lib/brand'
 
 const t = dictionaryFor(DEFAULT_LOCALE)
 
-export const alt = t.metadata.ogImageAlt
+export const alt = t.metadata.reportOgImageAlt
 export const size = OG_IMAGE_SIZE
 export const contentType = 'image/png'
 
@@ -33,12 +34,13 @@ export default async function Image({ params }: { params: Promise<{ embedKey: st
   // The same numbers the page shows, so the unfurl and the page it opens never disagree.
   const errors = analysis.hypotheses.length + analysis.flowFixes.length
   const score = pageSpeedScore(analysis.pagespeed)
+  const brand = brandFor(analysis.user)
 
   return new ImageResponse(
     (
       <OgFrame>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <OgWordmark />
+          {hasBrand(brand) ? <OgBrandName name={brand.name} /> : <OgWordmark />}
           <div style={{ display: 'flex', fontSize: 24, color: OG_COLORS.mutedForeground }}>
             {t.report.plan}
           </div>

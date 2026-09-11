@@ -50,7 +50,8 @@ export default defineConfig({
     env: {
       E2E_FIXTURES: '1',
       AUTH_URL: baseURL,
-      ALLOW_CREDENTIALS_LOGIN: '1'
+      ALLOW_CREDENTIALS_LOGIN: '1',
+      BRAND_DIR: '.brand-e2e'
     }
   }
 })

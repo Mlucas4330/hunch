@@ -19,7 +19,7 @@ deprecated and must never be named again.
 
 | Service | Source | Notes |
 | ------- | ------ | ----- |
-| `app` | repo, Railpack | public domain |
+| `app` | repo, Railpack | public domain, `brand-volume` mounted at `/data` |
 | `browser` | repo, `Dockerfile.browser` | **no variables, no public domain** |
 | `postgres` | `postgres()` helper | |
 | `redis` | `redis()` helper | rate limit counters and the job queue |
@@ -43,6 +43,15 @@ and never launches Chrome itself.
 
 **`PAGESPEED_API_KEY`** is a Google Cloud API key with the PageSpeed Insights API enabled. Without it
 every analysis is saved with no PageSpeed section and logs `pagespeed.failed`.
+
+**`BRAND_DIR`** is `/data/brand`, on the `brand-volume` the file mounts on `app`. Set it in the
+dashboard, because the file declares it as `preserve()`. Without it the name still saves and a logo
+upload answers `503`.
+
+- **The volume holds every agency's logo.** Removing it from the file deletes it on the next apply, and
+  every branded report loses its logo.
+- **A service with a volume does not overlap its releases**, so `app` is briefly down while a deploy
+  swaps it.
 
 ### Domains
 
