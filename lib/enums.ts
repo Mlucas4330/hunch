@@ -21,6 +21,9 @@ export type Theme = (typeof THEME)[number]
 export const BLOG_SLUG = ['what-is-seo', 'what-is-copy', 'ai-is-the-new-google'] as const
 export type BlogSlug = (typeof BLOG_SLUG)[number]
 
+// The post the landing page's AI section links to.
+export const AI_POST_SLUG: BlogSlug = 'ai-is-the-new-google'
+
 // Measured from the page, never from the UI locale. See docs/invariants.md.
 export const MARKET = ['us', 'br'] as const
 export type Market = (typeof MARKET)[number]

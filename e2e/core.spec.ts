@@ -68,12 +68,18 @@ test.describe('core features', () => {
     await context.close()
   })
 
-  test('sends a signed-out visitor at the index route to sign in', async ({ browser }) => {
+  test('shows the landing page to a signed-out visitor at the index route', async ({ browser }) => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
     await pinEnglish(context)
     const page = await context.newPage()
 
     await page.goto('/')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+    const main = page.getByRole('main')
+    await expect(main.getByRole('link', { name: 'Contact us' }).first()).toHaveAttribute('href', /^mailto:/)
+
+    await main.getByRole('link', { name: 'Sign in' }).first().click()
     await expect(page).toHaveURL(/\/auth\/signin/)
 
     await context.close()

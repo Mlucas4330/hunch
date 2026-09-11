@@ -8,6 +8,11 @@ export const ptBR: Dictionary = {
       'Auditoria de landing page para agências: notas do Google PageSpeed Insights, acesso de crawlers de IA e os erros de estrutura, copy, SEO e visibilidade para IA.',
     ogImageAlt: 'Hunch - auditoria de landing page',
     pages: {
+      landing: {
+        title: 'Auditoria de landing page para agências',
+        description:
+          'Cole a URL do cliente e mande um relatório por link: nota do Google PageSpeed Insights, acesso dos crawlers de IA e os erros de IA, SEO, estrutura e copy.'
+      },
       signin: {
         title: 'Entrar',
         description: 'Entre no Hunch.'
@@ -117,6 +122,115 @@ export const ptBR: Dictionary = {
     privacy: 'Privacidade',
     email: 'Mandar e-mail para {address}',
     whatsapp: 'WhatsApp'
+  },
+
+  landing: {
+    eyebrow: 'Para agências',
+    headlineTop: 'A auditoria de landing page que a sua agência manda por link.',
+    headlineBottom: 'Começando pelo que a IA consegue ler.',
+    lead: 'Cole a URL do cliente e receba a nota do PageSpeed, o acesso dos crawlers de IA e os erros da página.',
+    actions: {
+      contact: 'Entrar em contato',
+      signIn: 'Entrar'
+    },
+    preview: {
+      label: 'O relatório, seção por seção'
+    },
+    how: {
+      heading: 'Três passos, e nenhum deles pede acesso ao site do cliente.',
+      steps: [
+        {
+          title: 'Cole a URL do cliente',
+          body: 'Sem instalar script e sem acesso ao código. Dá para informar uma segunda página para comparar.'
+        },
+        {
+          title: 'Receba o relatório',
+          body: 'O PageSpeed Insights mede a página, a gente confere o robots.txt e um modelo lista os erros de IA, SEO, estrutura e copy.'
+        },
+        {
+          title: 'Mande o link',
+          body: 'O relatório abre sem login. Quando a página mudar, rode de novo e as listas são reescritas no mesmo link.'
+        }
+      ]
+    },
+    ai: {
+      heading: 'A IA é o novo Google, e ela nunca abre a página num navegador.',
+      body: 'Cada vez mais gente pergunta para um assistente em vez de buscar. O relatório começa pelo que um modelo consegue ler e citar na página, a parte que as ferramentas de SEO costumam deixar de fora.',
+      points: [
+        {
+          title: 'Quem pode ler o site',
+          body: 'Quais crawlers de IA o robots.txt bloqueia, se ele bloqueia tudo e se declara um sitemap.'
+        },
+        {
+          title: 'O que um modelo consegue citar',
+          body: 'Fatos escritos em texto, e não presos numa imagem ou num script. Cada erro diz o que falta e por quê.'
+        },
+        {
+          title: 'O que a página declara',
+          body: 'Title, description, dados estruturados e alt text, lidos junto com as auditorias de SEO do PageSpeed Insights.'
+        }
+      ],
+      link: 'Ler: a IA é o novo Google?'
+    },
+    report: {
+      heading: 'O que cada relatório traz',
+      errors: {
+        title: 'Quatro listas de erros, sem correção escrita',
+        body: 'IA, SEO, estrutura e copy. Cada erro diz o que está errado na página e por que isso é um problema. O que fazer com ele é trabalho da sua agência.'
+      },
+      score: {
+        title: 'A nota do Google PageSpeed',
+        body: 'As quatro categorias do Lighthouse no mobile e os visitantes reais do Chrome, quando o Google tem dados suficientes.'
+      },
+      compare: {
+        title: 'Uma página para comparar',
+        body: 'Informe a página de um concorrente e as notas dela aparecem ao lado das do cliente.'
+      },
+      history: {
+        title: 'Rodar de novo',
+        body: 'Cada rodada mede a página outra vez e reescreve as listas, e você vê como a nota mudou.'
+      },
+      link: {
+        title: 'Um link para o cliente',
+        body: 'O relatório abre sem conta. O seu cliente lê a mesma página que você.'
+      }
+    },
+    faq: {
+      heading: 'Perguntas frequentes',
+      items: [
+        {
+          question: 'Como funciona a assinatura?',
+          answer: 'Você fecha o plano com a gente por e-mail e a sua conta recebe uma cota mensal de análises. Uma análise nova usa uma, e cada "Rodar de novo" também. Uma rodada que falha não conta.'
+        },
+        {
+          question: 'O meu cliente precisa de conta para ver o relatório?',
+          answer: 'Não. O relatório abre por um link que só quem recebe conhece. Rodar de novo e o histórico da nota ficam com a sua conta.'
+        },
+        {
+          question: 'Vocês precisam de acesso ao site ou ao código do cliente?',
+          answer: 'Não. A gente abre a página pública do jeito que qualquer visitante abre, sem instalar nada, sem script e sem mexer em DNS.'
+        },
+        {
+          question: 'O relatório escreve as correções?',
+          answer: 'Não. Cada erro diz o que está errado na página e por quê. Não tem texto substituto nem passo a passo, porque o que fazer com o erro é trabalho da agência.'
+        },
+        {
+          question: 'De onde vêm os números?',
+          answer: 'A nota e as auditorias vêm do Google PageSpeed Insights, numa execução mobile. O acesso dos crawlers de IA vem do robots.txt do site. As listas de erros são escritas por um modelo a partir da página e dessas medições.'
+        },
+        {
+          question: 'O relatório sai com a marca da minha agência?',
+          answer: 'Ainda não. Hoje ele sai com a marca Hunch.'
+        },
+        {
+          question: 'O que vocês guardam?',
+          answer: 'As medições de cada rodada e as listas de erros, para o relatório continuar no ar e mostrar como a nota mudou. Os detalhes estão na política de privacidade.'
+        }
+      ]
+    },
+    finalCta: {
+      heading: 'Quer ver o relatório de um cliente seu?'
+    }
   },
 
   infoHint: {

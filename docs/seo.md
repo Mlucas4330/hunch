@@ -11,8 +11,13 @@
 
 ## Indexability
 
-**The indexable routes are `/blog`, the posts and `/privacy`**, and they are exactly the entries in
-`app/sitemap.ts`. `/` is a redirect and is not in the sitemap. Everything else passes `index: false`.
+**The indexable routes are `/`, `/blog`, the posts and `/privacy`**, and they are exactly the entries
+in `app/sitemap.ts`. Everything else passes `index: false`. `/` renders the landing page for a
+signed-out visitor and redirects a signed-in one, so a crawler, which carries no session, always gets
+the landing page.
+
+**The landing FAQ's `FAQPage` JSON-LD is built from the same array the page renders**, in
+`components/landing-faq.tsx`, so the answer a reader opens and the one a crawler quotes cannot drift.
 `app/robots.ts` disallows the same prefixes, importing `PROTECTED_PREFIXES` from `lib/constants.ts`.
 
 **The sitemap is derived from `BLOG_SLUG`, never listed by hand.** `lastModified` for a post comes from

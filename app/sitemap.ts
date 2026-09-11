@@ -8,6 +8,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     {
+      url: `${origin}/`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 1
+    },
+    {
       url: `${origin}${BLOG_PATH}`,
       lastModified: new Date(),
       changeFrequency: 'monthly',

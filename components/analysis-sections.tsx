@@ -1,18 +1,11 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { PenLine, Search, Sparkles, Workflow, type LucideIcon } from 'lucide-react'
+import { ANALYSIS_SECTION_ICON } from '@/components/analysis-section-icon'
 import { PanelCard } from '@/components/panel-card'
 import { useI18n } from '@/components/i18n-provider'
 import type { AnalysisTab } from '@/lib/enums'
 import { cn } from '@/lib/utils'
-
-const ANALYSIS_SECTION_ICON: Record<AnalysisTab, LucideIcon> = {
-  ai: Sparkles,
-  seo: Search,
-  flow: Workflow,
-  copy: PenLine
-}
 
 /**
  * The report's sections, stacked, each one a `PanelCard`: what was measured on the theme, then the

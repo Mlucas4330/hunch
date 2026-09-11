@@ -4,7 +4,7 @@
 
 | Route | Page | Description |
 | ----- | ---- | ----------- |
-| `/` | Redirect | Sign in when signed out, the dashboard when signed in. There is no landing page |
+| `/` | Landing | The landing page when signed out, a redirect to the dashboard when signed in |
 | `/blog` | Blog index | Three posts |
 | `/blog/[slug]` | Blog post | One post, closing on a button to sign in or to the dashboard |
 | `/auth/signin` | Auth | Google, and GitHub when configured; returns to `callbackUrl` |
@@ -15,6 +15,19 @@
 | `/privacy` | Policy | |
 
 **There is one analysis screen, not two.** See [report.md](report.md).
+
+## Landing: `app/(app)/page.tsx`
+
+For an agency that is not a customer yet. The hero, how it works, the AI visibility section, what each
+report brings, the FAQ (`components/landing-faq.tsx`) and a closing call to action.
+
+- **Two actions, the same two everywhere on the page**: contact, which opens `CONTACT_EMAIL_URL`, and
+  sign in. **There are no prices**: the subscription is agreed by email.
+- **The hero's preview is the report's own `PanelCard` bars**, one per `ANALYSIS_TAB`, each carrying
+  its `analysis.sectionQuestions` entry. It shows no score, so nothing on the page is a number a
+  reader could take for data.
+- `ANALYSIS_SECTION_ICON` lives in `components/analysis-section-icon.ts`, because this server page and
+  the client `AnalysisSections` both read it.
 
 ## The blog
 

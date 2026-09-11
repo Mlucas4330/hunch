@@ -30,8 +30,10 @@ the account's monthly quota at `/admin/accounts`. The rule is in
 - **An account with no quota can sign in and cannot run an analysis.** The dashboard says so and the
   form is disabled.
 
-There is no public landing page and no anonymous analysis: `/` sends a signed-out visitor to sign in
-and a signed-in one to the dashboard. The blog stays public.
+**`/` is the landing page for a signed-out visitor**, and sends a signed-in one to the dashboard. It
+explains the product to agencies and offers two actions: contact by email and sign in. It shows no
+prices, because the subscription is sold outside the app. There is no anonymous analysis. The blog
+stays public. See [analysis-ui.md](analysis-ui.md#landing-appapppagetsx).
 
 ## What an analysis produces
 

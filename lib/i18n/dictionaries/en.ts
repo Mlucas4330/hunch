@@ -7,6 +7,11 @@ export const en = {
       'Landing page audits for agencies: Google PageSpeed Insights scores, AI crawler access, and the errors in structure, copy, SEO and AI visibility.',
     ogImageAlt: 'Hunch - a landing page audit',
     pages: {
+      landing: {
+        title: 'Landing page audits for agencies',
+        description:
+          "Paste a client's URL and send a report by link: Google PageSpeed Insights scores, AI crawler access, and the errors in AI, SEO, structure and copy."
+      },
       signin: {
         title: 'Sign in',
         description: 'Sign in to Hunch.'
@@ -122,6 +127,115 @@ export const en = {
     privacy: 'Privacy',
     email: 'Send an email to {address}',
     whatsapp: 'WhatsApp'
+  },
+
+  landing: {
+    eyebrow: 'For agencies',
+    headlineTop: 'Landing page audits your agency sends by link.',
+    headlineBottom: 'Starting with what AI can read.',
+    lead: "Paste a client's URL and get the PageSpeed score, what AI crawlers may read, and the page's errors.",
+    actions: {
+      contact: 'Contact us',
+      signIn: 'Sign in'
+    },
+    preview: {
+      label: 'The report, section by section'
+    },
+    how: {
+      heading: "Three steps, and none of them asks for access to the client's site.",
+      steps: [
+        {
+          title: "Paste the client's URL",
+          body: 'No script to install and no access to the code. You can name a second page to compare against.'
+        },
+        {
+          title: 'Get the report',
+          body: 'PageSpeed Insights measures the page, we check its robots.txt, and a model lists the errors in AI, SEO, structure and copy.'
+        },
+        {
+          title: 'Send the link',
+          body: 'The report opens without signing in. When the page changes, run it again and the lists are rewritten behind the same link.'
+        }
+      ]
+    },
+    ai: {
+      heading: 'AI is the new Google, and it never opens the page in a browser.',
+      body: 'More people ask an assistant instead of searching. The report starts with what a model can read and quote on the page, the part SEO tools usually leave out.',
+      points: [
+        {
+          title: 'Who may read the site',
+          body: "Which AI crawlers the site's robots.txt blocks, whether it blocks everything, and whether it declares a sitemap."
+        },
+        {
+          title: 'What a model can quote',
+          body: 'Facts written as text, not locked inside an image or a script. Each error says what is missing and why.'
+        },
+        {
+          title: 'What the page declares',
+          body: 'Title, description, structured data and alt text, read beside the PageSpeed Insights SEO audits.'
+        }
+      ],
+      link: 'Read: is AI the new Google?'
+    },
+    report: {
+      heading: 'What each report brings',
+      errors: {
+        title: 'Four error lists, and no fix written',
+        body: "AI, SEO, structure and copy. Each error names what is wrong on the page and why it is a problem. What to do about it is your agency's work."
+      },
+      score: {
+        title: 'The Google PageSpeed score',
+        body: 'The four Lighthouse categories on mobile, and real Chrome visitors when Google has enough of them.'
+      },
+      compare: {
+        title: 'A page to compare',
+        body: "Name a competitor's page and its scores show beside your client's."
+      },
+      history: {
+        title: 'Run it again',
+        body: 'Each run measures the page again and rewrites the lists, and you see how the score moved.'
+      },
+      link: {
+        title: 'A link for the client',
+        body: 'The report opens without an account. Your client reads the same page you do.'
+      }
+    },
+    faq: {
+      heading: 'Common questions',
+      items: [
+        {
+          question: 'How does the subscription work?',
+          answer: 'You agree on a plan with us by email, and your account gets a monthly quota of analyses. A new analysis uses one, and so does every "Run again". A run that fails does not count.'
+        },
+        {
+          question: 'Does my client need an account to see the report?',
+          answer: 'No. The report opens from a link that only the people you send it to know. Running it again and the score history stay with your account.'
+        },
+        {
+          question: "Do you need access to the client's site or code?",
+          answer: 'No. We open the public page the way any visitor does, with nothing to install, no script and no DNS change.'
+        },
+        {
+          question: 'Does the report write the fixes?',
+          answer: "No. Each error says what is wrong on the page and why. There is no replacement copy and no step by step, because what to do about the error is the agency's work."
+        },
+        {
+          question: 'Where do the numbers come from?',
+          answer: "The score and the audits come from Google PageSpeed Insights, on a mobile run. AI crawler access comes from the site's robots.txt. The error lists are written by a model from the page and those measurements."
+        },
+        {
+          question: "Does the report carry my agency's brand?",
+          answer: 'Not yet. Today it carries the Hunch brand.'
+        },
+        {
+          question: 'What do you keep?',
+          answer: 'The measurements from each run and the error lists, so the report stays online and can show how the score moved. The privacy policy has the details.'
+        }
+      ]
+    },
+    finalCta: {
+      heading: 'Want to see the report for one of your clients?'
+    }
   },
 
   infoHint: {
