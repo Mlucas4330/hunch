@@ -1,53 +1,15 @@
 import { enBlog } from '@/lib/i18n/dictionaries/en.blog'
-import type { AdGroup } from '@/lib/enums'
-
-/** The three lines of the hero that move with the ad, and the only ones that do. */
-export type LandingHero = {
-  headlineTop: string
-  headlineBottom: string
-  lead: string
-}
-
-/**
- * One hero per ad group that lands on `/`, chosen by the ad the reader clicked.
- *
- * Annotated rather than cast, so a missing key fails here as well as in pt-BR: `as Record<...>`
- * would only bind the second locale. `eyebrow`, `cta` and `ctaNote` are deliberately not in the
- * shape -- the last two are read again by the closing card, two thousand pixels away from the ad's
- * context. See docs/i18n.md.
- */
-const landingAdGroups: Record<AdGroup, LandingHero> = {
-  fix: {
-    headlineTop: 'You can tell something is off on the page.',
-    headlineBottom: 'You cannot tell which line to change.',
-    lead: 'Hunch opens your page the way a visitor does, counts what is on it, and puts the fixes in order of weight. Each one arrives with the replacement copy written, and the whole report assembles into one prompt you paste back into the tool that built the page. Paste your URL. Seeing the score costs nothing and needs no account.'
-  },
-  'built-with-ai': {
-    headlineTop: 'The tool shipped your page in an afternoon.',
-    headlineBottom: 'Nobody has told you whether it works.',
-    lead: 'Lovable, v0, Bolt, Cursor: the page is finished before you can judge it. Hunch opens yours in a real browser, counts what is actually on it, and scores it out of 100, with ranked fixes and the replacement copy already written. Paste your URL. Seeing the score costs nothing and needs no account.'
-  },
-  audit: {
-    headlineTop: 'An audit of your landing page, counted.',
-    headlineBottom: 'Measured on the page, in under a minute.',
-    lead: 'Form fields, CTAs above the fold, LCP, page weight, meta description, alt text. Hunch opens your page in a real browser and counts every one of them, then ranks what to change with the new copy already written. Paste your URL. Seeing the score costs nothing and needs no account.'
-  }
-}
 
 export const en = {
   metadata: {
     title: 'Hunch',
-    description: 'You built the page with AI. Find out if it is any good: a score measured on the page, ranked fixes, and the new copy already written.',
-    ogImageAlt: 'Hunch - a measured teardown of your landing page',
+    description:
+      'Landing page audits for agencies: Google PageSpeed Insights scores, AI crawler access, and the errors in structure, copy, SEO and AI visibility.',
+    ogImageAlt: 'Hunch - a landing page audit',
     pages: {
-      landing: {
-        title: 'Is your AI-built page any good? Get the score',
-        description:
-          'Built it in Lovable, v0, Bolt or Cursor? Paste the URL and get a score out of 100 measured on the page, plus ranked fixes with the replacement copy already written.'
-      },
       signin: {
         title: 'Sign in',
-        description: 'Sign in to Hunch with Google.'
+        description: 'Sign in to Hunch.'
       },
       blog: {
         title: 'Blog',
@@ -56,21 +18,19 @@ export const en = {
       },
       dashboard: {
         title: 'Your pages',
-        description: 'Every landing page you have scored, and the report each one produced.'
+        description: 'Every landing page you have audited, and the report each one produced.'
       },
       admin: {
-        title: 'Credits',
-        description: 'Grant credits by hand.'
+        title: 'Accounts',
+        description: 'Set the monthly quota of each account.'
       },
       privacy: {
         title: 'Privacy policy',
-        description:
-          'What Hunch keeps about your page and your account, for how long, and who else sees it.'
+        description: 'What Hunch keeps about the pages you audit and your account, and who else sees it.'
       },
       report: {
-        title: 'Conversion teardown for {host}',
-        description:
-          '{count} ranked fixes for {host}, measured on the page, with the replacement copy and the reasoning behind each one.'
+        title: 'Landing page audit for {host}',
+        description: '{count} errors found on {host}, with PageSpeed Insights scores and the reasoning behind each one.'
       }
     }
   },
@@ -142,8 +102,6 @@ export const en = {
 
   nav: {
     homeAria: 'Hunch home',
-    how: 'How it works',
-    pricing: 'Pricing',
     blog: 'Blog',
     dashboard: 'My pages',
     admin: 'Admin',
@@ -174,209 +132,17 @@ export const en = {
     impact: 'Impact',
     aria: '{label} {score} of 10',
     hintLabel: 'What the impact number means',
-    // **It ranks, it does not predict.** Saying a 9 is "worth more signups" would be stating what a
-    // number will produce, which nothing here may do -- see docs/invariants.md. Saying it was
-    // measured would be worse: the score is written by the model that wrote the fix.
-    hint: 'How much this change matters *next to the others in this analysis*, from 1 to 10. It orders the list: start at the top. Written by a model, not counted, and it does not forecast what the change will do.',
+    hint: 'How much this error costs the page *next to the others in this analysis*, from 1 to 10. It orders the list: start at the top. Written by a model, not counted.',
     short: {
       impact: 'I'
     }
   },
 
-  landing: {
-    eyebrow: 'Free. No account. Under a minute.',
-    headlineTop: 'You built the page with AI and it shipped looking good.',
-    headlineBottom: 'You have no idea whether it is any good.',
-    lead: 'Lovable, v0, Bolt, Cursor: the page is finished before you can judge it. Hunch opens yours the way a visitor does, counts what is actually on it, and scores it out of 100, with ranked fixes and the replacement copy already written. Paste your URL. Seeing the score costs nothing and needs no account.',
-    cta: 'Score my page now, free',
-    ctaNote: 'Just your URL. We do not ask for a signup, a card, or access to your code.',
-    howItWorksLink: 'How it works',
-
-    adGroups: landingAdGroups,
-
-    heroCard: {
-      domain: 'yourlandingpage.com',
-      scoreLabel: 'Page score',
-      score: '47',
-      outOf: '/100',
-      rows: [
-        { label: 'Signup form fields', value: '7', severity: 'alert' },
-        { label: 'Calls to action above the fold', value: '6', severity: 'warn' },
-        { label: 'Largest content painted', value: '4.2s', severity: 'alert' },
-        { label: 'Meta description', value: 'Missing', severity: 'alert' },
-        { label: 'Testimonials', value: 'Yes', severity: 'ok' }
-      ]
-    },
-
-    reality: {
-      eyebrow: 'The reality',
-      heading: 'Asking an AI whether the AI-built page is good does not close the loop.'
-    },
-    pains: [
-      {
-        headline: 'The chat has an opinion about a page it never opened.',
-        reality: 'You paste the URL, it writes five plausible tips. None of them came from loading your page: it is guessing from the address.',
-        answer: 'We open your page in a real browser, count what is on it, and show every number. You can check any row on your own site in one click.'
-      },
-      {
-        headline: 'It was done in an afternoon. You never got to judge it.',
-        reality: 'No traffic yet, no history, nobody to ask. The page is live and the only reading you have is that it looks fine.',
-        answer: 'A score out of 100, and the exact rows that dragged it down. Counted on your page, never guessed.'
-      },
-      {
-        headline: 'You know what is wrong. You cannot write what is right.',
-        reality: 'A diagnosis is easy to come by. The new text, written for your offer, is the part nobody hands over with it.',
-        answer: 'Every fix comes with the replacement copy already written, and you see it rendered on your real page before you swap it in.'
-      }
-    ],
-    painsNav: {
-      label: 'The reality, one card at a time',
-      previous: 'Previous',
-      next: 'Next',
-      goTo: 'Go to card {index}'
-    },
-
-    demo: {
-      body: 'The same screens you get after a run: the readout, the ranked fixes, and the new copy rendered onto a real page.',
-      frameTitle: 'Interactive product demo',
-      rotateHint: 'Turn your phone sideways to see the demo twice as big.'
-    },
-
-    aiSearch: {
-      heading: 'AI is the new Google, and it never opens your page in a browser.',
-      body: 'More and more people ask an assistant instead of searching. The crawler behind it downloads your text, reads it, and moves on. A page assembled out of good-looking components is the one most at risk here, because almost everything it shows depends on running on screen. Your analysis has a tab for exactly that.',
-      points: [
-        {
-          title: 'A reader with no browser',
-          body: 'No scripts, no fonts, no design. It gets the barest version of your page, so anything that only appears once a component mounts is not there for it.'
-        },
-        {
-          title: 'What your page says about itself',
-          body: 'Title, description, canonical, structured data, alt text. We check which of those your page has, and which are missing.'
-        },
-        {
-          title: 'robots.txt matters again',
-          body: 'The small file that says who may read your site was written for search engines. It now decides the same thing for AI crawlers. We show you what yours allows.'
-        }
-      ],
-      link: 'Read: is AI the new Google?'
-    },
-
-    how: {
-      eyebrow: 'How it works',
-      heading: 'Three steps, and none of them ask for your code.',
-      intro: 'The score is free and needs no account. Unlock the fixes when you want the new copy written for you.',
-      stepLabel: 'Step {n}',
-
-      // The illustration inside each step card: a small reproduction of the screen that step
-      // produces, built in CSS from these strings the way `heroCard` above is.
-      //
-      // **The numbers are stand-ins for a picture of an interface, and they may never become a
-      // claim.** A score, an impact of 9, a group at 42 -- these say "this is the shape of what you
-      // get", exactly as `heroCard.score` has always done. Nothing here may say what a change will
-      // produce; see docs/invariants.md.
-      previews: {
-        url: {
-          placeholder: 'https://your-landing-page.com',
-          cta: 'Get my score'
-        },
-        score: {
-          label: 'Measured',
-          groups: [
-            { label: 'Structure', value: '42' },
-            { label: 'Credibility', value: '68' },
-            { label: 'Load', value: '25' }
-          ],
-          outOf: '/100'
-        },
-        fix: {
-          impact: '9',
-          outOf: '/10',
-          category: 'Signup friction',
-          title: 'Cut the form from seven fields to three',
-          drawer: 'How to ship it'
-        }
-      }
-    },
-    steps: [
-      {
-        label: 'Paste your URL',
-        body: 'No script to install, no repository access, no DNS to change. The URL Lovable, v0, Bolt or Vercel gave you is enough, and we open it in a real browser, the way a visitor does.'
-      },
-      {
-        label: 'Get your score',
-        body: 'Out of 100, with every row that made it: form fields, calls to action, load time, alt text, structured data. None of it is opinion: it is counted on your page and you can check every one.'
-      },
-      {
-        label: 'Unlock the fixes',
-        body: 'Ranked changes with the replacement copy already written, and a preview of it on your real page. The ranking is what tells you where to start.'
-      }
-    ],
-
-    leaderboard: {
-      eyebrow: 'Measured so far',
-      heading: 'Every page this has opened, scored.',
-      intro: 'Each chip is a real page we loaded and counted. Drag the sphere to look around.',
-      sphereLabel: 'Pages measured, by score',
-      topLabel: 'Highest scores',
-      outOf: '/100'
-    },
-
-    pulse: {
-      running: 'being analyzed right now',
-      done: 'just measured: {score}/100',
-      dismiss: 'Dismiss'
-    },
-
-    faq: {
-      eyebrow: 'Before you ask',
-      heading: 'The questions people actually send us.',
-      items: [
-        {
-          question: 'Is the score really free?',
-          answer: 'Yes, and it needs no account. You paste a URL, we open the page and count what is on it, and the whole readout is yours. Paying is only for the ranked fixes and the replacement copy.'
-        },
-        {
-          question: 'What happens if I run out of credits?',
-          answer: 'You keep the free half. Paste a URL with an empty balance and you still get the score and every row that made it, exactly as someone with no account does. What a credit buys is the ranked fixes and the replacement copy, so those wait until you have one.'
-        },
-        {
-          question: 'Do you need access to my site or my code?',
-          answer: 'Neither. No install, no script, no login, no repository, no DNS change. We open the public page the same way any visitor does, which is why it works on a page you do not control either.'
-        },
-        {
-          question: 'My page was built with AI. Does that change anything?',
-          answer: 'It changes what usually turns up, not how we measure. A generated page ships fast and ships good-looking, and what tends to be missing is the same short list: meta description, alt text, structured data, what a crawler can actually read. We count it on your page whether it came from Lovable, v0, Bolt, hand-written code or WordPress. And no, we cannot tell what built it, and we do not guess.'
-        },
-        {
-          question: 'Where does the score come from?',
-          answer: 'Counting. Form fields, calls to action above the fold, images with no alt text, load timings, what your head tag declares. Each row is a number our code read off your page, and every one of them is something you can check yourself in a click.'
-        },
-        {
-          question: 'What does a credit actually buy?',
-          answer: 'One full analysis of one page: the ranked flow fixes, the AI visibility findings, and the copy rewrites with the replacement line already written and rendered onto a screenshot of your real page.'
-        },
-        {
-          question: 'Do you store my page?',
-          answer: 'We keep the measurements and the screenshot behind your analysis so the report keeps working and a later run can show you what moved. Screenshots are pruned on a schedule.'
-        },
-        {
-          question: 'Why will you not tell me how much this lifts my conversion?',
-          answer: 'Because nobody measured it. We can tell you your largest content paints in 4.2 seconds, because we timed it. Turning that into a percentage of lost signups would be a number we made up, and you would find out it was made up the month it did not come true.'
-        }
-      ]
-    },
-
-    finalCta: {
-      heading: 'Paste your URL. See your score.'
-    }
-  },
   privacy: {
     eyebrow: 'Privacy',
     heading: 'Privacy policy',
     updated: 'Last updated: {date}',
-    intro:
-      'What we keep, for how long, and who else sees it. Written to be checked: every line here describes something the code does.',
+    intro: 'What we keep, for how long, and who else sees it.',
     sections: [
       {
         title: 'Who is responsible',
@@ -387,76 +153,46 @@ export const en = {
       {
         title: 'What we do not do',
         body: [
-          'There is no Google Analytics, no Google Tag Manager, no gtag.js, no social pixel and no behaviour tool on this site. Nothing advertising-related loads on our pages, which is why there is no cookie banner here.',
-          'We do not sell or rent your data. One thing we do is written below: if you left your email here after reading the note on the form, it may be sent to Google Ads in hashed form so we can show you our ads. Never in readable form, and never to sell the list to anyone.',
-          'Two third-party resources appear in the browser, and only these: the product tour on the landing page, which runs inside a Supademo iframe, and the Mercado Pago payment form, which loads only when you open checkout.'
+          'There is no analytics script, no tag manager, no ad pixel and no behaviour tool on this site. We do not sell or rent your data.'
         ]
       },
       {
-        title: 'The page you paste',
+        title: 'The pages you audit',
         body: [
-          'We open the URL you submit in a browser of ours, count what is on it, and keep those measurements along with a screenshot of the page. The analysis is kept so the report keeps working and so a later measurement can show what changed.',
-          'The screenshot is deleted after 30 days.',
+          'We open the URL you submit in a browser of ours, measure it, send it to Google PageSpeed Insights, and keep the results so the report keeps working and a later measurement can show what changed.',
           'The report is reachable through a key in the link itself. Anyone holding the link can read the report, so treat it the way you would treat any private link.'
         ]
       },
       {
         title: 'Your account',
         body: [
-          'If you sign in, we keep the email, name and picture Google or GitHub returns. We only accept an address the provider confirms as verified, and we never store a password, because there is none here.'
-        ]
-      },
-      {
-        title: 'Your email when you ask for the report link',
-        body: [
-          'The report lets you ask for the link by email. The address is kept next to that analysis and is used to send you the link.',
-          'Two more emails follow: one on day two, carrying one of the things we counted on your page, and one on day seven, about what is behind the unlock. That is all of it, and the sequence ends there.',
-          'That same address may be sent to Google Ads in hashed form so we can show you our ads, as described above.',
-          'You can leave at any time, with one click in any of those emails. Leaving covers everything: the emails and the ads. The row stays, marked as unsubscribed, precisely so a later submit does not quietly sign you up again.',
-          'Anyone who left an address before this note existed stays under the older promise of one email only. Those rows enter neither the sequence nor the upload to Google, and that is a column in the database rather than an intention.'
-        ]
-      },
-      {
-        title: 'Payment',
-        body: [
-          'Payments are processed by Mercado Pago or Stripe. We never see or store a card number.',
-          'What stays on our side is the payment reference and the credit ledger, which is what answers where every credit went.'
-        ]
-      },
-      {
-        title: 'The ad that brought you',
-        body: [
-          'If you arrived from a Google ad, the click identifier sits in a cookie of ours that no script in the browser can read, for 90 days.',
-          'It leaves here at two moments and at no other. If you buy, our server sends Google Ads the click identifier and the amount paid. If you leave your email here, it sends the click identifier and nothing more, with no amount beside it, because nothing was paid.',
-          'In both cases what leaves is the identifier Google itself created when you clicked. Your email does not go with it, nor the page you measured, nor its score. Someone who arrived without clicking an ad of ours has no identifier at all, and is never reported at any point.'
+          'If you sign in, we keep the email, name and picture Google or GitHub returns, and the monthly quota set for your account. We only accept an address the provider confirms as verified, and we never store a password.',
+          'Your subscription is billed outside this site. No payment details pass through it.'
         ]
       },
       {
         title: 'Cookies',
         body: [
-          'Two, and neither is third-party: your session, which keeps you signed in, and the ad click described above.'
+          'Your session, which keeps you signed in, and your language and theme preferences. None of them is third-party.'
         ]
       },
       {
         title: 'Who the data is shared with',
         body: [
-          'Anthropic receives the content of the analysed page, which is what makes writing the fixes possible. Mercado Pago and Stripe receive what they need to charge. Resend sends the emails. And the infrastructure the product runs on hosts the database and the application.',
-          'Google Ads receives two things. It receives the ad click identifier: with the amount paid when there is a purchase, and on its own, with no amount, when someone leaves their email. And it receives the emails of people who consented, always hashed with SHA-256 and never readable, to build the ads audience.',
+          'Anthropic receives the content of the audited page, which is what makes writing the error lists possible. Google receives the URL of the audited page to run PageSpeed Insights on it. The infrastructure the product runs on hosts the database and the application.',
           'Nobody else receives anything.'
         ]
       },
       {
         title: 'Your rights',
         body: [
-          'Under Brazilian data protection law you can request access to your data, correction, deletion, portability, and withdrawal of a consent you gave.',
-          'Ask at {email} or through the WhatsApp link in the footer of this page. We answer and comply.'
+          'Under Brazilian data protection law you can request access to your data, correction, deletion and portability.',
+          'Ask at {email} or through the WhatsApp link in the footer of this page.'
         ]
       },
       {
         title: 'Changes to this policy',
-        body: [
-          'When something here changes, the date at the top changes with it. It is written in one place in the code, so a date on screen can never disagree with the real one.'
-        ]
+        body: ['When something here changes, the date at the top changes with it.']
       }
     ]
   },
@@ -474,30 +210,36 @@ export const en = {
 
   admin: {
     eyebrow: 'Operator',
-    credits: {
-      title: 'Grant credits',
-      subtitle: 'Credits handed over with no payment behind them, for comping someone or repairing a payment whose webhook never landed. Every grant is written to the ledger and listed below.',
+    accounts: {
+      title: 'Accounts',
+      subtitle: 'Set how many analyses an account can run each calendar month. The address does not need to have signed in yet: the quota is waiting for it when it does.',
       emailLabel: 'Account',
-      emailPlaceholder: 'someone@example.com',
-      creditsLabel: 'Credits',
-      submit: 'Grant',
+      emailPlaceholder: 'someone@agency.com',
+      quotaLabel: 'Analyses per month',
+      submit: 'Save',
       result: {
-        granted: 'Granted.',
-        invalid: 'Check the address and the number of credits.',
+        saved: 'Saved.',
+        invalid: 'Check the address and the number of analyses.',
         forbidden: 'You are not an operator.',
-        failed: 'Nothing was granted. Try again.'
+        failed: 'Nothing was saved. Try again.'
       },
-      historyTitle: 'Recent grants',
-      historyEmpty: 'No credits have been granted by hand yet.'
+      listTitle: 'Accounts with a quota',
+      listEmpty: 'No account has a quota yet.',
+      usage: '{used} of {limit} this month'
     }
+  },
+
+  quota: {
+    usage: '{used} of {limit} analyses used this month',
+    none: 'No analyses left this month. Talk to the team that manages your account.'
   },
 
   dashboard: {
     eyebrow: 'Pages',
     title: 'Your pages',
     hintLabel: 'How analysis works',
-    hint: 'Paste the live landing page URL. Hunch measures the page and ranks the fixes worth making. Add *business details* so the copy comes back finished instead of with [placeholders].',
-    subtitle: 'Paste a landing page URL to measure it and get the fixes ranked.',
+    hint: 'Paste the live landing page URL. Hunch runs PageSpeed Insights on it, checks what AI crawlers may read, and lists the errors in structure, copy, SEO and AI visibility.',
+    subtitle: 'Paste a landing page URL to audit it.',
     emptyTitle: 'No pages yet',
     emptyDescription: 'Paste a landing page URL above to run your first analysis.',
     pagination: {
@@ -509,83 +251,24 @@ export const en = {
   },
 
   urlForm: {
-    measuring: 'Opening your page and counting what is on it...',
-    urlLabel: 'Your landing page URL',
-    urlPlaceholder: 'https://your-landing-page.com',
+    measuring: 'Opening the page and measuring it...',
+    urlLabel: 'Landing page URL',
+    urlPlaceholder: 'https://client-landing-page.com',
     analyze: 'Analyze',
     analyzing: 'Analyzing...',
-    waitNote: 'This takes under a minute. Keep this tab open: as soon as the score is ready we take you to it, and the fixes carry on being written on the report itself.',
-    briefSummary: 'Add business details (optional)',
-    briefSummaryRequired: 'Business details, which a credit is spent on',
-    briefIntro: 'Four taps. Without them the rewritten copy can only repeat what the page already says, because that is all it has in front of it.',
-    briefIntroRequired: 'Four taps, and they are half the price. Leave any of them blank and the analysis still runs and still gives you the score, it just does not spend a credit and writes nothing.',
-    briefWizard: {
-      step: 'Step {step} of {total}',
-      back: 'Back',
-      skip: 'Skip this',
-      other: 'Something else',
-      otherPlaceholder: 'Describe it in your own words',
-      done: 'All four answered. Paste your URL above and go.',
-      edit: 'Change'
-    },
-    briefFields: {
-      audience: {
-        label: 'Audience',
-        question: 'Who did you build this page for?',
-        options: {
-          consumers: 'Regular people, buying for themselves',
-          smb: 'Small businesses and their owners',
-          enterprise: 'Big companies, with a buying committee',
-          developers: 'Developers and technical teams',
-          creators: 'Creators, freelancers and solo operators'
-        }
-      },
-      offer: {
-        label: 'Offer',
-        question: 'What does this page offer them?',
-        options: {
-          saas: 'Software or an app',
-          service: 'A service I deliver myself',
-          ecommerce: 'A physical or one off product',
-          course: 'A course, community or content',
-          marketplace: 'A marketplace connecting two sides'
-        }
-      },
-      action: {
-        label: 'Action',
-        question: 'What do you want them to do here?',
-        options: {
-          signup: 'Start a free account or trial',
-          demo: 'Book a demo or a call',
-          purchase: 'Buy, right here',
-          waitlist: 'Join a waitlist',
-          contact: 'Send a message or a quote request'
-        }
-      },
-      objection: {
-        label: 'Objection',
-        question: 'What do you think would make them walk away?',
-        options: {
-          price: 'Thinking it costs too much',
-          trust: 'Never having heard of me',
-          unclear: 'Not being able to tell what it does',
-          switching: 'Already using something else',
-          effort: 'Expecting it to be a pain to set up'
-        }
-      }
-    },
+    waitNote: 'Keep this tab open. As soon as the measurement is ready we take you to the report, and the error lists carry on being written there.',
     errorInvalidUrl: 'Enter a valid URL, including https://',
     errorInvalidCompetitor: 'The page to compare against needs a valid URL, including https://',
     competitorLabel: 'Compare against another page (optional)',
     competitorPlaceholder: 'https://another-landing-page.com',
-    competitorHint:
-      'We measure that page with the same checks and show both columns side by side. Same credit, no extra charge.',
+    competitorHint: 'We measure that page too and show its scores beside these. It counts as one analysis.',
     errorGeneric: 'Something went wrong. Please try again.',
     errorLimitReached: 'You have run several analyses in a short time. Give it an hour and try again.',
-    errorBusy: 'We could not start the analysis just now. Nothing was charged. Try again in a moment.',
+    errorBusy: 'We could not start the analysis just now. It did not count against your quota. Try again in a moment.',
     errorUnsupportedUrl: 'That URL is not valid or supported.',
     errorScrapeFailed: 'We could not load that page. Check the URL and try again.',
-    errorAnalyzeFailed: 'Something went wrong while analyzing. Please try again.'
+    errorAnalyzeFailed: 'Something went wrong while analyzing. Please try again.',
+    errorQuotaExhausted: 'This account has used every analysis it has this month.'
   },
 
 
@@ -595,10 +278,10 @@ export const en = {
   },
 
   analysis: {
-    eyebrow: 'What to change',
-    title: 'What to change on this page',
+    eyebrow: 'Errors',
+    title: 'Errors on this page',
     hintLabel: 'How to use this screen',
-    hint: 'Each section is one kind of fix. *Structure* and *SEO* ship by hand; *Copy* comes with the replacement already written. Every number in the readout above was counted on your page.',
+    hint: 'Each section is one theme. It opens with what Google PageSpeed Insights measured on it, then lists the errors: what is wrong and why, without writing the fix.',
     backToDashboard: 'Back to clients',
     copyFailed: 'Could not copy',
     copyLink: 'Copy link',
@@ -609,130 +292,96 @@ export const en = {
       ai: 'AI'
     },
     sectionQuestions: {
-      flow: 'Is your page scaring off the people who arrive?',
-      copy: 'Does your copy convince, or only describe?',
-      seo: 'Can Google find your page?',
-      ai: 'Is your landing page visible to AI?'
+      flow: 'What in the structure gets in the visitor\'s way?',
+      copy: 'Which lines describe without convincing?',
+      seo: 'What stops a search engine reading the page?',
+      ai: 'What stops an AI from reading and quoting the page?'
     }
   },
 
 
   flow: {
-    eyebrow: 'Fix the flow',
-    title: 'Before you touch the words',
-    hintLabel: 'Why these are shipped by hand',
-    hint: 'These change the *structure* of your page, not one line of text, so they ship by hand.',
-    stepsLabel: 'How to ship it',
+    eyebrow: 'Structure',
+    title: 'What the page puts in the way',
+    hintLabel: 'What this section covers',
+    hint: 'Errors in how the page is *put together*: the form, the calls to action, what answers objections, what loads slowly.',
     evidenceLabel: 'Why',
     count: {
-      one: '{count} flow fix',
-      other: '{count} flow fixes'
+      one: '{count} structure error',
+      other: '{count} structure errors'
     }
   },
 
   seo: {
-    eyebrow: 'Get found',
-    title: 'What a search engine can read here',
+    eyebrow: 'SEO',
+    title: 'What a search engine cannot read here',
     hintLabel: 'What this section checked',
-    hint: 'From what your page *declares about itself*: title, description, canonical, structured data, robots.txt. We checked the page, *not* the index - nothing here says where you rank or what traffic you get.',
-    stepsLabel: 'How to ship it',
+    hint: 'From what the page *declares about itself* and the PageSpeed Insights SEO audits: title, description, canonical, structured data, robots.txt.',
     evidenceLabel: 'Why'
   },
 
   ai: {
-    eyebrow: 'Found by AI',
-    title: 'Can a language model quote this page',
+    eyebrow: 'AI visibility',
+    title: 'What a language model cannot quote',
     hintLabel: 'What this section checked',
-    hint: 'To cite you, an assistant has to *read an answer off your page*: facts in text rather than locked inside an image. We checked the page, *not* what any model says today.',
-    stepsLabel: 'How to ship it',
+    hint: 'To cite a page, an assistant has to *read an answer off it*: facts in text rather than locked inside an image or a script.',
     evidenceLabel: 'Why'
   },
 
   readout: {
-    eyebrow: 'Measured on your page',
-    title: 'What we counted',
+    eyebrow: 'Measured by Google PageSpeed Insights',
+    title: 'Overall score',
     hintLabel: 'Where these numbers come from',
-    hint: 'Everything here was *counted on your page* when we loaded it - nothing estimated, nothing benchmarked. Load times come from a data center, so they are *the best case*: a real visitor never beats them.',
-    fixLabel: 'Fix written:',
+    hint: 'A *mobile* PageSpeed Insights run on this URL. The score is the average of the four Lighthouse categories, and each category\'s audits sit in the section for its theme. Real visitors are Chrome users over the last 28 days, when Google has enough of them.',
+    unavailable: 'PageSpeed Insights did not answer for this page. Run it again to retry.',
+    fixLabel: 'Error listed:',
     groupOk: '{total} checks, all passing',
     groupWrong: '{wrong} of {total} need attention',
-    // Deliberately not 'need attention' and deliberately not a score. These are choices, not
-    // defects, and the sentence has to be true whether the count is 0 or 10.
-    groupMarks: '{present} of {total} present',
     groups: {
-      structure: 'What a visitor runs into on the page',
-      credibility: 'What the page offers as a reason to believe it',
-      mobile: 'What the page does on a phone',
-      declared: 'What the page tells a machine',
-      crawler_access: 'What an AI crawler is allowed to read',
-      sameness: 'What your page has in common with every other one',
-      load: 'What the page costs to open'
+      crawler_access: 'What an AI crawler is allowed to read'
     },
     score: {
-      label: 'Health of what we counted',
-      scale: '100 means every check on this page passed. 0 means none of them did.',
-      method: 'Averaged over the {count} checks below, each one counted on this page itself: a check that passes is worth a full point, a borderline one half, a failing one none. It rates only what was counted here, and says nothing about how much traffic or revenue the page makes.',
-      railAria: 'Group health {score} out of 100',
+      label: 'PageSpeed score',
+      scale: 'The average of the four Lighthouse category scores, from 0 to 100.',
+      competitor: '{host}: {score}/100',
+      railAria: 'Score {score} out of 100',
       severity: {
-        ok: 'Healthy',
-        warn: 'Worth a look',
-        alert: 'Needs work'
+        ok: 'Good',
+        warn: 'Needs improvement',
+        alert: 'Poor'
+      }
+    },
+    categories: {
+      performance: 'Performance',
+      accessibility: 'Accessibility',
+      'best-practices': 'Best practices',
+      seo: 'SEO'
+    },
+    auditsFailed: '{count} audits to look at',
+    auditsPassed: 'Every scored audit passed.',
+    field: {
+      title: 'Real visitors',
+      scope: {
+        page: 'This URL, last 28 days',
+        origin: 'Whole site, last 28 days'
+      },
+      category: {
+        FAST: 'Good',
+        AVERAGE: 'Needs improvement',
+        SLOW: 'Poor'
+      },
+      metrics: {
+        LARGEST_CONTENTFUL_PAINT_MS: 'Largest Contentful Paint',
+        INTERACTION_TO_NEXT_PAINT: 'Interaction to Next Paint',
+        CUMULATIVE_LAYOUT_SHIFT_SCORE: 'Cumulative Layout Shift',
+        FIRST_CONTENTFUL_PAINT_MS: 'First Contentful Paint',
+        EXPERIMENTAL_TIME_TO_FIRST_BYTE: 'Time to First Byte'
       }
     },
     findings: {
-      form_fields: 'Form fields',
-      required_fields: 'Fields the form makes mandatory',
-      fields_without_label: 'Fields with no label',
-      form_steps: 'Steps before the form can be sent',
-      no_submit: 'Form has a button that sends it',
-      no_social_signin: 'Sign in with Google or GitHub',
-      above_fold_ctas: 'Calls to action above the fold',
-      dead_ctas: 'Buttons that link nowhere',
-      nav_links: 'Navigation links out of the page',
-      no_faq: 'Questions answered on the page',
-      no_testimonials: 'Customer proof on the page',
-      word_count: 'Words on the page',
-      heading_count: 'Headings on the page',
-      noindex: 'Blocked from search engines',
-      no_meta_description: 'Meta description',
-      h1_count: 'H1 headings',
-      images_missing_alt: 'Images with no alt text',
-      no_structured_data: 'Structured data',
-      no_og_image: 'Social share image',
-      no_canonical: 'Canonical URL',
-      no_lang: 'Declared page language',
-      internal_links: 'Links to other pages on the site',
-      term_in_title: 'Main term in the title tag',
-      term_in_h1: 'Main term in the H1',
-      term_in_meta_description: 'Main term in the meta description',
       ai_crawlers_blocked: 'AI crawlers your robots.txt blocks',
       robots_blocks_all: 'Crawling allowed at all',
-      no_sitemap: 'Sitemap declared in robots.txt',
-      ttfb: 'Time to first byte',
-      fcp: 'First content painted',
-      lcp: 'Largest content painted',
-      page_weight: 'Downloaded to open the page',
-      request_count: 'Network requests',
-      no_cnpj: 'Company registration in the footer',
-      no_trust_badge: 'Security or review badge on the page',
-      testimonial_attribution: 'Testimonials naming who said them',
-      no_privacy_policy: 'Privacy policy linked',
-      no_contact_channel: 'A way to reach the company',
-      mobile_overflow: 'Page fits the screen sideways',
-      no_viewport_meta: 'Page declares a mobile viewport',
-      mobile_tap_targets: 'Buttons too small to tap',
-      mobile_tiny_text: 'Text too small to read on a phone',
-      mobile_above_fold_ctas: 'Calls to action above the fold on a phone',
-      gradient_backgrounds: 'Gradient backgrounds',
-      font_families: 'Typefaces on the page',
-      icon_set_default: 'Icons from a stock icon set',
-      card_triplets: 'Rows of three feature cards',
-      emoji_in_headings: 'Headings and bullets with emoji',
-      generic_cta_text: 'Buttons with a generic label',
-      placeholder_text: 'Placeholder text left in',
-      unlinked_logo_strip: 'Logo strip that links somewhere',
-      builder_declared: 'Page declares the tool that built it',
-      stock_hero_image: 'Hero image from a stock library'
+      no_sitemap: 'Sitemap declared in robots.txt'
     },
     criterion: {
       above: 'flagged from {value}',
@@ -746,309 +395,78 @@ export const en = {
     },
     delta: {
       up: '+{value}',
-      down: '-{value}',
-      gained: 'added',
-      lost: 'removed'
+      down: '-{value}'
     },
     trend: {
-      title: 'Health over time',
-      hint: 'One point per measurement of this page. It shows what moved, not what moved it.'
+      title: 'Score over time',
+      hint: 'One point per measurement of this page.'
     },
     atLeast: 'at least',
     units: {
       seconds: '{value}s',
+      milliseconds: '{value} ms',
       megabytes: '{value} MB'
     },
-    measure: {
-      explain:
-        'This analysis was generated before we started counting. Load the page again and we will measure it: form fields, calls to action above the fold, load time, images with no alt text.',
-      cta: 'Measure this page',
-      loading: 'Measuring the page...',
-      hint: 'Takes about {seconds} seconds. We open the page the same way a visitor does.',
-      failed: 'We could not load the page this time. Nothing was changed in this analysis.',
-      retry: 'Try again',
-      again: 'Measure again',
+    run: {
+      again: 'Run again',
+      loading: 'Starting...',
+      failed: 'The new run could not start. Nothing changed in this report.',
+      inProgress: 'A new run is in progress. The report updates itself when it finishes.',
+      quotaExhausted: 'No analyses left this month.',
+      lastRunFailed: 'The last run did not finish and did not count against the quota. The errors below are from the run before it.',
       trendStartTitle: 'Track how this page changes',
-      trendStartBody: 'One measurement is a photo, not a history. Measure this page again and every number above gains a "since last time", plus a line showing the score over time.'
+      trendStartBody: 'One run is a photo, not a history. Run this page again, using one analysis of the month, and every score gains a "since last time", plus a line showing the score over time.'
     }
-  },
-
-  // The report turned into an instruction for the tool that built the page. **Every string here ends
-  // up inside somebody else's model**, so the same rules that govern our own prompts govern these:
-  // no claim about what a change will produce, and nothing asserted that was not measured.
-  fixPrompt: {
-    eyebrow: 'Hand it back to your AI tool',
-    title: 'The prompt that applies all of this',
-    hintLabel: 'What this is',
-    hint: 'Everything below, written as one instruction you can paste into Lovable, v0, Bolt, Cursor or any chat. It is *assembled from what is already on this page* - no model runs, nothing is generated, and your report link is not in it.',
-    cta: 'Copy the prompt',
-    copied: 'Copied',
-    preview: 'Preview the prompt',
-    preamble:
-      'My landing page at {url} was measured by Hunch, and these were the results. Every item below was counted on the page itself, not guessed, and the replacement text comes written. Apply the changes.',
-    changesHeading: 'STRUCTURAL CHANGES, most important first:',
-    copyHeading: 'TEXT TO REPLACE. Match the existing line exactly, then swap it:',
-    from: 'Replace:',
-    to: 'With:',
-    placeholderNote: '^ this line has [brackets] that are not real details yet',
-    rulesHeading: 'RULES:',
-    // Conditional, and first in the list when it appears: it is the one that prevents a live page
-    // being filled with something invented.
-    placeholderRule:
-      'Any text in [square brackets] is a gap I still have to fill. Do NOT invent a name, a number, a customer or a statistic to fill one. Leave the brackets in place and list them back to me at the end.',
-    rules: [
-      'Change only what is listed. Do not redesign anything else on the page.',
-      'Keep my existing stack, components and styling. These are content and structure changes.',
-      'If a line I asked you to replace does not exist exactly as written, tell me instead of guessing at the closest one.',
-      'Do not add claims, statistics, testimonials or logos that are not already on the page.'
-    ]
   },
 
   hypothesisList: {
-    eyebrow: 'Rewrite the words',
-    title: 'The lines worth swapping',
-    hintLabel: 'How to use these',
-    hint: 'Each one names the line as it stands today and the replacement, *already written*. Where the line is a single element we can point at, you get a preview of it on your real page.',
-    manualSetup: 'Manual setup',
+    eyebrow: 'Copy',
+    title: 'Lines that are not doing their job',
+    hintLabel: 'How to read these',
+    hint: 'Each one quotes the line *as it stands on the page* and says what is wrong with it.',
     testThisFirst: 'Start here',
-    evidenceMechanism: 'The mechanism',
-    assessmentLabel: 'The line today',
-    placeholderWarning: 'Has [placeholders] - replace them with the real details before you hand this over.',
-    previewLabel: 'On your page',
-    otherOptions: 'Other options',
-    writingOptions: 'Writing other options...',
-    roundsLeft: 'Two more each time, {rounds} rounds left. Pick a direction:',
-    roundsSpent: 'No rounds left on this line. Write your own above.',
-    tones: {
-      direct: 'More direct',
-      shorter: 'Shorter',
-      concrete: 'More concrete',
-      informal: 'Less formal'
-    },
-    useThis: 'Use this one',
-    editThis: 'Write my own',
-    saveEdit: 'Save my line',
-    yourWords: 'Your words',
-    overBudget: 'That is {words} words against a {budget} word ceiling for this element. It will be saved either way.',
-    choosing: 'Choosing',
-    optionsUnavailable: 'We could not write more options just now. The recommendation above still stands.',
-    backlog: {
-      one: '{count} more idea',
-      other: '{count} more ideas'
-    }
+    assessmentLabel: 'What it does today'
   },
 
-  credits: {
-    // The reminder for a payment Mercado Pago still reports as pending. It names no amount on
-    // purpose: the section below is what prints a price, and two sources for one number is how the
-    // page and the mail start disagreeing about what something costs.
-    reminder: {
-      subject: 'Your payment is still pending',
-      heading: 'The payment has not been confirmed',
-      body: 'You started a purchase and Mercado Pago has not confirmed it yet. For Pix and boleto that is normal and can take minutes to a few days. If you changed your mind, ignore this email.',
-      cta: 'Back to checkout',
-      footer: 'The credits land in your account on their own as soon as the payment is confirmed.'
-    },
-    eyebrow: 'Credits',
-    heading: 'One credit, one full analysis.',
-    body: 'The score is always free. A credit buys the half a model writes: the ranked fixes, the replacement copy, and a preview of it on your real page.',
-    balance: 'You have {count} credits',
-    balanceOne: 'You have 1 credit',
-    balanceNone: 'You have no credits',
-    freeHalf:
-      'You can still run a page. The score and every row behind it are free; the ranked fixes and the rewritten copy are what a credit buys.',
-    credits: { one: '{count} analysis', other: '{count} analyses' },
-    buy: 'Buy',
-    opening: 'Opening checkout...',
-    mostChosen: 'Most chosen',
-    freeCta: 'Measure my page',
-    mercadopago: {
-      loading: 'Loading the payment form...',
-      failed: 'The payment form could not be loaded. Try again in a moment.',
-      approved: 'Payment approved.',
-      pending: 'Waiting for the payment to clear.',
-      qrAlt: 'Pix QR code',
-      creditsArrive: 'The credits land on your account as soon as the payment is confirmed.',
-      refresh: 'Refresh the balance'
-    },
-    packs: {
-      free: {
-        name: 'Free',
-        price: '0 reais',
-        perAnalysis: 'No credit, no card',
-        tagline: 'Your page scored, right now.',
-        features: [
-          'The score and every row that made it, on desktop and on a phone',
-          'What the page weighs and how long it takes to load',
-          'What your page declares about itself, and what an AI crawler can read',
-          'The report link in your inbox, so you can come back to it',
-          'The ranked fixes and the rewritten copy are not in it: those are what a credit buys'
-        ]
-      },
-      single: {
-        name: 'Single',
-        price: 'R$97',
-        perAnalysis: 'R$97 per analysis',
-        tagline: 'One page, the whole teardown of it.',
-        features: [
-          'The score and every row that made it, on desktop and on a phone',
-          'What the page weighs and how long it takes to load',
-          'Ranked fixes for structure, copy, SEO and AI visibility',
-          'The replacement copy written, previewed on your real page',
-          'Two alternate options for any line, written on demand'
-        ]
-      },
-      trio: {
-        name: 'Trio',
-        price: 'R$247',
-        perAnalysis: 'R$82 per analysis',
-        tagline: 'Three pages, or the same one three times.',
-        features: [
-          'Everything in Single, across three pages',
-          'One for each project, or the landing, the pricing and the onboarding of the same one',
-          'Or the same page again after you change it, to compare the two measurements',
-          'All three in one dashboard, each with its own score',
-          'Credits never expire'
-        ]
-      }
-    }
-  },
-
-  unlock: {
-    heading: 'Your score is measured. The fixes are written.',
-    body: 'Everything above was counted on your page. What is behind this is the part someone has to write: ranked changes, the replacement copy, and a preview of it on your real page.',
-    points: [
-      'Ranked fixes across structure, copy, SEO and AI',
-      'The new wording, already written',
-      'Each line previewed on your own page'
-    ],
-    cta: 'Unlock the fixes',
-    ctaBuy: 'Buy a credit to unlock'
-  },
-
-  watch: {
-    heading: 'Email yourself this report',
-    body: 'This report lives at an unguessable link that only this browser knows. Clear your history and it is gone. Send it to yourself and it is yours to keep.',
-    placeholder: 'you@company.com',
-    cta: 'Send me the link',
-    sending: 'Sending...',
-    success: 'Sent. Check your inbox.',
-    errorInvalid: 'That does not look like an email address.',
-    errorRate: 'Too many tries. Give it a few minutes.',
-    errorGeneric: 'Could not send it. Try again in a moment.',
-    // **It describes what actually happens**, including the sequence below. A line that stops being
-    // true is a line to change rather than to soften, the same rule that governs the privacy policy.
-    // See docs/ads.md.
-    note: 'The link now, and two more emails about what we counted on your page. The address may also be used to show you our ads. Leaving takes one click, from any of them.',
-    sequence: {
-      unsubscribe: 'Stop these emails',
-      goneHeading: 'Done, you are out',
-      goneBody:
-        'We will not send anything else to this address. Your report link keeps working: it never depended on email.',
-      measurement: {
-        subject: 'What we counted on {host}',
-        heading: 'One thing we measured on your page',
-        body: [
-          'When you asked for the report on {host}, we opened the page the way a visitor opens it and counted what is on it.',
-          'One of the things we counted was this:',
-          '{finding}',
-          'That number was read off your own page, so you can check it in one click. The full report is still at the link below.'
-        ],
-        cta: 'Open the report'
-      },
-      offer: {
-        subject: 'The fixes for {host} are written',
-        heading: 'You already have the score',
-        body: [
-          'The score for {host} and every line that formed it stay at your link, free, for good.',
-          'What is behind the unlock is the part someone has to write: ranked fixes across structure, copy, SEO and AI visibility, the replacement copy already written, and a preview of it on your real page.',
-          'If this is not the moment, ignore this email. It is the last one in the sequence.'
-        ],
-        cta: 'See what is written'
-      }
-    },
-    email: {
-      subject: 'Your landing page report',
-      heading: 'Here is your report',
-      body: 'You measured {host}. The full readout is at the link below, and it stays there.',
-      cta: 'Open the report',
-      keep: 'Keep this email. The link is the only way back to this report.',
-      footer: 'You got this because someone asked for it at this address on hunch.'
-    }
-  },
-
-  // The owner's decision on one recommendation. "Applied" says they shipped it, never that it
-  // worked -- see docs/invariants.md.
-  verdict: {
-    question: 'Worth doing?',
-    applied: 'I applied this',
-    dismissed: 'Not for me',
-    appliedState: 'Applied',
-    dismissedState: 'Not for me',
-    undo: 'undo'
-  },
   report: {
     generating: {
       eyebrow: 'Still being written',
-      note: 'Your score above is final. The fixes and the replacement copy are being written now and appear here on their own, so you can leave this page and come back to it.',
+      note: 'The measurement in each section is final. The error lists are being written now and appear here on their own, so you can leave this page and come back to it.',
       stalled: 'This is taking longer than usual. The work is still queued. Reload the page to check on it.'
     },
     failed: {
-      heading: 'The fixes did not come through',
-      body: 'Your score above stands and is yours to keep. The written half did not finish, so the credit went back to your balance and nothing was charged for this run.',
+      heading: 'The error lists did not come through',
+      body: 'The measurement above stands. The written part did not finish, and this run does not count against the monthly quota.',
       cta: 'Run the page again'
     },
-    backToTestIdeas: 'Back to the analysis',
-    teardown: 'Conversion teardown',
+    measureFailed: {
+      heading: 'This page could not be measured',
+      body: 'The run did not finish, and it does not count against the monthly quota.'
+    },
+    teardown: 'Landing page audit',
     measuringHeading: 'Measuring this page...',
-    measuringBody: 'We are opening it the way a visitor does and counting what is on it. This takes about a minute. The page updates itself when the numbers land.',
-    plan: 'Landing page score',
+    measuringBody: 'We are opening it and running PageSpeed Insights on it. This takes about a minute. The page updates itself when the numbers land.',
+    plan: 'Landing page audit',
     landingPageAnalyzed: 'Landing page analyzed',
     dated: 'Reviewed on {date}',
     summaryBody:
-      'We went through this page line by line and found {changes} changes worth making. {ready} of them are wording changes, and the new wording is already written below. The other {structural} change how the page is put together.',
-    summaryMeasured:
-      'Everything below was counted on this page when we opened it. The ranked fixes and the replacement copy are the half a model has to write, and they have not been written for this page yet.',
-    changesFound: 'Changes recommended',
-    copyWritten: 'Copy already written',
-    testThisFirst: 'Start here',
-    // The triage block deliberately does not reuse `testThisFirst` above. That badge marks one
-    // hypothesis inside the copy list, and two different things on one page saying "Start here"
-    // is two answers to the same question.
+      'We found {changes} errors on this page: {copy} in the wording, and {structural} in the structure, SEO and AI visibility.',
+    summaryPending: 'The error lists for this page have not been written.',
+    changesFound: 'Errors found',
+    copyErrors: 'Wording errors',
     startHere: {
       eyebrow: 'Priority',
-      title: 'What to change first'
+      title: 'The biggest errors'
     },
     rail: {
       label: 'On this page',
-      // Only the landmarks that are not analysis sections. The other four take their names from
-      // `analysis.sections`, where the panel bars already read them.
       sections: {
-        start: 'Change first',
-        readout: 'Measurements',
-        prompt: 'Prompt for your AI'
+        start: 'Biggest errors',
+        readout: 'Overall score'
       }
     },
-    problem: 'Problem',
     current: 'Current',
-    changeTo: 'Change to',
-    whyThisWorks: 'Why this works',
-    manualSetupBody: 'Not a single-line swap, so there is no preview for it. Apply this copy by hand.',
-    appliedToYourPage: 'Applied to your page',
-    previewAlt: 'Variant applied to the landing page',
-    previewBeforeAlt: 'The landing page as it is today',
-    compareLabel: 'Drag to compare the page before and after the change',
-    compareValue: '{percent}% of the rewritten page shown',
-    compareBefore: 'Now',
-    compareAfter: 'Rewritten',
-    previewCta: 'See how this looks on your page',
-    previewHint: 'We load your real page with this copy swapped in. Takes about {seconds} seconds.',
-    previewLoading: 'Rendering your page...',
-    previewUnavailable:
-      'We could not render your page just now. The recommended copy above still stands.',
-    previewRetry: 'Try again',
-    previewOverflow:
-      'This copy does not fit the space your page gives that element, so the preview shows it cut off. Shorten it, or give the element more room before you ship it.'
+    whyThisIsWrong: 'Why this is an error'
   },
 
   blog: enBlog

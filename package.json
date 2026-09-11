@@ -16,17 +16,13 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "test": "tsx --test \"lib/**/*.test.ts\"",
-    "preview:screenshot": "tsx --env-file=.env scripts/preview-screenshot.mts",
-    "preview:emails": "tsx --env-file=.env scripts/preview-emails.mts",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "seed:pulse": "tsx --env-file=.env scripts/seed-pulse.mts"
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",
     "@radix-ui/react-slot": "^1.2.3",
     "ai": "^4.3.16",
-    "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "country-flag-icons": "^1.6.20",
@@ -40,7 +36,6 @@
     "puppeteer": "^24.10.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "stripe": "^18.2.1",
     "tailwind-merge": "^3.3.1",
     "zod": "^3.25.67"
   },
@@ -48,7 +43,6 @@
     "@eslint/eslintrc": "^3.3.1",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.1.10",
-    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.15.32",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

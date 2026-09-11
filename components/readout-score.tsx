@@ -2,56 +2,52 @@
 
 import { useI18n } from '@/components/i18n-provider'
 import { READOUT_SEVERITY_CLASS } from '@/lib/constants'
-import { formatNumber, t } from '@/lib/i18n/format'
-import { readoutScore, scoreSeverity } from '@/lib/score'
-import type { MeasuredFinding } from '@/lib/readout'
+import { t } from '@/lib/i18n/format'
+import { scoreSeverity } from '@/lib/score'
 import { cn } from '@/lib/utils'
 
-export function ReadoutScore({ findings }: { findings: MeasuredFinding[] }) {
-  const { dictionary, locale } = useI18n()
+export function ReadoutScore({
+  score,
+  competitorScore = null,
+  competitorHost = null
+}: {
+  score: number | null
+  competitorScore?: number | null
+  competitorHost?: string | null
+}) {
+  const { dictionary } = useI18n()
   const copy = dictionary.readout.score
-  const score = readoutScore(findings)
 
-  if (score.overall === null) return null
+  if (score === null) return null
 
   return (
     <div
       className="flex flex-col gap-4 rounded-lg border bg-card p-5 sm:flex-row sm:items-start sm:gap-8 sm:p-6"
       data-testid="readout-score"
     >
-      {/* min-w-0 all the way down: a flex item defaults to min-width:auto, which refuses to shrink
-          below its content and is what pushed this row past the viewport on a phone. */}
       <div className="shrink-0">
         <p className="panel-label text-micro text-muted-foreground">{copy.label}</p>
-        {/* `bg-transparent` deliberately overrides the tint that `READOUT_SEVERITY_CLASS` carries,
-            and `cn` resolves the conflict in favour of the later class. The tint is not removed --
-            it moves to the pseudo-element that `animate-score-settle` fills, drawn from
-            `currentColor`, which is the foreground half of the same severity class. `isolate` keeps
-            that pseudo-element behind the digits and in front of the card. See app/globals.css. */}
+        {/* `bg-transparent` moves the severity tint to the pseudo-element `animate-score-settle`
+            fills, drawn from `currentColor`. See app/globals.css. */}
         <p
           className={cn(
             'animate-score-settle relative isolate mt-2 inline-block rounded-md px-3 py-1 font-display text-5xl font-bold tabular-nums sm:text-6xl',
-            READOUT_SEVERITY_CLASS[scoreSeverity(score.overall)],
+            READOUT_SEVERITY_CLASS[scoreSeverity(score)],
             'bg-transparent'
           )}
         >
-          {score.overall}
+          {score}
           <span className="text-xl font-semibold sm:text-2xl">/100</span>
         </p>
       </div>
 
-      {/* Both sentences are load-bearing and neither may move into an InfoHint: this card renders on
-          the public report and on paper, where a tooltip is a click nobody makes and a print that
-          never appears. See docs/readout.md.
-
-          **There are deliberately no per-group bars here.** Every group carries its own score in
-          its own card below, so bars here would be the same six numbers stated twice, and the reader
-          would have to match a label in this card against a heading further down to join them. */}
       <div className="min-w-0 flex-1 space-y-3">
         <p className="text-sm leading-snug text-muted-foreground">{copy.scale}</p>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {t(copy.method, { count: formatNumber(findings.length, locale) })}
-        </p>
+        {competitorScore !== null && competitorHost && (
+          <p className="truncate font-mono text-sm tabular-nums text-muted-foreground">
+            {t(copy.competitor, { host: competitorHost, score: competitorScore })}
+          </p>
+        )}
       </div>
     </div>
   )

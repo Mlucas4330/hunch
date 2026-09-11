@@ -3,9 +3,6 @@ import puppeteer, { type Browser, type Page } from 'puppeteer'
 import {
   BROWSER_CONNECT_RETRY_DELAY_MS,
   DEAD_HREFS,
-  FIT_MIN_SCALE,
-  FIT_STEP_RATIO,
-  FIT_TOLERANCE_PX,
   GOAL_CANDIDATE_MAX_WORDS,
   MOBILE_MIN_FONT_PX,
   MOBILE_TAP_TARGET_MIN_PX,
@@ -14,7 +11,6 @@ import {
   OAUTH_PROVIDER_PATTERNS,
   STRUCTURE_PATTERNS,
   SCRAPE_ALLOWED_RESOURCE_TYPES,
-  SCRAPE_ASSET_READY_TIMEOUT_MS,
   SAMENESS_CARD_GRID_SIZE,
   SAMENESS_PATTERNS,
   SAMENESS_SAMPLE_MAX,
@@ -22,10 +18,8 @@ import {
   PAGE_LINKS_MAX,
   SCRAPE_MAX_CONCURRENT_PAGES,
   SCRAPE_MAX_RESPONSE_BYTES,
-  SCRAPE_PAINT_SETTLE_MS,
   SCRAPE_NAVIGATION_TIMEOUT_MS,
   SCRAPE_QUEUE_MAX_WAIT_MS,
-  SCREENSHOT_QUEUE_MAX_WAIT_MS,
   SCRAPE_SETTLE_MIN_TEXT_LENGTH,
   SCRAPE_SETTLE_POLL_MS,
   SCRAPE_SETTLE_TEXT_TOLERANCE,
@@ -46,8 +40,7 @@ export interface PageElement {
   tag: string
   // Characters the element's own box can hold, measured off the page. See docs/scraping.md.
   capacity: number
-  // The element renders part of its text inside a child (a <strong>, a gradient <span>), so the
-  // variant may choose which of its own words land there.
+  // The element renders part of its text inside a child (a <strong>, a gradient <span>).
   emphasized: boolean
 }
 
@@ -163,10 +156,8 @@ export interface PageSeo {
 /**
  * The marks a page carries from being assembled out of somebody else's defaults.
  *
- * **Counted off the DOM and the computed styles, never off the screenshot.** The obvious way to
- * detect a generated look is to show a picture of the page to a vision model, and that is exactly
- * what docs/invariants.md forbids: a token a model wrote may never be presented as a measurement.
- * These are all counts, so they stay measurements. It works at all because
+ * **Counted off the DOM and the computed styles, never off a picture of the page.** These are all
+ * counts, so they stay measurements. It works at all because
  * `SCRAPE_ALLOWED_RESOURCE_TYPES` lets stylesheets, fonts and images through, so `getComputedStyle`
  * returns what the author wrote rather than user agent defaults.
  *
@@ -461,10 +452,8 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
       await page.setUserAgent(MOBILE_USER_AGENT)
       await page.setViewport(SCRAPE_VIEWPORT_MOBILE)
       // **The cache has to go before the reload.** A warm reload serves most of the page from memory
-      // and reports an LCP faster than the desktop pass measured, which would tell the reader their
-      // page is quicker on a phone than on a laptop. That is not a floor with a caveat on it, it is
-      // a wrong number -- and the load figures only survive because they are honest about being a
-      // best case. See docs/invariants.md.
+      // and reports an LCP faster than the desktop pass measured, which would say the page is quicker
+      // on a phone than on a laptop. See docs/scraping.md.
       await page.setCacheEnabled(false)
       await page.reload({ waitUntil: 'networkidle2', timeout: SCRAPE_NAVIGATION_TIMEOUT_MS })
       await settlePage(page)
@@ -517,317 +506,6 @@ export async function scrapePageText(url: string): Promise<{ sections: PageSecti
       await releaseBrowser(browser, page)
     }
   })
-}
-
-export type VariantShot = {
-  // The page as it is today, photographed before the swap.
-  before: Buffer
-  // The same page with the variant applied.
-  after: Buffer
-  // The copy still did not fit its box at the smallest size the fit is willing to use, so the image
-  // shows the reader clipped text. Surfaced rather than swallowed -- see docs/report.md.
-  // It describes the `after` shot only: nothing was changed in `before` to overflow anything.
-  overflow: boolean
-}
-
-export async function screenshotVariant(
-  url: string,
-  selector: string | null,
-  variantCopy: string,
-  controlCopy?: string | null,
-  emphasis?: string | null
-): Promise<VariantShot> {
-  const target = await assertPublicUrl(url)
-
-  return withBrowserSlot(SCREENSHOT_QUEUE_MAX_WAIT_MS, async () => {
-    const browser = await launchBrowser()
-    let page: Page | null = null
-
-    try {
-      page = await openGuardedPage(browser)
-      await page.setViewport(SCRAPE_VIEWPORT)
-      await page.goto(target.href, {
-        waitUntil: 'networkidle2',
-        timeout: SCRAPE_NAVIGATION_TIMEOUT_MS
-      })
-      await settlePage(page)
-
-      // **Both shots come from one page load, and that is what makes the slider work.** Same
-      // navigation, same viewport, same scroll offset, same lazy images already settled -- so the
-      // two images line up pixel for pixel and the only thing that differs between them is the copy
-      // that was swapped. Loading the page twice would let a carousel advance, an animation land
-      // somewhere else, or an ad slot fill differently, and the wipe would read as the whole page
-      // twitching rather than as one line changing.
-      //
-      // **Scrolling comes first, before either shot.** The element being rewritten is usually below
-      // the fold, so a shot taken at the top of the page is a picture of something the change does
-      // not touch. Scrolling once here and never again is what keeps the pair registered: doing it
-      // after the swap frames the two shots at different offsets.
-      await page.evaluate(freezeMotion)
-      if (selector) await page.evaluate(scrollToTarget, selector)
-      await awaitPaint(page)
-      const before = await page.screenshot({ type: 'png' })
-
-      let overflow = false
-
-      if (selector) {
-        const outcome = await page.evaluate(applyVariantCopy, {
-          selector,
-          variantCopy,
-          controlCopy: controlCopy ?? null,
-          emphasis: emphasis ?? null,
-          fitStepRatio: FIT_STEP_RATIO,
-          fitMinScale: FIT_MIN_SCALE,
-          fitTolerancePx: FIT_TOLERANCE_PX
-        })
-
-        if (!isApplied(outcome)) {
-          throw new ScrapeError(`Variant target not applicable on ${url} (${outcome})`)
-        }
-        overflow = outcome === 'overflow'
-      }
-
-      // Again after the swap: replacing the text can pull a webfont weight that was not on the page
-      // before, and the fit loop may have resized the type.
-      await awaitPaint(page)
-      const after = await page.screenshot({ type: 'png' })
-
-      return { before: Buffer.from(before), after: Buffer.from(after), overflow }
-    } catch (error) {
-      if (error instanceof ScrapeError) throw error
-      throw new ScrapeError(`Failed to screenshot ${url}`, { cause: error })
-    } finally {
-      await releaseBrowser(browser, page)
-    }
-  })
-}
-
-// `ok`, `fitted` and `overflow` all mean the swap happened; they differ in what the box did with it.
-// See docs/scraping.md.
-type ApplyOutcome = 'ok' | 'fitted' | 'overflow' | 'not_found' | 'mismatch'
-
-export function isApplied(outcome: ApplyOutcome): boolean {
-  return outcome === 'ok' || outcome === 'fitted' || outcome === 'overflow'
-}
-
-export function applyVariantCopy(options: {
-  selector: string
-  variantCopy: string
-  controlCopy: string | null
-  emphasis: string | null
-  fitStepRatio: number
-  fitMinScale: number
-  fitTolerancePx: number
-}): ApplyOutcome {
-  const el = document.querySelector(options.selector)
-  if (!el) return 'not_found'
-
-  if (options.controlCopy) {
-    const own = (el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase()
-    const control = options.controlCopy.replace(/\s+/g, ' ').trim().toLowerCase()
-    if (own !== control && !own.includes(control) && !control.includes(own)) return 'mismatch'
-  }
-
-  const skip = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT'])
-  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
-  const nodes: Text[] = []
-
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = node as Text
-    if (skip.has(text.parentElement?.tagName || '')) continue
-    if (!(text.nodeValue || '').trim()) continue
-    nodes.push(text)
-  }
-
-  const words = options.variantCopy.split(/\s+/).filter(Boolean)
-
-  // Words per node, by fragment size. One word is reserved for each fragment still to come, so a
-  // share that rounds to zero does not empty a styled span; the last node takes the remainder, so
-  // rounding never drops a word.
-  function proportional(weights: number[], wordTotal: number): number[] {
-    const total = weights.reduce((sum, weight) => sum + weight, 0) || weights.length
-    const counts: number[] = []
-    let taken = 0
-
-    weights.forEach((weight, index) => {
-      const remaining = wordTotal - taken
-      const reserve = Math.min(weights.length - index - 1, remaining)
-      const ceiling = remaining - reserve
-      const share = Math.round((wordTotal * weight) / total)
-      const take =
-        index === weights.length - 1
-          ? remaining
-          : Math.min(ceiling, Math.max(ceiling > 0 ? 1 : 0, share))
-
-      counts.push(take)
-      taken += take
-    })
-
-    return counts
-  }
-
-  // Where the emphasis sits in the variant's own words. Null unless it is a whole-word substring of
-  // the copy, which is what lets the words either side be handed to the nodes either side.
-  function emphasisSpan(copy: string, emphasis: string): { start: number; length: number } | null {
-    const at = copy.indexOf(emphasis)
-    if (at === -1) return null
-
-    const before = at === 0 ? ' ' : copy.charAt(at - 1)
-    const end = at + emphasis.length
-    const after = end >= copy.length ? ' ' : copy.charAt(end)
-    if (/\S/.test(before) || /\S/.test(after)) return null
-
-    const start = copy.slice(0, at).split(/\s+/).filter(Boolean).length
-    const length = emphasis.split(/\s+/).filter(Boolean).length
-    if (length === 0 || length === words.length) return null
-
-    return { start, length }
-  }
-
-  // The emphasis is honoured only when every word has somewhere to go: it is placed in a styled
-  // fragment that already exists, and nothing here ever creates one. Anything else falls back to the
-  // proportional split. See docs/scraping.md.
-  function counts(): number[] {
-    const weights = nodes.map((node) => (node.nodeValue || '').trim().length)
-    if (!options.emphasis) return proportional(weights, words.length)
-
-    const styled = nodes.findIndex((node) => node.parentElement !== el)
-    if (styled === -1) return proportional(weights, words.length)
-
-    const span = emphasisSpan(options.variantCopy, options.emphasis)
-    if (!span) return proportional(weights, words.length)
-
-    const after = words.length - span.start - span.length
-    if (span.start > 0 && styled === 0) return proportional(weights, words.length)
-    if (after > 0 && styled === nodes.length - 1) return proportional(weights, words.length)
-
-    return [
-      ...proportional(weights.slice(0, styled), span.start),
-      span.length,
-      ...proportional(weights.slice(styled + 1), after)
-    ]
-  }
-
-  if (nodes.length === 0) {
-    el.appendChild(document.createTextNode(options.variantCopy))
-  } else {
-    const plan = counts()
-    let taken = 0
-    let wrote = false
-
-    nodes.forEach((node, index) => {
-      const value = node.nodeValue || ''
-      const lead = value.match(/^\s*/)?.[0] || (wrote ? ' ' : '')
-      const trail = value.match(/\s*$/)?.[0] ?? ''
-
-      const chunk = words.slice(taken, taken + plan[index]).join(' ')
-      taken += plan[index]
-      wrote = wrote || chunk.length > 0
-      node.nodeValue = chunk ? lead + chunk + trail : ''
-    })
-  }
-
-  // Longer copy that simply wraps to another line is not a break -- the page reflows and the reader
-  // sees the real thing. A break is the text being cut off: clipped sideways by a nowrap or ellipsis
-  // rule, taller than a fixed height, or pushed past the bottom of an ancestor that hides its
-  // overflow. Only that is worth distorting the designer's type for, and only down to `fitMinScale`.
-  function clipsBelow(target: Element): boolean {
-    const bottom = target.getBoundingClientRect().bottom
-    let node = target.parentElement
-    while (node && node !== document.body) {
-      const style = getComputedStyle(node)
-      if (style.overflowY === 'hidden' || style.overflowY === 'clip') {
-        if (bottom > node.getBoundingClientRect().bottom + options.fitTolerancePx) return true
-      }
-      node = node.parentElement
-    }
-    return false
-  }
-
-  function clipped(target: Element): boolean {
-    if (target.scrollWidth > target.clientWidth + options.fitTolerancePx) return true
-    if (target.scrollHeight > target.clientHeight + options.fitTolerancePx) return true
-    return clipsBelow(target)
-  }
-
-  function fitToBox(target: HTMLElement): 'ok' | 'fitted' | 'overflow' {
-    if (!clipped(target)) return 'ok'
-
-    const base = parseFloat(getComputedStyle(target).fontSize)
-    if (!base) return 'overflow'
-
-    const previous = target.style.fontSize
-    let scale = options.fitStepRatio
-    while (scale >= options.fitMinScale) {
-      target.style.fontSize = `${base * scale}px`
-      if (!clipped(target)) return 'fitted'
-      scale *= options.fitStepRatio
-    }
-
-    target.style.fontSize = previous
-    return 'overflow'
-  }
-
-  // **The scroll is deliberately not here.** This function runs between the two shots, so scrolling
-  // inside it would frame the "before" at the top of the page and the "after" centred on the
-  // element, and the wipe would compare two different parts of the page. `scrollToTarget` runs
-  // before either shot, so both share one offset. See docs/scraping.md.
-  return fitToBox(el as HTMLElement)
-}
-
-/**
- * Stops the page moving on its own, so the only difference between the two shots is the copy.
- *
- * A marquee, a carousel or a looping hero animation advances in the milliseconds between the two
- * screenshots, and the wipe then shows it jumping -- which reads as the whole page twitching rather
- * than as one line changing. Pausing rather than removing: `animation: none` would drop an element
- * back to whatever its unanimated rule says, and for the common fade-in-from-zero that is invisible.
- * Paused freezes each animation where it already is, which after `settlePage` is its finished state.
- */
-function freezeMotion(): void {
-  const style = document.createElement('style')
-  style.textContent = `*, *::before, *::after {
-    animation-play-state: paused !important;
-    transition: none !important;
-    scroll-behavior: auto !important;
-  }`
-  document.head.appendChild(style)
-}
-
-/**
- * Puts the element the variant targets in the middle of the viewport, before anything is swapped.
- *
- * Without it the shot frames the top of the page and the change is somewhere below the fold, which
- * is a picture of nothing. Run once, and never again after the swap: replacing the text can make the
- * element taller, and re-centring on the new height would slide the page under the wipe.
- */
-function scrollToTarget(selector: string): void {
-  document.querySelector(selector)?.scrollIntoView({ block: 'center', inline: 'nearest' })
-}
-
-async function awaitPaint(page: Page): Promise<void> {
-  await page
-    .evaluate(async (timeout) => {
-      const pending: Promise<unknown>[] = [document.fonts?.ready ?? Promise.resolve()]
-
-      for (const image of Array.from(document.images)) {
-        if (image.complete) continue
-        pending.push(
-          new Promise((resolve) => {
-            image.addEventListener('load', resolve, { once: true })
-            image.addEventListener('error', resolve, { once: true })
-          })
-        )
-      }
-
-      await Promise.race([
-        Promise.all(pending),
-        new Promise((resolve) => setTimeout(resolve, timeout))
-      ])
-    }, SCRAPE_ASSET_READY_TIMEOUT_MS)
-    .catch(() => {})
-
-  await new Promise((resolve) => setTimeout(resolve, SCRAPE_PAINT_SETTLE_MS))
 }
 
 function captureElements(options: {

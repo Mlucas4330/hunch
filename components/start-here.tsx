@@ -22,14 +22,9 @@ import { cn } from '@/lib/utils'
  * summarised, rewritten, merged or scored here -- if a title reads badly the fix is in the prompt
  * that wrote it, not in this component. Two consequences that must hold:
  *
- * - **No predicted outcome, in any wording.** Not "do this to lift signups", not "highest ROI", not
- *   "quick win". A block called "start here" is precisely where that sentence wants to be written,
- *   and docs/invariants.md forbids it on every surface: nobody measured what any of these produce.
- *   What the ranking asserts is the impact score the fix already carries, which is the same claim the
- *   card below it makes.
- * - **It renders only on a generated report**, because it is made of generated rows. On a free
- *   analysis there is nothing to rank and the reader gets the `UnlockWall` instead, so the readout
- *   never grows an affordance that reads as a tease. See docs/invariants.md.
+ * - **What the ranking asserts is the impact score the error already carries**, which is the same
+ *   claim the card below it makes.
+ * - **It renders only on a generated report**, because it is made of generated rows.
  *
  * Sorted by impact across both fix families rather than per section: the point is a single list, and
  * a reader who has to compare four ranked lists to find the top of them is doing the work again.

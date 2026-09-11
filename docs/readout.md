@@ -1,556 +1,108 @@
 # The measured readout
 
-`lib/readout.ts` + `components/measured-readout.tsx`. The one place the product states numbers to a
-reader, and the only reason it may is
-[invariants.md](invariants.md#a-number-reaches-the-reader-through-code-never-through-a-token-a-model-wrote).
-
-`measuredFindings` is arithmetic over what the scrape counted, and it is **pure.** No database, no
-model, no network.
-
-## The shape
-
-A finding is `{ id, group, severity, value, unit }` and carries **no prose**. The label lives in
-`dictionary.readout.findings[id]`, keyed by the `READOUT_FINDING` enum. That split is the whole
-guarantee: a number cannot reach the reader without a code path putting it there.
-
-It renders as a **grid of label + value, not sentences**, over `READOUT_GROUP`. A single string per
-finding then covers every severity, "Signup form fields / 7" is true whether 7 is fine or terrible,
-whereas a presence finding's sentence ("there is no FAQ") is outright false in its own `ok` case.
-
-`readoutFor()` in `lib/analyses.ts` is the single place the measured columns are gathered, see
-[data-model.md](data-model.md).
-
-## A group label has to cover every finding under it
-
-**Three groups are named to avoid a collision.** `credibility`, `declared` and `crawler_access` were
-once `trust`, `metadata` and `visibility`, and each of those words already named something else on the
-same screen: `trust` and `metadata` are fix categories rendered as badges below, and `visibility` is
-the `FIX_KIND` that parents **both** the seo and ai tabs, a wider scope than the group ever had. One
-word meaning two things in one report is how a reader concludes the page is saying everything twice.
-Nothing here is in the database, so the rename was a pure TypeScript change.
-
-`READOUT_GROUP` is a bucket of findings, and its label in `readout.groups` is read as a claim about all
-of them. `structure` is the one that keeps getting this wrong: it held *"What the page asks of a
-visitor"* / *"O que a página exige de quem chega"*, and only three of its eight findings are things the
-page asks for, form fields, words to read, menu links pulling the visitor away. The other five are
-things the page **gives**: social sign-in, calls to action above the fold, answered questions,
-testimonials, headings. A reader looking at *Depoimentos de clientes* under a heading that says the page
-*demands* things has caught the product being sloppy about its own numbers, on the surface whose entire
-argument is that the numbers are careful.
-
-It now reads *"A experiência de quem chega na página"* / *"What a visitor runs into on the page"*
-neutral about the direction, true of all of them. **When a finding is added to a group, re-read that
-group's label before shipping it.** The form findings that landed later pass the same test: a
-mandatory field, an unlabelled one and a button that links nowhere are all things a visitor runs into.
-
-## A finding's own label is a claim too, and one of them was false
-
-The rule above is about a group's label. The same test applies one level down, and `form_fields`
-failed it: it read *"Signup form fields"* / *"Campos no formulário de cadastro"* while the only thing
-gating the whole form block is `structure.formCount > 0`.
-
-**A form is not a signup.** A search box, a newsletter field and a URL analyser are all forms, and
-nothing in the scrape distinguishes them. This product's own landing page is the third kind, so its
-report said *"Campos no formulário de cadastro: 1"* about a page that creates no accounts, the
-count was right and the noun around it was invented, which is the same failure as a number nobody
-measured, in a different part of speech. The label now says only "form".
-
-`no_social_signin` was the worse half, because a wrong label misinforms and a wrong question accuses.
-It is now asked only of a page that hosts the sign in itself:
-
-```
-if (structure.hasOauth || structure.hasAuthForm === true)
-```
-
-Same shape as `no_cnpj` and `testimonial_attribution` below, a question put to a page that cannot
-answer it is not a finding.
-
-**`hasAuthForm`, not "has a sign in link", and the difference is a second bug that hid behind the
-first.** The guard's first version asked whether anything on the page offered a way in, which a header
-saying `Entrar` satisfies, and that header points at a URL **this analysis never opened**. So the
-report went on recommending social login for a product whose sign in page has offered Google and
-GitHub all along: a fix written about a page nobody measured, which is the failure
-[invariants.md](invariants.md) exists to prevent, one link removed. `hasAuthForm` asks whether the
-credentials are collected *here*. See [scraping.md](scraping.md). The order matters and preserves history: `hasOauth` true proves
-authentication exists whenever the row was measured, so old rows report exactly as they always did,
-while an old row without it drops the finding rather than emitting `false`. "We never measured whether
-this page signs anybody in" is not "this page has no social sign in".
-
-**The pattern list behind it was English only**, which made this a false negative on the main market
-rather than a nuance. See [scraping.md](scraping.md). Fixing that changes `hasOauth` for pages in
-Portuguese, which changes which findings are emitted, which changes `readoutScore`. `page_snapshots`
-freezes each score at write time so the trend already drawn is untouched, but a page re-measured after
-this may step. **Nothing anywhere may present that as the page improving**: what changed is this code,
-and attributing a movement to a cause is what
-[invariants.md](invariants.md#a-delta-is-arithmetic-between-two-measurements-never-a-result-attributed-to-a-change)
-forbids.
-
-## The `crawler_access` group
-
-`crawler_access` is what the product actually measured about being found by an AI: which of
-`AI_CRAWLER_AGENTS` the site's own robots.txt disallows, whether it blocks everything, and whether it
-declares a sitemap. Three findings, and none of them says anything about the index, see
-[invariants.md](invariants.md#the-audit-measured-the-page-not-the-index). It is deliberately not a
-citation count: nobody publishes that number, so producing one would mean inventing it.
-
-**The group is skipped whole when `status` is `unknown`**, and this is the reason it is a group rather
-than three loose findings, a failed fetch has to take all three out at once, or the page ends up
-credited with an open robots.txt we never read. `absent` is the opposite case and does render: no
-robots.txt is a measured answer, and it means nothing is blocked and no sitemap is declared.
-
-## A group is skipped whole, never rendered as zeroes
-
-`crawler_access` was the first, and `credibility`, `mobile` and `sameness` follow it exactly. All four
-answer the same question: what does the readout do when a pass never ran?
-
-- `crawler_access` is gated on `crawler.status !== 'unknown'`.
-- `mobile` is gated on `mobile !== null`: the column is null on every row measured before the phone
-  pass existed.
-- `sameness` is gated on `sameness !== null`, and then each of its ten fields on `!== undefined`
-  again. A row from before the pass reports no marks; a page that genuinely has no gradients reports
-  zero of them, and those are different sentences.
-- `credibility` is gated on **one field**, `structure.trustBadgeCount !== undefined`, rather than on
-  `structure` itself. The object being present says nothing about whether anybody counted a trust
-  signal on it, because the fields were added to a `jsonb` that already had rows.
-
-The individual form findings inside `structure` are gated the same way, one by one, because they sit
-in a group that does render for old rows. Each guard is `!== undefined` and never a truthiness check:
-zero required fields and zero dead links are real, common, and good answers.
-
-**A finding of zero for a page nobody counted it on reports unknown as negative**, which is the rule
-in [invariants.md](invariants.md#unknown-is-never-reported-as-negative). Adding a field to
-`PageStructure` therefore means adding a guard, and the test that pins it is *"a structure measured
-before the form pass existed reports no form findings"* in `lib/readout.test.ts`.
-
-## The `credibility` group
-
-What the page offers a visitor as a reason to believe it: a company registration number, a security
-or reputation badge, testimonials that name who said them, a linked privacy policy, and a way to
-reach the company. Counted off the DOM against `TRUST_PATTERNS`, which is bilingual because the
-page's language is not known until the scrape has run.
-
-Two findings are narrower than the rest on purpose:
-
-- **`no_cnpj` is asked only where `market === 'br'`.** It is the only finding that reads the market,
-  and it reads it to stay quiet: a CNPJ in the footer is a Brazilian convention, and its absence on a
-  US page is noise rather than a gap. This is the market ruling a sentence out, never supplying a
-  fact about buyers, see
-  [invariants.md](invariants.md#the-market-is-a-filter-on-what-may-be-recommended-never-a-fact-the-model-knows).
-- **`testimonial_attribution` is asked only of a page that has testimonials.** `no_testimonials` in
-  the `structure` group already reports the absence, and following it with "0 of them carry a name"
-  is one absence dressed as two.
-
-`no_contact_channel` answers on *any* of phone, address or social links. Which channel a company
-offers is its own choice; having none is the finding.
-
-## The `mobile` group
-
-Five geometric facts measured in a phone viewport: whether the page overflows sideways, how many
-controls fall under `MOBILE_TAP_TARGET_MIN_PX`, how much text falls under `MOBILE_MIN_FONT_PX`, how
-many calls to action sit above the phone fold, and whether a viewport meta tag is declared.
-
-**No load numbers, deliberately.** See [scraping.md](scraping.md#the-phone-pass) for why a reload's
-timings would say the page is faster on a phone than on a laptop.
-
-`tapTargetsWarn`/`tapTargetsAlert` are calibrated against real pages rather than against the 44px rule
-in the abstract. A carousel's dots, a row of social icons and an icon-only close button put a well
-built page in the high teens on their own, so the original alert at ten called almost every site
-broken. The finding is "hard to use with a thumb", not "one control is two pixels short".
-
-## The `sameness` group, and why it grades nothing
-
-Ten marks a page picks up from being assembled out of somebody else's defaults: gradient
-backgrounds, how many typefaces render, icons whose path data belongs to a known set, rows of three
-feature cards, emoji in headings, buttons whose whole label is "Get started", placeholder text left
-in, a logo strip that links nowhere, a `<meta name="generator">` that names a builder, and a hero
-image served from a stock library. `captureSameness` in `lib/scrape.ts` counts them.
-
-**It is measured off the DOM and the computed styles, never off the screenshot.** The obvious
-implementation is a vision model looking at a picture of the page, and that is exactly what
-[invariants.md](invariants.md#a-number-reaches-the-reader-through-code-never-through-a-token-a-model-wrote)
-forbids: a token a model wrote may not be presented as a measurement. Counting is what keeps these
-findings inside the same rule as every other number here. It is possible at all because
-`SCRAPE_ALLOWED_RESOURCE_TYPES` admits stylesheets, fonts and images, so `getComputedStyle` returns
-what the author wrote rather than a user agent default.
-
-**Every finding is emitted `ok`, and that is the load-bearing decision.** `mark()` in
-`lib/readout.ts` exists beside `count()` and `presence()` for this: the first grades against a
-threshold and the second grades absence as `warn`, and both are right for a defect and wrong for a
-choice. A gradient is not a defect. Grading one would be this product asserting that looking like
-other pages costs conversion, which nobody measured -- the delta rule applied to a design decision.
-
-Three consequences follow from that and they have to hold together:
-
-- **It is in `UNSCORED_READOUT_GROUP`**, so `lib/score.ts` drops it from `overall` and returns `null`
-  for its group score. Without this, ten `ok` findings would quietly raise every page's score.
-- **The card renders with no `/100` rail and no severity badge.** `components/measured-readout.tsx`
-  used to return null for any group with a null score, which would have deleted the section outright;
-  the guard is on rows alone now. The badge says `{present} of {total} present` instead of
-  `{wrong} of {total} need attention`, because there is nothing wrong to count.
-- **It opens by default**, since `wrong > 0` is never true here and would otherwise close it forever.
-
-**Nothing here says a page was generated by AI, and nothing may learn to.** Nobody measured how the
-page was made. A hand-written page uses a gradient and a lucide icon -- this repo's own
-`components/unlock-wall.tsx` uses both -- so the marks are evidence of shared defaults and never of
-origin. The single exception is `builder_declared`, and it is an exception only because the page
-volunteered the fact in a meta tag: a declaration read, not an inference drawn.
-
-**`SAMENESS_PATTERNS` rots in silence.** Lucide changes a path prefix, a new builder appears, "Get
-Started" goes out of fashion -- and nothing fails, no test breaks, the counts simply drift to zero
-and the section still looks plausible. It is the same failure shape as `GOOGLE_ADS_API_VERSION`
-sitting at `v18` for months. `e2e/dom/capture-sameness.spec.ts` pins the mechanism against a real
-browser but cannot pin the vocabulary; re-check that against a few real generated pages when a count
-starts reading low.
-
-## Every counted finding states the boundary it was judged against
-
-A finding renders as `label / value`, and for a **count** that is not enough to act on. *Signup form
-fields / 6* leaves the reader with the question the whole section exists to answer: is six four too
-many, or two too few? The severity colour says something is wrong without saying which way to move,
-and on a free analysis there is no generated fix beside it either, so the number was a dead end for
-most readers, on most rows.
-
-`MeasuredFinding.criterion` closes it: `{ kind, threshold }`, rendered under the label as *sinalizamos
-a partir de 4* / *flagged from 4*.
-
-**It is the boundary the ranker actually applied, not a second copy of it.** `rank` and `rankBelow`
-return `{ severity, criterion }` together, so the printed number and the applied number are the same
-value by construction. The alternative, a map from finding id to threshold, read by the renderer
-is a duplicate of what `measuredFindings` already knows, and the first edit to `READOUT_THRESHOLDS`
-that missed the copy would have printed a boundary this code does not apply. On a product whose whole
-claim is that the printed number is the counted one, that is the expensive bug.
-
-Four kinds, and each exists because a simpler set would lie about some finding:
-
-- **`above`**, `rank`. *Flagged from 4.*
-- **`below`**, `rankBelow`, where too little is the problem. *Flagged at 300 or fewer.*
-- **`band`**, `above_fold_ctas` and its phone twin, where **both** ends are bad: none at all is an
-  alert and a crowd is a warning. Printing only the ceiling would tell a page with no call to action
-  that it is comfortably under the line.
-- **`exactly`**, `h1_count`, wrong in either direction.
-
-**The criterion carries the warn boundary and never the alert one.** Warn is the line between fine
-and not fine, which is what a reader looking at a bare number is asking; how far past it they are is
-what the colour already says. Both numbers turned one short line into two that had to be read against
-each other.
-
-**It renders on passing findings too**, and that is where it earns most: a green `720` beside
-*flagged at 300 or fewer* explains itself, where a green `720` alone is another number to take on
-trust.
-
-**A presence finding carries `null` and renders nothing.** *Sign in with Google or GitHub / No*
-already names the bad answer, and *flagged on No* would be noise on more than a third of the rows.
-The counted findings are what this is for.
-
-**What it may never become.** *Flagged from 4* is a statement about our own check. *"Two fields too
-many, costing you signups"* is a prediction nobody measured, and it is the same line this whole
-section is drawn along, see
-[invariants.md](invariants.md#the-readout-says-what-was-counted-never-what-it-will-produce). The
-reasoning behind each threshold lives in the comments on `READOUT_THRESHOLDS` and is deliberately not
-shipped as copy: it is an argument, and an argument is the generated half's job.
-
-### `readout.atLeast` belongs to the value and to nothing else
-
-The qualifier on `page_weight` is there because `SCRAPE_ALLOWED_RESOURCE_TYPES` blocks media, so the
-bytes counted are a floor. It is applied in `renderValue`, on the measured value, once. Inside the
-shared `renderUnit` it would reach the delta as *+at least 0.3 MB* and the threshold beside it as
-*at least 2 MB*, as if our own boundary were approximate.
-
-## Rules the numbers obey
-
-- **Thresholds (`READOUT_THRESHOLDS`) are deliberately loose.** A false alert on a healthy page is the
-  expensive error: this is read by a stranger who can check it against their own site in one click,
-  and one wrong accusation discredits every true finding beside it.
-- **Too little is a finding too.** `rankBelow` mirrors `rank` for the metrics where the low side is the
-  problem, `word_count`, `heading_count`, `internal_links`, and keeps the boundary inclusive in the
-  same direction, so landing exactly on the threshold is already the bad side in both helpers. A page
-  under 300 words has nothing for a reader to weigh and nothing for a crawler to quote, which is the
-  same fact stated to two audiences.
-- **`ok` is a real state and is rendered.** Green is load-bearing, a readout that is all coral reads
-  as a sales pitch, and the rows that came back fine are what make the rest believable.
-  `READOUT_SEVERITY_CLASS`: `ok` green, `warn` amber, `alert` coral.
-- **A metric the browser did not report is skipped, never defaulted.** A null LCP rendered as 0 is an
-  instant page, which is the opposite of what was measured. `PagePerformance` is nullable per field
-  for this reason and `measuredFindings` drops the row rather than filling it.
-- **`noindex` is the one finding emitted only when true.** Every other page is not noindexed, so an
-  `ok` row for it would cost a line on every report for no information, while the true case is the
-  most severe thing the readout can find.
-- **Values stay in the unit they were measured in** (bytes, milliseconds). Conversion happens **here
-  and only here** in `MeasuredReadout` (`BYTES_PER_MEGABYTE`, `MS_PER_SECOND`), so nothing is rounded
-  twice. `page_weight` renders behind `readout.atLeast`, per
-  [invariants.md](invariants.md#the-readout-says-what-was-counted-never-what-it-will-produce).
-
-## The score
-
-`lib/score.ts`, pure like `lib/readout.ts`, is arithmetic over the severities the findings already
-carry: `ok` 1, `warn` 0.5, `alert` 0 (`READOUT_SEVERITY_POINTS`), rounded to 0-100. It states the
-**health of what was counted** and nothing else. It is not a conversion score, it predicts nothing,
-and the copy may never suggest otherwise.
-
-Three decisions worth keeping:
-
-- **A `warn` is worth half a finding, not a failure.** The whole reason the readout has three states is
-  that the middle one is not the bottom one; collapsing them in the score would undo that.
-- **The overall weighs every finding equally, never every group equally.** Averaging the group averages
-  would let `load`, with three findings, count as much as `declared` with nine.
-- **A group with nothing measured scores `null` and does not render**, the same contract the findings
-  have with a metric the browser did not report. Zero would mean "measured, and terrible".
-
-`scoreSeverity` reads downward like `rankBelow` and reuses `READOUT_SEVERITY_CLASS`, so the score is
-tinted by the same three colours as the values beneath it.
-
-`components/readout-score.tsx` renders the overall above the group cards, and **each group's own
-score is rendered by that group's card** rather than here. A bar per group in this card as well
-would be the same six numbers stated twice, and the reader would have to match a label here against a
-heading further down to join them. It
-deliberately does **not** reuse `components/score-indicator.tsx`: that is the 1-10 impact scale on the
-hypotheses, and two different scales wearing the same widget on one screen is where the reader stops
-trusting either.
-
-### The scale explains itself, in the card, always visible
-
-A bare `72/100` is a number whose ends the reader has to guess at, and a reader guessing at a scale
-either dismisses it or reads it as a conversion score, the one thing it is not. Two lines carry the
-whole contract, and **neither may move into the `InfoHint`**: this card renders on the public report and
-on paper, where a tooltip is a click nobody makes and a print that never appears.
-
-- `readout.score.scale`, beside the number: the two ends stated outright, 100 is every check passing
-  and 0 is none of them.
-- `readout.score.method`, beside the scale: the arithmetic (full point / half / none), the fact
-  that every check was **counted on this page itself**, and the explicit limit, it rates what was
-  counted and says nothing about the page's traffic or revenue, per
-  [invariants.md](invariants.md#the-readout-says-what-was-counted-never-what-it-will-produce). The
-  `{count}` is `findings.length`, so the sentence names the same set the reader is looking at.
-
-This is a **different** sentence from `readout.hint`, and they must not be merged: the hint answers
-where the *findings* come from (measured on the page, load times a best case), this answers what the
-*score* over them means.
-
-The card is deliberately large, the number at `text-5xl`/`text-6xl`, and turns to two columns only
-at `sm`. It is the first thing on the analysis and on the report, and it was previously small enough
-to read as a chip beside the findings rather than the summary of them.
-
-## A group is a card with its score down the left edge
-
-`components/measured-readout.tsx` renders one `DisclosureCard` per `READOUT_GROUP` in a two-column
-grid, the same shell the ranked fix cards use. The rail carries the group's score out of 100, the
-badge row carries the group's icon, its severity and the passing count, the title is the group label,
-and the body is the findings as rows.
-
-**The shell is shared and the widget is not, and that distinction is the whole of it.** A number down
-the left edge is how this report says *here is a thing with a score on it*; having one answer to that
-for a fix card and a different one for a group card was the inconsistency worth removing. But
-`ScoreIndicator` is the **1-10 impact** scale written by a model, and this is **0-100 health**
-counted by code, two scales wearing the same widget on one screen is where a reader stops trusting
-either. So each rail prints its own denominator and takes its colour from its own map
-(`READOUT_SEVERITY_CLASS` here, `impactScoreRailClass` there). `readout-score.tsx` still does not
-reuse `ScoreIndicator` at all, for the same reason.
-
-**The denominator was half an answer, and the shape is the other half.** A denominator is *read*; the
-shape is what gets *scanned*, and the two rails were the same solid tinted block four cards apart. So
-the impact rail now fills from the bottom in proportion to itself, a gauge with a level, while the
-health rail stays a plate. The fill is `bg-current`, taking its band colour from the same map as the
-numeral, so nothing about which scale is which was written twice. `IMPACT_SCORE_MAX` in
-`lib/constants.ts` is shared with the two Zod schemas that bound what a model may return, because a
-gauge drawn against a different maximum than the generation was held to either never fills or
-overflows.
-
-**This was six flat grids of equal-weight cells under six small labels**, which read as a
-spreadsheet: nothing separated *What the page costs to open* from *First content painted*, so the
-section could not be scanned at the level of groups at all.
-
-Two things about it are fixes rather than styling, and both are the kind that come back:
-
-- **Everything that toggles is one strip.** An earlier version put the label in a bar and the score on
-  a second row below it with both inside the `<summary>`, so two visually distinct strips shared one
-  behaviour and a reader who clicked the score row watched the card collapse for no stated reason.
-- **One column at every width.** Two columns put the card being opened beside a closed one, so the
-  reader had to work out which of two rails the panel below belonged to, and opening a card on the
-  left pushed its neighbour's content down the screen for no visible reason. The cost is scrolling,
-  which is what a report is read with. It is also what let the group cards drop the `min-h` reserve
-  they were carrying to stay level across a row; see
-  [components.md](components.md#summaryclassname-shapes-the-trigger-not-the-card).
-
-`READOUT_GROUP_ICON` lives in the component and **not** in `lib/constants.ts`, against the precedent
-of every other readout map there. Those are strings; this is a lucide component, and `lib/readout.ts`
-and `lib/score.ts` import that file while staying pure. One React import in it would drag the icon
-library into both.
-
-## The counted terms: `lib/keywords.ts`
-
-**Nothing renders them as a table any more.** The keyword table and the ad groups written off it were
-both removed with the marketer-shaped half of the product -- see [product.md](product.md). What is
-left is what always did the work: three findings in the `declared` group.
-
-`lib/keywords.ts` counts the page's own words: unigrams and bigrams over `preprocessHtml(html)`,
-minus `KEYWORD_STOPWORDS` (English and Portuguese in one list, accents intact), kept only from
-`KEYWORD_MIN_COUNT` occurrences, capped at `KEYWORD_TERMS_MAX`. For each term it reports **where it
-already appears.** Title, H1, meta description, headings, matched on whole words, so `redeployment`
-is never the term `deploy`.
-
-This is the measured half of what Semrush and Ahrefs sell, and only that half. **There is no search
-volume, no difficulty, and no ranking opportunity**, because we have no index and no clickstream: any
-such number would be invented, exactly like a number in `evidence`. That rule survived the removal of
-the ad groups and is the thing to re-read before anything is built on these counts again. See
-[invariants.md](invariants.md#keywords-measure-the-pages-own-words-never-the-index).
-
-Three findings fall out of the leading term (`term_in_title`, `term_in_h1`,
-`term_in_meta_description`) and are emitted **only when there is a leading term.** A page with nothing
-to read must not collect three warns about a word it never had.
-
-**The stoplist is load bearing and was incomplete in Portuguese.** Run against our own landing page
-the table's third entry was `gente`, `a gente` is how a Brazilian page says "we", followed by `cada`.
-Both outranked every term that describes the product. The list holds function words and deliberately
-not verbs: a page that keeps saying `abre` is a page about opening something, and dropping that would
-be an editorial judgement rather than a count.
-
-**A leading term absent from the title is sometimes a true negative that is not worth acting on.** On
-our own page the term is `página` and the title says `landing page`, in English, because
-[pt-BR keeps the technical term in English](invariants.md#pt-br-is-a-rewrite-not-a-translation). The
-"not in title" mark is literally correct and the recommendation behind it is close to worthless. This is left alone on
-purpose: matching `página` to `page` means a synonym table, and a synonym table is a judgement in a
-column whose entire credibility is that it is a count.
-
-The terms also reach `generateVisibility` so a `seo` or `ai_answerability` fix can say **where** to put
-one. The prompt carries the same prohibition the copy does.
-
-## History: `page_snapshots`
-
-The `analyses` columns hold the **current** measurement; `page_snapshots` holds every one taken. Both
-are written in the same transaction, on creation, on a manual re-measure, and on the cron sweep, so a
-trend can never disagree with the readout above it.
-
-`lib/snapshots.ts` is pure and must stay that way, `deltas` runs inside `MeasuredReadout`, a client
-component, so a database import there would ship the schema to the browser. The one query,
-`readoutHistory`, lives in `lib/analyses.ts` beside `readoutFor`.
-
-- **The score is frozen at capture.** Recomputing history against today's thresholds would rewrite what
-  the reader was already shown.
-- **Fewer than two snapshots is not a history.** One point is the current measurement and a one-point
-  line is a decoration, so both the deltas and the sparkline are absent until there are two.
-- **A delta appears only where the same finding exists on both sides and the value moved.** A finding
-  that shows up for the first time (the robots.txt that was `unknown` last week) is not a change in a
-  number.
-- **What a delta may say** is [one rule in invariants.md](invariants.md#a-delta-is-arithmetic-between-two-measurements-never-a-result-attributed-to-a-change),
-  and it is the one to reread before writing any copy near this section.
-
-`components/readout-trend.tsx` is the sparkline: one series, one entity, therefore one stable colour
-the line is "the score over time" and never takes the tint of whatever the latest value happens to be.
-No legend, because the title names the only series.
-
-**Re-measuring on the owner's click is bounded twice.** `POST /api/analyses/[id]/measure` is no
-longer idempotent: it is the re-measure, and the `measure` rate limit is what holds the browser
-cost. It spends no credit either way: a re-measure is `measurePage` and arithmetic, never a model
-call.
-
-**There is no sweep, and the click is the whole of it.** An unbounded weekly cron re-opening every
-customer's landing page is exactly what the backfill is forbidden from becoming, and bounding it
-needs something that pays for the browser time. The honest surface is the one that is here: the owner
-measures again when they have shipped something, which is also the only moment the second measurement
-means anything. See [api.md](api.md) and [product.md](product.md).
-
-**Below two snapshots there is no history, and the owner is now told so instead of shown nothing.**
-The sparkline and the per-finding deltas both return null on a single measurement, which is what
-almost every analysis has, so the whole history feature was built and invisible to nearly everyone
-who owned one. So there are two variants and the page picks between them: `again` is the bare button,
-which lives in the report header, and `trend_start` is the dashed panel naming what a second
-measurement unlocks, rendered below the readout only while `history.scores.length <= 1`.
-
-**The component takes no `hasHistory` flag.** Whether there is a history is the page's question and
-only the page has the answer; a flag would make the component decide between a control and a section,
-two things that do not belong in the same slot. The button is in the header because re-measuring is
-the action an owner repeats most, and below the entire document is the last place they reach.
-
-## A group whose checks all passed opens closed
-
-Every group card is a `<details>` whose `<summary>` is the bar, and nothing else. It starts open when any finding in it is `warn` or `alert`, and closed
-when they all pass; the summary carries the count either way, so a collapsed group still says "12
-checks, all passing" rather than hiding that it exists.
-
-**This is disclosure, not gating, and the distinction has to stay written down.** The readout rendered
-fully expanded at once -- 41 findings across six grids, four in five of them reporting nothing wrong
--- so the rows that needed attention sat buried among the rows that did not. Nothing here is behind a
-payment, a session or a wall: the same reader, one click, no state anyone else controls. The rule in
-[invariants.md](invariants.md) is that a measurement of somebody's own page is never *charged for* or
-walled; it has never been a rule against letting a reader fold up the part that is fine.
-
-`ok` rows still render and still matter -- see the note on green being load-bearing above. They are
-one click away instead of thirty lines of scroll.
-
-## The fix that answers a number sits beside it
-
-A finding cell renders the **title** of any generated fix whose `flow_fixes.finding` names it, from
-`fixesByFinding`. The full card -- steps, reasoning, evidence -- stays in its tab; this is a pointer,
-never a second copy.
-
-**The pointer is a link, and it had to become one.** As plain text it named a destination without
-offering it: the reader was told which card answers this number and then had to find it themselves,
-several sections down, inside a panel that may be closed. `fixesByFinding` therefore hands over
-`{ id, title }` rather than the title alone, and `SectionLink` opens whatever `<details>` stand in
-front of the target before scrolling -- see [components.md](components.md).
-
-**It is empty on every analysis with nothing generated**, which is every free one, and that is
-deliberate rather than incidental: an affordance that appeared here and led nowhere would be a
-paywall tease inside the one section [invariants.md](invariants.md) says is never gated. The map comes
-back empty, the line does not render, and the free readout is exactly what it was.
-
-Rows written before the column existed carry `null` and behave identically. So do fixes no
-measurement backs -- nothing counts whether an action is repeated below the pricing table, and `null`
-is the honest answer there.
+`components/measured-readout.tsx`, `components/section-evidence.tsx`, `components/readout-score.tsx`,
+`lib/pagespeed.ts`.
+
+The readout is what was measured on the page, and it has two sources:
+
+- **Google PageSpeed Insights**, for everything about load, accessibility, best practices and SEO.
+- **This code**, for the one thing PageSpeed Insights does not check: what the site's robots.txt lets
+  an AI crawler read.
+
+## PageSpeed Insights
+
+`fetchPageSpeed(url, locale)` makes one GET to `PAGESPEED_API_URL` with `strategy=mobile`, all four
+`PAGESPEED_CATEGORY` values, the analysis locale (so audit titles come back in that language) and
+`PAGESPEED_API_KEY`. It runs beside the scrape in `measurePage`, because it runs on Google's side and
+takes no browser slot.
+
+**It is fail-soft.** No key, a timeout (`PAGESPEED_TIMEOUT_MS`) or an error answer all resolve to
+`null` and log `pagespeed.failed`. The analysis continues, and the report shows a notice in place of
+the scores. A null is never shown as a zero; see
+[invariants.md](invariants.md#unknown-is-never-reported-as-negative).
+
+`parsePageSpeed(json)` is pure and keeps three things:
+
+- **`categories`**: each Lighthouse category score, out of 100, or `null` when Lighthouse did not
+  score it.
+- **`audits`**: every audit referenced by a category that has a verdict (`numeric`, `binary` or
+  `metricSavings`) and did not pass, with its id, title, `displayValue` and category. Informative and
+  not-applicable audits carry no verdict and are left out.
+- **`field`**: Chrome UX Report percentiles from `loadingExperience`, falling back to
+  `originLoadingExperience`, with `scope` saying which. A small page often has too little traffic for
+  its own data, and "this URL" and "the whole site" are different claims, so the report prints the
+  scope. With neither, `field` is `null` and the card does not render.
+
+`lib/pagespeed.test.ts` pins the parse against a stored response.
+
+### The score
+
+`pageSpeedScore` is the average of the categories Lighthouse scored, rounded. An unscored category is
+left out rather than counted as zero, and no scored category at all is `null`. It is frozen into
+`page_snapshots.score` at capture, so a later change to how it is computed never rewrites the trend.
+
+The severity colour comes from `scoreSeverity` over `READOUT_SCORE_THRESHOLDS`, the same three states
+the rest of the report uses.
+
+### Field data units
+
+`PAGESPEED_FIELD_UNIT_BY_METRIC` says how each percentile prints: LCP, FCP and TTFB in seconds, INP in
+milliseconds, CLS as a decimal. **CLS arrives multiplied by 100** (`PAGESPEED_CLS_SCALE`), so a
+percentile of 12 is 0.12. Google's `FAST`, `AVERAGE` and `SLOW` bands map to `ok`, `warn` and `alert`
+through `PAGESPEED_FIELD_SEVERITY`.
+
+## AI crawler access
+
+`fetchCrawlerAccess` in `lib/robots.ts` resolves robots.txt to `found`, `absent` or `unknown`, and
+`measuredFindings` in `lib/readout.ts` turns it into the `crawler_access` group: AI crawlers blocked,
+crawling allowed at all, sitemap declared.
+
+**The group is skipped whole when `status` is `unknown`.** A failed fetch has to take all three
+findings out at once, or the page is credited with an open robots.txt nobody read.
+
+`lib/readout.ts` still computes every other group too, but only as input for the error generators;
+see [ai-pipeline.md](ai-pipeline.md). The report renders `crawler_access` alone.
+
+## Layout
+
+**The top of the report is the overall score.** `MeasuredReadout` renders the score, the trend and the
+field data card. The category cards and the crawler card render at the top of the section of their
+theme, through `SectionEvidence`, fed by `sectionEvidence` in `lib/readout.ts`. See
+[invariants.md](invariants.md#a-section-shows-the-audits-its-errors-were-written-from).
+
+- **A category card** carries its score down the left edge, a severity badge, the number of failing
+  audits, the movement since the last measurement, and the competitor's score for that category when
+  there is one. It opens when an audit failed. The body lists the failing audits with their
+  `displayValue`.
+- **The field data card** lists each metric with its percentile, tinted by Google's band, and names
+  the scope. It opens when any metric is not `FAST`.
+- **The crawler card** lists the robots.txt findings with the criterion under each one, in the AI
+  section.
+
+**An error written about a number links to it.** `fixesByFinding` maps each `flow_fixes.finding`,
+which is an audit id or a crawler finding id, to the cards that answer it, and the row renders a
+`SectionLink` to those cards.
+
+`CATEGORY_ICON` lives in `components/section-evidence.tsx` rather than in `lib/constants.ts`: it holds
+lucide components, and pure modules import that file.
+
+## History
+
+The `analyses` columns hold the current measurement; `page_snapshots` holds every one taken, written
+in the same transaction by every run.
+
+`lib/snapshots.ts` is pure, because `deltas` runs inside a client component. `deltas(current,
+previous)` is the difference between two category scores, and a category scored on only one side is
+not a delta.
+
+- **Fewer than two snapshots is not a history**, so the trend and the deltas are absent until there
+  are two. The owner sees `RunAgain variant="trend_start"` instead.
+- **The trend is the owner's.** `readoutHistory` is only queried when `isOwner`.
+
+**A new point is the owner's "Run again"**, at `POST /api/analyses/[id]/runs`, which also rewrites
+the error lists and spends one run of the month. There is no scheduled run. See [api.md](api.md).
 
 ## Where it renders
 
-Mounted once, on the one analysis surface, like `FlowPlaybook`: fed by `readoutFor(analysis)`,
-between the cover and the tabs on `/r/<embedKey>`. See [report.md](report.md).
-
-**Outside every wall, for everyone.** It is the part a stranger can check against their own page in
-one click, so it is what earns the rest of the document a reading; gating a measurement of someone's
-own site reads as a trick.
-
-**The trend is the owner's half of it.** `previous` and `scores` come from `readoutHistory`, which
-the page only queries when `isOwner`, a delta between two of the owner's measurements is their
-record of their own page, and the button that adds points to it is in the header above.
-
-Returns `null` when nothing was measured, so an analysis created before the columns existed has no
-section rather than an empty heading, the same contract `FlowPlaybook` has with an empty list.
-
-## Formatting lives in `lib/readout-format.ts`, because the screen is not the only reader
-
-`readoutUnit` and `readoutValue` are in a module rather than private to
-`components/measured-readout.tsx`, because the lead sequence mails a number from the server and both
-have to print it the same way.
-
-**It formats and says nothing.** The sentence around a number is still
-`dictionary.readout.findings[id]`, and no wording lives in that file.
-
-The rule it carries is the `at least` qualifier: it belongs to the measured value and to nothing else,
-because `SCRAPE_ALLOWED_RESOURCE_TYPES` blocks media and the counted bytes are a floor. Keeping it out
-of `readoutUnit` is what stops a delta reading "+at least 0.3 MB" and a threshold reading "at least 2
-MB" as though our own boundary were approximate.
-
-**The mail quotes the same number the report shows**, from the same formatter, which is the point of
-not having a second copy: a reader who follows the link must not find a figure that rounds
-differently from the one that brought them.
-
-## `components/measure-page.tsx`: what the null becomes, and only for the owner
-
-The page asks `hasReadout(readout(readoutFor(analysis)))` itself (both pure, no query, no
-model) and renders `MeasurePage` when the answer is no: the readout's own eyebrow, title and hint over
-a dashed panel, and a button posting to `POST /api/analyses/[id]/measure`, then `router.refresh()` so
-the server re-renders the real section in its place. Four states like `VariantPreview` (the shape is
-reused, the code is not) and the request is bounded by `MEASURE_REQUEST_TIMEOUT_MS`.
-
-**A reader who is not the owner gets `MeasuredReadout` alone**, because `MeasurePage` is behind
-`isOwner` on the one route there is. A prospect with no session must not be able to spend the owner's
-browser slots. **Do not "fix" the missing
-button there**, and do not relax the gate to "any signed-in reader": a stranger with an account is
-still a stranger with respect to this page. An unmeasured row shows them the read-only
-`MeasuringNotice` instead.
-
-The backfill is opt-in, one analysis at a time, and **must not become a migration.** A sweep would
-re-open every customer's landing page. See [api.md](api.md).
-
-## Copy discipline
-
-Every string says **what was measured and how**, never what the number will produce. Do not let a
-"this is costing you X%" line in here.
+On `/r/<embedKey>`, for everyone holding the link: the overall score between the cover and the
+sections, and each category and the crawler card inside its section. See [report.md](report.md).

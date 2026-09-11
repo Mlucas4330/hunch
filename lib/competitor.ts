@@ -1,22 +1,16 @@
 import { measuredFindings, type MeasuredFinding, type ReadoutInput } from '@/lib/readout'
 import type { PageKeywords } from '@/lib/keywords'
+import type { PageSpeed } from '@/lib/pagespeed'
 import type { PageMobile, PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
 import type { Market, ReadoutFinding } from '@/lib/enums'
 
-// **Pure, and every import above is type-only for a reason.** `competitorValues` runs inside
-// MeasuredReadout, a client component, so a value import from lib/scrape here would pull puppeteer
-// into the browser bundle and the page would fail to build on `Can't resolve 'fs'`. The scrape half
-// lives in lib/analyze.ts, which is server-only. Same rule as lib/snapshots.ts.
+// Pure, and every import above is type-only: this module is imported by a client component, so a
+// value import from lib/scrape would pull puppeteer into the browser bundle. The scrape half lives in
+// lib/analyze.ts.
 
 /**
- * A second page, measured by the same code as the first.
- *
- * **This is what makes competitor comparison honest, and it is the whole of the argument.** The
- * reader names the URL, `lib/readout.ts` counts the same facts off it, and a number about that page
- * is a measurement this code took rather than something a model recalled. See docs/invariants.md.
- *
- * No `crawlerAccess`. The `visibility` group is about the reader's own robots.txt, and fetching
- * somebody else's compares nothing worth comparing.
+ * A second page the reader named, measured by the same code as the first and by PageSpeed Insights.
+ * No `crawlerAccess`: fetching somebody else's robots.txt compares nothing worth comparing.
  */
 export type CompetitorMeasurement = {
   url: string
@@ -25,16 +19,12 @@ export type CompetitorMeasurement = {
   performance: PagePerformance
   keywords: PageKeywords
   mobile: PageMobile
+  // Absent on rows measured before PageSpeed Insights replaced the readout.
+  pagespeed?: PageSpeed | null
 }
 
-// The competitor's page read as a readout, so the comparison runs through exactly one implementation
-// of what a finding is. `crawler` is null by design and the `visibility` group drops out with it.
-//
-// **`sameness` is null for a different reason, and it is a product one.** The scrape does count the
-// other page's marks, so the data exists. What it would render is "they have four gradients and you
-// have six", and that is not a gap to close: the delta rule says two pages differing is not one page
-// winning, and nowhere is that more obviously true than in somebody else's design choices. See
-// docs/invariants.md.
+// The competitor's page read as a readout, so a prompt compares through one implementation of what a
+// finding is.
 export function competitorInput(
   competitor: CompetitorMeasurement,
   market: Market | null
@@ -52,16 +42,8 @@ export function competitorInput(
 }
 
 /**
- * The other page's value for each finding, keyed by id.
- *
- * **Subtraction between two measurements, and nothing more.** The same rule the snapshot delta obeys:
- * this may say the two numbers differ, and nothing anywhere may say the difference causes anything.
- * Nobody controlled for anything, and nobody measured either page's conversion. See
- * [invariants.md](../docs/invariants.md).
- *
- * A finding present on one side and absent from the other is left out rather than compared against
- * zero -- the competitor has no `visibility` group at all, and a page with no form has no form
- * findings, so a missing entry means "not counted here", never "counted as none".
+ * The other page's value for each finding, keyed by id. A finding present on one side and absent from
+ * the other is left out rather than compared against zero.
  */
 export function competitorValues(
   competitor: ReadoutInput,

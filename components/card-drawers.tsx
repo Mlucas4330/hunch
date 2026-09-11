@@ -19,7 +19,7 @@ export type Drawer = {
  * The second layer of a card: a row of toggles over one panel.
  *
  * **An open card is the decision and nothing else.** The rewritten line, or the sentence naming the
- * problem, is what the reader came for; the rationale, the screenshot and the alternates are what
+ * problem, is what the reader came for; the reasoning is what
  * they reach for afterwards, and stacking all four made opening a card feel like being handed a
  * page. One drawer is open at a time because they answer different questions -- reading two at once
  * was never the thing anyone wanted, and the height is the whole reason this exists.

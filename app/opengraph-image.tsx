@@ -17,17 +17,14 @@ export default async function Image() {
         <div
           style={{
             display: 'flex',
-            fontSize: 68,
+            fontSize: 44,
             fontWeight: 700,
-            lineHeight: 1.1,
-            letterSpacing: '-0.03em',
+            lineHeight: 1.2,
+            letterSpacing: '-0.02em',
             color: OG_COLORS.ink
           }}
         >
-          {t.metadata.pages.landing.title}
-        </div>
-        <div style={{ display: 'flex', fontSize: 30, color: OG_COLORS.mutedForeground }}>
-          {t.landing.lead}
+          {t.metadata.description}
         </div>
       </OgFrame>
     ),

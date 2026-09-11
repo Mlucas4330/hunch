@@ -5,7 +5,7 @@ import type { Dictionary } from '@/lib/i18n'
 
 export type ReportCoverCounts = {
   changes: number
-  ready: number
+  copy: number
   structural: number
 }
 
@@ -20,8 +20,7 @@ export function ReportCover({
   url: string
   generated: string
   counts: ReportCoverCounts | null
-  // Sits beside the host. A slot rather than a prop of its own because `InfoHint` is a client
-  // component and this is not: the page composes it and hands it down already built.
+  // A slot rather than a prop of its own because `InfoHint` is a client component and this is not.
   hint?: ReactNode
 }) {
   const host = displayHost(url)
@@ -39,12 +38,10 @@ export function ReportCover({
         <p className="break-all font-mono text-sm text-muted-foreground">{url}</p>
       </div>
 
-      {/* **A report with nothing generated must not print zeroes.** `summaryBody` filled with
-          counts of 0 reads as "we looked and there is nothing worth changing", which is the opposite
-          of what happened: nobody has written the fixes yet. The count sentence is only true once
-          there is something to count. */}
+      {/* A report with nothing generated must not print zeroes: "0 errors" reads as a clean page when
+          the lists were simply never written. */}
       <p className="max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground">
-        {counts ? fill(t.report.summaryBody, counts) : t.report.summaryMeasured}
+        {counts ? fill(t.report.summaryBody, counts) : t.report.summaryPending}
       </p>
 
       <p className="panel-label text-micro text-muted-foreground">

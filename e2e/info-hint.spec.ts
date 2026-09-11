@@ -38,7 +38,7 @@ test('no hint on the analysis can push the page sideways', async ({ page }) => {
     // Every section, because the impact legend and the section hints move with the panel they sit
     // in. They are stacked `<details>` now rather than tabs, so opening one leaves the rest as they
     // were and the loop ends with all four open.
-    for (const section of ['flow', 'copy', 'seo', 'ai']) {
+    for (const section of ['ai', 'seo', 'flow', 'copy']) {
       const panel = page.getByTestId(`analysis-section-${section}`)
       // The panel's own `<details>` is the outer one; every fix card inside it is a `<details>` too,
       // so an unqualified locator is ambiguous and Playwright refuses it. See e2e/core.spec.ts.

@@ -13,8 +13,12 @@ npm run db:push
 Schema changes are tracked as migrations in `db/migrations` (`npm run db:generate`); `db:push` applies
 the current schema directly for local iteration and stays local-only.
 
-**Run `npm run build` with no `npm run dev` server attached.** Both write to `.next`, and concurrently
-they corrupt each other's chunks.
+**`drizzle-kit generate` asks interactively when a table loses one column and gains another**, because
+it cannot tell a rename from a drop and an add. In a non-interactive shell that fails. Generate in two
+steps instead: keep the old column in the schema while generating the add, then remove it and generate
+the drop.
+
+**Run `npm run build` with no `npm run dev` server attached.** Both write to `.next`.
 
 ## Commands
 
@@ -23,247 +27,74 @@ npm run typecheck
 npm test                 # node:test via tsx, over lib/**/*.test.ts
 npm run test:e2e         # Playwright on port 3100 with E2E_FIXTURES=1
 npx playwright test --project=dom   # just the DOM specs: no sign in, no database
-
-npm run preview:screenshot                                   # defaults: https://vercel.com, h1
-npm run preview:screenshot -- https://foo.com "h1" out-dir   # url, selector, output dir
-
-npm run preview:emails -- you@example.com                    # all four mails, in pt-BR
-npm run preview:emails -- you@example.com en                 # and in English
-
-npm run seed:pulse                                           # plant domains for the landing board
-npm run seed:pulse -- --clear                                # and take them out again
-
-npx tsx --env-file=.env scripts/rewrite-stats.mts            # score the copy generator
-npx tsx --env-file=.env scripts/rewrite-stats.mts --by-run   # one block per run
-
-npx tsx --env-file=.env scripts/brief-ab.mts <url> brief.json 2   # the brief arm, against no brief
-
-npx tsx --env-file=.env scripts/ads-funnel.mts               # the campaign and the funnel behind it
-npx tsx --env-file=.env scripts/ads-funnel.mts --days=7      # over a shorter window
 ```
 
-`ads-funnel` reads the Google Ads account and the database over one window and prints them side by
-side. **It writes nothing to either.** Without the six Ads variables it prints the database half
-alone, which is still the useful half locally. How to read what it prints is in
-[ads.md](ads.md).
-
-`rewrite-stats` is how a change to the copy prompt is judged. **It reads only what has already been
-generated.** No model, no credit, no network, and reports the properties of a rewrite that hold
-across pages: word reuse, permutations, ceiling overflow, unmeasured claims in `rationale`,
-placeholders. It scores **the oldest variant of each hypothesis**, which is what the model first recommended: the
-generation writes exactly one and the alternates arrive later, so choosing a different one reorders
-the list without moving what is being scored. Whether the recommendation is still the chosen line is
-reported separately, over hypotheses that have alternates at all.
-
-It also reports the **acceptance rate** off `verdict`, which is the one line there that
-is a judgement rather than a shape, and the one the others exist to be compared against. That rate is
-over decided rows only: a null verdict is nobody having looked yet, never a no. It covers `flow_fixes`
-too, so the playbook and the visibility audit are scored alongside the copy. It exists because the
-alternative is somebody's opinion of somebody else's landing page,
-and there the page's owner is right and we are not. Read `permutation` as the only defect and the rest
-as rates to compare; a single run is noisy enough that a small movement means nothing. Fixture runs are
-excluded, which matters because most analyses in a development database are fixture runs. See
-[ai-pipeline.md](ai-pipeline.md).
-
-`brief-ab` is the same measurement on generations that do not exist yet, and it is the one script here
-that **spends tokens**. It scrapes the page once and generates from that single measurement several
-times per arm, so the two differ by the brief alone. Its useful column is the last one: how many
-rewrites say a word that only the brief carried, which is the thing word reuse turned out not to
-measure. The JSON is the four `BRIEF_FIELD` answers, and it is worth nothing unless it carries facts
-the page does not. See [ai-pipeline.md](ai-pipeline.md).
-
-`seed:pulse` exists because **the landing board counts domains, not analyses**. Every test run measures
-`example.com`, `publicLeaderboard` keeps one entry per domain, and one entry is below
-`PULSE_MIN_ENTRIES`, so the section correctly refuses to render and there is nothing to look at. The
-script plants enough distinct hostnames to see the sphere, tags every row `seed:pulse`, and `--clear`
-removes exactly those. **Local only.** The board's entire claim is that every chip is a page this tool
-measured, so planting rows anywhere real is the one thing it must never do, see
-[invariants.md](invariants.md#the-public-board-carries-a-domain-and-a-score-and-nothing-else).
-
-The first three are the gates and can go red. `preview:screenshot`, `rewrite-stats` and `brief-ab`
-**are not tests.** They assert nothing, cannot fail, and are not in CI, which is why neither is named like one.
-`rewrite-stats` reports numbers for a person to compare; nothing about it is pass or fail.
-
 `.github/workflows/ci.yml` is the only thing running `typecheck`, `npm test` and the e2e suite before a
-push goes live: Railway ships whatever is on `main` and fails a deploy only if the build itself fails.
+push goes live: Railway ships whatever is on `main`.
 
 ## Environment
 
 - **`ADMIN_EMAIL` and `ADMIN_PASSWORD` must be set** for the e2e suite to sign in. The suite sets
   `ALLOW_CREDENTIALS_LOGIN` for itself; see [security.md](security.md).
-- **`REDIS_URL` is required to run an analysis at all.** `POST /api/analyses` enqueues with **no
-  inline fallback.** Running a scrape inside
-  the request is the unmetered path the fail-closed limit exists to prevent, so no Redis means every
-  analysis answers `503 queue_unavailable`, refunds the credit and deletes the row. Nothing in the UI
-  names Redis, so it shows up as an Analyze button that returns you to the dashboard. `docker compose`
-  already runs one: set `REDIS_URL=redis://localhost:6379`. `.github/workflows/ci.yml` runs the same
-  image as a service for exactly this reason: without it the whole `chromium` project dies at
-  `auth.setup.ts` with nothing in the log naming Redis.
-- **Setting it also turns rate limiting on, and `analysis` is 5/hour.** Note the budget counts
-  **requests, not analyses**: the
-  limiter runs before the body is parsed, so a rejected URL or a queue failure spends a token too.
-  Five an hour is easy to hit while iterating.
-- **`E2E_FIXTURES=1` skips rate limiting entirely**, which is what lets the suite run: it creates six
-  analyses on one account and would otherwise take a `429` on the sixth. The budgets exist to cap what
-  a route costs, and under fixtures a route costs nothing, no browser opens and no tokens are spent.
-  See `lib/rate-limit.ts`.
-- A misconfigured `REDIS_URL` in production looks exactly like a working one, so **confirm it with a
-  real `429`** rather than by reading the config.
-- **`PUPPETEER_SKIP_DOWNLOAD` must stay unset locally**, where `npm run dev`, the e2e suite and
-  `preview:screenshot` all launch Chrome in-process. Production sets it; see
-  [deployment.md](deployment.md).
-- **`E2E_FAIL_GENERATION=1` makes the generation throw on purpose**, so the path after a failure can
-  actually be walked: the credit refunded, the job going `unavailable`, and the report showing what
-  happened instead of the unlock wall. It is **nested inside the `E2E_FIXTURES` branch** of
-  `generateFromMeasurement`, so it cannot fire unless fixtures are already on and no production deploy
-  can reach it however the variable is set. See [report.md](report.md).
+- **An account needs a quota to run an analysis.** Locally, sign in as the admin and set one at
+  `/admin/accounts`, including for the admin's own address.
+- **`REDIS_URL` is required to run an analysis at all.** `POST /api/analyses` enqueues with no inline
+  fallback, so no Redis means `503 queue_unavailable`. `docker compose` already runs one.
+- **Setting it also turns rate limiting on**, and the budget counts requests, not analyses.
+- **`E2E_FIXTURES=1` skips rate limiting** and replaces the scrape, PageSpeed Insights and generation
+  with the fixtures in `lib/ai/fixtures.ts`.
+- **`PAGESPEED_API_KEY` unset** means every analysis is saved with no PageSpeed section and a
+  `pagespeed.failed` warning in the log. Everything else still runs.
+- **`PUPPETEER_SKIP_DOWNLOAD` must stay unset locally**, where Chrome is launched in-process.
+- **`E2E_FAIL_GENERATION`** (`throw`, `empty` or `copy`) makes the fixture generation fail on purpose.
+  It is nested inside the `E2E_FIXTURES` branch, so no production deploy can reach it.
 
 ## The unit suite: `npm test`
 
-Node's built-in runner, driven through `tsx` (no test framework). Colocated with the functions they
-cover: `lib/market.test.ts`, `lib/url-guard.test.ts`, `lib/readout.test.ts`, `lib/keywords.test.ts`,
-`lib/page-text.test.ts`, `lib/prompt-elements.test.ts`, `lib/rewrite-stats.test.ts` and
-`lib/analysis-state.test.ts`.
-
-`lib/analysis-state.test.ts` is worth singling out: the function it covers decides which of five
-things the report renders, from five booleans whose interesting combinations are all failure-shaped
-an ownerless row with a live job, a refund and a running job at once. Pure by design so those can be
-written as a table instead of a fixture.
-
-**All three exist because `E2E_FIXTURES=1` replaces the entire pipeline before a page is ever scraped**,
-so the e2e suite reaches neither market detection, nor the SSRF guard, nor the measured readout.
-`lib/market.test.ts` is the only automated coverage `detectMarket` has, which is why this is a CI step
-rather than a convenience script.
-
-`lib/readout.test.ts` carries the one case the whole numbers feature rests on: **every emitted value
-comes from the input, never from a literal in the module.** It feeds values that appear nowhere in
-`lib/readout.ts` and asserts each one came back out of the field it was read from, so a hardcoded
-fallback creeping into the one place the product is allowed to state numbers fails CI rather than
-shipping. See [readout.md](readout.md).
+Node's built-in runner through `tsx`. Colocated with the functions they cover, among them
+`lib/pagespeed.test.ts` (the PageSpeed parse and the score), `lib/snapshots.test.ts`,
+`lib/analysis-state.test.ts` (which of four states the report renders), `lib/readout.test.ts`,
+`lib/ai/schema.test.ts`, `lib/url-guard.test.ts` and `lib/market.test.ts`.
 
 **The suite makes no network requests, and `lib/url-guard.test.ts` must stay that way.** It asserts the
-allow path with **IP literals**, which `resolvesPublicly` classifies without a DNS lookup at all.
-Real hostnames buy no coverage here: no public domain answers with a private address, so the
-multi-address rule they would nominally be there for never runs, and the step fails on somebody
-else's DNS instead. **A new case here uses a literal or it does not belong in this file.**
+allow path with IP literals, which need no DNS lookup.
 
 ## The Playwright suite: `npm run test:e2e`
 
-Runs on a dedicated port (3100, overridable via `E2E_PORT`) so it never collides with or reuses a
-running `npm run dev`, which would not have `E2E_FIXTURES` set.
+Runs on a dedicated port (3100, overridable via `E2E_PORT`) so it never reuses a running `npm run dev`.
 
-`E2E_FIXTURES=1` swaps generation for the fixtures in `lib/ai/fixtures.ts`, which exist per locale and
-are picked by the same locale the real pipeline uses.
+**`DEFAULT_LOCALE` is pt-BR, and the suite pins itself to English.** `e2e/locale.ts` writes the locale
+cookie into the saved state and every anonymous context. The locale test in `e2e/core.spec.ts` is the
+one exception.
 
-**`DEFAULT_LOCALE` is pt-BR, and the suite pins itself to English anyway.** `e2e/locale.ts` writes the
-locale cookie into `auth.setup.ts`'s saved state and into every anonymous context, so the assertions
-stay in one language and keep covering behaviour rather than which dictionary rendered it, both are
-complete and typechecked against each other. The single exception is the locale test in
-`e2e/core.spec.ts`, which is the only place that asserts what a reader with no cookie gets, and it
-would assert nothing if it were pinned.
+`retries` stays **0** so a flaky test is never silently absorbed, and `trace` is `retain-on-failure`.
 
-`retries` stays **0** so a flaky test is never silently absorbed. That is why `trace` is
-`retain-on-failure` and not `on-first-retry`: with no retries there is no first retry, and that setting
-recorded nothing.
+**The suite drives `next dev`, so a route's first hit pays for its compile.** Navigations after an
+action use `page.waitForURL()`, which inherits the 60s test timeout.
 
-**The suite drives `next dev`, so a route's first hit pays for its compile, and that is why a URL is
-awaited rather than asserted.** `expect(page).toHaveURL()` is capped at the 5s expect timeout, which a
-credentials sign in followed by a first render does not always fit inside. The symptom is a snapshot
-showing the submit button still `[disabled]`, because `useFormStatus` is telling the truth and the
-request simply has not come back. `page.waitForURL()` inherits the 60s test timeout instead, which is
-what every navigation after an action uses. `toHaveURL` is right for a URL that has already settled,
-which is what the remaining five assert.
+`auth.setup.ts` signs in, sets the admin's quota to `E2E_QUOTA` through `setQuota`, and runs one
+analysis to pay the compile cost once. `E2E_QUOTA` is high because every run in the same month adds to
+the count, and `e2e/pagination.spec.ts` plants eleven rows of its own.
 
-`auth.setup.ts` pays the same cost deliberately and once, outside any test's timeout, for the three
-routes that creating an analysis crosses.
-
-**CI runs against an empty database, and a laptop almost never does.** The dashboard is shorter with no
-history behind it, which is enough to change what is above the fold and what an animation moves.
-`e2e/brief-wizard.spec.ts` failed on CI for two runs while passing locally for exactly that reason, and
-it now waits for the disclosure's height transition to settle before it measures anything. Reproduce a
-CI-only failure by pointing `DATABASE_URL` at a fresh database and running `npm run db:migrate` into it
-first; a suite that only passes on a populated one is a suite that will fail on the next push.
-
-**The other CI-only difference is the font, and it cannot be reproduced that way.** Linux resolves the
-font stack differently from a laptop, so any text renders to a different width there. That reaches a
-layout assertion through whatever sits next to the text: the hero row is
-`[field flexible][button shrink-0]`, so the field's width is the row minus the CTA's rendered label,
-and `expect(field.width).toBeGreaterThan(400)` was really asserting that "Score my page now, free"
-renders under about 198px. It failed at 398.5 against an identical 606.5px row, with nothing on the
-page changed.
-
-So **measure against the layout, never against a pixel count a font can move**. Assert what the test is
-named for, that two elements share a row, that one drops below the other, and express size relative
-to the container, which leaves a hundred pixels of margin where a fixed threshold left one and a half.
-A bare number is safe only where it is a real minimum with real headroom, like the field staying above
-200px at a 380px viewport.
+**CI runs against an empty database, and a laptop almost never does.** Reproduce a CI-only failure by
+pointing `DATABASE_URL` at a fresh database and running `npm run db:migrate` into it. **Measure against
+the layout, never against a pixel count a font can move**: Linux resolves fonts differently.
 
 ### Two projects
 
 **`chromium`** is the product suite: it signs in through the credentials hatch and drives real routes.
 
-**The e2e server is pointed at Mercado Pago on purpose.** `playwright.config.ts` sets both halves of
-the credential pair to dummies, so `mercadoPagoEnabled()` picks the Brick over Stripe checkout and
-`e2e/checkout-brick.spec.ts` has something to open. Nothing reaches Mercado Pago: the spec stubs the
-SDK at its own URL and no test submits the form.
-
-**`dom`** (`e2e/dom/`) drives a browser function against synthetic markup, no session, no request to
-the app, no row in the database, and **deliberately does not depend on the auth setup**, so a broken
-local database or an expired credentials hatch cannot hide a regression in the DOM routines, which are
-the least forgiving code in the repo and the cheapest to check.
-
-Today `dom` holds `apply-variant-copy.spec.ts`, the only automated coverage `applyVariantCopy` has. It
-cannot live in `npm test` (it needs a real DOM) and it cannot go through `screenshotVariant`, whose
-first act is `assertPublicUrl`, and that refuses loopback, so pointing it at a local fixture would mean
-punching a hole in the SSRF guard to enable a test. Driving the exported function directly against
-`setContent` markup avoids the guarded path entirely. Each of the four rules in
-[scraping.md](scraping.md#applying-a-variant-to-the-live-dom--applyvariantcopy) has a case; reverting
-the routine to `el.textContent = copy` turns four of the eight red.
+**`dom`** (`e2e/dom/`) drives a browser function against synthetic markup, with no session and no
+database, and does not depend on the auth setup. It holds `capture-sameness.spec.ts`.
 
 ### What the fixture user can and cannot prove
 
-The credentials hatch forces that user to `admin` (`auth.ts`), which is the only role there is besides
-`user`, there are no plans and no `pro`. `auth.setup.ts` then buys the run `E2E_CREDITS` through
-`grantCredits`, never by updating `users.credits`, so the suite exercises the path that actually
-charges. **An analysis spends a credit for everyone, admin included**, and there is no exemption by
-role.
+The credentials hatch forces that user to `admin`. What cannot be reached from here is a **second,
+non-admin account**. The role gate is covered from the other direction: `e2e/admin-accounts.spec.ts`
+demotes that row mid-session and expects the operator screen to answer 404.
 
-**The free, walled shape is checked by the suite, not by hand.** `e2e/free-analysis.spec.ts` drains
-the balance to zero, runs an analysis, and asserts the three things that define the free half: the
-reader lands on `/r/<embedKey>`, which is where every run lands, rather than being refused; the row
-came back with `user_id` null and
-`structure` populated (so no model was called), and the report shows the unlock wall without claiming
-zero changes. It restores whatever balance it took, because the rest of the suite needs it.
+## Running the scraper outside the Next build
 
-What still cannot be reached from here is a **second, non-admin account**: every signed-in path the
-suite drives is the same row. The role gate is covered from the other direction instead
-`e2e/admin-credits.spec.ts` demotes that row mid-session and expects the operator screen to answer
-404 with the token untouched.
-
-## `preview:emails`
-
-Sends one of every mail the product writes to one address: the day-0 report link, the two sequence
-mails, and the pending-payment reminder. The sequence pair is built by `lib/lead-sequence.ts` itself
-and all four render through `lib/email-template.ts`, so what lands in the inbox is what a reader
-would get, sample data aside.
-
-It exists for the same reason `preview:screenshot` does: **how a mail looks is only answerable by
-looking at it in a client.** Gmail strips styles Apple Mail keeps, Outlook renders through Word, and
-no assertion here can tell you the button survived any of them. It needs `RESEND_API_KEY` and
-`EMAIL_FROM`, writes to no table, and reads no analysis.
-
-## `preview:screenshot`
-
-Boots a real browser against a real page and writes `before.png` / `after.png` through the same
-`screenshotVariant` the public report uses. It calls neither `POST /api/report/screenshot` nor
-`saveScreenshot`, so it needs no `SCREENSHOT_DIR` and writes nothing a report would later serve.
-
-It exists because `applyVariantCopy` distributes the new copy across an element's text nodes to avoid
-destroying its inline children, and **whether a gradient span or a `<br>` survived that split is only
-answerable by looking at the two images**. What is assertable about that split is covered by the `dom`
-project; this script is for the half no assertion can make, whether the gradient span landed on a word
-that still looks good.
-
-One non-obvious constraint applies to any script driving `scrapePage` / `screenshotVariant` outside the
-Next build, see
-[scraping.md](scraping.md#running-the-scraper-outside-the-next-build).
+Functions handed to `page.evaluate()` are serialized as source, so esbuild's `__name` helper injected by
+tsx is not defined in the page. `openGuardedPage` declares `window.__name` for that reason. See
+[scraping.md](scraping.md).

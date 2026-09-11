@@ -1,5 +1,7 @@
-import { READOUT_THRESHOLDS } from '@/lib/constants'
+import { PAGESPEED_CATEGORY_BY_FIX_KIND, READOUT_THRESHOLDS } from '@/lib/constants'
 import type {
+  AnalysisTab,
+  PageSpeedCategory,
   ReadoutCriterionKind,
   ReadoutFinding,
   ReadoutGroup,
@@ -10,6 +12,7 @@ import type { Market } from '@/lib/enums'
 import type { PageMobile, PagePerformance, PageSameness, PageSeo, PageStructure } from '@/lib/scrape'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
+import type { PageSpeed } from '@/lib/pagespeed'
 
 /**
  * The threshold this finding was judged against, in the finding's own unit.
@@ -318,8 +321,7 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
   // whether anybody counted a trust signal on it.
   if (structure && structure.trustBadgeCount !== undefined) {
     // Only in Brazil, and this is the whole of what the market decides here. A CNPJ in the footer is
-    // a convention there; on a US page its absence is not a finding, it is noise. The market rules
-    // out a sentence, it never supplies a fact about buyers -- see docs/invariants.md.
+    // a convention there; on a US page its absence is not a finding, it is noise.
     if (market === 'br' && structure.hasCnpj !== undefined) {
       out.push(presence('no_cnpj', 'credibility', structure.hasCnpj))
     }
@@ -575,4 +577,38 @@ export function readout(input: ReadoutInput): Readout {
 
 export function hasReadout(value: Readout): boolean {
   return value.findings.length > 0
+}
+
+export type Evidence = { categories: PageSpeedCategory[]; crawler: MeasuredFinding[] }
+
+/**
+ * What one report section shows above its errors: the Lighthouse categories its generator was given,
+ * and for AI the robots.txt findings. See docs/invariants.md.
+ */
+export function sectionEvidence(
+  tab: AnalysisTab,
+  pagespeed: PageSpeed | null,
+  input: ReadoutInput
+): Evidence {
+  const kind = tab === 'flow' ? 'flow' : tab === 'seo' ? 'visibility' : null
+
+  const categories =
+    kind && pagespeed
+      ? PAGESPEED_CATEGORY_BY_FIX_KIND[kind].filter(
+          (category) =>
+            pagespeed.categories[category] !== null ||
+            pagespeed.audits.some((audit) => audit.category === category)
+        )
+      : []
+
+  const crawler =
+    tab === 'ai'
+      ? measuredFindings(input).filter((finding) => finding.group === 'crawler_access')
+      : []
+
+  return { categories, crawler }
+}
+
+export function hasEvidence(evidence: Evidence): boolean {
+  return evidence.categories.length > 0 || evidence.crawler.length > 0
 }

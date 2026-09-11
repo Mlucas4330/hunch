@@ -1,17 +1,16 @@
-import { measuredFindings, type MeasuredFinding, type ReadoutInput } from '@/lib/readout'
-import { readoutScore } from '@/lib/score'
-import type { Market, ReadoutFinding } from '@/lib/enums'
+import { pageSpeedScore, type PageSpeed } from '@/lib/pagespeed'
+import { PAGESPEED_CATEGORY, type PageSpeedCategory } from '@/lib/enums'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
 import type { PageMobile, PagePerformance, PageSameness, PageSeo, PageStructure } from '@/lib/scrape'
 
-// Pure by necessity as much as by taste: `deltas` runs inside MeasuredReadout, a client component,
-// so nothing here may reach for the database or the browser. The queries live in lib/analyses.ts.
+// Pure by necessity: `deltas` runs inside MeasuredReadout, a client component, so nothing here may
+// reach for the database or the browser. The queries live in lib/analyses.ts.
 
 export type ScorePoint = { score: number; capturedAt: Date }
 
 export type ReadoutHistory = {
-  previous: ReadoutInput | null
+  previous: PageSpeed | null
   scores: ScorePoint[]
 }
 
@@ -26,41 +25,10 @@ export type MeasuredColumns = {
   keywords: PageKeywords
   mobile: PageMobile
   sameness: PageSameness
+  pagespeed: PageSpeed | null
 }
 
-type SnapshotColumns = {
-  structure: PageStructure | null
-  seo: PageSeo | null
-  performance: PagePerformance | null
-  crawlerAccess: CrawlerAccess | null
-  keywords: PageKeywords | null
-  mobile: PageMobile | null
-  sameness: PageSameness | null
-}
-
-// A snapshot holds the same measured facts as the analysis row, so it reads as one too.
-//
-// **`market` is passed in rather than stored on the snapshot.** It is pinned to `analyses.market` at
-// creation and never moves, so a snapshot carrying its own copy would be a second source of truth
-// for one fact. One finding reads it, and it reads it to stay quiet outside Brazil.
-export function snapshotInput(snapshot: SnapshotColumns, market: Market | null): ReadoutInput {
-  return {
-    structure: snapshot.structure,
-    seo: snapshot.seo,
-    performance: snapshot.performance,
-    crawler: snapshot.crawlerAccess,
-    keywords: snapshot.keywords,
-    mobile: snapshot.mobile,
-    sameness: snapshot.sameness,
-    market
-  }
-}
-
-export function snapshotValues(
-  analysisId: string,
-  measurement: MeasuredColumns,
-  market: Market
-) {
+export function snapshotValues(analysisId: string, measurement: MeasuredColumns) {
   return {
     analysisId,
     structure: measurement.structure,
@@ -70,29 +38,26 @@ export function snapshotValues(
     keywords: measurement.keywords,
     mobile: measurement.mobile,
     sameness: measurement.sameness,
-    // Frozen here so a later threshold change never rewrites what the trend already showed.
-    score: readoutScore(measuredFindings(snapshotInput(measurement, market))).overall
+    pagespeed: measurement.pagespeed,
+    // Frozen here so a later change to how the score is computed never rewrites the trend.
+    score: pageSpeedScore(measurement.pagespeed)
   }
 }
 
-// Arithmetic between two measurements of the same page, and nothing more: a delta says the number
-// moved, never that anything caused it to. See docs/invariants.md.
+// How each PageSpeed category score moved between two measurements of the same page. A category that
+// was not scored on both sides is left out rather than compared against zero.
 export function deltas(
-  current: ReadoutInput,
-  previous: ReadoutInput | null
-): Map<ReadoutFinding, number> {
-  const out = new Map<ReadoutFinding, number>()
-  if (!previous) return out
+  current: PageSpeed | null,
+  previous: PageSpeed | null
+): Map<PageSpeedCategory, number> {
+  const out = new Map<PageSpeedCategory, number>()
+  if (!current || !previous) return out
 
-  const before = new Map<ReadoutFinding, MeasuredFinding>(
-    measuredFindings(previous).map((finding) => [finding.id, finding])
-  )
-
-  for (const finding of measuredFindings(current)) {
-    const was = before.get(finding.id)
-    if (!was || was.value === finding.value) continue
-
-    out.set(finding.id, finding.value - was.value)
+  for (const category of PAGESPEED_CATEGORY) {
+    const now = current.categories[category]
+    const was = previous.categories[category]
+    if (now === null || was === null || now === was) continue
+    out.set(category, now - was)
   }
 
   return out

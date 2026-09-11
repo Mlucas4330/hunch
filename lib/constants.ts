@@ -1,17 +1,20 @@
 import type {
   BlogSlug,
+  FixKind,
   FlowCategory,
   Locale,
   Market,
   OAuthProvider,
+  PageSpeedCategory,
+  PageSpeedFieldCategory,
+  PageSpeedFieldMetric,
+  PageSpeedFieldUnit,
   RateLimitKind,
-  VariantTone,
   ReadoutSeverity,
   Section,
   Theme,
   UserRole
 } from '@/lib/enums'
-import type { PaymentProvider } from '@/lib/enums'
 
 // Only reached when NEXT_PUBLIC_APP_URL is unset: local dev and the e2e run.
 export const FALLBACK_APP_ORIGIN = 'http://localhost:3000'
@@ -21,40 +24,17 @@ export const PROTECTED_PREFIXES = ['/dashboard', '/analyses', '/admin']
 
 export const POST_SIGNIN_REDIRECT = '/dashboard'
 
-// Read by the nav, the sitemap and the landing's link into the AI post.
+// Read by the nav and the sitemap.
 export const BLOG_PATH = '/blog'
 
 export const PRIVACY_PATH = '/privacy'
 
-// One click out of the sequence, from any email in it. The mail links to the route, which writes and
-// redirects to the page: a page that wrote on render would run again on every refresh, and checking
-// whether it worked is exactly when somebody reloads.
-//
-// The token in the query string is the whole credential, the same shape as `embed_key` and
-// unguessable for the same reason.
-export const UNSUBSCRIBE_PATH = '/unsubscribe'
-export const UNSUBSCRIBE_API_PATH = '/api/leads/unsubscribe'
-
 // What the page states as its own last change. A date in the copy and a date in the file would be two
 // places holding one fact, and the one nobody remembers to edit is the one the reader believes.
-export const PRIVACY_UPDATED = '2026-09-04'
+export const PRIVACY_UPDATED = '2026-09-11'
 
-// Where every "buy credits" control points: the packs section on the landing page. Named once so the
-// unlock wall, the balance and the report cannot drift to three different links.
-export const CREDITS_ANCHOR = '/#credits'
+export const SIGNIN_PATH = '/auth/signin'
 
-// The other landing section the nav links into. Same reason as CREDITS_ANCHOR: the hero's own link
-// and the nav must not drift to two different anchors for the same section.
-export const HOW_ANCHOR = '/#how'
-
-// The hero, where the URL field is. The free card in the packs grid is what made this worth naming:
-// it has no checkout to open, so the only thing it can do is send the reader back to the one input
-// that starts an analysis -- and a card pointing at a different anchor than the final CTA would be
-// two links to one place.
-export const HERO_ANCHOR = '/#top'
-
-// The URL field itself. Named because the free card focuses it rather than only scrolling to it: an
-// anchor that lands a reader next to an empty input still leaves them a click from typing.
 export const URL_FIELD_ID = 'url'
 
 // Publication dates, in ISO. They reach the reader through formatDate and the sitemap's
@@ -67,62 +47,44 @@ export const BLOG_POST_DATE: Record<BlogSlug, string> = {
 
 export const CALLBACK_URL_PARAM = 'callbackUrl'
 
-// Google Ads, and the whole of what the site knows about it. **There is no Google tag on any page**
-// -- no gtag.js, no third-party cookie, nothing loaded from Google at all. Middleware reads the
-// click id out of the query string into a first-party cookie, and a confirmed payment is reported to
-// Google from the server. See docs/ads.md.
-//
-// The reasoning is not only privacy, though LGPD makes that half easy. This product charges people
-// to be told their landing page is heavy, and `READOUT_THRESHOLDS.pageWeightWarnBytes` is 2MB:
-// shipping Google's tag onto our own landing page would be the product failing its own audit.
-export const GCLID_PARAM = 'gclid'
+// PageSpeed Insights, which measures what the readout shows. One call per analysis, mobile only, all
+// four Lighthouse categories. See docs/readout.md.
+export const PAGESPEED_API_URL = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed'
+export const PAGESPEED_STRATEGY = 'mobile'
 
-// Which ad group bought the click, so the hero can continue the sentence the reader clicked.
-// Read straight off the query string by the landing page and never stored: unlike the click id
-// below, it is needed only while the request that carried it renders. See docs/ads.md.
-export const AD_GROUP_PARAM = 'ag'
+// A Lighthouse run on Google's side routinely takes 10 to 30 seconds and a heavy page more. Past this
+// the analysis continues without it rather than holding the report.
+export const PAGESPEED_TIMEOUT_MS = 60_000
 
-export const GCLID_COOKIE = 'hunch.gclid'
+// The API reports CLS percentiles multiplied by 100.
+export const PAGESPEED_CLS_SCALE = 100
 
-// Google's own longest click-to-conversion window. A click older than this is refused on upload, so
-// keeping the cookie any longer only produces uploads that are rejected.
-export const GCLID_MAX_AGE_SECONDS = 60 * 60 * 24 * 90
+export const PAGESPEED_FIELD_UNIT_BY_METRIC: Record<PageSpeedFieldMetric, PageSpeedFieldUnit> = {
+  LARGEST_CONTENTFUL_PAINT_MS: 'seconds',
+  INTERACTION_TO_NEXT_PAINT: 'milliseconds',
+  CUMULATIVE_LAYOUT_SHIFT_SCORE: 'score',
+  FIRST_CONTENTFUL_PAINT_MS: 'seconds',
+  EXPERIMENTAL_TIME_TO_FIRST_BYTE: 'seconds'
+}
 
-export const GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+// Google's own three bands, read on the same three colours the rest of the report uses.
+export const PAGESPEED_FIELD_SEVERITY: Record<PageSpeedFieldCategory, ReadoutSeverity> = {
+  FAST: 'ok',
+  AVERAGE: 'warn',
+  SLOW: 'alert'
+}
 
-export const GOOGLE_ADS_API_ORIGIN = 'https://googleads.googleapis.com'
-
-// **Pinned, and it sunsets.** Google retires an API version roughly a year after release and a call
-// to a retired one fails outright. Confirm this against Google's current release notes before
-// enabling the integration, and treat bumping it as a scheduled chore rather than a surprise.
-//
-// Checked 2026-08-29: v23, v24 and v25 are live and v18 had long since been retired. Google keeps
-// three versions and sunsets one per release, so this has roughly a year before it needs the same
-// check again.
-export const GOOGLE_ADS_API_VERSION = 'v25'
-
-// The account is Brazilian and the packs are priced in BRL, so a conversion is worth what
-// CREDIT_PACKS.amountBrl charged. Never a made-up value: the amount is the one the provider
-// confirmed.
-export const ADS_CONVERSION_CURRENCY = 'BRL'
-
-// Google wants `yyyy-MM-dd HH:mm:ss+HH:mm`, and the offset has to be a real one rather than UTC:
-// the API validates the timestamp against the account's own timezone. The account is Sao Paulo.
-export const ADS_CONVERSION_TIMEZONE = 'America/Sao_Paulo'
-
-// A conversion upload is best effort and gets one short attempt. It runs inside a webhook whose
-// answer decides whether Mercado Pago retries the *payment*, so it may never be what makes that
-// request slow -- see the note in lib/credits.ts.
-export const ADS_UPLOAD_TIMEOUT_MS = 5_000
-
-// How long a fetched OAuth access token is reused. Google issues them for an hour; the margin is
-// there so a token is never spent on the request that discovers it just expired.
-export const ADS_TOKEN_SAFETY_MARGIN_MS = 5 * 60 * 1000
+// The Lighthouse categories each error generator is given, and so the ones the report shows in the
+// sections those errors land in. See docs/invariants.md.
+export const PAGESPEED_CATEGORY_BY_FIX_KIND: Record<FixKind, PageSpeedCategory[]> = {
+  flow: ['performance', 'accessibility', 'best-practices'],
+  visibility: ['seo']
+}
 
 // How each provider's address is verified, declared per provider rather than assumed.
 //
 // The row is keyed on email with no `accounts` table, so whoever presents an address next owns
-// whatever is in that row -- credits included. **A provider absent from this map is refused**, which
+// whatever is in that row -- the quota included. **A provider absent from this map is refused**, which
 // is what makes adding one to authConfig without thinking lock itself out instead of letting itself
 // in.
 //
@@ -151,17 +113,12 @@ export const WHATSAPP_NUMBER = '5551989431913'
 export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`
 
 // The written channel, next to WhatsApp in the footer and named by the privacy policy.
-//
-// It is also what `EMAIL_FROM` should be set to and what every outgoing mail carries as its
-// `reply_to`, so a reader who answers one of the sequence's messages lands in the same inbox the
-// policy points them at. One address in one place: a policy naming a mailbox nobody reads is worse
-// than naming none.
 export const CONTACT_EMAIL = 'contact@hunch.solutions'
 export const CONTACT_EMAIL_URL = `mailto:${CONTACT_EMAIL}`
 
 // What a reader with no cookie gets, which is every first visit: the product sells to Brazilian
-// creators building with AI tools, takes BRL through Mercado Pago, and pt-BR is a rewrite rather than a translation of the
-// English -- see docs/i18n.md. English is still complete and one cookie away.
+// agencies, and pt-BR is a rewrite rather than a translation of the English -- see docs/i18n.md.
+// English is still complete and one cookie away.
 //
 // It is also the locale generation falls back to and the one the OG images are written in, because a
 // tab title and an unfurl are read by the same person the page is for.
@@ -261,8 +218,7 @@ export const BLOCKED_HOST_SUFFIXES = ['localhost', '.localhost', '.local', '.int
 // enough that a verdict never goes stale across analyses.
 export const HOST_RESOLUTION_CACHE_TTL_MS = 60 * 1000
 
-// A real desktop fold. captureElements, aboveFoldCtaCount and the preview image all measure
-// against it, so it cannot be left at Puppeteer's 800x600 default.
+// A real desktop fold. captureElements and aboveFoldCtaCount measure against it, so it cannot be left at Puppeteer's 800x600 default.
 export const SCRAPE_VIEWPORT = { width: 1280, height: 800 }
 
 // The phone the mobile pass emulates. A mid-size modern handset, chosen because the fold it implies
@@ -321,12 +277,6 @@ export const SCRAPE_ALLOWED_RESOURCE_TYPES = [
   'other'
 ]
 
-// A screenshot is judged on how it looks, so it waits for webfonts after the text settles.
-// Fail-soft: an asset that never resolves costs this budget, never the screenshot.
-export const SCRAPE_ASSET_READY_TIMEOUT_MS = 3_000
-
-export const SCRAPE_PAINT_SETTLE_MS = 250
-
 // Tabs on the single shared `browser` service are the scarce resource, and per process only equals
 // per deploy because .railway/railway.ts pins numReplicas: 1. See docs/scraping.md.
 export const SCRAPE_MAX_CONCURRENT_PAGES = 3
@@ -359,11 +309,6 @@ export const NEIGHBOUR_PAGE_PATTERNS: { id: string; pattern: RegExp }[] = [
   { id: 'faq', pattern: /\bfaq\b|perguntas frequentes|d[úu]vidas/i }
 ]
 
-// The worker waits here, not the reader: the request that asks for a preview now returns as soon as
-// the job is queued, so giving up after five seconds would throw away work nobody is waiting on.
-// See docs/scraping.md.
-export const SCREENSHOT_QUEUE_MAX_WAIT_MS = 120_000
-
 // An analysis has already committed to a Sonnet call and needs several slots at once, so it waits.
 export const SCRAPE_QUEUE_MAX_WAIT_MS = 120_000
 
@@ -375,8 +320,7 @@ const MINUTE_MS = 60 * 1000
 const HOUR_MS = 60 * MINUTE_MS
 
 // How long a finished job stays readable after the worker wrote it. It only has to outlive the
-// client's polling, and the durable answer is in Postgres either way -- `variants.screenshot_url` is
-// what a reload reads, never the job.
+// client's polling, and the durable answer is in Postgres either way.
 export const JOB_TTL_MS = 10 * MINUTE_MS
 
 // How often the client asks. Short enough that a fast job does not feel queued, long enough that it
@@ -405,138 +349,17 @@ export const QUEUE_DRAIN_CONCURRENCY = 3
 // others, and the ones ahead may be holding every browser slot.
 export const ANALYSIS_WAIT_MAX_MS = 8 * MINUTE_MS
 
-// Where the browser keeps the keys of analyses it started with no account. It is the only thing
-// tying an anonymous run to the person who started it, so a sign-in reads it to claim them.
-export const ANONYMOUS_ANALYSES_KEY = 'hunch.anonymous-analyses'
-
-// The landing page's live proof: the ranked board of pages this tool has measured, and the feed of
-// what it is measuring right now. Both read what was already counted -- see docs/analysis-ui.md.
-
-// How often the landing page asks. Two orders of magnitude slower than JOB_POLL_INTERVAL_MS because
-// nobody is waiting on this: it is ambience, not a job someone started.
-export const PULSE_POLL_INTERVAL_MS = 20_000
-
-// The answer is shared by every reader on the page, so it is cached once rather than queried per
-// poll. Shorter than the interval, so a poll never serves an answer the next one would repeat.
-export const PULSE_CACHE_SECONDS = 15
-
-// Chips on the sphere. Past this they overlap into an unreadable ball at the size it renders.
-export const PULSE_SPHERE_MAX = 28
-
-// The legible half: the sphere carries movement, this carries the ranking.
-export const PULSE_TOP_COUNT = 5
-
-// Below this there is no board, only a handful of rows pretending to be one, so the whole section is
-// left out rather than padded. Nothing here is ever seeded -- see docs/invariants.md.
-export const PULSE_MIN_ENTRIES = 3
-
-// How many recent rows the feed carries. Enough that the toast does not repeat itself between polls.
-export const PULSE_FEED_MAX = 12
-
-// An analysis with no measurement yet is only "running" while it could still be: past the deadline
-// the form itself gives up on, the row is a failure, not work in progress, and the feed drops it
-// rather than announcing a page that is not being looked at. Derived so the two can never disagree.
-export const PULSE_RUNNING_MAX_AGE_MS = ANALYSIS_WAIT_MAX_MS
-
-// One toast at a time: how long it stays, and the gap before the next.
-export const PULSE_TOAST_VISIBLE_MS = 6_000
-export const PULSE_TOAST_GAP_MS = 9_000
-
-// Closing it silences the toast for the tab, not forever.
-export const PULSE_TOAST_DISMISSED_KEY = 'hunch.pulse-dismissed'
-
-// The sphere's own geometry, in the same spirit as TREND_CHART: numbers the component reads, never
-// numbers a reader sees. `spin` is radians per millisecond, `friction` the per-frame decay applied to
-// a flick, and the two depth numbers are how far a chip at the back fades and shrinks.
-export const PULSE_SPHERE = {
-  size: 520,
-  radius: 205,
-  spin: 0.00022,
-  friction: 0.94,
-  dragSensitivity: 0.006,
-  minOpacity: 0.3,
-  minScale: 0.62
-} as const
-
-// What is for sale. The price id is the only thing that decides how many credits a payment is worth
-// -- see creditsForPrice in lib/stripe.ts -- and the label is what the home page prints beside it.
-//
-// Two sizes, because there are two buyers and no third: somebody with one landing page, and somebody
-// with a funnel of two or three. The pack of ten is gone -- it priced an analysis at R$9,90, which
-// was the cheapest thing on the page and the one nobody this was rebuilt for had a use for.
-//
-// **Nothing free belongs in this list.** The card the home page prints beside these two is the free
-// half -- the measured readout, which costs a browser slot and zero tokens and needs no payment at
-// all -- and it is rendered from the dictionary alone, deliberately never from here. An entry with
-// `amountBrl: 0` would be an amount the Payment Brick could send and `creditsForAmount` could match,
-// and an empty `priceId` would collide with any Stripe variable that is unset. There is nothing to
-// buy, so there is nothing to price. See docs/invariants.md.
-//
-// **The prices carry the acquisition arithmetic, and that is why they are what they are.** The
-// ticket has to repay every click that produced the sale, not only the click that closed it: most
-// readers arrive, measure a page, leave an address and buy weeks later, so the purchase is repaying
-// the whole batch of clicks the lead came out of.
-//
-// R$97 and R$247 replace R$47 and R$147, which could not do that. With a mature funnel converting a
-// hundred clicks into two sales, R$47 returns R$94 against R$150 of clicks and loses on every
-// cohort, in month twelve as surely as in month one. R$97 returns R$194 against the same R$150.
-//
-// The number that decided it is not the margin per sale but the number of months the campaign can
-// stay on: the mailing list only starts compounding around month five, and R$47 cannot pay to stay
-// running that long. The table in docs/ads.md carries the arithmetic and the caveat -- read it
-// before touching either number.
-//
-// The trio's discount is per analysis and never in credits. Five credits for the same money would
-// cost almost nothing to give and buy the reader nothing: they own one landing page or three, which
-// is the same reasoning that removed the pack of ten.
-//
-// `amountBrl` is the Mercado Pago half of the same decision. Stripe keeps the amount on its own
-// servers behind the price id, so the id is enough there; the Payment Brick has the browser send the
-// amount, which makes it an input nobody may trust. The number here is what the server charges and
-// what the webhook matches a payment against -- see creditsForAmount in lib/mercadopago.ts.
-export const CREDIT_PACKS = [
-  { id: 'single', credits: 1, amountBrl: 97, priceId: process.env.STRIPE_PRICE_SINGLE ?? '' },
-  { id: 'trio', credits: 3, amountBrl: 247, priceId: process.env.STRIPE_PRICE_TRIO ?? '' }
-] as const
-
-export type CreditPackId = (typeof CREDIT_PACKS)[number]['id']
-
-// What `amountBrl` is denominated in, said once so the structured data on the landing page and the
-// price the reader sees cannot disagree about it. ADS_CONVERSION_CURRENCY holds the same code for a
-// different reason -- what a conversion is worth to Google -- and is left where it is rather than
-// aliased here, because a constant declared four hundred lines below it cannot be its initialiser.
-export const CREDIT_PACK_CURRENCY = 'BRL'
-
-// schema.org vocabulary, not our words: the enumeration value for a business tool and the operating
-// system a web app runs on. See docs/seo.md.
-export const SCHEMA_APPLICATION_CATEGORY = 'BusinessApplication'
-export const SCHEMA_OPERATING_SYSTEM = 'Web'
-
-// The two ids that reach `credit_transactions.provider` and `payment_events.provider`. Here rather
-// than beside each adapter so a client component can name one without importing a server module.
-export const STRIPE_PROVIDER: PaymentProvider = 'stripe'
-export const MERCADOPAGO_PROVIDER: PaymentProvider = 'mercadopago'
-
-// The `provider` recorded against a hand grant. **Deliberately not a PaymentProvider**: nothing was
-// charged, and typing it as one would say a payment processor was involved. `credit_transactions.provider`
-// is a text column precisely so a non-payment source can be named honestly, which is the same reason
-// the e2e setup grants as 'e2e'.
-export const ADMIN_PROVIDER = 'admin'
-
 // The operator screen. Under PROTECTED_PREFIXES so middleware turns away anyone with no session, and
-// re-checked against the stored role by both the page and the action behind it -- middleware proves a
-// session, never a role. See docs/invariants.md.
+// re-checked against the stored role by both the page and the action behind it. See docs/invariants.md.
 export const ADMIN_PATH = '/admin'
-export const ADMIN_CREDITS_PATH = `${ADMIN_PATH}/credits`
+export const ADMIN_ACCOUNTS_PATH = `${ADMIN_PATH}/accounts`
 
-// A ceiling on one hand grant. There is no inverse of grantCredits, so the cost of a fat finger here
-// is a balance that has to be unpicked in SQL. High enough for any real comp, low enough that an
-// extra digit is refused rather than honoured.
-export const ADMIN_GRANT_MAX = 100
+// A ceiling on one account's monthly quota, so an extra digit typed into the form is refused rather
+// than honoured.
+export const ADMIN_QUOTA_MAX = 1000
 
-// How many recent hand grants the screen lists. It is an audit trail, not a report: enough to see
-// what was just done and what was done last week.
-export const ADMIN_GRANT_HISTORY = 20
+// What a row gets when nobody has set a quota for it: no analyses until an operator does.
+export const DEFAULT_MONTHLY_QUOTA = 0
 
 // How close a tooltip may come to the edge of the viewport before it slides itself back in. It is
 // the gap that keeps the panel from looking welded to the screen edge, and the reason the number is
@@ -544,233 +367,20 @@ export const ADMIN_GRANT_HISTORY = 20
 // components/info-hint.tsx.
 export const TOOLTIP_VIEWPORT_MARGIN_PX = 12
 
-// What a focus trap counts as a stop. `[tabindex="-1"]` is deliberately absent: it marks something
-// focusable by script, not by Tab. See components/ui/dialog.tsx.
-export const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])'
-
-// What the Payment Brick needs on the client, and what both halves compare a payment's status
-// against. Here rather than in lib/mercadopago.ts because that file reaches for node:crypto and the
-// Brick component is a client one. The SDK host is also in the CSP -- see next.config.ts.
-// The interactive product tour on the landing page, framed from Supademo. Empty until a demo is
-// published: the section renders nothing rather than an empty frame, so a missing id is a missing
-// section and never a broken one. The host is in the CSP -- see next.config.ts.
-export const SUPADEMO_DEMO_ID = process.env.NEXT_PUBLIC_SUPADEMO_DEMO_ID ?? ''
-export const SUPADEMO_EMBED_ORIGIN = 'https://app.supademo.com'
-
-// The recording's own shape, and the container has to match it. Supademo letterboxes: it preserves
-// the aspect of the screen that was captured and pads whatever box it is given, so a container that
-// does not match shows as bars rather than as a bigger demo. This one is a wide desktop capture at
-// roughly 2:1; a re-recording at a different window size needs this number changed with it.
-//
-// To measure: load the page, screenshot the iframe, and divide its width by the height of the part
-// that is not padding.
-export const SUPADEMO_ASPECT = '2 / 1'
-
-
-// Resend's HTTP API. Called with fetch rather than the SDK, on the same reasoning as the Mercado
-// Pago adapter -- see lib/email.ts.
-export const EMAIL_API_ORIGIN = 'https://api.resend.com'
-
-/**
- * The palette the mail template paints with.
- *
- * **Hex, and duplicated from `app/globals.css` on purpose.** A mail client is not a browser: Gmail
- * strips `<style>` blocks it dislikes, none of them resolves a CSS variable, and `oklch()` is
- * unsupported almost everywhere. So the tokens are mirrored here as the closest sRGB values to
- * `--ink`, `--paper`, `--panel`, `--rule` and `--muted-foreground`, and the template inlines them.
- *
- * They live in one constant rather than inside the template's markup for the ordinary reason: the
- * mail is the only surface in the product that cannot read the stylesheet, and hex scattered through
- * a string of HTML is hex nobody will ever find again.
- */
-export const EMAIL_THEME = {
-  ink: '#1c1f27',
-  paper: '#f7f7f9',
-  panel: '#ffffff',
-  rule: '#e2e3e9',
-  muted: '#5f6472'
-} as const
-
-export const MERCADOPAGO_SDK_URL = 'https://sdk.mercadopago.com/js/v2'
-export const MERCADOPAGO_BRICK_CONTAINER = 'mercadopago-brick'
-export const MERCADOPAGO_APPROVED = 'approved'
-// The one notification family that carries money. Merchant orders and the rest say nothing about
-// either a payment or an entitlement.
-export const MERCADOPAGO_PAYMENT_TOPIC = 'payment'
-
-// The Brick's own locale codes, which are not the app's. See docs/i18n.md.
-export const MERCADOPAGO_LOCALE: Record<Locale, string> = {
-  en: 'en-US',
-  'pt-BR': 'pt-BR'
-}
-
-// The burst that answers a payment going through -- see components/confetti.tsx.
-//
-// It is the one dependency this app pays a download for, so it is only ever fetched after somebody
-// has paid, and the numbers it needs live here rather than in the component: a burst is a shape
-// decision like PULSE_SPHERE above, not a mechanism.
-export const CONFETTI_PARTICLE_COUNT = 70
-export const CONFETTI_SPREAD = 70
-
-// Fired from just above the middle of the screen rather than from the top edge, so the pieces are
-// already in view at the first frame instead of falling into it.
-export const CONFETTI_ORIGIN_Y = 0.4
-
-// Two bursts, one from each side, with this much between them. A single one reads as an accident of
-// the page; two read as an answer to what the reader just did.
-export const CONFETTI_BURST_DELAY_MS = 180
-export const CONFETTI_ORIGIN_X = [0.35, 0.65]
-
-// The pieces take the product's own colours, read off the theme at the moment they are fired, which
-// is what keeps them right in both light and dark without a second palette.
-export const CONFETTI_TOKENS = ['--purple', '--green', '--amber', '--blue', '--coral']
-
-// Over the Dialog's backdrop, which is z-50 -- the Brick fires this from inside it.
-export const CONFETTI_Z_INDEX = 100
-
-// Which pack the section marks as the one most buyers take. A constant rather than a literal, since
-// the component needs the same answer twice -- for the border and for the button variant.
-//
-// It is the single, and with the free card first that also puts the mark on the middle of the three.
-export const FEATURED_CREDIT_PACK: CreditPackId = 'single'
-
-// What the free card counts on its first line, in analyses. **Not credits**: nothing is granted, and
-// the line reads "1 analysis" for the same reason the card names no price -- what the free half gives
-// is a run of the measured readout, and calling it a credit would say a balance moved.
-export const FREE_ANALYSES = 1
-
 // Sized by what each route costs us, not by what a plan allows.
 export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: number }> = {
-  analysis: { tokens: 5, windowMs: HOUR_MS },
-  variants: { tokens: 20, windowMs: HOUR_MS },
-  screenshot: { tokens: 10, windowMs: HOUR_MS },
-  // Looser than `analysis` because it buys no generation, tighter than `variants` because it
-  // opens a browser.
-  measure: { tokens: 10, windowMs: HOUR_MS },
-  // Deliberately loose, and its own kind for that reason. Polling costs one Redis read; sharing the
-  // `screenshot` budget would let a single preview burn the whole quota at JOB_POLL_INTERVAL_MS and
-  // stop the job the caller already spent a browser slot on.
+  // A first run and every "Run again" alike.
+  analysis: { tokens: 20, windowMs: HOUR_MS },
+  // Deliberately loose: polling costs one Redis read.
   job_status: { tokens: 600, windowMs: HOUR_MS },
-  signin: { tokens: 5, windowMs: 15 * MINUTE_MS },
-  billing: { tokens: 20, windowMs: HOUR_MS },
-  // Loose enough that a typo and a retry cost nothing, tight enough that the address field is not a
-  // free way to make us send mail to a stranger.
-  lead: { tokens: 10, windowMs: HOUR_MS },
-  // One Sonnet call and no browser. Tighter than `variants` because the answer is written once per
-  // analysis and read back from the column afterwards, so a second call on the same analysis is
-  // either a retry after a failure or somebody hammering the button.
-  // Loose on purpose: one UPDATE, no browser, no token, and a reader deciding on a whole report
-  // fires it once per card. Tight enough that it cannot be a write loop.
-  verdict: { tokens: 200, windowMs: HOUR_MS }
+  signin: { tokens: 5, windowMs: 15 * MINUTE_MS }
 }
 
-// Same-origin, so no next/image remote pattern and img-src 'self' already covers them.
-export const SCREENSHOT_PUBLIC_PATH = '/screenshots'
-
-// Exactly what saveScreenshot() writes. An allowlist, not a sanitizer: no separator or dot segment
-// survives it. See docs/security.md.
-export const SCREENSHOT_FILENAME_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.png$/
-
-// It cannot be made an LRU instead: serving a file does not touch its mtime, and atime on a network
-// volume is not dependable. See docs/deployment.md.
-export const SCREENSHOT_RETENTION_DAYS = 30
-
-// How many filenames the prune sends Postgres at a time.
-//
-// `inArray` binds one parameter per entry and a statement takes at most 65535, so a single `IN` over
-// everything expired is a query that works until the day it does not. The day it does not is the
-// first successful run after the cron was broken for a while -- exactly when the backlog is largest
-// and a failure is least likely to be noticed, since the symptom is the same 401-shaped "cron run
-// failed" as everything else. Well under the ceiling on purpose: the cost of a few extra statements
-// once a day is nothing, and the point is to never be near it.
-export const PRUNE_BATCH_SIZE = 500
-
-/**
- * The lead sequence, as the only description of it anywhere.
- *
- * `stage` is what gets written to `leads.stage` once that mail is out, so the cron is idempotent on
- * a column rather than on a timestamp it has to reason about. `afterDays` is measured from
- * `leads.created_at`, which is when the reader asked for the link.
- *
- * **The day-0 mail is not in here.** It is sent inline by `POST /api/leads`, in the same request
- * that writes the row, because the reader is waiting for it. The sequence is only what comes after.
- *
- * Day 2 and day 7 rather than anything tighter: the domain is new at Resend, and a young domain that
- * mails three times in three days earns spam complaints faster than it earns replies.
- */
-export const LEAD_SEQUENCE = [
-  { stage: 1, afterDays: 2, kind: 'measurement' },
-  { stage: 2, afterDays: 7, kind: 'offer' }
-] as const
-
-// How many leads one cron run will mail. A ceiling rather than a target: the run is idempotent on
-// `stage`, so a backlog past this simply finishes on the next day's run instead of turning one
-// invocation into a mail burst that the domain's reputation pays for.
-export const LEAD_SEQUENCE_BATCH_SIZE = 200
-
-// How long a pending payment waits before it is worth a reminder, and how old is too old to bother.
-//
-// The floor exists because Pix is often paid within minutes: mailing at once would reach people who
-// are mid-payment. The ceiling exists because a boleto nobody paid in a week is a decision, not an
-// oversight, and a second nudge past it reads as pestering.
-export const PENDING_PAYMENT_REMINDER_AFTER_HOURS = 6
-export const PENDING_PAYMENT_MAX_AGE_HOURS = 72
-
-// The two Customer Match lists, named here so the sync and any later targeting agree on which is
-// which. Buyers exist to be excluded from targeting, not to be sold to again.
-export const AUDIENCE_LISTS = {
-  leads: 'Hunch leads',
-  buyers: 'Hunch buyers'
-} as const
-
-// How many members one offline user data job carries. Google accepts far more per job; this is small
-// because a failed job is retried whole and a small job is cheap to lose.
-export const AUDIENCE_BATCH_SIZE = 1000
-
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
-
-// How many hypotheses the public report shows in full before the wall.
-export const REPORT_PREVIEW_LIMIT = 3
-
-// Lower than the hypothesis limit: a fix card carries its whole steps list, so two fill a screen.
-export const REPORT_FIX_PREVIEW_LIMIT = 2
 
 // How long a copy button says "Copied" before it goes back to its label. Long enough to be read at a
 // glance, short enough that a second copy does not look like it failed.
 export const COPY_FEEDBACK_MS = 2000
-
-// What the button promises before the click. The wait is long enough to state rather than hide.
-export const PREVIEW_ESTIMATE_SECONDS = 15
-
-// Everything not covered by a timeout below: two DNS lookups, the CDP connect, the page.evaluate
-// round trips, writing the PNG, two queries.
-const PREVIEW_TIMEOUT_SLACK_MS = 15_000
-
-// Derived, never written down: a literal is wrong the first time a budget under it moves. The
-// deadlines are additive -- settlePage only starts counting once goto has returned.
-export const PREVIEW_REQUEST_TIMEOUT_MS =
-  SCREENSHOT_QUEUE_MAX_WAIT_MS +
-  SCRAPE_NAVIGATION_TIMEOUT_MS +
-  SCRAPE_SETTLE_TIMEOUT_MS +
-  SCRAPE_ASSET_READY_TIMEOUT_MS +
-  SCRAPE_PAINT_SETTLE_MS +
-  PREVIEW_TIMEOUT_SLACK_MS
-
-// The wait here is the scrape's, not a request's, so it is stated rather than hidden.
-export const MEASURE_ESTIMATE_SECONDS = 20
-
-// Everything not covered by a deadline below: two DNS lookups, the CDP connect, the three readouts'
-// round trips, the LCP observer handoff, one update.
-const MEASURE_TIMEOUT_SLACK_MS = 10_000
-
-// Derived like PREVIEW_REQUEST_TIMEOUT_MS. The queue wait is the scrape's generous one, because
-// measuring goes through scrapePage rather than failing fast the way a preview does.
-export const MEASURE_REQUEST_TIMEOUT_MS =
-  SCRAPE_QUEUE_MAX_WAIT_MS +
-  SCRAPE_NAVIGATION_TIMEOUT_MS +
-  SCRAPE_SETTLE_TIMEOUT_MS +
-  MEASURE_TIMEOUT_SLACK_MS
 
 // Guards a matching heuristic, so it stays tight: being wrong means snapping a long merged string
 // onto a tiny element. NOT the same as VARIANT_WORD_BUDGET_RATIO below.
@@ -779,13 +389,6 @@ export const TARGET_MATCH_MAX_WORD_RATIO = 1.3
 // Anything wordier is prose with a link in it, not a CTA. Feeds captureStructure's above-fold CTA
 // count for the readout -- it has nothing to do with conversion goals, despite the name.
 export const GOAL_CANDIDATE_MAX_WORDS = 8
-
-// A writing constraint, deliberately looser than TARGET_MATCH_MAX_WORD_RATIO above -- do not
-// unify them. The floor exists because a pure ratio is nonsense at the short end: a 2-word CTA at
-// 1.5x is 3 words, which forbids "Start free, no card required".
-export const VARIANT_WORD_BUDGET_RATIO = 1.5
-
-export const VARIANT_WORD_BUDGET_FLOOR = 3
 
 // How far past its current last line an unclipped element is assumed to be able to grow. One line:
 // enough that a headline is not frozen at its exact current length, small enough that the copy the
@@ -796,37 +399,6 @@ export const VARIANT_GROWTH_LINES = 1
 // Fallback ratio of line height to font size, for the elements whose computed lineHeight is the
 // keyword `normal` rather than a length.
 export const NORMAL_LINE_HEIGHT_RATIO = 1.2
-
-// Fitting the swapped copy back into a box that clips it. Steps are multiplicative on the element's
-// own computed font size, so the shrink is relative to whatever the designer set.
-export const FIT_STEP_RATIO = 0.94
-
-// Past this the preview stops being a picture of the page. An element still clipping at the floor is
-// reported as an overflow rather than shrunk into illegibility.
-export const FIT_MIN_SCALE = 0.7
-
-// Subpixel layout noise. A box is not "clipping" because it is a third of a pixel short.
-export const FIT_TOLERANCE_PX = 1
-
-// A ceiling on what the owner may paste into their own replacement line, and nothing to do with the
-// two budgets beside it. `variantWordBudget` and `variantCharBudget` warn about what will fit the
-// element and never refuse, because it is the reader's own page. This exists only so the column
-// cannot be used as storage.
-export const VARIANT_COPY_MAX_CHARS = 2_000
-
-// How many lines one round writes. The schema asks for exactly this many.
-export const ALTERNATES_PER_ROUND = 2
-
-// How many times a reader may ask for more lines on one hypothesis.
-//
-// **The cap is what keeps the cost of a credit knowable.** Without one, the ceiling is the hourly
-// rate limit and somebody insistent spends several times in tokens what they paid. Three rounds over
-// five hypotheses is thirty written lines, which is already more than anyone reads.
-//
-// It replaced a cap on the total number of variants, which the owner's own edits would have counted
-// against: writing your own line is not asking the model for another one. Rounds are counted over
-// model-authored rows only.
-export const VARIANT_ROUNDS_MAX = 3
 
 // A ceiling and deliberately no floor, for the reason VISIBILITY_MAX has none: a page whose lines are
 // already doing their job should return three rewrites rather than three plus five of padding. There
@@ -841,8 +413,6 @@ export const PLAYBOOK_MIN = 3
 // list would look the same length while quietly covering less of what it now measures. Still bounded:
 // an owner acts on a short list, and every extra card is generation budget and page height.
 export const PLAYBOOK_MAX = 8
-
-export const PLAYBOOK_STEPS_MAX = 5
 
 // No minimum, unlike PLAYBOOK_MIN: zero findings is a correct answer. See docs/ai-pipeline.md.
 export const VISIBILITY_MAX = 6
@@ -921,8 +491,8 @@ export const TREND_CHART = { width: 240, height: 48, padding: 6, dotRadius: 4 } 
 
 export const TREND_SCORE_MAX = 100
 
-// How far back the trend reads. An owner who re-measures after each round of changes gets a dozen
-// points out of this, which is longer than any conversation about one page.
+// How far back the trend reads. An owner who runs the page again after each round of changes gets a
+// dozen points out of this, which is longer than any conversation about one page.
 export const SNAPSHOT_HISTORY_MAX = 12
 
 // Named so the schema's fallback is not a bare literal. See docs/ai-pipeline.md.
@@ -958,18 +528,6 @@ export const PROMPT_TEXT_MAX_CHARS = 48_000
 // spending its window on the least useful page of the site. The page the reader pasted is the
 // subject and keeps the whole budget above.
 export const NEIGHBOUR_TEXT_MAX_CHARS = 6_000
-
-// What each direction asks of a rewrite, in the words the prompt reads. Never shown to the reader --
-// the sentence they tap is a dictionary string like every other preset.
-//
-// **Each one constrains form and none states a fact.** See VARIANT_TONE in lib/enums.ts.
-export const VARIANT_TONE_INSTRUCTION: Record<VariantTone, string> = {
-  direct: 'Say the thing first. No wind-up, no framing clause before the point.',
-  shorter: 'Use noticeably fewer words than the recommended line, without dropping what it states.',
-  concrete:
-    'Replace anything abstract with something the visitor can picture, using only what this page and the details already given actually say.',
-  informal: 'Drop a register. Write it the way somebody would say it out loud, still in full sentences.'
-}
 
 // How many sections at the end of a page are protected when the middle has to be dropped. Pricing,
 // FAQ and the closing call to action live there, which is exactly what a tail truncation throws away
@@ -1100,14 +658,12 @@ export const SAMENESS_CARD_GRID_SIZE = 3
 /**
  * The marks a page picks up from being built out of somebody else's defaults.
  *
- * **Every one of these is countable, and that is the entire reason this list looks like it does.** A
- * vision model shown a screenshot could say "this looks generated", and that sentence would be a
- * token a model wrote presented as a measurement -- which docs/invariants.md forbids outright. What
- * survives the rule is what code can count off the DOM and the computed styles: how many gradients,
- * how many font families, how many icons share one library's path data. See docs/readout.md.
+ * **Every one of these is countable, and that is the entire reason this list looks like it does.**
+ * What code can count off the DOM and the computed styles: how many gradients, how many font
+ * families, how many icons share one library's path data. See docs/scraping.md.
  *
  * **They prove nothing about how the page was made, and nothing here may claim they do.** A
- * hand-written page uses a gradient and a lucide icon; this repo's own `UnlockWall` uses both. The
+ * hand-written page uses a gradient and a lucide icon too. The
  * findings say what is present and the reader draws the conclusion.
  *
  * **This list rots in silence, which is the thing to remember about it.** Lucide changes a path, a
@@ -1234,32 +790,6 @@ export const SECTION_DOT_CLASS: Record<Section, string> = {
   other: 'bg-neutral'
 }
 
-// One channel per landing pain card, in the order dictionary.landing.pains lists them. Here rather
-// than beside the JSX because a colour class at a call site is the one thing CLAUDE.md rules out.
-export const PAIN_CHANNEL_CLASS = ['border-coral', 'border-purple', 'border-blue']
-
-// One channel per step card, in the order dictionary.landing.steps lists them. Same reason as above.
-//
-// **A tinted pill, where the pain cards use a left border, and the difference is deliberate.** The
-// two sections are adjacent on the page; giving both a coloured rule down the left edge would make
-// six cards in a row wearing one treatment, and the reader would read them as one list.
-//
-// **Decorative here, and that does not collide with severity.** `--green` means "passed" and
-// `--amber` means "look at this" in the readout, but that contract belongs to the report -- the
-// landing has never been under it, which is what PAIN_CHANNEL_CLASS above already establishes and
-// what FLOW_CATEGORY_BADGE_CLASS means by "hues repeat across the two families on purpose: they
-// never render in the same list". The three chosen here stay off the severity ramp anyway.
-//
-// **The order is a crescendo, not a rotation.** It ends on `--purple`, which is the channel the
-// featured credit pack's ribbon already wears -- and step three is the one step behind a credit. Two
-// neighbouring purples read as one colour used twice; blue into soft purple into purple reads as a
-// progression toward the thing being sold.
-export const STEP_CHANNEL_CLASS = [
-  'bg-blue/15 text-blue',
-  'bg-purple-soft/15 text-purple-soft',
-  'bg-purple/15 text-purple'
-]
-
 // Hues repeat across the two families on purpose: they never render in the same list.
 export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
   signup_friction: 'bg-coral/15 text-coral',
@@ -1330,7 +860,7 @@ export function impactScoreRailClass(score: number): string {
 
 // A default, never a state the reader is stuck in -- every row can still be closed.
 export const HYPOTHESIS_EXPANDED_COUNT = 3
-// Fewer: playbook cards are the tallest thing on the page once the steps list is showing.
+// Fewer: playbook cards are taller than hypothesis cards.
 export const PLAYBOOK_EXPANDED_COUNT = 2
 
 // **Three, and the number is the point.** The report already ranks everything it contains; a triage

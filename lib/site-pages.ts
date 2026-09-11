@@ -5,10 +5,8 @@ import type { PageLink } from '@/lib/scrape'
  * Which of a page's own links are worth opening, and nothing about opening them.
  *
  * **The landing page is not where a business says what it does.** The price is on the pricing page,
- * the mechanism is in the docs, the customer is on the about page, and the copy generator has never
- * seen any of it -- so it rewrote lines using the only vocabulary in front of it, which was the
- * vocabulary of the line it was replacing. Measuring two neighbours is the same move the brief made,
- * with this code doing the finding instead of the reader doing the typing. See docs/ai-pipeline.md.
+ * the mechanism is in the docs, the customer is on the about page, and the copy generator never sees
+ * any of it unless something opens those pages. This does the finding. See docs/ai-pipeline.md.
  *
  * **It selects; it never crawls.** A link matching no pattern is never opened, so an analysis visits
  * at most `SITE_PAGE_MAX` recognised kinds of page and never walks a site. Nothing here follows a

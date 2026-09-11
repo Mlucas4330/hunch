@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { hasReadout, measuredFindings, readout } from './readout'
+import { hasEvidence, hasReadout, measuredFindings, readout, sectionEvidence } from './readout'
 import { READOUT_THRESHOLDS } from './constants'
+import type { PageSpeed } from './pagespeed'
 import type { PageMobile, PagePerformance, PageSameness, PageSeo, PageStructure } from './scrape'
 import type { CrawlerAccess } from './robots'
 import type { PageKeywords } from './keywords'
@@ -432,7 +433,6 @@ test('a page measured before hasAuthForm existed keeps the finding only when OAu
   )
 })
 
-// The market rules a sentence out, it never supplies a fact about buyers -- see docs/invariants.md.
 test('the CNPJ finding is asked only where it is a convention', () => {
   const counted = { trustBadgeCount: 0, hasCnpj: false }
 
@@ -575,4 +575,61 @@ test('h1_count is wrong in both directions, so its criterion is a target', () =>
     kind: 'exactly',
     threshold: 1
   })
+})
+
+const PAGESPEED: PageSpeed = {
+  categories: { performance: 54, accessibility: null, 'best-practices': 92, seo: 75 },
+  field: null,
+  audits: [
+    { id: 'image-alt', category: 'accessibility', title: 'Image alt', displayValue: null, score: 0 }
+  ]
+}
+
+const INPUT = {
+  structure: STRUCTURE,
+  seo: SEO,
+  performance: PERFORMANCE,
+  crawler: CRAWLER,
+  keywords: KEYWORDS,
+  mobile: null,
+  sameness: null,
+  market: null
+}
+
+test('each section shows the Lighthouse categories its errors were written from', () => {
+  assert.deepEqual(sectionEvidence('flow', PAGESPEED, INPUT).categories, [
+    'performance',
+    'accessibility',
+    'best-practices'
+  ])
+  assert.deepEqual(sectionEvidence('seo', PAGESPEED, INPUT).categories, ['seo'])
+  assert.deepEqual(sectionEvidence('ai', PAGESPEED, INPUT).categories, [])
+  assert.deepEqual(sectionEvidence('copy', PAGESPEED, INPUT).categories, [])
+})
+
+test('a category with no score and no failing audit is left out of its section', () => {
+  const unscored: PageSpeed = { ...PAGESPEED, audits: [] }
+
+  assert.deepEqual(sectionEvidence('flow', unscored, INPUT).categories, [
+    'performance',
+    'best-practices'
+  ])
+})
+
+test('only the AI section carries the robots.txt findings', () => {
+  assert.deepEqual(
+    sectionEvidence('ai', PAGESPEED, INPUT).crawler.map((finding) => finding.id),
+    ['ai_crawlers_blocked', 'robots_blocks_all', 'no_sitemap']
+  )
+  assert.deepEqual(sectionEvidence('seo', PAGESPEED, INPUT).crawler, [])
+})
+
+test('no PageSpeed result and an unreadable robots.txt leave a section with nothing measured', () => {
+  assert.equal(hasEvidence(sectionEvidence('seo', null, INPUT)), false)
+  assert.equal(
+    hasEvidence(
+      sectionEvidence('ai', PAGESPEED, { ...INPUT, crawler: { ...CRAWLER, status: 'unknown' } })
+    ),
+    false
+  )
 })

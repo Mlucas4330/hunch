@@ -3,45 +3,38 @@ import type { AnalysisState } from '@/lib/enums'
 /**
  * What the reader is looking at, decided in one place.
  *
- * Pure, and separate from the two reads that feed it, because the order of these tests is the whole
- * logic and it is worth being able to test without a database or a Redis. A surface deriving its own
- * answer from `measured` / `generated` / ownership is a chance for two screens to disagree about the
- * same row.
+ * Pure, and separate from the reads that feed it, because the order of these tests is the whole logic
+ * and it is worth being able to test without a database or a Redis.
  */
 export type AnalysisFacts = {
-  /** The scrape landed and the readout is stored. */
+  /** The scrape landed and the measurement is stored. */
   measured: boolean
   /** Hypotheses or fixes exist. */
   generated: boolean
-  /** `analyses.user_id` is set, which is the whole of "somebody paid for the generated half". */
+  /** `analyses.user_id` is set. Rows from before the quota existed may carry none. */
   owned: boolean
-  /** A job for this analysis is queued or running right now. Transient: the job outlives nothing. */
+  /** The latest run has `failed_at`: it threw or came back empty. Durable. */
+  failed: boolean
+  /** The latest run's job is queued or running right now. Transient. */
   running: boolean
-  /** A refund is recorded against this analysis in the ledger. Durable, and see the note below. */
-  refunded: boolean
 }
 
 export function analysisState(facts: AnalysisFacts): AnalysisState {
-  // Ordered by how much each test settles, and every early answer is free of I/O -- see
-  // `analysisStateFor`, which only pays for `running` and `refunded` once it reaches the ambiguous
-  // middle.
-  if (!facts.measured) return 'measuring'
-  if (facts.generated) return 'ready'
+  if (!facts.measured) return facts.failed ? 'failed' : 'measuring'
 
-  // **Ownership before anything about the job, and this line is load bearing.** An anonymous run's
-  // job is briefly still `running` after the measurement is committed, and the form navigates the
-  // reader here the moment it is. Asking the job first would show a stranger four placeholders for
-  // fixes nobody bought and nothing will ever write.
-  if (!facts.owned) return 'locked'
+  // Lists on screen stay on screen while a new run replaces them, and a run that failed leaves them
+  // as they were. `failed` outranks a running job, because `failed_at` is written before the queue
+  // writes the job's terminal status.
+  if (facts.generated) return facts.running && !facts.failed ? 'rerunning' : 'ready'
 
-  // **A refund outranks a running job**, because the two can be true at once: `refundCredit` commits
-  // before `runAnalysis` rethrows, and the queue only writes the job's terminal status afterwards.
-  // Read the other way round, a failed analysis would show as generating for as long as that gap and
-  // for the whole of any retry.
-  if (facts.refunded) return 'failed'
+  // A row from before the quota existed was only ever measured, and nothing is coming for it.
+  if (!facts.owned) return 'ready'
+
+  if (facts.failed) return 'failed'
   if (facts.running) return 'generating'
 
-  // Owned, measured, nothing generated, nothing running, nothing refunded: a free run that was
-  // claimed after signing in. Nobody ever bought the generated half, so there is nothing coming.
-  return 'locked'
+  // Owned, measured, nothing generated, nothing recorded as failed and no job: the job was lost.
+  // Nothing is coming, so the reader is told it failed rather than shown a placeholder that never
+  // fills.
+  return 'failed'
 }

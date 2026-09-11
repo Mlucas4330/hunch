@@ -1,18 +1,16 @@
 # Hunch
 
-Paste a landing page URL and get a score out of 100, measured on the page itself: form fields, calls
-to action above the fold, load timings, alt text, what the head declares, what robots.txt allows.
-**The score is free and needs no account.** A credit buys the half a model writes: ranked fixes, the
-replacement copy already written, and a preview of it rendered onto a screenshot of the real page.
+A landing page audit for agencies. Paste a client's URL and get a report: Google PageSpeed Insights
+scores, what the site's robots.txt lets AI crawlers read, and the errors in the page's structure,
+copy, SEO and AI visibility. **The report points out errors and does not write the fix.** It is shared
+with the client by link. See [docs/product.md](docs/product.md).
 
-The reader owns the landing page, and built it with an AI tool -- Lovable, v0, Bolt, Cursor. They
-have a deployed URL and no way to tell whether what came out is any good. See
-[docs/product.md](docs/product.md).
+Access is a monthly quota an operator sets after the subscription is closed outside the app.
 
 ## Tech stack
 
-Next.js App Router + TypeScript · NextAuth (Google, optionally GitHub) · Puppeteer · shadcn/ui +
-Tailwind v4 · Claude API + Vercel AI SDK · Postgres + Drizzle · Redis · Mercado Pago and Stripe ·
+Next.js App Router + TypeScript · NextAuth (Google, optionally GitHub) · Puppeteer · PageSpeed
+Insights API · shadcn/ui + Tailwind v4 · Claude API + Vercel AI SDK · Postgres + Drizzle · Redis ·
 Railway.
 
 ## Quick start
@@ -27,38 +25,23 @@ npm run dev
 npm run db:push
 ```
 
-`REDIS_URL` is **required**, not optional: it is the job queue as well as the rate limiter, and
-without it every analysis answers `503`. `ANTHROPIC_API_KEY` is required for the generated half; the
-measured half runs without it.
+`REDIS_URL` is **required**: it is the job queue as well as the rate limiter, and without it every
+analysis answers `503`. `ANTHROPIC_API_KEY` is required for the error lists and `PAGESPEED_API_KEY`
+for the PageSpeed section. An account needs a quota before it can run an analysis: set one at
+`/admin/accounts`.
 
 ```bash
 npm run typecheck
 npm test                            # unit suite over lib/**/*.test.ts
 npm run test:e2e                    # Playwright on port 3100 with E2E_FIXTURES=1
 npx playwright test --project=dom   # just the DOM specs: no sign in, no database
-npm run seed:pulse                  # local only: enough domains to see the landing board
 ```
 
-Full setup, what each suite covers and what it deliberately cannot cover:
-[docs/development.md](docs/development.md).
-
-## The two halves
-
-The cut runs through the whole codebase and is worth knowing before reading any of it:
-
-- **Measured.** `lib/readout.ts`, `lib/score.ts`, `lib/keywords.ts`. Pure arithmetic over what the
-  scrape counted. **No model is called**, so a run nobody paid for costs a browser slot and zero
-  tokens. Never gated, on any surface.
-- **Generated.** `lib/ai/`. Hypotheses, replacement copy, the flow playbook, the visibility audit.
-  Costs a credit.
-
-`analyses.user_id` is the whole switch: ownerless means measured only. There is no flag, and adding
-one would be a second source of truth that can disagree.
+Full setup and what each suite covers: [docs/development.md](docs/development.md).
 
 ## Documentation
 
-**[docs/invariants.md](docs/invariants.md) comes first.** It holds the rules that cross subsystems:
-what may be stated as a measurement, what a model may never assert, how a balance is allowed to move.
+**[docs/invariants.md](docs/invariants.md) comes first.** It holds the rules that cross subsystems.
 If a sentence would have to appear in two docs, it belongs there and both link to it.
 
 | Doc | Read it when |
@@ -66,12 +49,12 @@ If a sentence would have to appear in two docs, it belongs there and both link t
 | [invariants.md](docs/invariants.md) | always, for the cross-cutting rules |
 | [product.md](docs/product.md) | you need what the product does and for whom |
 | [data-model.md](docs/data-model.md) | touching the schema, a column's contract, or how rows are split |
-| [api.md](docs/api.md) | touching a route under `/api` (analyses, hypotheses, billing) |
+| [api.md](docs/api.md) | touching a route under `/api` |
 | [ai-pipeline.md](docs/ai-pipeline.md) | touching a prompt, a Zod schema, or generation |
-| [scraping.md](docs/scraping.md) | touching `lib/scrape.ts`, the readouts, or browser concurrency |
-| [readout.md](docs/readout.md) | touching anything that shows a number to a reader |
-| [report.md](docs/report.md) | touching the analysis surface at `/r/<embedKey>`, or the `isOwner` split through it |
-| [analysis-ui.md](docs/analysis-ui.md) | touching the landing page, the dashboard, the analysis screen or the fix lists |
+| [scraping.md](docs/scraping.md) | touching `lib/scrape.ts` or browser concurrency |
+| [readout.md](docs/readout.md) | touching PageSpeed Insights or anything that shows a number |
+| [report.md](docs/report.md) | touching the analysis surface at `/r/<embedKey>` |
+| [analysis-ui.md](docs/analysis-ui.md) | touching the dashboard, the admin screen or the error lists |
 | [components.md](docs/components.md) | touching a shared component |
 | [i18n.md](docs/i18n.md) | adding or changing any user-facing string |
 | [seo.md](docs/seo.md) | touching metadata, robots, the sitemap or an OG image |
@@ -79,5 +62,4 @@ If a sentence would have to appear in two docs, it belongs there and both link t
 | [development.md](docs/development.md) | running the app or the suites locally |
 | [deployment.md](docs/deployment.md) | deploying, or debugging a Railway service |
 
-**The docs describe what the product does now.** A rule that exists to keep a shape out says so as a
-rule, in the present tense, with the reason it holds. They are not a changelog: git carries that.
+**The docs describe what the product does now.** They are not a changelog: git carries that.

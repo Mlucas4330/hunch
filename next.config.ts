@@ -1,45 +1,13 @@
 import type { NextConfig } from 'next'
 
-// What the Payment Brick actually reaches for, read off a real run rather than guessed: it loads its
-// own component bundles from http2.mlstatic.com, calls Mercado Libre's fraud-signal endpoints on two
-// domains (.com and .com.br), and frames mercadolibre.com -- which is why frame-src is no longer
-// 'none'. A host missing here is a checkout that dies silently once CSP_ENFORCE is on.
-//
-// secure-fields.mercadopago.com serves the card fields and is listed twice on purpose: it is fetched
-// and then framed, so allowing only connect-src leaves the fields as grey skeletons forever and the
-// frame-src block does not even surface until the fetch is permitted.
-// See docs/security.md.
-const MERCADOPAGO = {
-  script: ['https://sdk.mercadopago.com', 'https://http2.mlstatic.com'],
-  connect: [
-    'https://api.mercadopago.com',
-    'https://secure-fields.mercadopago.com',
-    'https://api.mercadolibre.com',
-    'https://http2.mlstatic.com',
-    'https://www.mercadolibre.com',
-    'https://www.mercadolivre.com'
-  ],
-  img: ['https://http2.mlstatic.com', 'https://www.mercadolibre.com', 'https://www.mercadolivre.com'],
-  frame: [
-    'https://sdk.mercadopago.com',
-    'https://secure-fields.mercadopago.com',
-    'https://www.mercadolibre.com'
-  ]
-}
-
-// The landing page's product tour. One host, framed only -- Supademo serves the player itself from
-// this origin and nothing else on the page talks to it, so it belongs in frame-src and nowhere else.
-// The section renders nothing until SUPADEMO_DEMO_ID is set, so this line is inert until then.
-const SUPADEMO_FRAME = 'https://app.supademo.com'
-
 const CSP = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' ${MERCADOPAGO.script.join(' ')}`,
+  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: https://lh3.googleusercontent.com ${MERCADOPAGO.img.join(' ')}`,
+  "img-src 'self' data: blob: https://lh3.googleusercontent.com",
   "font-src 'self' data:",
-  `connect-src 'self' ${MERCADOPAGO.connect.join(' ')}`,
-  `frame-src ${MERCADOPAGO.frame.join(' ')} ${SUPADEMO_FRAME}`,
+  "connect-src 'self'",
+  "frame-src 'none'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

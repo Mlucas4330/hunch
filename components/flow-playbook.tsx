@@ -3,7 +3,6 @@
 import type { CSSProperties } from 'react'
 import { CardDrawers } from '@/components/card-drawers'
 import { DisclosureCard } from '@/components/disclosure-card'
-import { FixVerdict } from '@/components/fix-verdict'
 import { FlowCategoryBadge } from '@/components/flow-category-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
 import { RankedListHeader } from '@/components/ranked-list-header'
@@ -17,14 +16,11 @@ export function FlowPlaybook({
   fixes,
   section = 'flow',
   expandFrom,
-  isOwner = false,
   className
 }: {
   fixes: FlowFix[]
   section?: PlaybookSection
   expandFrom?: number
-  /** Gates the verdict control, and nothing else on the card. See components/fix-verdict.tsx. */
-  isOwner?: boolean
   className?: string
 }) {
   const { dictionary } = useI18n()
@@ -53,68 +49,17 @@ export function FlowPlaybook({
             defaultOpen={expandFrom === undefined || index < expandFrom}
             badge={<FlowCategoryBadge category={fix.category} />}
             score={<ScoreIndicator score={fix.impactScore} />}
-            // A ranked list should read as ranked while it arrives. The delay comes from the row's
-            // own position, which is the same fact the order already carries. See app/globals.css.
             className="animate-stagger-in"
             style={{ '--index': index } as CSSProperties}
           >
-            <FlowFixBody fix={fix} section={section} isOwner={isOwner} />
+            <p className="text-sm text-muted-foreground">{fix.problem}</p>
+
+            <CardDrawers
+              drawers={[{ id: 'why', label: copy.evidenceLabel, content: fix.evidence ?? null }]}
+            />
           </DisclosureCard>
         ))}
       </div>
     </section>
-  )
-}
-
-function FlowFixBody({
-  fix,
-  section,
-  isOwner
-}: {
-  fix: FlowFix
-  section: PlaybookSection
-  isOwner: boolean
-}) {
-  const { dictionary } = useI18n()
-  const copy = dictionary[section]
-
-  return (
-    <>
-      <p className="text-sm text-muted-foreground">{fix.problem}</p>
-
-      {/* Why comes first in the row and the steps open by default. The order is the constraint --
-          the argument is read before the instructions, never as a footnote under them -- and which
-          one starts open is a separate question: the steps are what the card exists to hand over,
-          so they are what an open card shows. See docs/analysis-ui.md. */}
-      <CardDrawers
-        defaultDrawer="steps"
-        drawers={[
-          {
-            id: 'why',
-            label: copy.evidenceLabel,
-            content: fix.evidence ?? null
-          },
-          {
-            id: 'steps',
-            label: copy.stepsLabel,
-            testId: `${section}-steps`,
-            content: (
-              <ol className="space-y-2">
-                {fix.steps.map((step, index) => (
-                  <li key={step} className="flex gap-3">
-                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <span>{step}</span>
-                  </li>
-                ))}
-              </ol>
-            )
-          }
-        ]}
-      />
-
-      {isOwner && <FixVerdict target="fix" id={fix.id} initial={fix.verdict} />}
-    </>
   )
 }

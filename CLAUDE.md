@@ -28,7 +28,7 @@ Read the file that covers what you are about to touch. Paths are relative to the
 | --- | ------------ |
 | `docs/product.md` | you need what the product does and for whom |
 | `docs/data-model.md` | touching the schema, a column's contract, or how rows are split |
-| `docs/api.md` | touching a route under `/api` (analyses, hypotheses, usage, billing) |
+| `docs/api.md` | touching a route under `/api` (analyses, runs) |
 | `docs/ai-pipeline.md` | touching a prompt, a Zod schema, or generation |
 | `docs/scraping.md` | touching `lib/scrape.ts`, the readouts, or browser concurrency |
 | `docs/readout.md` | touching anything that shows a number to a reader |
@@ -38,7 +38,5 @@ Read the file that covers what you are about to touch. Paths are relative to the
 | `docs/i18n.md` | adding or changing any user-facing string |
 | `docs/seo.md` | touching metadata, robots, the sitemap or an OG image |
 | `docs/security.md` | touching auth, middleware, the URL guard, CORS or rate limiting |
-| `docs/ads.md` | touching the gclid capture, the conversion upload, or the campaigns buying traffic |
-| `docs/ads-assets.md` | changing a headline, a sitelink or a callout that is live in the account |
 | `docs/development.md` | running the app or the suites locally |
 | `docs/deployment.md` | deploying, or debugging a Railway service |

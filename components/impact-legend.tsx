@@ -12,9 +12,8 @@ import { useI18n } from '@/components/i18n-provider'
  * would toggle the card. And the answer is the same for all six rows, so asking it six times is six
  * controls carrying one sentence.
  *
- * The sentence itself is bounded by [invariants.md](../docs/invariants.md): the score ranks the
- * fixes against each other, it was written by a model rather than counted, and it never says what
- * the change will produce.
+ * The sentence says the score ranks the errors against each other and was written by a model rather
+ * than counted.
  */
 export function ImpactLegend() {
   const { dictionary } = useI18n()

@@ -17,12 +17,12 @@ export const MAX_PROMPT_ELEMENTS = 150
 const PRIORITY_ELEMENT_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'button'])
 
 /**
- * The elements the copy prompt may write a variant for, chosen by what they are rather than by where
- * they sit in the document.
+ * The elements the copy prompt may quote, chosen by what they are rather than by where they sit in
+ * the document.
  *
  * `captureElements` walks `document.querySelectorAll('*')`, so it returns in document order. A plain
- * `.slice` off the front would make the last hundred elements of a long page unreachable, leaving no
- * possible variant for a closing call to action that happens to be element number four hundred.
+ * `.slice` off the front would make the last hundred elements of a long page unreachable, so a
+ * closing call to action that happens to be element number four hundred could never be assessed.
  * Headings and clickable controls claim their places first and body copy fills what is left.
  *
  * **The result is re-sorted back into document order.** The model reasons about a page as a sequence,

@@ -12,13 +12,13 @@ export async function generateMetadata() {
  * The privacy policy, rendered from the dictionary like every other page of copy.
  *
  * **Every claim here is one the code can be checked against**, which is the only reason a policy is
- * worth reading: the retention it names is `SCREENSHOT_RETENTION_DAYS`, the cookies it lists are the
- * session and `GCLID_COOKIE`, and the sentence about nothing being loaded from an ad network is the
- * decision in docs/ads.md. A line that stops being true is a line to change here, not to soften.
+ * worth reading: the cookies it lists are the session, the locale and the theme, and the services it
+ * names are the only ones the code calls. A line that stops being true is a line to change here, not
+ * to soften.
  *
  * The date comes from `PRIVACY_UPDATED` rather than from the sentence, so the copy cannot disagree
  * with the file about when it last changed. The contact address is interpolated from `CONTACT_EMAIL`
- * for the same reason: the footer, the mail headers and this policy all name one mailbox.
+ * for the same reason: the footer and this policy name one mailbox.
  */
 export default async function PrivacyPage() {
   const locale = await getLocale()

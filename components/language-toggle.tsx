@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
  * regional indicator pair as the boxed letters "BR" and "US" -- which is the small out of proportion
  * label this replaced, with less control over it. These are SVGs and render the same everywhere.
  *
- * It lives here rather than in `lib/constants.ts` for the reason `READOUT_GROUP_ICON` does: that file
+ * It lives here rather than in `lib/constants.ts` for the reason `CATEGORY_ICON` does: that file
  * is imported by pure modules and holds strings, and a component in it would pull the flag set into
  * all of them.
  */

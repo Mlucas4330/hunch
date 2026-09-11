@@ -1,431 +1,153 @@
 # Deployment
 
-The whole project is declared in `.railway/railway.ts`, Railway's **Infrastructure as Code**, which
-replaced the deprecated *Config as code* (`railway.json`, `railway.*.json`). One file holds every
-service, its builder, its schedule and its variables, and `railway config apply` reconciles the project
+The whole project is declared in `.railway/railway.ts`, Railway's **Infrastructure as Code**. One file
+holds every service, its builder and its variables, and `railway config apply` reconciles the project
 against it. The `railway` package is a devDependency for the types, and `tsconfig.json` includes
 `.railway/**/*.ts` so `npm run typecheck` covers it.
 
-**Omitting something means deleting it.** The file is the whole desired state, not a patch over the
-dashboard, so a service, a variable or a volume that is not in it is removed on the next apply. Read
-`railway config plan` before applying, it prints the diff, and a destructive one needs
-`--confirm-destructive` when applying non-interactively.
+**Omitting something means deleting it.** The file is the whole desired state, so a service, a variable
+or a volume that is not in it is removed on the next apply. Read `railway config plan` before applying;
+a destructive diff needs `--confirm-destructive` when applying non-interactively.
 
-**No secret is in the file.** Every credential is declared as `preserve()`, which means "keep the value
-already set in Railway": the names are version-controlled, so a variable missing from a service shows up
-in the diff, and the values never leave the dashboard.
+**No secret is in the file.** Every credential is declared as `preserve()`, which keeps the value
+already set in Railway.
 
-Nothing in this repo builds or pushes an image, and there is no Dockerfile for the app, Railway's
-GitHub integration builds it with **Railpack**, the builder that replaced Nixpacks. Nixpacks is
-deprecated and `.railway/railway.ts` must never name it again.
+Nothing in this repo builds or pushes an app image: Railway builds it with **Railpack**. Nixpacks is
+deprecated and must never be named again.
 
 ## Services
 
 | Service | Source | Notes |
 | ------- | ------ | ----- |
-| `app` | repo, Railpack | public domain, `screenshots` volume mounted at `/data` |
+| `app` | repo, Railpack | public domain |
 | `browser` | repo, `Dockerfile.browser` | **no variables, no public domain** |
 | `postgres` | `postgres()` helper | |
 | `redis` | `redis()` helper | rate limit counters and the job queue |
-| `cron-prune` | repo, `Dockerfile.cron` | calls `/api/cron/prune-screenshots`, daily |
 
-Every service but the two databases is the **same repo** with a different `build` block. The schedules
-live in `deploy.cronSchedule` rather than in the dashboard, so a changed cron time arrives as a diff.
+**The screenshots volume and the four cron services are gone from the file**, so the first apply after
+they were removed deletes them. That diff is destructive and needs `--confirm-destructive`. Anything
+still on the volume is lost with it.
 
 ## Bringing a project up
 
-`railway link` the project, then **`railway config pull` first**: it writes the project's current state
-over the file, and a clean import must plan to zero changes. Pull is what turns a guess about names
-into a reading of them, service names, the region, volume names and which variables actually exist are
-none of them derivable from this repo. Merge the `build` and `deploy` blocks back on top of what it
-brought, because those live in the file and Railway reports them as `null`. Then `railway config plan`
-to read the diff and `railway config apply` to reconcile. That creates every service in the table, both databases, the volume and its mount, and every
-variable whose value the file knows, `DATABASE_URL`, `REDIS_URL`, `BROWSER_URL`, `AUTH_TRUST_HOST`,
-`SCREENSHOT_DIR`, `PUPPETEER_SKIP_DOWNLOAD`, the two cron variables and the custom domain all come from
-it. One thing it cannot do for you: **fill in the `preserve()` values.** Set the secrets from
-`.env.example` on `app` in the dashboard. **Two of them are per-environment origins and must not be
-copied**: set **both** `AUTH_URL` and `NEXT_PUBLIC_APP_URL` to this deploy's own public origin.
+`railway link` the project, then **`railway config pull` first**: a clean import must plan to zero
+changes. Merge the `build` and `deploy` blocks back on top of what it brought, then `railway config
+plan` and `railway config apply`.
 
-`PUPPETEER_SKIP_DOWNLOAD=true` is in the file rather than the dashboard because production connects to
-the `browser` service over CDP and never launches Chrome itself, so the ~180MB Chromium puppeteer's
-postinstall would otherwise pull into every build is dead weight.
+**Fill in the `preserve()` values** on `app` in the dashboard, from `.env.example`: `ANTHROPIC_API_KEY`,
+`PAGESPEED_API_KEY`, the auth variables and `ADMIN_EMAIL`. **Two of them are per-environment origins
+and must not be copied**: set both `AUTH_URL` and `NEXT_PUBLIC_APP_URL` to this deploy's public origin.
+
+`PUPPETEER_SKIP_DOWNLOAD=true` is set because production connects to the `browser` service over CDP
+and never launches Chrome itself.
+
+**`PAGESPEED_API_KEY`** is a Google Cloud API key with the PageSpeed Insights API enabled. Without it
+every analysis is saved with no PageSpeed section and logs `pagespeed.failed`.
 
 ### Domains
 
-`app` declares `hunch.solutions`, and that is the one Railway will not invent for you: a custom domain
-is a name the repo can state, so it belongs in the file.
+`app` declares `hunch.solutions`. **Never list the generated `*.up.railway.app` host there**, and
+**check the domain's target port in the dashboard before applying**: a domain with no `port` compiles
+to `8080`.
 
-**Never list the generated `*.up.railway.app` host there.** Everything in `domains` compiles to
-`customDomains`. There is no classification by suffix, so naming the generated host would ask Railway
-to attach it as a custom domain of its own service.
-
-**A domain with no `port` compiles to `8080`**, in both the string and the object form; the object form
-is there so a port can be named without rewriting the entry. That default has to match the port the
-service actually listens on, `next start` binds whatever `PORT` Railway injects, see
-[Healthcheck](#healthcheck), so **check the domain's target port in the dashboard before applying**.
-A mismatch is overwritten on the next apply and reads as a domain that resolves and then times out,
-which looks nothing like a config change.
-
-### The volume
-
-`app` mounts the `screenshots` volume at `/data`, so `/data/screenshots` is persisted.
-
-**Anything else ever written under `SCREENSHOT_DIR` inherits the prune.** `prune-screenshots`
-deletes everything under it past the retention window, so a file that is meant to outlive that
-belongs in its own directory rather than beside the screenshots.
-
-**A rendered preview is two files, not one.** The before/after slider stores the page as it is
-alongside the page with the rewrite applied, so the volume fills at roughly twice the old rate.
-Both inherit the prune on disk with no extra code, which is the upside of the rule above, but
-**the row pointing at them does not**: `prune-screenshots` clears `screenshot_url` and
-`screenshot_before_url` in two separate statements, because a single update matching either column
-would null both, and a column whose file still exists has to keep it.
-### The browser and the crons
+### The browser
 
 `browser` gets **no variables and no domain**, and `app` reaches it through
-`BROWSER_URL = http://${{ browser.RAILWAY_PRIVATE_DOMAIN }}:9222`, a reference, with both the
-`http://` and the `:9222` spelled out. See
-[scraping.md](scraping.md#browser-lifecycle-and-the-concurrency-cap) for what each half of that value is
-load-bearing for.
+`BROWSER_URL = http://${{ browser.RAILWAY_PRIVATE_DOMAIN }}:9222`, with both the `http://` and the
+`:9222` spelled out. See [scraping.md](scraping.md#browser-lifecycle-and-the-concurrency-cap).
 
-Each cron carries these two, and the file states them differently on purpose:
-
-```
-CRON_SECRET = app.env.CRON_SECRET   // a reference, declared in .railway/railway.ts
-APP_URL     = https://hunch.solutions   // a value, held in the dashboard as preserve()
-```
-
-The split is forced by the rule below: **a variable's value is write-only to IaC**, so only the
-reference can be declared without the plan drifting forever. `CRON_SECRET` is the half that matters
-it is the one that must never drift from `app`'s, and it is the half the file can hold.
-
-**They stay separate services on purpose.** The browser service's empty environment is the entire
-mitigation for its missing sandbox ([security.md](security.md)), and merging it into `app` would put an
-unsandboxed renderer in the same container as `DATABASE_URL` and `ANTHROPIC_API_KEY`. A service per
-build block is also what keeps `watchPatterns` meaningful: without it every push to the app would
-rebuild `browser` too, and that image reinstalls Chromium from apt each time.
-
-**`CRON_SECRET` is a reference, and nothing may retype it.** A hand-copied one that drifts from `app`'s
-is the likeliest way this breaks, and it fails as a `401` that looks like a broken route.
-
-**An unset `CRON_SECRET` on `app` fails the same way**, and that is deliberate: `secretsMatch` returns
-false when either side is missing, so a service with no secret refuses every call rather than
-accepting all of them. Three different mistakes therefore produce one identical symptom, a `401` in
-the cron's log, and none of them is a wrong secret: the variable missing on `app`, the variable
-missing on `cron-prune`, and the shell never interpolating it. `e2e/cron-prune.spec.ts` covers the
-boundary, including the shape where the `Bearer ` prefix is lost.
-`APP_URL` is a per-environment origin under the same rule as `AUTH_URL`, which is exactly why it is a
-variable instead of a literal in the committed start command.
-
-**A second cron is one more service, never a second URL in the same command.** `curl` exits 0 on a
-non-2xx, so `curl A && curl B` is really `A; B`, and adding `-f` to fix that would
-have let a failed first call silently skip the prune. One route per service is what makes
-`--fail-with-body` in `scripts/cron-call.sh` safe, so a `401` or a `500` surfaces as a failed run
-instead of a green one, and it keeps the schedules independent.
+**It stays a separate service on purpose.** Its empty environment is the whole mitigation for its
+missing sandbox ([security.md](security.md)).
 
 ## The browser image
 
 `Dockerfile.browser` is Chromium plus `scripts/browser-entrypoint.sh`, which starts a `socat`
-forwarder on 9222 and then `exec`s Chrome on **9223**, loopback. Chrome is never asked to bind the
-reachable address, and that is deliberate:
+forwarder on 9222 and then `exec`s Chrome on **9223**, loopback:
 
-- **`--remote-debugging-address` binds one family.** `0.0.0.0` is IPv4 only, and Railway's internal
-  DNS answers with IPv6, so the app's connect is refused by a container that looks perfectly healthy.
-  `socat` listens on v6 with `ipv6only=0` and therefore answers both, whichever family `lookup()`
-  happens to pick.
-- **Chrome ignores the flag often enough to matter.** It came up on `127.0.0.1` regardless, and the
-  only evidence was one line in the browser service's log.
+- **`--remote-debugging-address` binds one family**, and Railway's internal DNS answers with IPv6.
+  `socat` listens on v6 with `ipv6only=0` and answers both.
+- **Chrome ignores the flag often enough to matter.**
 
-**`DevTools listening on ws://127.0.0.1:9223` is now the healthy line.** Loopback and 9223 are what
-the script asks for. Read the log for the port, not the address: a `9222` there means the entrypoint
-was bypassed. Everything else in that log (dbus, GCM `PHONE_REGISTRATION_ERROR`, Vulkan `Found no
-drivers`) is noise from running a desktop browser in a bare container, and none of it breaks CDP.
+**`DevTools listening on ws://127.0.0.1:9223` is the healthy line.** A custom start command in the
+dashboard overrides the `ENTRYPOINT` and undoes all of this silently.
 
-The app never learns about 9223: Chrome builds `webSocketDebuggerUrl` from the `Host` header it
-receives, so it echoes back the address that arrived through the forwarder. That is the same
-mechanism as the rebinding guard in [scraping.md](scraping.md#browser-lifecycle-and-the-concurrency-cap).
-
-**A custom start command in the dashboard overrides the `ENTRYPOINT` and undoes all of this**,
-silently. It is the first thing to check when the log says `127.0.0.1` after a rebuild.
-
-The `browser` service carries **no `healthcheckPath`**. CDP's `/json/version` would answer a probe, but
-Chrome rejects it unless the prober sends an IP or `localhost`, and a failing healthcheck gates the
-deploy, so the line meant to catch a wedged Chromium would instead turn every `browser` deploy into a
-rollback. A wedged browser is handled app-side by the connect retry in
-[scraping.md](scraping.md#browser-lifecycle-and-the-concurrency-cap).
-
-## The cron image
-
-`Dockerfile.cron` is `curlimages/curl` at a pinned tag plus `scripts/cron-call.sh`. It builds an image
-that adds nothing to its base, and it exists only because a service needs *something* to build
-without a Dockerfile, Railpack would build the whole Next app to run one `curl`.
-
-The call is a **script rather than an inline start command**, because Railway runs a custom start
-command for a Dockerfile service **in exec form, without a shell**. `curl -H "Authorization: Bearer
-$CRON_SECRET"` written straight into `startCommand` sends curl those fourteen literal characters and
-gets a `401`, indistinguishable, in the logs, from a secret that is actually wrong. The script takes
-the route as `$1`, so a second cron service would reuse it unchanged and differ only in
-`startCommand` and `cronSchedule`.
-
-There are four of them now, and the script's design paid off exactly as written: `cron-lead-sequence`,
-`cron-pending-payments` and `cron-audience-sync` reuse it unchanged and differ only in `startCommand`
-and `cronSchedule`.
-
-**They are staggered rather than all set to 09:00**, because three services waking together against
-one app instance is a self-inflicted burst and none of them is urgent to the minute. Two are safe to
-move; **`cron-pending-payments` is not.** Its idempotency is the age window it looks at rather than a
-column, so a schedule that fires twice a day mails the same person twice. See [api.md](api.md).
-
-`restartPolicyType` is **`NEVER`**. A cron container is expected to exit; `ON_FAILURE` would turn one
-failed call into a restart loop against `app`. Railway also **skips** a scheduled run whose
-predecessor is still going, and guarantees no better than a few minutes' accuracy, which is why this
-is a daily job and not a substitute for anything time-sensitive.
-
-**Deleting a cron route means deleting its service from `.railway/railway.ts`.** The `service()` call
-and its entry in `resources`, and applying. That is a destructive change, so the plan names it and a
-non-interactive apply needs `--confirm-destructive`. Leaving the service behind leaves it firing on
-schedule at a route that answers nothing. The service has to go from the Railway project in both
-places: `.railway/railway.ts`, and the dashboard if an older apply left it running. Under *Config as
-code* the repo could not remove a service at all, so this is the one thing the migration made
-strictly better rather than merely equal.
-
-## Mercado Pago
-
-The provider that can charge in BRL against a CPF, which is what makes it the one selling today.
-
-Three variables: `MERCADOPAGO_ACCESS_TOKEN`, `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY` (the Brick is
-initialised with it in the browser) and `MERCADOPAGO_WEBHOOK_SECRET`. **Test and production
-credentials come in pairs and must never be mixed.** A production token with a test public key
-produces a form whose payments are refused with no useful error. The packs are only offered when the
-token and the public key are both set (`mercadoPagoEnabled`); otherwise the buttons fall back to
-Stripe checkout.
-
-A **notification URL** at `https://<domain>/api/billing/mercadopago/webhook`, registered under "Suas
-integrações" for the `payment` topic. Its secret is shown once there, and it is the same one the
-route verifies against, a route answering `400 invalid_signature` on every delivery is almost always
-that secret rather than a broken handler.
-
-How much a payment is worth comes from `CREDIT_PACKS.amountBrl`, and it has to match the price the
-dictionary prints, exactly as the Stripe price ids do.
-
-## Google Ads
-
-Six variables, all of them optional and all of them required together -- `googleAdsEnabled()` refuses
-a partial set, because half a configuration is one failed upload per payment forever. Unset outside
-production, where the conversion report skips quietly. The variables, the setup order and the reason
-`GOOGLE_ADS_API_VERSION` is a scheduled chore rather than a constant are in [ads.md](ads.md).
-
-**Nothing is served to a browser for this**, so there is no CSP entry, no script host and no consent
-banner to configure. The only runtime dependency is outbound access to `oauth2.googleapis.com` and
-`googleads.googleapis.com`.
-
-## Stripe
-
-Kept alongside, and it charges nothing until it is configured. A **webhook endpoint** at
-`https://<domain>/api/billing/webhook` subscribed to `checkout.session.completed`, with its signing
-secret in `STRIPE_WEBHOOK_SECRET`. It claims every delivery into `payment_events` before doing any
-work, and grants credits for a session whose
-`payment_status` is `paid`. See [api.md](api.md#post-apibillingwebhook).
-
-Plus **one price id per credit pack** in `STRIPE_PRICE_SINGLE` and `STRIPE_PRICE_TRIO`. Those ids are
-the only thing that decides how many credits a payment buys, and an unset one makes that pack refuse
-checkout rather than sell nothing. A price left behind at Stripe after a pack is dropped charges an
-amount `creditsForAmount` does not recognise, which grants nothing.
-
-**Two things hold one number and Stripe is not asked at render time:** the amount each price charges,
-and the amount printed on the home page. Change them together or the page lies about what it costs.
-
-Whether Stripe can charge in BRL at all without a registered company is still open. That is why
-granting goes through one provider-agnostic path, see
-[invariants.md](invariants.md#credits-are-granted-by-one-internal-path-and-no-provider-code-touches-the-tables).
-
-The signing secret differs between the dashboard's test and live modes and between endpoints, so a
-webhook that answers `400 invalid_signature` on every delivery is almost always the wrong secret
-rather than a broken route.
+The `browser` service carries **no `healthcheckPath`**: Chrome rejects a CDP probe from a hostname, and a
+failing healthcheck would roll back every deploy.
 
 ## The build
 
-Railpack detects Node from `package.json`, installs with npm from `package-lock.json`, runs the
-`build` script, and starts with `startCommand` from `.railway/railway.ts`. Nothing else needs configuring,
-but two details are load-bearing:
+Railpack detects Node from `package.json`, installs from `package-lock.json`, runs `build`, and starts
+with `startCommand`.
 
-- **The Node version comes from `engines.node`.** Without it Railpack picks whatever `lts` resolves
-  to on the day of the build, which is how a deploy starts failing on a commit that changed nothing.
-- **Railpack installs Chromium's apt dependencies whenever it sees `puppeteer` in the dependencies**,
-  even though `app` never launches a browser, it connects to the `browser` service over CDP. That is
-  build time and image size spent on nothing, and it is not switchable off; `PUPPETEER_SKIP_DOWNLOAD=true`
-  only skips puppeteer's own ~180MB Chromium download, not those packages. Live with it rather than
-  moving puppeteer to devDependencies, which would break the build.
-
-Railpack does **not** prune devDependencies by default, but do not rely on that, `drizzle-kit` stays
-a regular dependency for the reason under [Migrations](#migrations).
+- **The Node version comes from `engines.node`.**
+- **Railpack installs Chromium's apt dependencies whenever it sees `puppeteer`**, even though `app`
+  never launches a browser. Live with it rather than moving puppeteer to devDependencies.
 
 ## Healthcheck
 
-`healthcheckPath` is `/api/health`: a route that imports nothing and answers `200 ok`.
-**It deliberately does not check the database.** Railway queries the path only until
-the new deployment goes live and never again, so a dependency check there buys no monitoring, it only
-turns a Postgres blip during a release into a rolled-back deploy.
+`healthcheckPath` is `/api/health`: a route that imports nothing and answers `200 ok`. **It deliberately
+does not check the database**, because Railway only probes until the deploy goes live.
 
-**It is not `/`, and that is the failure worth remembering:** the landing page renders through the
-middleware, `auth()` and therefore `db/index.ts`, so a missing `AUTH_SECRET`, an unset
-`NEXT_PUBLIC_APP_URL` or an unreachable database turns a healthy container into a failed deploy with
-no error pointing at any of them.
+**It is not `/`**: that route reads the session, which goes through `auth()` and the database, so a
+missing `AUTH_SECRET` or an unreachable database would fail the deploy with no error pointing at either.
 
-Three more things the probe depends on:
+- **The route must stay out of the middleware matcher.**
+- **`next start` binds `0.0.0.0` and reads `PORT`.** Never pass `-p` or `-H`.
 
-- **The route must stay out of the middleware matcher** (`middleware.ts`), or the probe pays a NextAuth
-  session check that can throw before it reaches the route.
-- **`next start` binds `0.0.0.0` and reads `PORT`**, which is the variable Railway injects and probes.
-  Never pass `-p` or `-H` to it.
-- **Requests arrive from `healthcheck.railway.app`.** Nothing here filters by host, and nothing should
-  start to.
-
-The timeout is 300s, Railway's own default, rather than the 120s that was there before: `preDeployCommand`
-migrations plus a cold Next boot are the slow part, and a probe that gives up early looks exactly like
-an app that never came up.
+The timeout is 300s, because migrations plus a cold boot are the slow part.
 
 ## Logs: `lib/log.ts`
 
-One JSON line per event on stdout, which is what Railway collects. There is no transport and no
-error-tracking dependency: both would be a failure mode of their own in exchange for something the
-platform already does.
-
-Every line has `level`, `event` and `at`. **The event names are an enum** (`LOG_EVENT` in
-`lib/enums.ts`) rather than free text, because the `console.error` calls this replaced had drifted
-into several spellings of the same event and could not be counted. A line that cannot be serialized
-is dropped rather than thrown, logging must never take down the work it is describing.
-
-**Three of the events carry a number rather than a failure**, and they are the three that decide
-whether the app is keeping up. Nothing reported them before, so a queue backing up under traffic was
-invisible until readers started timing out:
+One JSON line per event on stdout. Event names are the `LOG_EVENT` enum.
 
 | Event | Field | What it answers |
 | --- | --- | --- |
 | `queue.enqueued` | `depth` | How much work was already ahead of this job |
-| `scrape.slot_acquired` | `waitMs`, `queued` | Whether `SCRAPE_MAX_CONCURRENT_PAGES` is actually binding |
-| `queue.job_finished` | `ms` | How long a job takes, which is what sizes `QUEUE_MAX_DEPTH` |
-
-The last one is load bearing for capacity: `QUEUE_MAX_DEPTH` has to stay inside `ANALYSIS_WAIT_MAX_MS`
-at the measured duration and `QUEUE_DRAIN_CONCURRENCY`, or the queue accepts work whose reader will
-have given up before it runs. See [scraping.md](scraping.md).
-
-**The healthcheck is not monitoring.** See above, Railway stops probing once a deploy is live. These
-lines are.
+| `scrape.slot_acquired` | `waitMs`, `queued` | Whether `SCRAPE_MAX_CONCURRENT_PAGES` is binding |
+| `queue.job_finished` | `ms` | How long a job takes, which sizes `QUEUE_MAX_DEPTH` |
+| `pagespeed.failed` | `status`, `reason` | PageSpeed Insights answered with an error, timed out, or no key is set |
 
 ## Things that are easy to get wrong
 
-- **`NEXT_PUBLIC_*`, `CSP_ENFORCE` and `DATABASE_URL` are read at *build* time, not just at runtime.**
-  Next inlines `NEXT_PUBLIC_*` into the client bundle, `next.config.ts` reads `CSP_ENFORCE` at module
-  scope, and `next build` imports every route module to collect page data, which reaches `db/index.ts`,
-  so a build with no `DATABASE_URL` fails outright. Railpack builds see the service's variables, so
-  setting them on `app` is enough. **This is the single biggest reason the app is not built from a
-  hand-written Dockerfile**: there, each one needs an explicit `ARG`, and forgetting one ships report
-  links pointing at `localhost`.
-- **An empty variable is not an unset one.** Railway keeps a variable you cleared rather than deleting
-  it, so `process.env.X` is `''` and every `??` fallback in the codebase is skipped. `next build` runs
-  each route's module scope, so an empty `STRIPE_SECRET_KEY` reaching `new Stripe()` fails the whole
-  build on a route nobody touched. Delete the variable instead of blanking it, and guard with `||`.
-- **`AUTH_URL` must be this deploy's own public origin**, and it fails in opposite directions from
-  either side of that. "Leave it empty" fixes one half and causes the other.
-  - **Copied from `.env.example`**, `reqWithEnvURL` rewrites *every* auth request's origin to it with
-    no `trustHost` involvement, and `createActionURL` prefers it over the request headers, so Google
-    receives `redirect_uri=http://localhost:3000/api/auth/callback/google` and rejects it.
-  - **Absent**, Auth.js builds its URLs from the request Next received, and **Next does not apply
-    `x-forwarded-host` to it.** So behind the proxy the origin is the container and sign-in redirects
-    to `https://localhost:8080`. Reproduced, not inferred: with `AUTH_TRUST_HOST=true` and correct
-    `X-Forwarded-*` headers set, the sign-in POST still answers
-    `location: https://localhost:8080/auth/signin`. Setting `AUTH_URL` to the public origin turns the
-    same request into `redirect_uri=https://<domain>/api/auth/callback/google`.
-
-  So the safe production setting is **the real origin**, not empty and not the dev value.
-- **A blank `AUTH_URL` is worse than a missing one**, and this is the sharpest edge of the empty
-  variable rule above. Auth.js resolves trust as `AUTH_URL ?? AUTH_TRUST_HOST ?? VERCEL ?? ...`, and
-  `??` falls through only on null or undefined. An empty string is neither, so it takes the chain,
-  resolves falsy, and **every auth request answers `UntrustedHost` no matter what `AUTH_TRUST_HOST`
-  says**. In a dashboard that means deleting the variable, never clearing it.
-- **`AUTH_TRUST_HOST=true` is required** behind Railway's proxy, or sign-in fails looking like broken
-  OAuth. It is not an alternative to `AUTH_URL`: it decides whether a request is served at all, never
-  what URL is built from it.
-- **The volume must be writable by the app.** `saveScreenshot` degrades quietly on `EACCES`
-  (`/api/report/screenshot` returns `url: null` by design), so a mount the app cannot write shows up as
-  reports without previews rather than as an error. Test it by requesting a preview on a real report. A
-  **full** volume looks identical, which is what `cron-prune` exists to prevent.
-- **Previews expire after `SCREENSHOT_RETENTION_DAYS` (30).** A report link pasted into cold email and
-  opened months later shows the preview button again rather than the cached image, and clicking it
-  re-renders. That is the intended trade, not a bug. **do not debug a vanished preview as one.** It
-  cannot be made least-recently-used instead: serving a file does not touch its `mtime`, and `atime` on
-  a network volume is not dependable.
-- **`browser` gets no public domain and no TCP proxy.** Anyone who reaches CDP on 9222 controls that
-  browser completely, including reading files inside its container.
-- **No secrets in project-level shared variables.** Railway propagates those into every service,
-  including `browser`.
-- **`scripts/cron-call.sh` and `scripts/browser-entrypoint.sh` must stay LF.** They run inside Linux
-  containers, and a CRLF committed from a Windows checkout makes `sh` read the trailing `\r` as part
-  of the last argument, a malformed-URL failure in one, a rejected Chrome flag in the other, neither
-  pointing anywhere near line endings. `.gitattributes` pins `*.sh`; do not remove it.
-- **The `app` service's `watchPatterns` negations are load-bearing.** They exist so a push touching only
-  `Dockerfile.browser`, `Dockerfile.cron`, `scripts/cron-call.sh` or `scripts/browser-entrypoint.sh`
-  does not redeploy `app`. `.railway/railway.ts` is deliberately **not** negated: a change to `app`'s own
-  deploy config has to reach a build to take effect. The cost is that editing a cron schedule redeploys
-  `app` as well, which is the price of one file describing every service.
-- **A variable's value is write-only to IaC, so declaring one drifts forever.** `railway config plan`
-  reports the current side of every variable as `preserve()`, Railway never hands the stored value
-  back for comparison, so any literal declared in the file shows as a change on every plan, applies
-  "successfully", and shows again on the next one. **References are exempt**: `app.env.CRON_SECRET`
-  compares and settles. So the file declares references and `preserve()`, never a literal value, and
-  that is also why `railway config pull` renders every variable as `preserve()` rather than as itself.
-  A permanently dirty plan is worse than an undeclared value: it teaches you to skim the one output
-  that is supposed to be read before an apply.
-- **A service's *Config as code* path outlives the file it points at, and IaC cannot clear it.**
-  `browser` and `cron-prune` had `/railway.browser.json` and `/railway.cron-prune.json` set by hand in
-  the dashboard, and deleting those files left the pointers behind: both services failed their next
-  build, with a log that stops at `scheduling build on Metal builder` and says nothing else. `app` was
-  never affected, because a root `railway.json` is auto-detected rather than pointed at, so it had no
-  path to go stale, which is why the app kept serving while the other two could not build.
-  Declaring `configFile` in `.railway/railway.ts` does **not** fix it: the field is not managed by IaC
-  and plans to no change at all. Clear it in the dashboard, or through the API with
-  `serviceInstanceUpdate` and `railwayConfigFile: ""`. **An explicit `null` there is silently ignored**
- , the mutation answers `true` and the value stays, because a patch reads null as "not provided".
-  The empty string is what actually clears it.
-- **`ON_FAILURE` cannot be written, because it is the default.** Railway stores an unset restart policy
-  rather than the default's name, so declaring it makes every plan report the same `null → "ON_FAILURE"`
-  change, apply report success, and the next plan report it again. `app` therefore declares only
-  `restartPolicyMaxRetries`. `ALWAYS` on `browser` and `NEVER` on the crons are not defaults and do
-  persist. See [The cron image](#the-cron-image) for why `NEVER` is load-bearing there.
-- **On Windows, `npm i -g @railway/cli` does not put `railway.exe` on the PATH.** It installs `.cmd` and
-  `.ps1` shims next to the real binary, and the IaC SDK checks the CLI version with `execFileSync`,
-  which cannot run a `.cmd`. The failure is `ENOENT`, which the SDK reports as **"requires Railway CLI
-  5.42.1 or newer".** A version error naming a CLI that is already newer than that. Put
-  `%APPDATA%\npm\node_modules\@railway\cli\bin` on the PATH, or install the native CLI.
-- **Rate limiting fails open.** See
-  [invariants.md](invariants.md#rate-limiting-fails-open-deliberately). Confirm with a real 429 rather
-  than by reading the config.
+- **`NEXT_PUBLIC_*`, `CSP_ENFORCE` and `DATABASE_URL` are read at build time**, not just at runtime.
+- **An empty variable is not an unset one.** Railway keeps a cleared variable, so `process.env.X` is
+  `''` and every `??` fallback is skipped. Delete the variable instead of blanking it.
+- **`AUTH_URL` must be this deploy's own public origin.** Copied from `.env.example` it sends Google a
+  localhost `redirect_uri`; absent, Auth.js builds URLs from the container's origin; **blank, every auth
+  request answers `UntrustedHost`**.
+- **`AUTH_TRUST_HOST=true` is required** behind Railway's proxy.
+- **`browser` gets no public domain and no TCP proxy.** Anyone reaching CDP controls that browser.
+- **No secrets in project-level shared variables.** Railway propagates those into every service.
+- **`scripts/browser-entrypoint.sh` must stay LF.** `.gitattributes` pins `*.sh`.
+- **A variable's value is write-only to IaC, so declaring a literal drifts forever.** The file declares
+  references and `preserve()`, never a literal value.
+- **`ON_FAILURE` cannot be written, because it is the default.**
+- **On Windows, `npm i -g @railway/cli` does not put `railway.exe` on the PATH.** Put
+  `%APPDATA%\npm\node_modules\@railway\cli\bin` on it, or install the native CLI.
+- **Rate limiting fails open.** Confirm with a real 429 rather than by reading the config.
 
 ## CI
 
-Pin the plan and apply that exact file, so what lands is what was reviewed:
+Pin the plan and apply that exact file:
 
 ```
 railway config plan --out railway-plan.json
 railway config apply --plan railway-plan.json --yes --confirm-destructive
 ```
 
-`railwayapp/config` is the GitHub Action for it. Nothing in this repo does that yet: the apply is run
-by hand, and the reason to keep it in view is that **the repo and the project have to move together**:
-a push that deletes a build setting from this file is only safe once the apply that rewrites it has run.
+Nothing in this repo does that yet: the apply is run by hand.
 
 ## Migrations
 
-Schema changes reach production through `preDeployCommand` in `.railway/railway.ts`, which runs
-`npm run db:migrate` (the committed `db/migrations`) against the new release before any traffic moves to
-it. A failed migration aborts the deploy instead of serving against the wrong schema.
+Schema changes reach production through `preDeployCommand`, which runs `npm run db:migrate` before any
+traffic moves to the new release. `drizzle-kit` is a **regular dependency** for that reason.
 
-`drizzle-kit` is a **regular dependency** rather than a devDependency for exactly this reason: the deploy
-step needs it, and a builder that prunes devDependencies would otherwise remove it.
-
-Railway still overlaps the old and new releases, so **write migrations that are safe against the previous
-one.** Add a column before writing to it, drop it a release later.
+Railway overlaps the old and new releases, so **write migrations that are safe against the previous
+one.** `0044_quota_and_pagespeed`, `0045_drop_billing_columns` and `0046_runs_replace_verdicts` are
+the exception: they drop the credit, lead, variant and payment tables, the verdict columns and
+`analyses.failed_at`, all of which the previous release still reads. `0046` backfills one run per
+owned analysis before dropping `failed_at`. Deploy them in a quiet window, and back up the database
+first if that data matters.
 
 ## Keeping the browser image patched
 

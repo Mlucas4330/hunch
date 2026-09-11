@@ -11,7 +11,7 @@ import type { JobStatus } from '@/lib/enums'
 // returns the moment the job is queued and the worker waits on the slot alone.
 //
 // The worker lives here rather than in its own service for two reasons that are not negotiable
-// today: a separate Railway service costs money, and the screenshot volume pins the app to
+// today: a separate Railway service costs money, and .railway/railway.ts pins the app to
 // `numReplicas: 1`, so "in this process" and "in this deploy" are the same statement. See
 // docs/scraping.md.
 
@@ -31,7 +31,7 @@ const QUEUE_KEY = 'queue:jobs'
 
 // Where a job lives while it is being run. Its whole purpose is to survive a restart: an id popped
 // straight off QUEUE_KEY is gone the instant the process dies, and the analysis it names has already
-// spent a credit. See `reap`.
+// counts against a quota. See `reap`.
 const PROCESSING_KEY = 'queue:processing'
 
 const jobKey = (id: string) => `job:${id}`
@@ -61,9 +61,8 @@ function split(id: string): { kind: string; ref: string } {
 }
 
 /**
- * The id is `<kind>:<ref>` and the ref is the thing the work is about, never a random token.
- * Two readers asking for the same preview therefore share one job instead of racing to render the
- * same variant twice and leaving one file orphaned. See docs/report.md.
+ * The id is `<kind>:<ref>` and the ref is the thing the work is about, never a random token, so a
+ * requeued run is one job rather than two. See docs/scraping.md.
  */
 export function jobId(kind: string, ref: string): string {
   return `${kind}:${ref}`
@@ -131,7 +130,7 @@ export async function enqueue(id: string): Promise<Job | null> {
  * Puts back whatever a previous process was holding when it died.
  *
  * **This version is correct only because there is exactly one process.** `.railway/railway.ts` pins
- * `numReplicas: 1` and the screenshot volume is what pins it, so anything sitting in PROCESSING_KEY
+ * `numReplicas: 1`, so anything sitting in PROCESSING_KEY
  * at startup was orphaned by definition and can be requeued on sight. The day a second replica
  * exists this becomes a bug of the worst kind, requeuing a job another replica is running right
  * now, and the fix then is a per-entry timestamp and a reaper that only takes what has been held
@@ -175,13 +174,11 @@ type QueueClient = NonNullable<ReturnType<typeof redis>>
  * rather than being popped off the list, comes off it in a `finally` so success and failure clean
  * up identically, and `reap` puts back whatever a dead process left behind.
  *
- * Dropping it would cost the analysis **and** the money together: `POST /api/analyses` spends a
- * credit before it enqueues, and `refundCredit` only runs when the generation throws, never when the
- * process dies under it.
+ * Dropping it would lose an analysis that already counts against the account's quota, with nothing
+ * left to say it had happened.
  *
- * A requeued job runs its handler a second time, which is why `runAnalysis` returns early on a row
- * that already has its results. See lib/run-analysis.ts. The credit is not at risk either way: it
- * is spent by the route, not by the job.
+ * A requeued job runs its handler a second time, which is why `runAnalysis` returns early on a run
+ * that already finished or failed. See lib/run-analysis.ts.
  */
 async function worker(client: QueueClient): Promise<void> {
   for (;;) {

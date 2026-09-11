@@ -25,7 +25,7 @@ test('the closing call to action survives a page longer than the quota', () => {
   const chosen = promptElements(longPage()).map((e) => e.text)
 
   assert.equal(chosen.length, MAX_PROMPT_ELEMENTS)
-  assert.ok(chosen.includes('Start free trial'), 'the last CTA is reachable for a variant')
+  assert.ok(chosen.includes('Start free trial'), 'the last CTA reaches the copy prompt')
   assert.ok(chosen.includes('Pricing'))
   assert.ok(chosen.includes('Hero headline'))
 })

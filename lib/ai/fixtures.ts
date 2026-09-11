@@ -1,19 +1,14 @@
-import type {
-  AnalysisOutput,
-  FlowFixOutput,
-  VariantOutput,
-  VisibilityFixOutput
-} from '@/lib/ai/schema'
+import type { AnalysisOutput, FlowFixOutput, VisibilityFixOutput } from '@/lib/ai/schema'
 import type { Locale } from '@/lib/enums'
 import type { PageMobile, PagePerformance, PageSameness, PageSeo, PageStructure } from '@/lib/scrape'
 import type { CrawlerAccess } from '@/lib/robots'
 import type { PageKeywords } from '@/lib/keywords'
+import type { PageSpeed } from '@/lib/pagespeed'
 
 export const FIXTURE_STRUCTURE: PageStructure = {
   hasOauth: false,
-  // The fixture playbook recommends offering Google login, so the fixture page has to be one that
-  // signs people in at all -- otherwise the readout correctly declines to ask the question and the
-  // fix hangs off a finding nobody emitted. See lib/readout.ts.
+  // The fixture playbook reports a missing Google login, so the fixture page has to be one that
+  // signs people in at all.
   hasAuthForm: true,
   oauthProviders: [],
   formCount: 1,
@@ -76,9 +71,6 @@ export const FIXTURE_PERFORMANCE: PagePerformance = {
   domNodeCount: 1450
 }
 
-// Deliberately a page with mobile problems: the e2e run is the only place these cells are rendered
-// without a real browser behind them, so a clean fixture would mean nothing ever exercises the
-// warn and alert branches.
 export const FIXTURE_MOBILE: PageMobile = {
   horizontalOverflow: true,
   smallTapTargetCount: 6,
@@ -87,8 +79,6 @@ export const FIXTURE_MOBILE: PageMobile = {
   hasViewportMeta: true
 }
 
-// A page carrying most of the marks, because the e2e run's whole job is to render the section with
-// something in it. A fixture of zeroes would exercise the empty path and never the populated one.
 export const FIXTURE_SAMENESS: PageSameness = {
   gradientCount: 4,
   fontFamilyCount: 1,
@@ -109,49 +99,58 @@ export const FIXTURE_CRAWLER_ACCESS: CrawlerAccess = {
   sitemaps: []
 }
 
+// Scores below the top band in every category and field data present, so the e2e run renders the
+// failing audits and the field card rather than only their empty states.
+export const FIXTURE_PAGESPEED: PageSpeed = {
+  categories: {
+    performance: 54,
+    accessibility: 81,
+    'best-practices': 92,
+    seo: 75
+  },
+  field: {
+    scope: 'origin',
+    metrics: {
+      LARGEST_CONTENTFUL_PAINT_MS: { percentile: 3400, category: 'AVERAGE' },
+      INTERACTION_TO_NEXT_PAINT: { percentile: 180, category: 'FAST' },
+      CUMULATIVE_LAYOUT_SHIFT_SCORE: { percentile: 12, category: 'AVERAGE' },
+      FIRST_CONTENTFUL_PAINT_MS: { percentile: 2100, category: 'AVERAGE' },
+      EXPERIMENTAL_TIME_TO_FIRST_BYTE: { percentile: 900, category: 'AVERAGE' }
+    }
+  },
+  audits: [
+    {
+      id: 'largest-contentful-paint',
+      category: 'performance',
+      title: 'Largest Contentful Paint',
+      displayValue: '4.8 s',
+      score: 0.21
+    },
+    {
+      id: 'image-alt',
+      category: 'accessibility',
+      title: 'Image elements do not have [alt] attributes',
+      displayValue: null,
+      score: 0
+    },
+    {
+      id: 'meta-description',
+      category: 'seo',
+      title: 'Document does not have a meta description',
+      displayValue: null,
+      score: 0
+    }
+  ]
+}
+
 export const FIXTURE_KEYWORDS: PageKeywords = {
   totalWords: 720,
   terms: [
-    {
-      term: 'workspace',
-      count: 14,
-      inTitle: true,
-      inH1: true,
-      inMetaDescription: false,
-      inHeadings: true
-    },
-    {
-      term: 'teams',
-      count: 11,
-      inTitle: true,
-      inH1: true,
-      inMetaDescription: false,
-      inHeadings: true
-    },
-    {
-      term: 'modern teams',
-      count: 6,
-      inTitle: true,
-      inH1: true,
-      inMetaDescription: false,
-      inHeadings: true
-    },
-    {
-      term: 'pricing',
-      count: 5,
-      inTitle: false,
-      inH1: false,
-      inMetaDescription: false,
-      inHeadings: true
-    },
-    {
-      term: 'onboarding',
-      count: 3,
-      inTitle: false,
-      inH1: false,
-      inMetaDescription: false,
-      inHeadings: false
-    }
+    { term: 'workspace', count: 14, inTitle: true, inH1: true, inMetaDescription: false, inHeadings: true },
+    { term: 'teams', count: 11, inTitle: true, inH1: true, inMetaDescription: false, inHeadings: true },
+    { term: 'modern teams', count: 6, inTitle: true, inH1: true, inMetaDescription: false, inHeadings: true },
+    { term: 'pricing', count: 5, inTitle: false, inH1: false, inMetaDescription: false, inHeadings: true },
+    { term: 'onboarding', count: 3, inTitle: false, inH1: false, inMetaDescription: false, inHeadings: false }
   ]
 }
 
@@ -160,14 +159,9 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
     {
       category: 'signup_friction',
       finding: 'no_social_signin',
-      title: 'Offer login with Google',
+      title: 'No way to sign in with Google',
       problem:
         'Signing up means typing an email, inventing a password, and waiting on a confirmation.',
-      steps: [
-        'Register an OAuth client with Google and add the callback URL for your app',
-        'Add a "Continue with Google" button above the email field on the signup form',
-        'Match an existing account by verified email so returning users are never duplicated'
-      ],
       impact_score: 9,
       evidence:
         'Every account created today costs the visitor a password they must invent and then remember.'
@@ -175,57 +169,38 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
     {
       category: 'objections',
       finding: 'no_faq',
-      title: 'Add a Q&A block before the footer',
+      title: 'No answers to the questions before signup',
       problem:
         'The page never answers what happens after the trial, so visitors leave to find out.',
-      steps: [
-        'Collect the five questions your support inbox receives most often',
-        'Answer each in two sentences inside a collapsible list above the footer',
-        'Link the pricing question straight to the pricing section'
-      ],
       impact_score: 7,
       evidence:
-        'The page sends the visitor elsewhere to learn what the trial costs and how to leave it, and answering on the page removes that exit.'
+        'The page sends the visitor elsewhere to learn what the trial costs and how to leave it.'
     },
     {
       category: 'decision_load',
       finding: 'form_fields',
-      title: 'Cut the signup form to two fields',
+      title: 'Signup form asks for six fields',
       problem: 'The form asks for six fields before the visitor has seen any value.',
-      steps: [
-        'Keep only email and password on the form',
-        'Move company name and team size into the first onboarding screen',
-        'Drop the fields you never query'
-      ],
       impact_score: 7,
       evidence: 'Four of the six fields are asked before the visitor has any reason to answer them.'
     },
     {
-      category: 'cta_placement',
-      finding: null,
-      title: 'Repeat the primary action after pricing',
-      problem: 'The only call to action sits above the fold, far from where the decision happens.',
-      steps: [
-        'Add the same primary button directly under the pricing table',
-        'Keep the label identical to the hero button so it reads as one path'
-      ],
+      category: 'performance',
+      finding: 'largest-contentful-paint',
+      title: 'The main content paints late on a phone',
+      problem: 'A visitor on a phone waits for the largest element before the page shows what it is.',
       impact_score: 5,
       evidence:
-        'The visitor reaches the end of the pricing table with no action in view, so acting means scrolling back to find one.'
+        'PageSpeed Insights measured the largest contentful paint well past the point a visitor starts to scroll away.'
     }
   ],
   'pt-BR': [
     {
       category: 'signup_friction',
       finding: 'no_social_signin',
-      title: 'Ofereça login com o Google',
+      title: 'Não dá para entrar com o Google',
       problem:
         'Criar conta exige digitar um email, inventar uma senha e esperar por uma confirmação.',
-      steps: [
-        'Registre um cliente OAuth no Google e adicione a URL de callback do seu app',
-        'Adicione um botão "Continuar com o Google" acima do campo de email no formulário de cadastro',
-        'Reconheça a conta existente pelo email verificado para nunca duplicar quem volta'
-      ],
       impact_score: 9,
       evidence:
         'Toda conta criada hoje custa ao visitante uma senha que ele precisa inventar e depois lembrar.'
@@ -233,44 +208,30 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
     {
       category: 'objections',
       finding: 'no_faq',
-      title: 'Adicione um bloco de perguntas antes do rodapé',
+      title: 'Nenhuma resposta às dúvidas antes do cadastro',
       problem:
         'A página nunca responde o que acontece depois do teste, então o visitante sai para descobrir.',
-      steps: [
-        'Reúna as cinco perguntas que sua caixa de suporte mais recebe',
-        'Responda cada uma em duas frases numa lista recolhível acima do rodapé',
-        'Ligue a pergunta sobre preço direto à seção de planos'
-      ],
       impact_score: 7,
       evidence:
-        'A página faz o visitante sair para descobrir preço e cancelamento, e responder na própria página remove essa saída.'
+        'A página faz o visitante sair para descobrir preço e cancelamento.'
     },
     {
       category: 'decision_load',
       finding: 'form_fields',
-      title: 'Reduza o formulário de cadastro a dois campos',
+      title: 'Formulário de cadastro pede seis campos',
       problem: 'O formulário pede seis campos antes de o visitante ter visto qualquer valor.',
-      steps: [
-        'Mantenha apenas email e senha no formulário',
-        'Mova nome da empresa e tamanho do time para a primeira tela de onboarding',
-        'Descarte os campos que você nunca consulta'
-      ],
       impact_score: 7,
       evidence:
         'Quatro dos seis campos são pedidos antes de o visitante ter qualquer motivo para respondê-los.'
     },
     {
-      category: 'cta_placement',
-      finding: null,
-      title: 'Repita a ação principal depois dos planos',
-      problem: 'A única chamada para ação fica acima da dobra, longe de onde a decisão acontece.',
-      steps: [
-        'Adicione o mesmo botão principal logo abaixo da tabela de planos',
-        'Mantenha o rótulo idêntico ao do botão do topo para que os dois leiam como um só caminho'
-      ],
+      category: 'performance',
+      finding: 'largest-contentful-paint',
+      title: 'O conteúdo principal aparece tarde no celular',
+      problem: 'No celular, o visitante espera o maior elemento carregar antes de entender a página.',
       impact_score: 5,
       evidence:
-        'Duas ações diferentes no mesmo campo de visão obrigam o visitante a escolher um caminho antes de escolher o produto.'
+        'O PageSpeed Insights mediu o maior elemento visível carregando bem depois do momento em que o visitante começa a rolar.'
     }
   ]
 }
@@ -280,12 +241,8 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
     {
       category: 'metadata',
       finding: 'no_meta_description',
-      title: 'Write a meta description',
+      title: 'No meta description',
       problem: 'The page declares no description, so search engines write their own from the copy.',
-      steps: [
-        'Add a meta description tag summarizing what the product does and who it is for',
-        'Keep it to one sentence that reads as a whole thought on its own'
-      ],
       impact_score: 8,
       evidence:
         'With no description declared, the snippet a reader sees is assembled from whatever text the crawler picked.'
@@ -293,13 +250,8 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
     {
       category: 'structured_data',
       finding: 'no_structured_data',
-      title: 'Add Organization structured data',
+      title: 'No structured data about the company',
       problem: 'Nothing on the page states in machine readable form what this company is.',
-      steps: [
-        'Add a JSON-LD script describing the Organization with its name, URL, and logo',
-        'Add a SoftwareApplication entry naming the product and its category',
-        'Validate the markup renders without errors before shipping'
-      ],
       impact_score: 6,
       evidence:
         'A model reading this page has to infer what the company is from prose, because no markup states it.'
@@ -307,12 +259,8 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
     {
       category: 'ai_answerability',
       finding: 'images_missing_alt',
-      title: 'Add alt text to the product images',
+      title: 'Product images carry no alt text',
       problem: 'Several images carry no alt attribute, so their content reaches no crawler at all.',
-      steps: [
-        'Write alt text for every image that carries a claim or a screenshot of the product',
-        'Leave alt empty only for images that are purely decorative'
-      ],
       impact_score: 5,
       evidence: 'What those images show is currently readable only by a person looking at the page.'
     }
@@ -321,13 +269,9 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
     {
       category: 'metadata',
       finding: 'no_meta_description',
-      title: 'Escreva uma meta description',
+      title: 'Sem meta description',
       problem:
         'A página não declara descrição, então os buscadores escrevem a deles a partir do texto.',
-      steps: [
-        'Adicione uma tag meta description resumindo o que o produto faz e para quem ele é',
-        'Mantenha em uma frase que se sustente sozinha como ideia completa'
-      ],
       impact_score: 8,
       evidence:
         'Sem descrição declarada, o trecho que o leitor vê é montado a partir de qualquer texto que o rastreador escolheu.'
@@ -335,61 +279,21 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
     {
       category: 'structured_data',
       finding: 'no_structured_data',
-      title: 'Adicione dados estruturados de Organization',
+      title: 'Nenhum dado estruturado sobre a empresa',
       problem: 'Nada na página diz, em formato legível por máquina, o que é esta empresa.',
-      steps: [
-        'Adicione um script JSON-LD descrevendo a Organization com nome, URL e logo',
-        'Adicione uma entrada SoftwareApplication nomeando o produto e sua categoria',
-        'Valide se a marcação carrega sem erros antes de publicar'
-      ],
       impact_score: 6,
       evidence:
-        'Um modelo que lê esta página precisa deduzir o que é a empresa a partir do texto corrido, porque nenhuma marcação diz isso.'
+        'Um modelo que lê esta página precisa deduzir o que é a empresa a partir do texto corrido.'
     },
     {
       category: 'ai_answerability',
       finding: 'images_missing_alt',
-      title: 'Adicione texto alternativo às imagens',
+      title: 'Imagens do produto sem texto alternativo',
       problem:
         'Várias imagens não têm atributo alt, então o conteúdo delas não chega a rastreador nenhum.',
-      steps: [
-        'Escreva o texto alternativo de toda imagem que carrega uma afirmação ou uma tela do produto',
-        'Deixe o alt vazio apenas nas imagens puramente decorativas'
-      ],
       impact_score: 5,
       evidence:
         'O que essas imagens mostram hoje só é legível por uma pessoa olhando para a página.'
-    }
-  ]
-}
-
-const ALTERNATE_VARIANTS: Record<Locale, VariantOutput[]> = {
-  en: [
-    {
-      emphasis: null,
-      copy: 'The workspace that gets [your core job] done in [timeframe]',
-      evidence:
-        'The current line names a category while this one names a finished outcome, so the visitor no longer has to infer what they get.'
-    },
-    {
-      emphasis: null,
-      copy: 'Stop [specific pain]. Start shipping.',
-      evidence:
-        'The current line describes the product while this one names the cost of staying put, so the reason to act is stated rather than assumed.'
-    }
-  ],
-  'pt-BR': [
-    {
-      emphasis: null,
-      copy: 'O espaço de trabalho que resolve [seu trabalho principal] em [prazo]',
-      evidence:
-        'A linha atual anuncia uma categoria e esta anuncia um resultado pronto, então o visitante não precisa deduzir o que recebe.'
-    },
-    {
-      emphasis: null,
-      copy: 'Pare de [dor específica]. Comece a entregar.',
-      evidence:
-        'A linha atual descreve o produto e esta nomeia o custo de continuar como está, então o motivo para agir fica escrito na página.'
     }
   ]
 }
@@ -399,112 +303,53 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
     hypotheses: [
       {
         section: 'headline',
-        problem:
-          'The headline describes the product category instead of the outcome the visitor wants.',
         current_copy: 'The all-in-one platform for modern teams',
         assessment:
           'The headline names the audience and the breadth of the product, so the visitor knows who it is for.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'Ship faster: releases in [days], not [weeks]',
-            evidence:
-              'The current headline asserts a category while the rewrite states the outcome, so the visitor reads the benefit instead of working it out.'
-          }
-        ],
+        problem:
+          'The headline describes the product category instead of the outcome the visitor wants.',
         impact_score: 9,
-        rationale:
-          'A specific, quantified outcome in the headline raises perceived value within the first 5 seconds.'
+        rationale: 'The visitor has to work out what they get before they know whether to keep reading.'
       },
       {
         section: 'cta',
-        problem: 'The primary CTA is generic and adds friction by implying a long commitment.',
         current_copy: 'Get started',
-        assessment:
-          'The button says an action is available and nothing else about it.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'Start free, no card required',
-            evidence:
-              'The current label asks for a decision without saying what it costs, and the rewrite answers that before the click.'
-          }
-        ],
+        assessment: 'The button says an action is available and nothing else about it.',
+        problem: 'The label never says what happens after the click or what it costs.',
         impact_score: 8,
-        rationale:
-          'Removing risk and signalling zero cost lowers friction at the decision point.'
+        rationale: 'A visitor unsure of the commitment holds back at the one moment the page asks them to act.'
       },
       {
         section: 'social_proof',
-        problem:
-          'Social proof is a vague logo strip with no credibility or relevance to the buyer.',
         current_copy: 'Trusted by teams everywhere',
-        assessment:
-          'The line claims other teams already use the product.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'Trusted by [number] teams shipping every day',
-            evidence:
-              'The current line asserts that the product is trusted while the rewrite points at something the visitor can check.'
-          }
-        ],
+        assessment: 'The line claims other teams already use the product.',
+        problem: 'The claim names nobody and nothing the visitor could check.',
         impact_score: 7,
-        rationale:
-          'Concrete numbers and recognizable names convert abstract trust into verifiable evidence.'
+        rationale: 'An unverifiable claim of trust asks the visitor to take the page at its word.'
       },
       {
         section: 'pricing',
-        problem: 'Pricing leads with the highest tier, anchoring visitors on cost before value.',
         current_copy: 'Enterprise - $99/user/mo',
-        assessment:
-          'The line states a real price and who it is for.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'Free to start, [Pro] at [$price]',
-            evidence:
-              'The current framing shows the full price first, and the rewrite puts the lowest commitment in front of it.'
-          }
-        ],
+        assessment: 'The line states a real price and who it is for.',
+        problem: 'Pricing opens on the most expensive tier.',
         impact_score: 6,
-        rationale:
-          'Anchoring on a low-friction entry point reduces sticker shock.'
+        rationale: 'The first number the visitor reads is the largest one on the page.'
       },
       {
         section: 'features',
-        problem: 'Features are listed as capabilities, not benefits the buyer cares about.',
         current_copy: 'Real-time sync, API access, role-based permissions',
-        assessment:
-          'The list names three things the product can do, accurately.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'See data instantly, automate with the API, control access',
-            evidence:
-              'The current text names a capability while the rewrite names the job it finishes, so the visitor maps it to their own work.'
-          }
-        ],
+        assessment: 'The list names three things the product can do, accurately.',
+        problem: 'Each item is a capability with no job attached to it.',
         impact_score: 5,
-        rationale:
-          'Reframing capabilities as outcomes connects each feature to a buyer goal.'
+        rationale: 'The visitor has to map each feature to their own work without help.'
       },
       {
         section: 'subheadline',
-        problem: 'The subheadline repeats the headline instead of handling the next objection.',
         current_copy: 'Built for teams that move fast',
-        assessment:
-          'The subheadline restates the audience the headline already named.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'Set up in [setup time]. No migration, no training.',
-            evidence: 'The current subheadline leaves the setup question open, and the rewrite answers it where the objection appears.'
-          }
-        ],
+        assessment: 'The subheadline restates the audience the headline already named.',
+        problem: 'The subheadline repeats the headline instead of answering the next question.',
         impact_score: 4,
-        rationale:
-          'Using the subheadline to pre-empt the top objection keeps momentum toward the CTA.'
+        rationale: 'The space under the headline says nothing the visitor has not already read.'
       }
     ]
   },
@@ -512,113 +357,53 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
     hypotheses: [
       {
         section: 'headline',
-        problem:
-          'O título descreve a categoria do produto em vez do resultado que o visitante quer.',
         current_copy: 'The all-in-one platform for modern teams',
         assessment:
           'O título nomeia o público e a abrangência do produto, então o visitante sabe para quem ele é.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'Entregue em [dias], não em [semanas]',
-            evidence:
-              'O título atual afirma uma categoria e a reescrita declara o resultado, então o visitante lê o benefício em vez de deduzir.'
-          }
-        ],
+        problem:
+          'O título descreve a categoria do produto em vez do resultado que o visitante quer.',
         impact_score: 9,
-        rationale:
-          'Um resultado específico e quantificado no título eleva o valor percebido nos primeiros 5 segundos.'
+        rationale: 'O visitante precisa deduzir o que recebe antes de saber se vale continuar lendo.'
       },
       {
         section: 'cta',
-        problem: 'A chamada principal é genérica e cria atrito ao sugerir um compromisso longo.',
         current_copy: 'Get started',
-        assessment:
-          'O botão diz que existe uma ação disponível e nada mais sobre ela.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'Comece grátis, sem cartão',
-            evidence:
-              'O rótulo atual pede uma decisão sem dizer o que ela custa, e a reescrita responde isso antes do clique.'
-          }
-        ],
+        assessment: 'O botão diz que existe uma ação disponível e nada mais sobre ela.',
+        problem: 'O rótulo não diz o que acontece depois do clique nem quanto custa.',
         impact_score: 8,
-        rationale:
-          'Remover o risco e sinalizar custo zero reduz o atrito no momento da decisão.'
+        rationale: 'Quem não sabe o compromisso recua justo no momento em que a página pede a ação.'
       },
       {
         section: 'social_proof',
-        problem: 'A prova social é vaga e não traz credibilidade nem relevância para o comprador.',
         current_copy: 'Trusted by teams everywhere',
-        assessment:
-          'A linha afirma que outros times já usam o produto.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'A escolha de [número] times que entregam',
-            evidence:
-              'A linha atual afirma que o produto é confiável e a reescrita aponta algo que o visitante consegue conferir.'
-          }
-        ],
+        assessment: 'A linha afirma que outros times já usam o produto.',
+        problem: 'A afirmação não cita ninguém nem nada que o visitante possa conferir.',
         impact_score: 7,
-        rationale:
-          'Números concretos e nomes reconhecíveis convertem confiança abstrata em evidência verificável.'
+        rationale: 'Uma confiança que não dá para verificar pede que o visitante acredite na palavra da página.'
       },
       {
         section: 'pricing',
-        problem: 'Os planos começam pelo mais caro, ancorando o visitante no custo antes do valor.',
         current_copy: 'Enterprise - $99/user/mo',
-        assessment:
-          'A linha informa um preço real e para quem ele vale.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'Grátis para começar, [Pro] por [$preço]',
-            evidence:
-              'O enquadramento atual mostra o preço cheio primeiro, e a reescrita coloca o menor compromisso à frente dele.'
-          }
-        ],
+        assessment: 'A linha informa um preço real e para quem ele vale.',
+        problem: 'Os planos começam pelo mais caro.',
         impact_score: 6,
-        rationale:
-          'Ancorar num ponto de entrada de baixo atrito reduz o choque de preço.'
+        rationale: 'O primeiro número que o visitante lê é o maior da página.'
       },
       {
         section: 'features',
-        problem:
-          'Os recursos aparecem como capacidades, não como benefícios que interessam ao comprador.',
         current_copy: 'Real-time sync, API access, role-based permissions',
-        assessment:
-          'A lista nomeia com precisão três coisas que o produto faz.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'Veja dados na hora, automatize pela API, controle acessos',
-            evidence:
-              'O texto atual nomeia uma capacidade e a reescrita nomeia a tarefa que ela conclui, então o visitante liga ao próprio trabalho.'
-          }
-        ],
+        assessment: 'A lista nomeia com precisão três coisas que o produto faz.',
+        problem: 'Cada item é uma capacidade sem a tarefa que ela resolve.',
         impact_score: 5,
-        rationale:
-          'Reformular capacidades como resultados conecta cada recurso a um objetivo do comprador.'
+        rationale: 'O visitante precisa ligar cada recurso ao próprio trabalho sozinho.'
       },
       {
         section: 'subheadline',
-        problem: 'O subtítulo repete o título em vez de tratar a próxima objeção.',
         current_copy: 'Built for teams that move fast',
-        assessment:
-          'O subtítulo repete o público que o título já nomeou.',
-        variants: [
-          {
-            emphasis: null,
-            copy: 'Configure em [tempo de setup]. Sem migração, sem treinamento.',
-            evidence:
-              'O subtítulo atual deixa a dúvida de configuração aberta, e a reescrita responde onde a objeção aparece.'
-          }
-        ],
+        assessment: 'O subtítulo repete o público que o título já nomeou.',
+        problem: 'O subtítulo repete o título em vez de responder a próxima dúvida.',
         impact_score: 4,
-        rationale:
-          'Usar o subtítulo para antecipar a principal objeção mantém o avanço até a chamada para ação.'
+        rationale: 'O espaço abaixo do título não diz nada que o visitante já não tenha lido.'
       }
     ]
   }
@@ -635,8 +420,3 @@ export function fixturePlaybook(locale: Locale): FlowFixOutput[] {
 export function fixtureVisibility(locale: Locale): VisibilityFixOutput[] {
   return VISIBILITY[locale]
 }
-
-export function fixtureAlternateVariants(locale: Locale): VariantOutput[] {
-  return ALTERNATE_VARIANTS[locale]
-}
-

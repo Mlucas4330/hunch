@@ -22,7 +22,7 @@ type GithubEmail = { email: string; primary: boolean; verified: boolean }
  *
  * **Every failure path refuses.** A timeout, a 403 from a missing `user:email` scope, or a body that
  * is not the shape expected all return null, because the alternative, reading "we could not check"
- * as "verified", turns a GitHub outage into an open door onto rows that hold credits.
+ * as "verified", turns a GitHub outage into an open door onto rows that hold a quota.
  */
 async function githubVerifiedEmail(accessToken: string | undefined): Promise<string | null> {
   if (!accessToken) return null
@@ -60,7 +60,7 @@ async function githubVerifiedEmail(accessToken: string | undefined): Promise<str
  * The address a provider will vouch for, or null.
  *
  * The user row is keyed on email and there is no `accounts` table, so **whoever presents an address
- * next owns everything in the row**, which, after credits, means money. Each provider therefore
+ * next owns everything in the row**, the quota included. Each provider therefore
  * declares *how* its address is verified, and **a provider with no strategy declared is refused
  * outright**. That default is the point: a provider added to `authConfig` without an entry here locks
  * itself out rather than letting itself in. See docs/security.md.

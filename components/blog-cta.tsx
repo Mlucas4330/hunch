@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { getCurrentUser } from '@/lib/current-user'
-import { POST_SIGNIN_REDIRECT } from '@/lib/constants'
+import { POST_SIGNIN_REDIRECT, SIGNIN_PATH } from '@/lib/constants'
 import { getDictionary } from '@/lib/i18n'
 
 export async function BlogCta() {
@@ -19,9 +19,7 @@ export async function BlogCta() {
           <p className="max-w-xl text-sm text-muted-foreground">{blog.cta.body}</p>
         </div>
         <Button asChild size="lg">
-          {/* Signed out goes to the form on the landing page, not to a sign in screen: the score
-              needs no account. */}
-          <Link href={user ? POST_SIGNIN_REDIRECT : '/#top'}>{blog.cta.button}</Link>
+          <Link href={user ? POST_SIGNIN_REDIRECT : SIGNIN_PATH}>{blog.cta.button}</Link>
         </Button>
       </CardContent>
     </Card>

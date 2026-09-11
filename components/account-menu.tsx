@@ -1,16 +1,15 @@
 import { signOut } from '@/auth'
-import { CreditBalance } from '@/components/credit-balance'
 import { Dropdown } from '@/components/ui/dropdown'
 import { SubmitButton } from '@/components/submit-button'
 import { getDictionary } from '@/lib/i18n'
+import { t as fill } from '@/lib/i18n/format'
+import { quotaFor } from '@/lib/quota'
 
-// `credits` is the number off the user row, handed down rather than looked up here. It is not in the
-// session and must never be: a JWT lives SESSION_MAX_AGE_SECONDS, so a balance stamped into one is
-// stale the moment something is bought or spent. See docs/invariants.md.
+// The quota is read from the rows here and never carried in the session. See docs/invariants.md.
 type AccountUser = {
+  id: string
   name?: string | null
   email?: string | null
-  credits: number
 }
 
 async function signOutAction() {
@@ -45,6 +44,7 @@ export async function AccountMenu({ user }: { user: AccountUser }) {
 
 export async function AccountPanel({ user }: { user: AccountUser }) {
   const t = await getDictionary()
+  const quota = await quotaFor(user.id)
 
   return (
     <>
@@ -53,11 +53,9 @@ export async function AccountPanel({ user }: { user: AccountUser }) {
         {user.email && <p className="truncate text-xs text-muted-foreground">{user.email}</p>}
       </div>
 
-      {/* The balance sits next to the account it belongs to rather than above the form that spends
-          it, so it is one place in every screen instead of only on the dashboard. */}
-      <div className="mt-3 border-t pt-3">
-        <CreditBalance credits={user.credits} variant="menu" />
-      </div>
+      <p className="mt-3 border-t pt-3 text-xs text-muted-foreground" data-testid="quota-usage">
+        {fill(t.quota.usage, { used: quota.used, limit: quota.limit })}
+      </p>
 
       <form action={signOutAction} className="mt-3 border-t pt-3">
         <SubmitButton variant="ghost" className="h-auto w-full justify-start px-2 py-1.5">

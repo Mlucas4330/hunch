@@ -1,14 +1,10 @@
-
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ReportCover } from '@/components/report-cover'
 import { Wordmark } from '@/components/wordmark'
-import { UnlockWall } from '@/components/unlock-wall'
-import { FixPromptCard } from '@/components/fix-prompt-card'
-import { GeneratingSections } from '@/components/generating-sections'
+import { GeneratingNotice, PendingList } from '@/components/generating-notice'
 import { GenerationFailed } from '@/components/generation-failed'
-import { WatchPageForm } from '@/components/watch-page-form'
 import { HypothesisList } from '@/components/hypothesis-list'
 import { FlowPlaybook } from '@/components/flow-playbook'
 import { AnalysisSections } from '@/components/analysis-sections'
@@ -18,11 +14,13 @@ import { RichText } from '@/components/rich-text'
 import { CopyReportLink } from '@/components/copy-report-link'
 import { Button } from '@/components/ui/button'
 import { MeasuredReadout } from '@/components/measured-readout'
-import { MeasurePage } from '@/components/measure-page'
+import { RunAgain, RunInProgress } from '@/components/run-again'
 import { ReportRail } from '@/components/report-rail'
+import { SectionEvidence } from '@/components/section-evidence'
 import { StartHere } from '@/components/start-here'
 import { getCurrentUser } from '@/lib/current-user'
-import { analysisStateFor } from '@/lib/run-analysis'
+import { analysisStateFor, lastFinishedAt, latestRun } from '@/lib/run-analysis'
+import { quotaFor, quotaLeft } from '@/lib/quota'
 import {
   competitorFor,
   fixesByFinding,
@@ -32,14 +30,19 @@ import {
   splitFixes,
   splitVisibility
 } from '@/lib/analyses'
+import { hasEvidence, sectionEvidence, type Evidence } from '@/lib/readout'
 import { EMPTY_HISTORY } from '@/lib/snapshots'
-import { hasReadout, readout } from '@/lib/readout'
 import { PLAYBOOK_EXPANDED_COUNT, SECTION_ANCHOR_CLASS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { FlowFix } from '@/db/schema'
-import { REPORT_SECTION, type Locale, type PlaybookSection } from '@/lib/enums'
+import {
+  ANALYSIS_TAB,
+  REPORT_SECTION,
+  type AnalysisTab,
+  type Locale,
+  type PlaybookSection
+} from '@/lib/enums'
 import { dictionaryFor, getDictionary, getLocale, type Dictionary } from '@/lib/i18n'
-import { fixPrompt } from '@/lib/fix-prompt'
 import { formatDate, t as fill } from '@/lib/i18n/format'
 import { displayHost } from '@/lib/host'
 import { pageMetadata } from '@/lib/seo'
@@ -51,7 +54,7 @@ export async function generateMetadata({ params }: { params: Promise<{ embedKey:
 
   const vars = {
     host: analysis ? displayHost(analysis.url) : metadata.title,
-    count: analysis?.hypotheses.length ?? 0
+    count: analysis ? analysis.hypotheses.length + analysis.flowFixes.length : 0
   }
 
   return pageMetadata({
@@ -64,17 +67,9 @@ export async function generateMetadata({ params }: { params: Promise<{ embedKey:
 }
 
 /**
- * The one analysis surface, keyed on the embed key and public.
- *
- * **`embedKey` is the only key that works for every row.** An analysis nobody has claimed has no
- * `user_id`, so it cannot be addressed by owner. Splitting this into `/analyses/[id]` for a row
- * with an owner and this one for a row without is two copies of the same document that drift: the
- * copy panel written twice, a `generated` predicate that disagrees with itself, two answers to which
- * cards start open.
- *
- * So there is one document and one axis through it. `isOwner` decides what the reader may *do*
- * (spend a browser slot, buy two more variants, copy the share link) and decides nothing at all
- * about what the document *says*. See docs/report.md.
+ * The one analysis surface, keyed on the embed key and public, so an agency can hand the link to its
+ * client. `isOwner` decides what the reader may *do* (run again, copy the link) and nothing about
+ * what the document *says*. See docs/report.md.
  */
 export default async function ReportPage({
   params
@@ -92,50 +87,23 @@ export default async function ReportPage({
   const user = await getCurrentUser()
   const isOwner = user !== null && analysis.userId === user.id
 
-  // Five shapes, and they are the free/paid cut made visible.
-  //
-  // - `measuring`: the job is still on the queue. The form waits for the readout before it navigates,
-  //   so a reader only lands here by opening the link early or reloading mid-run.
-  // - `locked`: nobody has spent a credit on it. Score and readout in full, then the wall.
-  // - `generating`: where a paying reader now lands, about twenty seconds in. Score and readout in
-  //   full, then the four sections as placeholders that fill themselves. See lib/run-analysis.ts for
-  //   why the readout is committed before the generation starts.
-  // - `failed`: the generation threw and the credit went back. **Never the wall**, which would ask
-  //   somebody to buy a credit they have just had returned.
-  // - `ready`: the whole document.
-  //
-  // **Three of those are the same row in Postgres**, which is why the decision does not live here.
-  // `analysisStateFor` asks the job whether work is happening and the ledger whether it already
-  // failed, in an order that lib/analysis-state.ts explains. The client polls the same helper through
-  // `GET /api/analyses`, so the screen and the poll cannot come to different conclusions.
-  //
-  // The readout is never gated in any of them, for the reason in docs/readout.md.
-  const measured = hasReadout(readout(readoutFor(analysis)))
+  const measured = analysis.structure !== null
   const generated = analysis.hypotheses.length > 0 || analysis.flowFixes.length > 0
 
-  // Assembled on the server, from what is already on this page. Null on an analysis with nothing
-  // generated, which is what keeps the card and its rail entry off a free report. See lib/fix-prompt.ts.
-  const prompt = fixPrompt({
-    url: analysis.url,
-    hypotheses: analysis.hypotheses,
-    flowFixes: analysis.flowFixes,
-    dictionary: t
-  })
+  const [run, finishedAt] = await Promise.all([latestRun(analysis.id), lastFinishedAt(analysis.id)])
+
   const state = await analysisStateFor({
-    id: analysis.id,
     measured,
     generated,
-    owned: analysis.userId !== null
+    owned: analysis.userId !== null,
+    run
   })
 
   const fixes = splitFixes(analysis.flowFixes)
   const visibility = splitVisibility(analysis.flowFixes)
 
-  // Titles only, keyed by the finding each one answers, so a measured number can point at what was
-  // written for it. Empty on every analysis with nothing generated, which is what keeps the readout
-  // free of an affordance that would read as a paywall tease -- see docs/invariants.md.
-  // Id as well as title now, so the pointer under a measured number is a link to the card that
-  // answers it rather than a repetition of its name.
+  // Titles keyed by the audit or finding each error answers, so a measured number can link to the
+  // card written about it.
   const fixTitles = Object.fromEntries(
     [...fixesByFinding(analysis.flowFixes)].map(([finding, list]) => [
       finding,
@@ -144,58 +112,94 @@ export default async function ReportPage({
   )
   const counts = {
     changes: analysis.hypotheses.length + analysis.flowFixes.length,
-    ready: analysis.hypotheses.filter((hypothesis) => hypothesis.target === 'auto').length,
+    copy: analysis.hypotheses.length,
     structural: analysis.flowFixes.length
   }
 
-  // One object, read by `AnalysisSections` to decide which panels exist and by the rail to decide
-  // which entries it may offer. Two counts of the same four lists would be two answers to the same
-  // question the first time one of them was touched.
-  const sectionCounts = {
-    flow: fixes.flow.length,
-    copy: analysis.hypotheses.length,
+  const sectionCounts: Record<AnalysisTab, number> = {
+    ai: visibility.ai.length,
     seo: visibility.seo.length,
-    ai: visibility.ai.length
+    flow: fixes.flow.length,
+    copy: analysis.hypotheses.length
   }
 
-  // The trend is two measurements of the same page subtracted, and re-measuring is what adds a
-  // point to it. Both are the owner's: a prospect handed the link must not be able to spend the
-  // owner's browser slots, so neither the button nor the history it feeds exists for them. Do not
-  // "fix" the missing button here -- see docs/readout.md.
-  const history = isOwner && measured ? await readoutHistory(analysis.id, analysis.market) : EMPTY_HISTORY
+  // The trend is the owner's record of the page, and a run spends the owner's quota, so neither exists
+  // for a reader who was handed the link. See docs/readout.md.
+  const history = isOwner && measured ? await readoutHistory(analysis.id) : EMPTY_HISTORY
   const hasHistory = history.scores.length > 1
+  const blocked = isOwner && user ? quotaLeft(await quotaFor(user.id)) === 0 : false
+  const lastRunFailed = isOwner && generated && run?.failedAt != null
 
   function fixPanel(list: FlowFix[], section: PlaybookSection) {
-    return (
-      <FlowPlaybook
-        fixes={list}
-        section={section}
-        expandFrom={PLAYBOOK_EXPANDED_COUNT}
-        isOwner={isOwner}
-      />
-    )
+    return <FlowPlaybook fixes={list} section={section} expandFrom={PLAYBOOK_EXPANDED_COUNT} />
   }
 
   if (!measured) {
-    return isOwner ? (
+    return state === 'failed' ? (
       <div className="animate-fade-up space-y-6">
         <ReportHeader isOwner={isOwner} t={t} locale={locale} embedKey={analysis.embedKey} />
-        <MeasurePage analysisId={analysis.id} />
+        <GenerationFailed measured={false} />
       </div>
     ) : (
       <MeasuringNotice t={t} url={analysis.url} />
     )
   }
 
-  // What the rail may offer, decided by the same conditions that render each block below and in the
-  // order REPORT_SECTION declares. Never the whole enum: a rail entry for a section this report does
-  // not have is a link to nothing. See components/report-rail.tsx.
+  const crawler = readoutFor(analysis)
+  const competitor = competitorFor(analysis)
+
+  const evidenceByTab = Object.fromEntries(
+    ANALYSIS_TAB.map((tab) => [tab, sectionEvidence(tab, analysis.pagespeed, crawler)])
+  ) as Record<AnalysisTab, Evidence>
+
+  const sections = ANALYSIS_TAB.filter(
+    (tab) =>
+      state === 'generating' ||
+      (generated && sectionCounts[tab] > 0) ||
+      hasEvidence(evidenceByTab[tab])
+  )
+
+  const evidence = Object.fromEntries(
+    ANALYSIS_TAB.map((tab) => [
+      tab,
+      hasEvidence(evidenceByTab[tab]) ? (
+        <SectionEvidence
+          evidence={evidenceByTab[tab]}
+          pagespeed={analysis.pagespeed}
+          previous={history.previous}
+          {...competitor}
+          fixes={fixTitles}
+        />
+      ) : null
+    ])
+  ) as Record<AnalysisTab, ReactNode>
+
+  const lists: Record<AnalysisTab, ReactNode> = {
+    ai: fixPanel(visibility.ai, 'ai'),
+    seo: fixPanel(visibility.seo, 'seo'),
+    flow: fixPanel(fixes.flow, 'flow'),
+    copy: <HypothesisList hypotheses={analysis.hypotheses} />
+  }
+
+  const panels = Object.fromEntries(
+    ANALYSIS_TAB.map((tab) => [
+      tab,
+      state === 'generating' ? <PendingList /> : generated ? lists[tab] : null
+    ])
+  ) as Record<AnalysisTab, ReactNode>
+
+  // What the rail may offer, decided by the same conditions that render each block below.
   const railSections = REPORT_SECTION.filter((section) => {
     if (section === 'start') return generated && analysis.flowFixes.length > 0
     if (section === 'readout') return true
-    if (section === 'prompt') return prompt !== null
-    return generated && sectionCounts[section] > 0
+    return sections.includes(section)
   })
+
+  const runControl = !isOwner ? null : state === 'rerunning' ? (
+    <RunInProgress embedKey={embedKey} />
+  ) : (
+    <RunAgain analysisId={analysis.id} blocked={blocked} />
+  )
 
   return (
     <div className="animate-fade-up space-y-8">
@@ -204,13 +208,13 @@ export default async function ReportPage({
         t={t}
         locale={locale}
         embedKey={analysis.embedKey}
-        remeasure={isOwner ? <MeasurePage analysisId={analysis.id} variant="again" /> : null}
+        runControl={runControl}
       />
 
       <ReportCover
         t={t}
         url={analysis.url}
-        generated={formatDate(analysis.createdAt, locale)}
+        generated={formatDate(finishedAt ?? analysis.createdAt, locale)}
         counts={generated ? counts : null}
         hint={
           <InfoHint label={t.analysis.hintLabel}>
@@ -219,21 +223,19 @@ export default async function ReportPage({
         }
       />
 
-      {/* Both cells count generated work, so on a measured-only report both would read 0 -- a page
-          scored 47 sitting under "Changes recommended: 0". The strip is left out entirely rather
-          than shown empty; the score and the readout below are the whole of what was measured. */}
+      {lastRunFailed && (
+        <p className="text-sm text-coral print:hidden" data-testid="last-run-failed">
+          {t.readout.run.lastRunFailed}
+        </p>
+      )}
+
       {generated && (
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
           <SummaryCell label={t.report.changesFound} value={String(counts.changes)} />
-          <SummaryCell label={t.report.copyWritten} value={String(counts.ready)} />
+          <SummaryCell label={t.report.copyErrors} value={String(counts.copy)} />
         </div>
       )}
 
-      {/* **The rail is a sibling of the document, not a wrapper around it.** Everything below keeps
-          the vertical rhythm it had; the rail takes a fixed column beside it above `lg` and does not
-          exist below that. `min-w-0` on the content column is load-bearing rather than defensive: the
-          keyword table and the `break-all` URLs will push a grid track past the viewport otherwise,
-          which is the failure docs/components.md describes. */}
       <div className="grid gap-8 lg:grid-cols-[11rem_minmax(0,1fr)]">
         <ReportRail sections={railSections} />
 
@@ -241,92 +243,41 @@ export default async function ReportPage({
           {generated && <StartHere fixes={analysis.flowFixes} />}
 
           <div id="readout" className={cn(SECTION_ANCHOR_CLASS, 'space-y-4')}>
-            <MeasuredReadout
-              input={readoutFor(analysis)}
-              previous={history.previous}
-              {...competitorFor(analysis)}
-              scores={history.scores}
-              fixes={fixTitles}
-            />
-            {/* The button itself is in the header now, where the owner reaches it without scrolling
-                the whole document first. What is left here is the panel for the owner who has never
-                pressed it: below two snapshots there is no sparkline and no delta anywhere, so the
-                history is built and invisible unless something names it. See docs/readout.md. */}
-            {isOwner && !hasHistory && (
-              <MeasurePage analysisId={analysis.id} variant="trend_start" />
+            <MeasuredReadout pagespeed={analysis.pagespeed} {...competitor} scores={history.scores} />
+            {isOwner && !hasHistory && state === 'ready' && (
+              <RunAgain analysisId={analysis.id} variant="trend_start" blocked={blocked} />
             )}
           </div>
 
-          {/* Below the readout, never above it, and never in front of it: the numbers are not behind
-              this and must not become so -- see docs/invariants.md. Offered only to a reader who is
-              not the owner, because an owner reaches this report from their dashboard and already
-              has a durable way back to it. For an anonymous reader the link lives in one browser's
-              localStorage and nowhere else, which is what makes the offer worth taking. */}
-          {!isOwner && <WatchPageForm embedKey={embedKey} />}
+          {state === 'generating' && <GeneratingNotice embedKey={embedKey} />}
+          {!generated && state === 'failed' && <GenerationFailed />}
 
-          {generated ? (
-            <AnalysisSections
-              counts={sectionCounts}
-              panels={{
-                flow: fixPanel(fixes.flow, 'flow'),
-                seo: fixPanel(visibility.seo, 'seo'),
-                ai: fixPanel(visibility.ai, 'ai'),
-                copy: (
-                  <HypothesisList
-                    hypotheses={analysis.hypotheses}
-                    embedKey={analysis.embedKey}
-                    isOwner={isOwner}
-                  />
-                )
-              }}
-            />
-          ) : state === 'generating' ? (
-            <GeneratingSections embedKey={embedKey} />
-          ) : state === 'failed' ? (
-            <GenerationFailed />
-          ) : (
-            <UnlockWall embedKey={embedKey} />
-          )}
-
-          {/* **Last in the document, below the fix lists it is assembled from.** It is the step after
-              reading: this reader did not hand-write the page and will not hand-edit it either, so
-              the report's final act is handing itself back to the tool that built it. Null on a
-              report with nothing generated, which is what keeps it off the free half. */}
-          {prompt && <FixPromptCard prompt={prompt} />}
+          <AnalysisSections
+            sections={sections}
+            counts={generated ? sectionCounts : null}
+            evidence={evidence}
+            panels={panels}
+          />
         </div>
       </div>
     </div>
   )
 }
 
-// A signed-in reader already has the wordmark in the navbar the layout renders, so printing it
-// again here would be it twice. A signed-out one has no navbar at all, and the report has to say
-// whose document it is.
-//
-// **Copying the link is the owner's one control here, and it is a button rather than a card.** A
-// named card with an `Open` button would offer nothing to open: the link points at the page it is
-// sitting on, so what is left is putting the URL on the clipboard.
-//
-// `remeasure` is the second one, passed in rather than built here because the unmeasured branch has
-// nothing to measure again: that reader gets the whole `MeasurePage` section below the header, and a
-// button offering the same thing above it would be the same action twice.
-//
-// The language switch is here because this route has no navbar: a reader who followed a shared link
-// has no other control on the page, and the report is the surface most likely to be read by somebody
-// who never chose a locale. It never retranslates what was generated -- that is pinned to
-// `analyses.locale` at creation -- so what it switches is the page around it. See docs/invariants.md.
+// A signed-in reader already has the wordmark in the navbar the layout renders; a signed-out one has
+// no navbar at all, and the report has to say whose document it is.
 function ReportHeader({
   isOwner,
   t,
   locale,
   embedKey,
-  remeasure = null
+  runControl = null
 }: {
   isOwner: boolean
   t: Dictionary
   locale: Locale
   embedKey: string
-  remeasure?: ReactNode
+  runControl?: ReactNode
 }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-4">
@@ -336,7 +287,7 @@ function ReportHeader({
             <Link href="/dashboard">{t.analysis.backToDashboard}</Link>
           </Button>
           <CopyReportLink reportUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''} embedKey={embedKey} />
-          {remeasure}
+          {runControl}
         </div>
       ) : (
         <Wordmark />

@@ -2,17 +2,16 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/current-user'
 import { listAnalysesForUser, parsePaging } from '@/lib/analyses'
+import { quotaFor, quotaLeft } from '@/lib/quota'
 import { UrlInputForm } from '@/components/url-input-form'
 import { AnalysisHistory } from '@/components/analysis-history'
-import { ClaimAnalyses } from '@/components/claim-analyses'
 import { InfoHint } from '@/components/info-hint'
 import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { displayHost } from '@/lib/host'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
-// Aliased: this page already binds `t` to the dictionary, unlike the rest of the app where `t` is
-// this helper. Renaming the local would touch every line here for no gain.
+// Aliased: this page already binds `t` to the dictionary.
 import { formatDate, t as interpolate } from '@/lib/i18n/format'
 import { pageMetadata } from '@/lib/seo'
 import type { Dictionary } from '@/lib/i18n/dictionaries/en'
@@ -33,17 +32,17 @@ export default async function DashboardPage({
   const locale = await getLocale()
   const t = dictionaryFor(locale)
 
-  // The page lives in the URL rather than in client state: it survives a reload, the back button
-  // works, and the grid stays server rendered with no JavaScript behind it.
+  // The page lives in the URL rather than in client state: it survives a reload and the back button
+  // works.
   const { page } = await searchParams
-  const { rows, pages, page: current } = await listAnalysesForUser(user, {
-    page: parsePaging(page)
-  })
-  const defaultBrief = rows.find((row) => row.brief)?.brief ?? ''
+  const [{ rows, pages, page: current }, quota] = await Promise.all([
+    listAnalysesForUser(user, { page: parsePaging(page) }),
+    quotaFor(user.id)
+  ])
+  const exhausted = quotaLeft(quota) === 0
 
   return (
     <div className="animate-fade-up space-y-6">
-      <ClaimAnalyses />
       <div className="space-y-1">
         <p className="panel-label text-micro text-muted-foreground">{t.dashboard.eyebrow}</p>
         <div className="flex items-center gap-2">
@@ -55,7 +54,14 @@ export default async function DashboardPage({
         <p className="text-sm text-muted-foreground">{t.dashboard.subtitle}</p>
       </div>
 
-      <UrlInputForm defaultBrief={defaultBrief} briefRequired={user.credits > 0} />
+      <div className="space-y-2">
+        <p className="font-mono text-xs tabular-nums text-muted-foreground" data-testid="dashboard-quota">
+          {interpolate(t.quota.usage, { used: quota.used, limit: quota.limit })}
+        </p>
+        {exhausted && <p className="text-sm text-amber">{t.quota.none}</p>}
+      </div>
+
+      <UrlInputForm blocked={exhausted} />
 
       {rows.length === 0 ? (
         <Card>
@@ -87,14 +93,8 @@ export default async function DashboardPage({
 }
 
 /**
- * Newer and older, not previous and next.
- *
- * The grid is ordered newest first, so "previous" is ambiguous the moment a reader thinks about it:
- * it could mean the page they were just on or the analyses that came before these. Naming the
- * direction by what is in it answers that without a second thought.
- *
- * Renders nothing at one page, so an account with a handful of analyses never sees controls that
- * would go nowhere.
+ * Newer and older, not previous and next: the grid is ordered newest first, so naming the direction
+ * by what is in it answers which way to go. Renders nothing at one page.
  */
 function Pagination({
   page,
@@ -122,14 +122,8 @@ function Pagination({
   )
 }
 
-// A step with nowhere to go is a disabled button, never a link: an anchor cannot be disabled, and one
-// that navigates to a page that does not exist is worse than one the reader can see is spent.
-//
-// `scroll={false}` because the App Router scrolls to the top of the document on every navigation, and
-// these controls sit at the *bottom* of the grid they page. The default threw the reader back up to
-// the URL form on every click, so the button they had just pressed jumped out from under the cursor
-// and the rows they were paging through went off screen. Staying put is what makes a second click
-// possible without scrolling back down.
+// `scroll={false}` because these controls sit at the bottom of the grid they page, and the default
+// scroll to the top threw the reader away from the button they had just pressed.
 function PageStep({
   href,
   disabled,

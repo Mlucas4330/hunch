@@ -25,35 +25,13 @@ can never be shown at all, and the hover falls through to whatever is behind the
 **One tempo.** `a`, `button`, `summary`, `input`, `textarea` and `[role="button"]` transition colour,
 border, shadow, transform and opacity over 150ms ease-out from `app/globals.css`, so a component that
 adds no transition of its own is still in step with the rest. `prefers-reduced-motion` collapses both
-the transitions and the two keyframe animations.
+the transitions and the keyframe animations.
 
 **A click that starts a round trip says so.** Anything driving a `fetch` already owns its own pending
 state; server action forms had none, which is the click that reads as ignored. `SubmitButton` and
 `PendingFieldset` in `components/submit-button.tsx` wrap `useFormStatus` and are used by the sign in
-page, the sign out form and the language toggle. The spinner is added beside the label rather than
-replacing it, so no button needs a second dictionary string.
-
-### Hero glint: `.animate-hero-shine`
-
-The landing's readout card catches the light every six seconds. It is the only motion on the page
-that repeats, and the card is the one element on the landing whose job is to be looked at.
-
-**The rhythm lives inside the keyframes, not in a timer.** `hero-shine` holds the band off screen
-from 0% to 85% and crosses in the remaining 15%, so one infinite animation gives a 0.9s sweep and a
-5.1s pause, and nothing in JavaScript has to keep time. A `setInterval` toggling a class would be a
-second source of truth for a rhythm CSS can hold on its own.
-
-**Diagonal and narrow is what separates a glint from a wash.** `.animate-shimmer` sweeps a soft band
-across the full width because a skeleton is saying "still working"; a 90deg gradient at that width on
-a near white card just reads as the card briefly going grey. At `105deg` with the stops inside
-`42%`--`58%` it reads as a hard edge of light crossing a surface instead. The colour is
-`--color-foreground` at 14%: a lighter sweep is invisible on a white card, and an accent tint at a
-strength you could actually see turned the whole card purple.
-
-`overflow: hidden` on the host clips the band to the card's rounded corners, and `pointer-events:
-none` keeps the pseudo element out of the way of anything below it. `prefers-reduced-motion: reduce`
-stops the animation, which leaves the band parked off screen at `translateX(-100%)` rather than
-frozen across the content.
+page, the sign out form, the quota form and the language toggle. The spinner is added beside the
+label rather than replacing it, so no button needs a second dictionary string.
 
 **There is no scroll reveal, and adding one is the mistake to avoid.** The shape is an
 `IntersectionObserver` over a `.reveal` class with the hidden state gated on a `data-reveal`
@@ -61,500 +39,306 @@ attribute an inline script sets on `<html>` before first paint, so content is on
 something has confirmed it can be un-hidden.
 
 That gate is the whole design and it still breaks, always in the same shape: **the half that hides
-and the half that reveals have different lifetimes.** The attribute never came off `<html>` while the observer was bound
-to a snapshot of nodes, so a client side navigation, a locale switch that replaced list items keyed on
-translated strings, and a bundle that failed to arrive each left content at `opacity: 0` for good. Each
-fix was correct and each one uncovered the next: re-arm per route, then watch the tree for mutations,
-then stamp an attribute so the inline script could disarm itself when the bundle never landed. What
-finally settled it was that the effect was not worth the machinery.
+and the half that reveals have different lifetimes.** A client side navigation, a locale switch that
+replaced list items keyed on translated strings, and a bundle that failed to arrive each left content
+at `opacity: 0` for good. Each fix was correct and each one uncovered the next. What finally settled
+it was that the effect was not worth the machinery.
 
 `motion` was weighed as the alternative and lost on one property. It renders `initial` into the
-server's HTML, so `opacity: 0` ships in the markup and a reader whose bundle never lands sees nothing
--- the exact failure the gate existed to prevent, and no library can sell the other side of it:
-**visible without JavaScript and faded in with it needs a gate only JavaScript opens.** A library
-would have supplied the observer, which was never the hard part. The pure CSS `animation-timeline:
-view()` version that came before all of this was checked again in August 2026 and is still not
-Baseline, so it is still silently inert in Firefox.
+server's HTML, so `opacity: 0` ships in the markup and a reader whose bundle never lands sees nothing.
+**Visible without JavaScript and faded in with it needs a gate only JavaScript opens.** The pure CSS
+`animation-timeline: view()` version was checked again in August 2026 and is still not Baseline, so it
+is still silently inert in Firefox.
 
 The wrapper level `.animate-fade-up` on each page is untouched by any of that. It fires once on mount
-and never hid anything, which is why it never had a failure mode to begin with.
+and never hid anything.
 
 ### The animation library was installed, measured, and removed
 
-`motion` was added on a deliberate call to build the report rail's active marker as a `layoutId`
-shared element and the copy button's icon swap as an `AnimatePresence` exchange. Both were argued as
-cases CSS cannot express. **Both turned out not to be, and the measurement is what settled it.**
+`motion` was added to build the report rail's active marker as a `layoutId` shared element and the
+copy button's icon swap as an `AnimatePresence` exchange. Both were argued as cases CSS cannot
+express. **Both turned out not to be, and the measurement is what settled it.**
 
-- **The rail marker.** The claim was that two positions in a list are two different DOM nodes. That is
-  true in general and false here: rail rows are a fixed `--rail-row` height by construction, so the
-  marker's position is `index * row` and a `transform` transition covers it exactly.
-- **The icon swap.** The claim was that the outgoing icon must stay mounted while it leaves. It does
-  -- so both icons stay mounted, stacked in one grid cell, cross-fading. Nothing ever unmounts.
-- **Layout animations need `domMax`, not `domAnimation`.** That detail is what turned an argued ~18kB
-  into a measured **42kB gzipped**, and took `/r/[embedKey]`'s first load from 139kB to 179kB.
+- **The rail marker.** Rail rows are a fixed `--rail-row` height by construction, so the marker's
+  position is `index * row` and a `transform` transition covers it exactly.
+- **The icon swap.** Both icons stay mounted, stacked in one grid cell, cross-fading. Nothing ever
+  unmounts.
+- **Layout animations need `domMax`, not `domAnimation`.** That detail turned an argued ~18kB into a
+  measured **42kB gzipped**, and took `/r/[embedKey]`'s first load from 139kB to 179kB.
 
-Forty kilobytes for two effects that CSS does, on the product that charges people to be told their
-page is heavy. `.animate-stagger-in`, `.animate-score-settle` and `.animate-navbar-lift` in
-`app/globals.css` do the same work with no dependency.
+Forty kilobytes for two effects that CSS does, on a product that tells people their page is heavy.
+`.animate-stagger-in`, `.animate-score-settle` and `.animate-navbar-lift` in `app/globals.css` do the
+same work with no dependency.
 
 **The rule this leaves.** Entrance and reveal are CSS, permanently, for the SSR reason above. A
-library may still be the answer for something genuinely beyond CSS -- but the bar is a measurement
-against a working CSS attempt, not an argument made before either was written. `canvas-confetti` is the one
-that has cleared it since, and only because of where it is loaded from, see
-[Confetti](#confetti--componentsconfettitsx).
+library may still be the answer for something genuinely beyond CSS, but the bar is a measurement
+against a working CSS attempt, not an argument made before either was written.
 
 ### Scrollspy: `components/report-rail.tsx`
 
 The report rail binds an `IntersectionObserver`, and **it is not the scroll reveal above coming back**.
-That one hid elements and revealed them, which is why its two halves could get out of step and leave
-content invisible for good. This one hides nothing: every target is mounted and painted whether the
-observer runs or not, and all it reads is which section is in view. The failure mode is "no row is
-highlighted", and the rail is a list of working anchors either way. Do not remove it by analogy.
+This one hides nothing: every target is mounted and painted whether the observer runs or not, and all
+it reads is which section is in view. The failure mode is "no row is highlighted", and the rail is a
+list of working anchors either way. Do not remove it by analogy.
 
 `lib/anchor.ts` is the other half. Almost everything worth linking to in the report sits inside a
-`<details>` -- a fix card is two deep -- and a closed `<details>` gives its content no box, so a plain
-`href="#id"` scrolls to a zero-height element and the reader arrives nowhere. `revealAnchor` opens
-every ancestor first, then scrolls. `components/section-link.tsx` is the `<a>` that calls it, and it
-stays a real anchor so it works without JavaScript.
+`<details>`, and a closed `<details>` gives its content no box, so a plain `href="#id"` scrolls to a
+zero-height element and the reader arrives nowhere. `revealAnchor` opens every ancestor first, then
+scrolls. `components/section-link.tsx` is the `<a>` that calls it, and it stays a real anchor so it
+works without JavaScript.
 
 ## The report rail is a fixed row height, so its labels have to fit one
 
 `--rail-row` in `app/globals.css` is what makes the active marker's position `index * row` instead of
-a measurement. See `components/report-rail.tsx`. Because the row is a fixed **height** rather than a
-minimum, a label too long for it does not push the next entry down: it overflows and sits on top of
-it. "Termos da página" wrapped and did exactly that.
+a measurement. Because the row is a fixed **height** rather than a minimum, a label too long for it
+does not push the next entry down: it overflows and sits on top of it.
 
-The row is now tall enough for two lines and the label is clamped to two, on a `<span>` inside the
-anchor rather than on the anchor itself, `line-clamp` sets `display: -webkit-box`, which would
-replace the `flex` doing the vertical centring. Any label long enough to wrap does the same thing, so
-the fix belongs to the row and not to the wording.
+The row is tall enough for two lines and the label is clamped to two, on a `<span>` inside the anchor
+rather than on the anchor itself: `line-clamp` sets `display: -webkit-box`, which would replace the
+`flex` doing the vertical centring.
 
 ## Everything tappable clears 44px on a phone
 
 `captureMobile` counts any control whose box is under `MOBILE_TAP_TARGET_MIN_PX` on either axis, and
-any element rendering text under `MOBILE_MIN_FONT_PX`. Run against our own landing page it counted
-twenty of the first and twenty four of the second. **we were failing the measurement we sell**, and
-almost all of it came from shared primitives rather than from one screen.
-
-Fixed at the source, `max-sm:` only, so nothing about the desktop scale moves:
+any element rendering text under `MOBILE_MIN_FONT_PX`. Fixed at the source, `max-sm:` only, so nothing
+about the desktop scale moves:
 
 - **`Button` and `Input`.** `h-10` is 40px and `size="sm"` is 36px; both are under the line. Every
-  size now clears 44 on a phone. That was seven of the twenty on its own, and it fixes every page in
-  the app at once.
-- **The type scale.** `--text-micro` is 11px and `--text-nano` is 10px, both under the 12px floor,
-  across seventy five call sites. `app/globals.css` collapses the two steps to `0.75rem` under
-  `sm`. It is written against the **utilities**, not the custom properties: `@theme inline` inlines
-  the value into the generated class, so redefining `--text-micro` in a media query changes nothing.
-  Unlayered, so it outranks `@layer utilities` without a specificity fight.
-- **The dot is the mark, the button is the target.** `SwipeTrack`'s pagination dots were 8px squares.
-  The button takes the 44px and draws the same 8px dot inside it, with no gap between them: 44px
-  targets spaced by another 8 would run the row to 148px, and pulling them back with negative margins
-  would
-  overlap the hit areas, trading a target that is too small for one that activates its neighbour.
+  size now clears 44 on a phone.
+- **The type scale.** `--text-micro` is 11px and `--text-nano` is 10px, both under the 12px floor.
+  `app/globals.css` collapses the two steps to `0.75rem` under `sm`. It is written against the
+  **utilities**, not the custom properties: `@theme inline` inlines the value into the generated
+  class, so redefining `--text-micro` in a media query changes nothing.
 - **Icon-only controls grow their box, never their glyph.** The theme toggle's icons stay `size-3.5`;
-  the buttons around them go to `size-11`. Enlarging the glyph would put oversized icons in a bar
-  drawn around small ones. The same buttons are squared off at `size-6` above `sm`, which is a
-  separate reason: see [the language toggle](#language-toggle-componentslanguage-toggletsx).
-- **Standalone links get `min-h`, not padding.** Nav items, footer links and the two `inline-block`
-  links on the landing page centre their text in a 44px box, so the row grows without the baseline
-  drifting.
+  the buttons around them go to `size-11`. The same buttons are squared off at `size-6` above `sm`, see
+  [the language toggle](#language-toggle-componentslanguage-toggletsx).
+- **Standalone links get `min-h`, not padding.** Nav items and footer links centre their text in a
+  44px box, so the row grows without the baseline drifting.
 
-Note what is deliberately **not** covered: `captureMobile` excludes `display: inline`, because a link
-inside a sentence is prose and not a tap target. None of the above touches those.
+`captureMobile` excludes `display: inline`, because a link inside a sentence is prose and not a tap
+target. None of the above touches those.
 
 ## Elevation and theme
 
-**Three levels, two shadows each.** `--elev-1` (resting card), `--elev-2` (hover, the hero card),
-`--elev-3` (anything floating: dialog, dropdown, tooltip, toast) are exposed through `@theme inline`
-as `shadow-elev-1..3`. Each is a short tight contact shadow plus a long diffuse ambient one, because
-one blurred shadow is what a default looks like. The third layer is `--sheen`, a hairline of light on
-the top edge, which is most of what makes a card read as a plate on the paper rather than a drawn
-rectangle.
+**Three levels, two shadows each.** `--elev-1` (resting card), `--elev-2` (hover), `--elev-3`
+(anything floating: dropdown, tooltip) are exposed through `@theme inline` as `shadow-elev-1..3`. Each
+is a short tight contact shadow plus a long diffuse ambient one. The third layer is `--sheen`, a
+hairline of light on the top edge.
 
 **Shadows derive from `--shade`, never from `--ink`.** `--ink` is the foreground and inverts with the
-theme, so a shadow mixed from it would light every panel with a white halo in dark mode. A shadow is
-the absence of light in both themes.
+theme, so a shadow mixed from it would light every panel with a white halo in dark mode.
 
-**Dark mode is a block of variables and nothing else.** No component changed when it landed, because
-no component holds a colour -- every map in `lib/constants.ts` is token utilities like
-`bg-coral/15 text-coral`. Three relationships invert rather than darken: `--panel` must be *lighter*
-than `--paper` or the elevation reads as a hole; `--grid` flips direction and shrinks in amplitude,
-because the same lightness difference reads twice as loud on a dark ground; and the signal channels
-need *more* lightness, not less.
+**Dark mode is a block of variables and nothing else.** No component holds a colour: every map in
+`lib/constants.ts` is token utilities like `bg-coral/15 text-coral`. Three relationships invert rather
+than darken: `--panel` must be *lighter* than `--paper` or the elevation reads as a hole; `--grid`
+flips direction and shrinks in amplitude; and the signal channels need *more* lightness, not less.
 
 The theme is a cookie read on the server in `lib/theme.ts` and stamped on `<html>` in
-`app/layout.tsx`, mirroring `getLocale()` exactly. That is why there is no flash and no inline script:
-the server already knows. `prefers-color-scheme` is deliberately not consulted -- the server cannot
-read it, so it would reintroduce the flash the cookie exists to prevent.
+`app/layout.tsx`, mirroring `getLocale()` exactly. That is why there is no flash and no inline script.
+`prefers-color-scheme` is deliberately not consulted: the server cannot read it.
 
-**A reader with no cookie gets dark** (`DEFAULT_THEME`). Which of the two is the fallback is a call
-about how the product should look on a first visit and nothing else: both palettes are complete, the
-toggle writes the same cookie either way, and somebody already holding a `light` cookie keeps light.
-The one thing that does not follow it is `OG_COLORS`, which mirrors the light tokens because an unfurl
-is rendered once for every reader and cannot know anyone's theme.
+**A reader with no cookie gets dark** (`DEFAULT_THEME`). The one thing that does not follow it is
+`OG_COLORS`, which mirrors the light tokens because an unfurl is rendered once for every reader.
 
 **Printing works because the dark block sits inside `@media screen`.** The print block forces
-`print-color-adjust: exact` so the signal channels survive onto paper, which would have printed a dark
-report as a black page. Scoped to the screen, paper never sees the overrides and falls through to the
-light `:root` -- so the light palette is written once and there is no second copy to drift.
+`print-color-adjust: exact` so the signal channels survive onto paper. Scoped to the screen, paper
+never sees the overrides and falls through to the light `:root`.
 
 ## Accident screens: `components/error-screen.tsx`
 
-There were none. A thrown render or a bad `embedKey` got Next's stock black-on-white page, on the
-one URL the product asks people to share, which is long, opaque, and routinely truncated by whatever
-chat client it was pasted into. One shell, three mounts:
+One shell, three mounts:
 
 - **`app/not-found.tsx`** is a Server Component, so it awaits the dictionary directly. It builds its
   own navbar, footer and `I18nProvider`, because a root `not-found.tsx` renders inside
-  `app/layout.tsx` alone, neither route group's layout runs, so nothing else would supply them.
-- **`app/(app)/error.tsx` and `app/(report)/error.tsx`** are per-group rather than one at the root,
-  and that is what buys the chrome: a boundary inside a group renders as that group's layout's child,
-  so the navbar, the footer and the provider are all still there and the reader keeps a way out. A
-  root `error.tsx` would replace them and have no dictionary to read. Both log the error, which the
-  boundary otherwise swallows.
+  `app/layout.tsx` alone.
+- **`app/(app)/error.tsx` and `app/(report)/error.tsx`** are per-group rather than one at the root: a
+  boundary inside a group renders as that group's layout's child, so the navbar, the footer and the
+  provider are still there. Both log the error, which the boundary otherwise swallows.
 
 `errors.notFound.body` deliberately does not guess *why*. A link goes stale, gets truncated, or was
-never valid, and nothing here can tell which, "this report was deleted" would be a claim about
-something nobody checked.
+never valid, and nothing here can tell which.
 
 ## Loading shells: `components/route-skeleton.tsx`
 
 Every page is a dynamic Server Component, so without a `loading.tsx` the browser holds the previous
-screen untouched until the whole render lands. Worse, a `<Link>` prefetch of a dynamic segment only
-stores payload down to the nearest `loading.tsx`, so with none present **the prefetch keeps nothing**
-and every click is a full round trip with no feedback.
+screen untouched until the whole render lands, and a `<Link>` prefetch of a dynamic segment keeps
+nothing.
 
-`RouteSkeleton` takes a `ROUTE_SKELETON` variant and paints the layout of the page that is coming --
-a grid of rows or one analysis -- built from `components/ui/skeleton.tsx`. It reads its
-`common.loading` label from `useI18n` rather than `getDictionary()`, so the shell stays out of
-`cookies()`. Mounted by `app/(app)/dashboard/loading.tsx` and `app/(report)/r/[embedKey]/loading.tsx`.
-There is no third under `/analyses/[id]`: that route renders nothing, so a skeleton there would be a
-byte-for-byte copy of the report's shown before a redirect.
+`RouteSkeleton` takes a `ROUTE_SKELETON` variant and paints the layout of the page that is coming,
+built from `components/ui/skeleton.tsx`. It reads its `common.loading` label from `useI18n` rather
+than `getDictionary()`, so the shell stays out of `cookies()`. Mounted by
+`app/(app)/dashboard/loading.tsx` and `app/(report)/r/[embedKey]/loading.tsx`. There is no third under
+`/analyses/[id]`: that route renders nothing.
 
-There is deliberately no `loading.tsx` at the `app/(app)` group root: it would cover
-`/auth/signin` too, and neither shell is that page's shape.
+There is deliberately no `loading.tsx` at the `app/(app)` group root: it would cover `/auth/signin`
+too, and neither shell is that page's shape.
 
 ## Layout
 
-**A flex or grid item defaults to `min-width: auto` and will not shrink below its content.** That is
-what broke the readout on a phone twice over, and both breaks looked like a styling accident rather
-than a rule: `ReadoutScore`'s bar rows pushed 85px past a 360px viewport because a `flex-1` label sat
-beside a fixed-width bar with no `min-w-0` in the chain, and the analysis header let a long URL run off
-the screen because its parent is `items-start` in column direction, which sizes a child to its own
-content so `truncate` had nothing to truncate against. **`truncate` only works if an ancestor actually
-constrains the width.** Pair it with `min-w-0` on every flex or grid ancestor, and `w-full` under
-`items-start`.
+**A flex or grid item defaults to `min-width: auto` and will not shrink below its content.**
+**`truncate` only works if an ancestor actually constrains the width.** Pair it with `min-w-0` on
+every flex or grid ancestor, and `w-full` under `items-start`.
 
 The way to check is to measure, not to look: set a 360px viewport and compare
 `document.documentElement.scrollWidth` against `clientWidth`. Anything above zero is a page that
-scrolls sideways on a phone. `e2e/free-analysis.spec.ts` asserts it for the report.
+scrolls sideways on a phone.
 
 ### One container: `CONTAINER_CLASS`
 
-`mx-auto w-full max-w-[90rem] px-4 sm:px-6 lg:px-8 xl:px-12` in `lib/constants.ts`, read by the navbar, `app/(app)/layout.tsx`,
-`app/(report)/layout.tsx` and the site footer. **Every surface is the same measure**, so the wordmark
-lines up with the content under it and `/r` is not a different width from `/analyses`. The report
-sets no width of its own; it inherits the app container.
+`mx-auto w-full max-w-[90rem] px-4 sm:px-6 lg:px-8 xl:px-12` in `lib/constants.ts`, read by the
+navbar, `app/(app)/layout.tsx`, `app/(report)/layout.tsx` and the site footer. **Every surface is the
+same measure**, so the wordmark lines up with the content under it. There is no way to widen one
+surface: changing this moves all of them together.
 
-**One constant is the whole knob, and that has a consequence worth stating**: there is no way to
-widen one surface. Changing this moves the navbar, the app pages, both reports and the footer
-together, by construction. A change meant for the report alone that is made here has already been
-made everywhere.
-
-90rem is 1440px, up from 64rem. **Nothing below 1440px of viewport is affected**, `max-width` binds
-only above its own value, so phones and 1366px laptops render exactly as before and no breakpoint is
-involved in the *measure*.
-
-**The gutter is the other half, and it is a separate question with a different answer.** It was a
-flat `px-4` at every width: the same 16px on a 1440px desktop that a 360px phone gets, where 16px is
-most of the room there is. A gutter is a proportion of the space available rather than a constant, so
-it steps, 16px, then 24px at `sm`, 32px at `lg`, 48px at `xl`. Mobile is deliberately unchanged:
-`px-4` still holds up to 640px, so nothing verified at 360px moved.
+**The gutter steps**, 16px, then 24px at `sm`, 32px at `lg`, 48px at `xl`, because a gutter is a
+proportion of the space available rather than a constant.
 
 **The reading measures are a separate number and stay one.** The blog article and the body paragraphs
-cap near `max-w-2xl` *inside* this container, because a line of prose 1440px wide is unreadable
-whatever the layout allows. Folding the two into one value is the mistake this note exists to
-prevent.
+cap near `max-w-2xl` *inside* this container, because a line of prose 1440px wide is unreadable.
 
 ### Navbar
 
 - Logo, nav links, and an account menu (`components/account-menu.tsx`).
-- **`NavLinks` takes `signedIn` and filters on it**, because the link set is no longer one audience:
-  `/blog` is for the visitor who arrived from an ad and `/dashboard` only exists once there is a
-  session. The navbar renders it in both branches rather than only for a signed-in user: a blog
-  nobody logged out can reach is a blog the ad traffic never sees.
+- **`NavLinks` takes `signedIn` and filters on it.** `/blog` is public and `/dashboard` only exists
+  once there is a session.
 - **Account menu**: a native `<details>` dropdown with the avatar/name as the summary; the panel shows
-  name, email, the **credit balance**, and a `Sign out` button (a server action calling `signOut`).
-- **`NavLinks` also carries two anchors**, `/#how` and `/#credits`, which are sections of the landing
-  page rather than routes. They are flagged `anchor: true` so the active-state check skips them: that
-  check compares against `pathname`, which never carries a hash, so it would answer false for a
-  reason that has nothing to do with where the reader is.
+  name, email, **this month's quota usage** read from the rows, and a `Sign out` button (a server
+  action calling `signOut`).
 - **Both menus are `components/ui/dropdown.tsx`, and the reason is dismissal.** A bare `<details>`
-  closes on its own summary and on nothing else, so a click on the page behind it left the panel
-  covering whatever the reader had just tried to tap. The element still gives the toggle, the
-  keyboard and the closed-by-default markup; what it does not give is a way out, so `Dropdown` adds
-  three, a click outside, Escape, and a route change. One component rather than one per menu because
-  the nav has two of these, and a dismissal that worked in the hamburger and not in the account panel
-  is exactly the bug it replaces. It listens on `pointerdown` rather than `click`, which fires before
-  focus moves, so pressing the summary of an already-open menu does not close and reopen it.
-- **An operator link in here is gated on `isAdmin(user)` over the stored role**, the same gate the
-  pages use, so the menu can never offer a page that would `notFound()`. Treat it as a menu entry and
-  never as the boundary.
+  closes on its own summary and on nothing else. `Dropdown` adds three ways out: a click outside,
+  Escape, and a route change. It listens on `pointerdown` rather than `click`, which fires before focus
+  moves, so pressing the summary of an already-open menu does not close and reopen it.
+- **The operator link is gated on `isAdmin(user)` over the stored role**, the same gate the page uses.
+  Treat it as a menu entry and never as the boundary.
 - Consumes `getCurrentUser()` rather than calling `auth()` itself. See [security.md](security.md).
 - `print:hidden`, so it never reaches paper.
 
-**Below `md` the whole right-hand cluster collapses into `components/mobile-menu.tsx`.** Links, the
-language toggle and the account block, in one `<details>` behind a hamburger. The two clusters are the
-same components rendered twice and swapped with `hidden md:flex` / `md:hidden`, not a second
-implementation: the account block is `AccountPanel`, exported from `account-menu.tsx` and rendered both
-inside the desktop dropdown and inside the mobile panel.
+**Below `md` the whole right-hand cluster collapses into `components/mobile-menu.tsx`.** The two
+clusters are the same components rendered twice and swapped with `hidden md:flex` / `md:hidden`: the
+account block is `AccountPanel`, exported from `account-menu.tsx` and rendered in both.
 
-Both copies are in the DOM at every width, which is what an e2e has to account for: a locator for
-anything in the menu must be scoped to `account-menu` or `mobile-menu`, or it matches twice. Role
-queries are the exception, a closed `<details>` is out of the accessibility tree.
+Both copies are in the DOM at every width, so a locator for anything in the menu must be scoped to
+`account-menu` or `mobile-menu`, or it matches twice. Role queries are the exception: a closed
+`<details>` is out of the accessibility tree.
 
-`MobileMenu` is the one client component in the header, for one reason: a native `<details>` keeps its
-`open` state across a client-side navigation, so the panel would stay hanging over the page the link
-just went to. It watches `usePathname()` and closes itself.
+`MobileMenu` is a client component because a native `<details>` keeps its `open` state across a
+client-side navigation. It watches `usePathname()` and closes itself.
 
 ### Site footer: `components/site-footer.tsx`
 
-Wordmark, copyright line and three links on the right: the privacy policy (`PRIVACY_PATH`), email
-(`CONTACT_EMAIL_URL`) and WhatsApp (`WHATSAPP_URL`). The policy is a text link because a reader
-looking for it is looking for the words; the two channels are lucide icons alone, with the label
-carried by `aria-label` and `title`. WhatsApp opens in a new tab with `rel="noreferrer noopener"`;
-the `mailto:` does not, because it hands off to a mail client rather than to a page. Same container
-as everything else. Mounted in `app/(app)/layout.tsx`, so it reaches every app page.
+Wordmark, copyright line and three links: the privacy policy (`PRIVACY_PATH`), email
+(`CONTACT_EMAIL_URL`) and WhatsApp (`WHATSAPP_URL`). The two channels are lucide icons alone, with the
+label carried by `aria-label` and `title`. WhatsApp opens in a new tab with `rel="noreferrer noopener"`;
+the `mailto:` does not.
 
-**The address is `CONTACT_EMAIL`, the same constant the privacy policy interpolates and every
-outgoing mail sends as its reply-to.** One mailbox named in one place: a policy pointing at an
-address the mails never use is the kind of drift nobody notices until somebody writes to it.
+**The address is `CONTACT_EMAIL`, the same constant the privacy policy interpolates.**
 
-**The footer is the only place the policy is linked, and that is enough**: it is on every app page,
-which is what a policy link is for.
-
-**In `app/(report)/layout.tsx` it is mounted only for a reader with a session**, alongside the
-navbar. It stays off for everyone else on its own
-merit while that route was the *second* analysis surface, read by someone with no account. It is the
-only one now, so a signed-in reader gets the app chrome they would have had on the route that went
-away, and a signed-out reader still gets none: the report has its own footer for them.
+**In `app/(report)/layout.tsx` it is mounted only for a reader with a session**, alongside the navbar.
+A signed-out reader gets the report's own header and footer.
 
 ### Language toggle: `components/language-toggle.tsx`
 
 A pair of submit buttons in one `<form>` posting to the `setLocale` server action, wrapped in
-`PendingFieldset` -- the action calls `revalidatePath('/', 'layout')`, so it is the most expensive
-click in the chrome and the one that most needs to show it. `useFormStatus` reports the form rather
-than which button was pressed, which is why the whole pair dims rather than one label swapping. No
-client JS beyond that, no URL change. Mounted in `components/navbar.tsx` and, **separately, in the public report's own
-header.** That surface has no navbar and is read signed-out by someone who may not read English.
+`PendingFieldset`: the action calls `revalidatePath('/', 'layout')`, so it is the most expensive click
+in the chrome. Mounted in `components/navbar.tsx` and, **separately, in the public report's own
+header**, which is read signed-out by someone who may not read English.
 
-**Each segment is a flag from `country-flag-icons`, and specifically not the flag emoji.** Windows
-ships no flag faces in Segoe UI Emoji, so Chrome and Edge render the regional indicator pair as the
-boxed letters `BR` and `US`: the small out-of-proportion label the flags replaced, with less control
-over it. The SVG renders the same everywhere. `LOCALE_FLAG` lives in the component for the reason
-`READOUT_GROUP_ICON` does, see the note in [readout.md](readout.md).
+**Each segment is a flag from `country-flag-icons`, not the flag emoji.** Windows ships no flag faces
+in Segoe UI Emoji, so Chrome and Edge render the regional indicator pair as boxed letters. `LOCALE_FLAG`
+lives in the component because it holds components, and pure modules import `lib/constants.ts`.
 
 A flag is a country and the switch chooses a language, so **the accessible name is the language**.
-`LOCALE_LABEL` carries the endonyms, `English` and `Português`, untranslated in both directions so a
-reader who cannot read the current UI can still find their own. It is `sr-only` plus the `title`, and
-nothing prints it. The inactive segment is desaturated: two full-colour flags side by side both look
-selected, and the fill would then be arguing against the colour.
+`LOCALE_LABEL` carries the endonyms, `English` and `Português`, as `sr-only` plus the `title`. The
+inactive segment is desaturated.
 
 **Both switches state their segment's box rather than padding it**, `size-6` above `sm` and `size-11`
-below, in `language-toggle.tsx` and `theme-toggle.tsx` alike. Padding sized each segment off its own
-content, and the two switches have different content: a 14px icon against an 18x12 flag, previously
-against a `text-nano` label whose line box came from an inherited `line-height`. They sat next to
-each other in the navbar cluster at different heights and agreed only at the `max-sm` step, where
-both were already squared off. Whichever way the pair is resized, resize it in both files: neither
-one can hold the match on its own.
+below, in `language-toggle.tsx` and `theme-toggle.tsx` alike. Resize the pair in both files.
 
 ## Disclosure card: `components/disclosure-card.tsx`
 
-**Two kinds of caller, and the `score` rail is why.** The ranked fix and hypothesis cards pass
-`ScoreIndicator` (1-10 impact); the readout's group cards pass their own 0-100 health rail. The shell
-is deliberately shared: a number down the left edge is how this report says *here is a thing with a
-score on it*, and having two answers to that on one page was the actual inconsistency. **The widget
-is deliberately not shared.** See the note in [readout.md](readout.md#a-group-is-a-card-with-its-score-down-the-left-edge).
+**Two kinds of caller, and the `score` rail is why.** The error cards pass `ScoreIndicator` (1-10
+impact); the category and crawler cards in `components/section-evidence.tsx` pass their own 0-100 rail. The shell is shared: a number down the
+left edge is how this report says *here is a thing with a score on it*. **The widget is not shared.**
+See [readout.md](readout.md#layout).
 
 ### `summaryClassName` shapes the trigger, not the card
 
-Opt in and unset by default. It lands on the column holding the badge row and the title, for a
-caller that needs the `<summary>` itself drawn as a control: the account menu and the mobile menu
-both pass the padding, border and hover state through it, because on those two the trigger *is* the
-button and the panel below is only what it opens.
+Opt in and unset by default. The account menu and the mobile menu pass the padding, border and hover
+state through it, because on those two the trigger *is* the button.
 
-**Nothing passes a height through it, and that is deliberate.** A constraint here applies to the
-closed card and the open one alike. The readout's group names and the landing FAQ's questions both
-run to as many lines as the locale needs, and an earlier `min-h` here was reserving room in every
-card for the longest name any of them might have.
+**Nothing passes a height through it.** A constraint here applies to the closed card and the open one
+alike, and titles run to as many lines as the locale needs.
 
-**The score is a rail down the left edge, and it is the only score treatment in the header.** The
-rail is one fixed-width block, tinted by impact, identical open or closed. Scanning a list reads
-9, 8, 7, 7, 5, 4 in a column: the ranking made visual.
+**The score is a rail down the left edge, and it is the only score treatment in the header.** Scanning
+a list reads 9, 8, 7, 7, 5, 4 in a column: the ranking made visual. **The rail also absorbs the rank**,
+because the list is sorted by impact. There is no `rank`, `scores` or `openScores` prop.
 
-A mono rank, a coloured pill, a coral flag and the word IMPACT next to ten meter bars next to `9/10`
-all fight over one wrapping line and push the title underneath them. The meter alone is `shrink-0` at
-roughly 290px, which is what forces the title onto its own row and what makes an open card need a
-whole second set of score elements swapped in by CSS. **The rail also absorbs the rank**, which is a
-second number saying nearly the same thing: the list is sorted by impact, so `01` beside `9/10` is
-one fact twice. There is therefore no `rank`, `scores` or `openScores` prop, no `crowded` branch, no
-title-reflow classes, and `impactScoreFillClass`.
+**The marker is a lucide `ChevronDown` that rotates.** It stays `aria-hidden`: the accessible name is
+the `<h3>` inside the summary, and `<details>` exposes its own open state.
 
-The title now wraps in place in both states, which is also what the landing FAQ always wanted, the
-`crowded` branch existed because a title alone reflowed badly, and there is no reflow left.
+**`<details>` does not animate on its own.** `app/globals.css` gives it movement in two
+**independent** rules: `details[open] > *:not(summary)` runs a fade-and-rise on the content in every
+browser, while the `::details-content` `block-size` transition (which needs
+`interpolate-size: allow-keywords`) is progressive enhancement for the height. Both are switched off
+under `prefers-reduced-motion`.
 
-**The marker is a lucide `ChevronDown` that rotates**, not a literal `+` / `-` in a mono span. The
-glyphs read fine but were the only control in the product not drawn from the icon set. It stays
-`aria-hidden`: the accessible name is the `<h3>` inside the summary, and `<details>` exposes its own
-open state.
+A native `<details>` wrapping a `Card`, **not React state**, so it costs no client JS for the
+open/close itself. The summary carries the hover and the inset focus ring; the `Card` around it lights
+its border on `focus-within`.
 
-**`<details>` does not animate on its own.** The browser flips the content's display and the card
-jumps straight to its new height. `app/globals.css` gives it movement in two **independent** rules,
-and the split is the point: `details[open] > *:not(summary)` runs a fade-and-rise on the content and
-works in every browser, while the `::details-content` `block-size` transition (which needs
-`interpolate-size: allow-keywords` to animate to `auto`) is progressive enhancement for the height
-itself. Where the second is unsupported the panel snaps to full height and the content still fades, so
-nothing is gated on support. Both are switched off under `prefers-reduced-motion`, like every other
-animation here.
-
-**Every** ranked row, in every tab: hypotheses and fixes alike. A native `<details>` wrapping a
-`Card`, **not React state.** It costs no client JS for the open/close itself. The second layer
-*inside* an open card is `CardDrawers` below, which does use state, and for a reason named there.
-
-The summary is the click target for every ranked row in the product, so it carries the hover and the
-inset focus ring itself; the `Card` around it lights its border on `focus-within` so keyboard and
-mouse land on the same row.
-
-Top rows arrive with `defaultOpen` rather than through a separate always-open card component. That is
-the point of the shape: **what a row starts as is a default, never a state the reader is stuck in.**
-
-The title renders as an `<h3>` inside the `<summary>`. Since every row is one of these, a `<span>`
-there would leave the section's items with no headings at all, for a screen reader walking the page or
-for anything selecting them by role.
+Top rows arrive with `defaultOpen`: **what a row starts as is a default, never a state the reader is
+stuck in.** The title renders as an `<h3>` inside the `<summary>`, so a section's items have headings
+for a screen reader or for anything selecting them by role.
 
 ## Hypothesis card: `components/hypothesis-card.tsx`
 
-The `DisclosureCard` header of a hypothesis, rank, section badge, "Manual setup" pill, "Start here"
-flag, compact chips and open gauges, wired once, with the body passed as `children`.
+The `DisclosureCard` header of a copy error: the problem as its title, the impact rail, the section
+badge and the "Start here" flag on the top row, with the body passed as `children`. The body is
+`components/hypothesis-list.tsx`. See [analysis-ui.md](analysis-ui.md).
 
-It exists because that wiring was **copied** into the report page and the two drifted the moment one
-of them was touched. There is one body now too (`components/hypothesis-list.tsx`), which is the same
-lesson applied one level down. See [report.md](report.md).
+## Run again: `components/run-again.tsx`
 
-## Alternates, in the copy card
+The owner's "Run again", in two shapes: the bare button in the report header, and the dashed
+`trend_start` panel for an owner who has never run the page twice. Both post to
+`POST /api/analyses/[id]/runs` and `router.refresh()` on success.
 
-Each alternate is a row carrying the line, its `evidence` and **Use this one**, rather than the bare
-paragraph it was. The paragraph was the whole problem: the drawer wrote two more options and gave the
-reader no way to take one, so more options would only have meant more triage.
+**It stays visible when the quota is spent**, disabled, with `readout.run.quotaExhausted` beside it,
+so the owner learns why rather than finding a control gone. The route refuses anyway.
 
-**The chosen line can be replaced with the reader's own.** "Write my own" opens a textarea on the
-card, saving sends it to the same route a choice goes to, and the result is marked "Your words" so
-nothing on the report reads as generated when it was not. The word ceiling shows as a warning under
-the box and never blocks the save.
-
-**Taking one is not optimistic**, unlike the verdict beside it. The list reorders under the finger
-that clicked, so a swap that bounced back would look like the button moved the wrong row.
-
-The loading state is two skeleton rows shaped like the rows that are coming, not a line of text: the
-panel is about to grow by exactly that much, and a text placeholder makes it jump when they land.
-
-`VariantPreview` is keyed on the chosen variant's id, so choosing remounts it with that variant's own
-screenshot instead of leaving the previous one on screen. Screenshots are per variant, so nothing is
-invalidated by the swap.
-
-## Fix verdict: `components/fix-verdict.tsx`
-
-One control on both card families, on the copy card and on the fix card, because the question is the
-same in both: did this recommendation deserve to be made. It is what the acceptance rate in
-`scripts/rewrite-stats.mts` is computed from, and the only judgement of this product's own output that
-exists anywhere.
-
-**It sits under the drawers, not in the header.** The header carries what the card *is* -- rank,
-section, category -- and the decision is what the reader does after reading, so putting it at the top
-would ask for a verdict before the argument. It is separated by a hairline for the same reason.
-
-**Three states, not two.** Undecided is the state every card starts in and is not a soft no; the
-decided state names what was chosen and offers `undo`, which writes null back rather than the
-opposite verdict. Collapsing those would corrupt the rate the column exists to produce.
-
-**Optimistic, and rolled back on failure.** The whole point of the control is that deciding costs
-nothing, so a spinner on it would defeat it. A write that silently failed would be worse than one
-that visibly bounces back.
-
-Owner only, like the alternates drawer beside it, and for a stronger reason: the report gets handed to
-clients and partners, and what the owner discarded is not theirs to read. See [report.md](report.md).
+`RunInProgress` takes its place in the header while the state is `rerunning`, polling through
+`components/use-analysis-poll.ts`, the same hook `GeneratingNotice` uses. See
+[report.md](report.md).
 
 ## Card drawers: `components/card-drawers.tsx`
 
-**The second layer inside an open card.** A row of toggles over `CARD_DRAWER`, with one panel open at
-a time and none open unless the caller names a `defaultDrawer`.
+**The second layer inside an open card.** A row of toggles over `CARD_DRAWER`, one panel open at a
+time, none open unless the caller names a `defaultDrawer`. Today there is one drawer, **why**: the
+reasoning behind an error.
 
-An open card had grown into a wall: the copy card stacked a `Recommendation` label, a `Current` label
-over the struck line, a `Change to` label over the new one, a placeholder warning, the before/after
-preview and a "Why this works" panel, and then hung an `Other options` button in the middle of it.
-Four 0.6rem eyebrows stood between the reader and the one sentence they came for.
+**An open card shows the error; the argument sits one click below it.** One shell lives here
+(`rounded-md border bg-muted/40`) and callers pass content, never chrome. The toggle row sits under a
+`border-t`, and every button is `variant="outline"` in both states.
 
-**And the four bodies had drifted into four treatments.** A purple-tinted bordered box for the why,
-a borderless grey box for the steps, another grey box for the alternates, and no container at all for
-the preview, so clicking across the row made the card restyle itself under the reader. One shell
-lives in this component now (`rounded-md border bg-muted/40`), and callers pass content, never
-chrome. The toggle row sits under a `border-t`: the drawers are a layer beneath the decision, not
-more of it. Every button is `variant="outline"` in both states, so the row reads as a set of controls
-rather than as three pieces of text one of which happens to be boxed; the open one changes weight and
-ground, never whether it is a button.
+**The copy card's "why" opens on `assessment`, labelled, above `rationale`**, because what the line
+already does and what the error costs are two different claims. `assessment` is nullable, and a row
+without it renders the drawer with `rationale` alone.
 
-**What an open card shows is the decision.** The rewritten line, or the sentence naming the problem.
-Everything that argues for it, the verdict on the current line, the rationale, the screenshot, the
-alternates, the steps, is a labelled control the reader can press. One panel at a time, because they
-answer different questions and reading two at once was never what anyone wanted; the height is the
-whole reason this exists.
-
-**The "why" drawer opens on `assessment`, above `rationale`, and both carry a label.** They are three
-different claims, what the line already does, why the replacement is better, and the CRO mechanism it
-uses, and unprefixed they read as one paragraph, which is the reason `evidence` got a label in the
-first place. `assessment` is what answers *why are you touching this line at all*, so it goes first.
-It is nullable, and a hypothesis written before the field existed renders the drawer exactly as it
-always was rather than a label over nothing. See [ai-pipeline.md](ai-pipeline.md).
-
-Putting the verdict permanently under the struck-through line was the other option, and it is where it
-belongs spatially. It stays in the drawer because a third always-visible sentence undoes the trimming
-this component exists to hold.
-
-- **A drawer with nullish `content` renders no button.** That is how the preview disappears for a
-  manual hypothesis and the alternates disappear for a reader who does not own the analysis, the
-  caller passes `null` rather than filtering the list, so the ids stay stable and the row order does
-  not shift under the reader.
-- **`onOpen` fires once, on first open.** It is what lets the alternates drawer buy its two variants
-  when it is opened rather than on mount, so a card nobody expands costs no model call.
-- It is `useState`, unlike `DisclosureCard`, which is deliberately CSS-only. A drawer has to be able
-  to *close another one*, which a `<details>` cannot express without a `name` group and the caller
-  managing it. The cards are already client components.
-- **A drawer is not the footnote it replaced.** The rule in [analysis-ui.md](analysis-ui.md), that a
-  "Why" must never be small muted text tucked under the thing it explains, holds: the toggle sits
-  *above* its panel, at the same size as every other control on the card, and the panel it opens is
-  the full-size `WhyBlock`.
+- **A drawer with nullish `content` renders no button**, so a fix with no `evidence` has no drawer.
+- **`onOpen` fires once, on first open.**
+- It is `useState`, unlike `DisclosureCard`, because a drawer has to be able to close another one.
+- **The toggle sits above its panel, at the same size as every other control on the card**, and the
+  panel carries body-sized foreground text. Do not quiet it back down into muted small print.
 
 ## Panel card: `components/panel-card.tsx`
 
-A card whose heading is a labelled bar, and whose bar is the only thing that opens it. Two callers:
-the four analysis sections that replaced the tabs, and the terms section that closes the document.
+A card whose heading is a labelled bar, and whose bar is the only thing that opens it. Its caller is
+the four report sections in `components/analysis-sections.tsx`.
 
-**One component because they had already started to differ.** They are the same object, a heading
-somebody clicks, a summary of what is inside it on the same line, and a body. Written twice it drifts
-the first time either is touched, which is the failure `RankedListHeader` exists to stop one level up.
+**The bar is the whole `<summary>`.** Everything that toggles is on one line, and everything below it
+is content that does not.
 
-**The bar is the whole `<summary>`, and that is a fix rather than a style.** The readout's group
-cards, which used this before they moved to `DisclosureCard`, first put the label in the bar and the
-score on a second row below it with both inside the summary: two visually distinct strips, one
-behaviour, and a reader who clicked the score row and watched the card collapse had found a control
-nobody told them about. Everything that toggles is on one line, and everything below it is content
-that does not.
-
-**The bar is the card's own surface, not an inverted one.** It was `bg-foreground` for a while and
-the contrast did make a section read as a heading, but a page of black bars is a page where the
-headings outweigh what they head, and it put the report's only inverted surface on its most ordinary
-furniture. The `border-b`, the mono label and the hover carry the same job at the weight a heading
-should have.
+**The bar is the card's own surface, not an inverted one.** The `border-b`, the mono label and the
+hover carry the heading's job at the weight a heading should have.
 
 `trailing` is what the bar says about the body without opening it, a count of cards. It sits before
 the chevron and must stay short enough not to wrap.
@@ -562,22 +346,13 @@ the chevron and must stay short enough not to wrap.
 ## Impact legend: `components/impact-legend.tsx`
 
 What the number on the rail means, said once per list rather than once per card. It is mounted by
-`RankedListHeader`, which both ranked lists render, see
-[analysis-ui.md](analysis-ui.md#the-header-over-a-ranked-list--componentsranked-list-headertsx).
+`RankedListHeader`, see [analysis-ui.md](analysis-ui.md#the-header-over-a-list-componentsranked-list-headertsx).
 
-**It cannot go in the card.** `InfoHint` is a `<button>`, and a button inside a `<summary>` is an
-interactive element nested in an interactive one, clicking it would toggle the card. And the answer
-is the same for all six rows, so asking it six times is six controls carrying one sentence.
+**It cannot go in the card.** `InfoHint` is a `<button>`, and a button inside a `<summary>` would
+toggle the card. The answer is the same for every row anyway.
 
-The sentence is bounded by [invariants.md](invariants.md): the score ranks the fixes against each
-other, **it was written by a model rather than counted**, and it never says what the change will
-produce. Without it a `9/10` beside a fix looks like something measured.
-
-**There is no `WhyBlock`.** The reasoning does not need a component of its own, and the rule it would
-carry lives one level up: `CardDrawers` gives every panel body-sized foreground text, and the toggle
-above it is a full-size control. 12px muted text under the steps, a 9.6px `<details>`, or a
-`rationale` never rendered at all are the failures that rule exists for. **Do not quiet it back
-down.**
+The sentence says the score ranks the errors against each other and was written by a model rather
+than counted, so a `9/10` beside an error does not read as something measured.
 
 ## Badges
 
@@ -592,65 +367,46 @@ A coloured pill per `SECTIONS` value, used inside hypothesis cards:
 
 Mirrors `section-badge.tsx` exactly, over `FLOW_CATEGORY_BADGE_CLASS` + `dictionary.labels.flowCategory`.
 
-Flow: `signup_friction` -> coral · `cta_placement` -> purple · `decision_load` -> blue · `objections`
--> purple (lighter) · `trust` -> green · `pricing_clarity` -> amber · `page_structure` -> gray
+Structure: `signup_friction` -> coral · `cta_placement` -> purple · `decision_load` -> blue ·
+`objections` -> purple (lighter) · `trust` -> green · `pricing_clarity` -> amber · `page_structure` ->
+gray · `mobile` -> blue · `performance` -> amber · `distinctiveness` -> purple (lighter)
 
 Visibility: `indexability` -> coral · `metadata` -> purple · `structured_data` -> blue ·
 `ai_answerability` -> green
 
-**Hues repeat across the two families on purpose.** They never render in the same list, so a colour
-only has to separate the categories it sits beside.
+**Hues repeat across the two families on purpose.** They never render in the same list.
 
 ## Score indicator
 
 `impact_score` (1-10). Higher = warmer: coral at 8-10, amber at 5-7, gray at 1-4, over
 `impactScoreRailClass` and `impactScoreBadgeClass`.
 
-- **Impact is the only scale it renders.** There is no `kind` prop and no effort scale beside it,
-  anywhere in the product. See
-  [analysis-ui.md](analysis-ui.md#nothing-shows-an-effort-score-anywhere).
+- **Impact is the only scale it renders.** There is no effort scale beside it, anywhere in the
+  product. See [analysis-ui.md](analysis-ui.md#nothing-shows-an-effort-score-anywhere).
 - **`variant="rail"` is the default and the ranked-row treatment**: a `w-14` tinted block down the
-  left edge of a `DisclosureCard`, the number over `/10`. Identical open or closed.
-- **There is no ten-segment meter.** It prints the same fact three times (bars, `9/10`, the colour),
-  carries the word IMPACT beside it, and is `shrink-0` at roughly 290px, which crowds every header it
-  sits in.
+  left edge of a `DisclosureCard`, the number over `/10`.
 - `variant="compact"` is the inline chip (`I9`), for anywhere a rail cannot go. **The `aria-label` is
-  identical in both variants**, so nothing is lost to a screen reader.
-- **What the number means is explained once per list, not per card.** See the impact legend above.
-  The rail carries no label of its own; six labelled gauges was part of what made the header a
-  soup.
+  identical in both variants.**
+- **What the number means is explained once per list**, by the impact legend above.
 
 ## Info hint: `components/info-hint.tsx`
 
-The `i` beside a section heading. Opens on hover, on click and on keyboard focus; closes on `Escape`, on
-a click outside, or when the pointer leaves. Hover and click are held as **two pieces of state**, so
+The `i` beside a section heading. Opens on hover, on click and on keyboard focus; closes on `Escape`,
+on a click outside, or when the pointer leaves. Hover and click are held as **two pieces of state**, so
 clicking an icon the pointer is already over pins the panel instead of toggling it shut.
 
-**Dismissal is a document-level `pointerdown` listener, never a `fixed inset-0` catcher element.** A
-catcher does not work here: `.animate-fade-up` runs with `animation-fill-mode: both`, so the analysis
-page's root keeps a `transform` forever after the animation ends, and a transform other than `none`
-makes that element the containing block for its `position: fixed` descendants (and opens a stacking
-context around them). The catcher covers the analysis container rather than the viewport. **A
-listener has no geometry to get wrong.**
+**Dismissal is a document-level `pointerdown` listener, never a `fixed inset-0` catcher element.**
+`.animate-fade-up` runs with `animation-fill-mode: both`, so the page's root keeps a `transform`
+forever, and a transformed element becomes the containing block for its `position: fixed`
+descendants. **A listener has no geometry to get wrong.**
 
-**The panel places itself, and a width cap alone is not enough.** It is anchored to a 16px icon, so
-`max-w-[min(18rem,calc(100vw-2rem))]` stops it being *wide* but does nothing about *where* it starts:
-rendered at `left-0` from a trigger near the right edge (the impact legend is right-aligned over both
-ranked lists) it runs off the page and puts a horizontal scrollbar on the whole document.
+**The panel places itself.** A layout effect measures the panel and translates it back inside the
+viewport before paint, re-running on resize. **It reads `document.documentElement.clientWidth`, never
+`window.innerWidth`**, which counts the vertical scrollbar. There is no `align` prop: every caller
+would have to know where it renders.
 
-**There is no `align` prop, and adding one is the wrong shape twice over**: every caller would have
-to know where it renders, and a trigger in the *middle* of a narrow screen overflows whichever side
-it opens to.
-
-A layout effect measures the panel and translates it back inside before paint, re-running on resize.
-**It reads `document.documentElement.clientWidth`, never `window.innerWidth`**, `innerWidth` counts
-the vertical scrollbar, so on a desktop with one the panel was allowed ~15px past where the document
-ends, which is exactly enough to add the scrollbar this exists to prevent.
-
-`e2e/info-hint.spec.ts` opens every hint on the analysis at three widths and asserts both that the
-panel's box is inside the viewport and that the document never scrolls sideways. It is a sweep rather
-than a test of the one hint that broke, because the failure is positional: the next one to break is
-whichever hint moves closest to an edge.
+`e2e/info-hint.spec.ts` opens every hint on the analysis at three widths and asserts that the panel is
+inside the viewport and the document never scrolls sideways.
 
 ## Rich text: `components/rich-text.tsx`
 
@@ -659,109 +415,12 @@ instead of reassembling JSX. See [i18n.md](i18n.md).
 
 ## The blog pieces
 
-Two components, both server, both read by `/blog` and `/blog/[slug]` -- see
+Two components, both server, both read by `/blog` and `/blog/[slug]`. See
 [seo.md](seo.md#indexability).
 
 - **`components/blog-article.tsx`** renders one post: the date, the title, the lead, then the
-  sections as a heading, its paragraphs and an optional bullet list. Every paragraph and bullet goes
-  through `RichText`, so emphasis is `*asterisks*` in the dictionary like everywhere else. There is
-  no `.prose` layer and no typography plugin: the article is built from the same tokens the rest of
-  the app uses, and it sets `max-w-2xl` **inside** `CONTAINER_CLASS` rather than a width of its own,
-  because a measure that is comfortable for a card grid is too wide for body text.
-- **`components/blog-cta.tsx`** is the block every blog page ends on: the same dashed card as the
-  landing's `finalCta`, with the button reading `blog.cta.button` and pointing at the dashboard or at
-  sign-in depending on the session. It reads `getCurrentUser()` itself, so a page dropping it in
-  needs to pass nothing.
-
-## Dialog: `components/ui/dialog.tsx`
-
-The one modal primitive. Backdrop plus a single panel, portalled to the body for the same reason the
-pulse toast is: `position: fixed` only anchors to the viewport while no ancestor carries a transform,
-and the landing wrapper's `animate-fade-up` leaves one behind forever.
-
-It owns the four things a modal owes a keyboard, and none of them are optional: Escape closes, the
-backdrop closes, focus moves in on open and returns to the opener on close, and Tab cycles inside the
-panel instead of walking the page behind it (`FOCUSABLE_SELECTOR`). Body scroll is locked while it is
-open. The accessible name is `aria-label` from `title`, and the close control is labelled
-`common.close`, no new dictionary keys.
-
-## Mercado Pago brick: `components/mercadopago-brick.tsx`
-
-The Payment Brick for one pack, rendered inside `Dialog`: card, Pix and boleto over the page, no
-redirect. The amount it renders
-is display only, the route charges what `CREDIT_PACKS` says, because the browser is what submits the
-form. Pix settles after the reader has left the form, so the copy says the credits land when the
-payment is confirmed and never that the purchase is done. See [api.md](api.md#post-apibillingmercadopago).
-
-**Whether the SDK is on the page is the question, never whether it just loaded.** `next/script` fires
-`onLoad` once per src for the whole page, its `LoadCache` returns early for every later mount, and
-the dialog unmounts the Brick when it closes, so a component gated on that callback renders nothing
-from the second open onwards and leaves the reader on `credits.mercadopago.loading` until a full
-reload. It checks `window.MercadoPago` on mount instead, and `<Script>` carries an `onError` so an SDK
-that never arrives at all reads as `credits.mercadopago.failed` rather than as loading forever. Both
-are covered by `e2e/checkout-brick.spec.ts`, which stubs the SDK at its own URL.
-
-An approved payment also fires [the confetti](#confetti--componentsconfettitsx); a pending one does
-not, for the reason recorded there.
-
-## Confetti: `components/confetti.tsx`
-
-`fireConfetti()`, called from two places: the Brick when a payment comes back approved, and the
-operator form when a grant succeeds.
-
-**It fires on approval and nowhere else.** A Pix or a boleto comes back pending, the money has not
-moved and no credit has landed, so a burst there would tell the reader a payment cleared when it has
-not. That is the same kind of claim [invariants.md](invariants.md) keeps off every other surface, and
-a full screen animation is the loudest place it could be made.
-
-**A dependency, after `motion` was measured and removed**, and not a reversal of that call. The
-objection there was 42kB on the first load of a product that charges people to be told their page is
-heavy; here the import is dynamic and reached only once a payment has been approved, so no screen's
-initial bundle changes and the only person who ever downloads it has just bought something.
-
-**The colours are read off the theme, never written down.** `canvas-confetti` parses hex and the
-tokens are `oklch`, so the conversion is done by the thing that already knows how: assigning to a
-canvas `fillStyle` and reading it back gives `#rrggbb`. A copy of the palette here would be wrong in
-dark mode on the day it was written and wrong everywhere the first time a token was retuned. The
-assignment is made over two different starting colours because an unparseable value is *ignored*
-rather than rejected, one starting colour would hand back black and the confetti would come out
-black instead of falling back to the library's own palette.
-
-`prefers-reduced-motion: reduce` skips the burst entirely, like every other animation in this file.
-The approval message is untouched: it is the part that carries the information.
-
-## Credit packs: `components/credit-packs.tsx`
-
-The two cards under `#credits`, from `CREDIT_PACKS`, with `FEATURED_CREDIT_PACK` deciding which one
-is marked. Prices and feature lines come from `dictionary.credits`; the amount shown, `amountBrl` and
-the Stripe price id all hold one number and have to be changed together. `provider` comes from the
-server and decides whether a button leaves for Stripe checkout or opens the Brick in place. See
-[analysis-ui.md](analysis-ui.md#the-credit-packs).
-
-## The live board: `components/analysis-pulse.tsx`
-
-The landing page's only polling surface, and the parent of the two below. It holds the data and the
-timer for all three so `/api/pulse` is asked once per interval rather than once per component, and it
-renders from the server's own first answer so the board is in the HTML.
-
-### Analysis sphere: `components/analysis-sphere.tsx`
-
-Chips on a Fibonacci lattice, turned in `requestAnimationFrame`. Two things about it are load-bearing
-and easy to undo by accident:
-
-- **The chips are billboarded.** Positioned, never rotated, so a label stays square to the reader
-  while the sphere turns. Counter-rotating a child against a parent's live animation is not
-  expressible in CSS, which is why the rotation is scripted at all.
-- **Rank is decorrelated from latitude.** A lattice walks pole to pole in order, so handing the ranked
-  entries to it in order sorts the colours down the screen and the thing reads as a list.
-
-Styles are written straight onto the nodes, so a spinning sphere costs no React renders. It also
-declines to animate a chip's arrival: `animate-pop-in` drives `transform`, a running animation outranks
-an inline one, and the chip would leave the sphere for the length of it.
-
-### Pulse toast: `components/analysis-pulse-toast.tsx`
-
-One line at a time about a page being analyzed or one just measured. **Portalled to the body**, because
-the landing wrapper's `animate-fade-up` leaves a transform behind and a transformed ancestor becomes
-the containing block for `position: fixed`. Closing it silences the toast for the tab via
-`sessionStorage`, not a cookie: the reader wanted it gone now, not recorded against them.
+  sections as a heading, its paragraphs and an optional bullet list, all through `RichText`. There is
+  no `.prose` layer: it sets `max-w-2xl` **inside** `CONTAINER_CLASS`.
+- **`components/blog-cta.tsx`** is the block every blog page ends on: a dashed card with the button
+  reading `blog.cta.button` and pointing at the dashboard or at sign-in depending on the session. It
+  reads `getCurrentUser()` itself, so a page dropping it in needs to pass nothing.

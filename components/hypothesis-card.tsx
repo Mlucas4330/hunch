@@ -12,14 +12,12 @@ export function HypothesisCard({
   hypothesis,
   isTop,
   defaultOpen,
-  showManualBadge,
   className,
   children
 }: {
   hypothesis: Hypothesis
   isTop?: boolean
   defaultOpen?: boolean
-  showManualBadge?: boolean
   className?: string
   children: ReactNode
 }) {
@@ -35,11 +33,6 @@ export function HypothesisCard({
       badge={
         <>
           <SectionBadge section={hypothesis.section} />
-          {showManualBadge && hypothesis.target === 'manual' && (
-            <span className="rounded-full bg-neutral/15 px-2 py-0.5 text-xs font-medium text-neutral">
-              {dictionary.hypothesisList.manualSetup}
-            </span>
-          )}
           {isTop && (
             <span className="panel-label text-nano text-coral">
               {dictionary.hypothesisList.testThisFirst}

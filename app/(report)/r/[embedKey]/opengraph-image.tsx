@@ -3,6 +3,7 @@ import { dictionaryFor } from '@/lib/i18n'
 import { DEFAULT_LOCALE, OG_COLORS, OG_IMAGE_SIZE } from '@/lib/constants'
 import { displayHost } from '@/lib/host'
 import { loadReport } from '@/lib/analyses'
+import { pageSpeedScore } from '@/lib/pagespeed'
 import { OgFrame, OgStat, OgWordmark } from '@/components/og'
 
 const t = dictionaryFor(DEFAULT_LOCALE)
@@ -29,9 +30,9 @@ export default async function Image({ params }: { params: Promise<{ embedKey: st
     )
   }
 
-  // The same two counts the cover shows, so the unfurl and the page it opens never disagree.
-  const changes = analysis.hypotheses.length + analysis.flowFixes.length
-  const ready = analysis.hypotheses.filter((h) => h.target === 'auto').length
+  // The same numbers the page shows, so the unfurl and the page it opens never disagree.
+  const errors = analysis.hypotheses.length + analysis.flowFixes.length
+  const score = pageSpeedScore(analysis.pagespeed)
 
   return new ImageResponse(
     (
@@ -61,12 +62,10 @@ export default async function Image({ params }: { params: Promise<{ embedKey: st
         </div>
 
         <div style={{ display: 'flex', gap: 20 }}>
-          <OgStat
-            label={t.report.changesFound}
-            value={String(changes)}
-            accent={OG_COLORS.purple}
-          />
-          <OgStat label={t.report.copyWritten} value={String(ready)} accent={OG_COLORS.coral} />
+          <OgStat label={t.report.changesFound} value={String(errors)} accent={OG_COLORS.purple} />
+          {score !== null && (
+            <OgStat label={t.readout.score.label} value={`${score}/100`} accent={OG_COLORS.coral} />
+          )}
         </div>
       </OgFrame>
     ),

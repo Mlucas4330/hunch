@@ -1,41 +1,32 @@
 import { generateObject } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import {
-  AlternateVariantsSchema,
   AnalysisOutputSchema,
-  CritiqueSchema,
   PlaybookOutputSchema,
   VisibilityOutputSchema,
   type AnalysisOutput,
+  type FixOutput,
   type FlowFixOutput,
   type HypothesisOutput,
-  type VariantOutput,
   type VisibilityFixOutput
 } from '@/lib/ai/schema'
-import { applyCritique, critiqueInput } from '@/lib/ai/critique'
-import {
-  alternateVariantsPrompt,
-  critiquePrompt,
-  playbookPrompt,
-  systemPrompt,
-  visibilityPrompt
-} from '@/lib/ai/prompt'
+import { playbookPrompt, systemPrompt, visibilityPrompt } from '@/lib/ai/prompt'
 import {
   AI_OUTPUT_LANGUAGE,
   DEFAULT_LOCALE,
   MARKET_NAME,
   NEIGHBOUR_TEXT_MAX_CHARS,
-  VARIANT_TONE_INSTRUCTION
+  PAGESPEED_CATEGORY_BY_FIX_KIND
 } from '@/lib/constants'
 import {
   FIXTURE_CRAWLER_ACCESS,
   FIXTURE_KEYWORDS,
   FIXTURE_MOBILE,
+  FIXTURE_PAGESPEED,
   FIXTURE_PERFORMANCE,
   FIXTURE_SEO,
   FIXTURE_STRUCTURE,
   FIXTURE_SAMENESS,
-  fixtureAlternateVariants,
   fixtureAnalysis,
   fixturePlaybook,
   fixtureVisibility
@@ -46,9 +37,9 @@ import { detectMarket } from '@/lib/market'
 import { fetchCrawlerAccess, type CrawlerAccess } from '@/lib/robots'
 import { extractKeywords, type PageKeywords } from '@/lib/keywords'
 import { composePageText, coverageNote, type ComposedPageText } from '@/lib/page-text'
+import { fetchPageSpeed, type PageSpeed } from '@/lib/pagespeed'
 import { promptElements, resolveTarget } from '@/lib/prompt-elements'
 import { pickNeighbours } from '@/lib/site-pages'
-import { rewriteStats } from '@/lib/rewrite-stats'
 import {
   type PageElement,
   type PageLink,
@@ -62,9 +53,14 @@ import {
   scrapePage,
   scrapePageText
 } from '@/lib/scrape'
-import { variantCharBudget, variantWordBudget, wordCount } from '@/lib/text'
 import { measuredFindings, type MeasuredFinding } from '@/lib/readout'
-import type { HypothesisTarget, Locale, Market, ReadoutGroup, VariantTone } from '@/lib/enums'
+import type {
+  HypothesisTarget,
+  Locale,
+  Market,
+  PageSpeedCategory,
+  ReadoutGroup
+} from '@/lib/enums'
 
 const MODEL = 'claude-sonnet-4-6'
 
@@ -77,18 +73,10 @@ export type AnalysisResult = {
   hypotheses: AnalyzedHypothesis[]
   playbook: FlowFixOutput[]
   visibility: VisibilityFixOutput[]
-  structure: PageStructure
-  seo: PageSeo
-  performance: PagePerformance
-  crawlerAccess: CrawlerAccess
-  keywords: PageKeywords
-  mobile: PageMobile
-  market: Market
   competitor: CompetitorMeasurement | null
 }
 
 export type AnalyzeOptions = {
-  brief?: string
   locale?: Locale
   competitorUrl?: string | null
 }
@@ -101,6 +89,7 @@ export type PageMeasurement = {
   keywords: PageKeywords
   mobile: PageMobile
   sameness: PageSameness
+  pagespeed: PageSpeed | null
 }
 
 // The page's own words, counted the same way from both entry points.
@@ -114,36 +103,23 @@ function keywordsFor(html: string, seo: PageSeo): PageKeywords {
 }
 
 /**
- * The second page, measured by the same code as the first.
+ * The second page, measured by the same code as the first and by PageSpeed Insights.
  *
- * **It lives here rather than in lib/competitor.ts because it touches the browser.** That module is
- * imported by MeasuredReadout, a client component, so a value import of `scrapePage` there would pull
- * puppeteer into the browser bundle. Everything pure about a competitor stays there; the scrape stays
- * on this side of the line.
+ * It lives here rather than in lib/competitor.ts because it touches the browser, and that module is
+ * imported by a client component.
  */
-export async function measureCompetitor(url: string): Promise<CompetitorMeasurement> {
-  const { html, structure, seo, performance, mobile } = await scrapePage(url)
+export async function measureCompetitor(url: string, locale: Locale): Promise<CompetitorMeasurement> {
+  const [{ html, structure, seo, performance, mobile }, pagespeed] = await Promise.all([
+    scrapePage(url),
+    fetchPageSpeed(url, locale)
+  ])
 
-  return { url, structure, seo, performance, mobile, keywords: keywordsFor(html, seo) }
+  return { url, structure, seo, performance, mobile, pagespeed, keywords: keywordsFor(html, seo) }
 }
 
 /**
- * The reader's own other pages, opened for their words.
- *
- * **The landing page is not where a business says what it does.** The price is on the pricing page,
- * the mechanism is in the docs, and the copy generator had seen none of it -- so it rewrote a line
- * using the only vocabulary in front of it, which was the vocabulary of the line it was replacing.
- * This is the same move the brief made, with code doing the finding instead of the reader doing the
- * typing. See docs/ai-pipeline.md.
- *
- * **Nothing here reaches the readout or the score.** These pages are material for a prompt, exactly
- * as a competitor's readout is, and a number off one of them would be presented as a fact about the
- * page the reader pasted. `measuredFindings` never sees them.
- *
- * **Sequential, and each failure is silent.** They share `SCRAPE_MAX_CONCURRENT_PAGES` with every
- * other analysis running, and a pricing page that 404s or times out must not take down a generation
- * the reader already paid for -- it is extra material, so its absence is the state the product was
- * in yesterday.
+ * The reader's own other pages, opened for their words. Nothing here reaches the readout. Sequential,
+ * and each failure is silent: they share the browser slots with every other analysis running.
  */
 export async function measureNeighbours(
   pageUrl: string,
@@ -170,26 +146,19 @@ export async function measureNeighbours(
 
 /**
  * Everything one scrape produced: the columns a row stores, and the raw material a generation needs.
- *
- * The two are separate so the measurement can be persisted the moment it exists, roughly twenty
- * seconds in. Measuring and generating in one call and handing back a finished analysis is what
- * makes an owned run write nothing for three minutes. See lib/run-analysis.ts.
+ * Separate from the generation so the measurement can be persisted the moment it exists. See
+ * lib/run-analysis.ts.
  */
 export type MeasuredPage = PageMeasurement & {
   html: string
   elements: PageElement[]
   sections?: PageSection[]
-  /**
-   * Detected here rather than at row creation because this is the first moment `lang` is known, and
-   * `lang` is the stronger of the two signals. See docs/invariants.md.
-   */
+  // Detected here because this is the first moment `lang` is known. See docs/invariants.md.
   market: Market
-  // The page's own same-origin links, so `measureNeighbours` can choose from them without a second
-  // scrape of the page that produced them.
   links?: PageLink[]
 }
 
-export async function measurePage(url: string): Promise<MeasuredPage> {
+export async function measurePage(url: string, locale: Locale): Promise<MeasuredPage> {
   if (process.env.E2E_FIXTURES === '1') {
     return {
       structure: FIXTURE_STRUCTURE,
@@ -199,6 +168,7 @@ export async function measurePage(url: string): Promise<MeasuredPage> {
       keywords: FIXTURE_KEYWORDS,
       mobile: FIXTURE_MOBILE,
       sameness: FIXTURE_SAMENESS,
+      pagespeed: FIXTURE_PAGESPEED,
       html: '',
       elements: [],
       sections: [],
@@ -206,10 +176,13 @@ export async function measurePage(url: string): Promise<MeasuredPage> {
     }
   }
 
+  // PageSpeed Insights runs on Google's side and takes no browser slot, so it runs beside the scrape
+  // rather than after it.
   const [
     { html, elements, structure, seo, performance, mobile, sections, links, sameness },
-    crawlerAccess
-  ] = await Promise.all([scrapePage(url), fetchCrawlerAccess(url)])
+    crawlerAccess,
+    pagespeed
+  ] = await Promise.all([scrapePage(url), fetchCrawlerAccess(url), fetchPageSpeed(url, locale)])
 
   return {
     structure,
@@ -218,6 +191,7 @@ export async function measurePage(url: string): Promise<MeasuredPage> {
     crawlerAccess,
     mobile,
     sameness,
+    pagespeed,
     keywords: keywordsFor(html, seo),
     html,
     elements,
@@ -227,13 +201,34 @@ export async function measurePage(url: string): Promise<MeasuredPage> {
   }
 }
 
+// The audits PageSpeed Insights failed in the given categories, as a generator sees them.
+function auditsFor(pagespeed: PageSpeed | null, categories: PageSpeedCategory[]) {
+  return (pagespeed?.audits ?? [])
+    .filter((audit) => categories.includes(audit.category))
+    .map(({ id, category, title, displayValue }) => ({ id, category, title, displayValue }))
+}
+
+function pageSpeedSection(pagespeed: PageSpeed | null, categories: PageSpeedCategory[]): string {
+  if (!pagespeed) return ''
+
+  return `PageSpeed Insights, measured by Google on a mobile run. Category scores out of 100, and the audits this page failed in them. Each audit has an id you may use as a finding (JSON):\n${JSON.stringify(
+    {
+      scores: Object.fromEntries(categories.map((category) => [category, pagespeed.categories[category]])),
+      audits: auditsFor(pagespeed, categories)
+    },
+    null,
+    2
+  )}`
+}
+
+// A fix may only point at an id the prompt was actually given. Anything else becomes null here rather
+// than a link to nothing on the report.
+function keepKnownFindings<T extends FixOutput>(fixes: T[], allowed: Set<string>): T[] {
+  return fixes.map((fix) => (fix.finding && allowed.has(fix.finding) ? fix : { ...fix, finding: null }))
+}
+
 /**
- * The paid half, run against a page that has already been measured and already been written down.
- *
- * **The competitor scrape lives here rather than beside the page scrape**, which is a change from
- * when this was one function. It is only ever read by a prompt, so measuring it before the readout
- * is stored would hold the reader's score behind a second browser slot for a page that is not even
- * theirs.
+ * The generated half, run against a page that has already been measured and written down.
  */
 export async function generateFromMeasurement(
   url: string,
@@ -243,29 +238,18 @@ export async function generateFromMeasurement(
   const locale = options.locale ?? DEFAULT_LOCALE
 
   if (process.env.E2E_FIXTURES === '1') {
-    // **The failure path, on demand.** Everything downstream of a generation that throws -- the
-    // refund, the rethrow, the job going `unavailable`, the report showing that instead of the unlock
-    // wall -- had no way to be exercised, so it was the one path in this product that had never run.
-    // Nested inside the fixture branch on purpose: it cannot fire unless E2E_FIXTURES is already on,
-    // so no production deploy can reach it however this variable is set.
-    // `throw` is a generation that crashed; `empty` is one that answered with nothing. They reach the
-    // refund by different routes -- the `catch` and the "nothing was generated" check -- and both are
-    // supposed to end on the same screen, so both need to be walkable.
+    // The failure path, on demand. Nested inside the fixture branch so no production deploy can
+    // reach it however this variable is set. `throw` is a generation that crashed; `empty` is one
+    // that answered with nothing; `copy` is a report with the other two lists and no copy list.
     if (process.env.E2E_FAIL_GENERATION === 'throw') {
       throw new Error('E2E: generation failed on purpose')
     }
 
     const analysis = fixtureAnalysis(locale)
-    const fixtureMarket = detectMarket({ url, lang: FIXTURE_SEO.lang })
     // Every fixture element is built from a hypothesis's own `current_copy`, so the fixtures always
-    // walk the happy path of `resolveTarget`. This withholds the first one: the model quoted a line
-    // that is on no element, and `resolveTargets` drops that card. It is the only way that path is
-    // reachable without a real model, and it is the path that deletes something the reader paid for,
-    // so it does not get to be the untested one.
-    //
-    // **Keyed on the URL rather than on an env var**, because the e2e web server is started once with
-    // a fixed environment and every spec already separates its own scenario by URL. Still inside the
-    // fixture branch, so nothing deployed can reach it whatever anybody types.
+    // resolve. This withholds the first one, which is the only way the drop in `resolveTargets` is
+    // reachable without a real model. Keyed on the URL because every spec separates its scenario by
+    // URL.
     const unquoted = url.includes('hunch-e2e-unquoted')
     const fixtureElements: PageElement[] = analysis.hypotheses
       .slice(unquoted ? 1 : 0)
@@ -273,69 +257,19 @@ export async function generateFromMeasurement(
         text: h.current_copy,
         selector: `[data-hunch-fixture="${i}"]`,
         tag: 'p',
-        capacity: variantCharBudget(h.current_copy),
+        capacity: h.current_copy.length,
         emphasized: false
       }))
-    fixtureElements.push({
-      text: 'Start free trial',
-      selector: '[data-ab-goal]',
-      tag: 'a',
-      capacity: variantCharBudget('Start free trial'),
-      emphasized: false
-    })
-    // The second URL-keyed case, alongside the one above and for the same reason: the fixtures write
-    // a genuine rewrite for every line, so the permutation drop is unreachable without a real model.
-    // Reversing the first hypothesis's own words is a permutation by construction, whatever the
-    // fixture happens to say.
-    const permuted = url.includes('hunch-e2e-permutation')
-    const copyOutput = permuted
-      ? {
-          hypotheses: analysis.hypotheses.map((h, i) =>
-            i === 0
-              ? {
-                  ...h,
-                  variants: h.variants.map((v) => ({
-                    ...v,
-                    copy: h.current_copy.split(/\s+/).reverse().join(' '),
-                    emphasis: null
-                  }))
-                }
-              : h
-          )
-        }
-      : analysis
 
-    // The third URL-keyed case, and the same argument as the two above: the fixtures never produce a
-    // rewrite the critic would refuse, so the drop is unreachable without a real model. This runs the
-    // real `applyCritique` against a fixed verdict, so what is faked is the critic's answer and never
-    // the code that acts on it.
-    const critiqued = url.includes('hunch-e2e-critique')
-      ? {
-          hypotheses: applyCritique(copyOutput.hypotheses, {
-            drop: [{ index: 1, reason: 'E2E: the current line was already doing its job' }]
-          }).kept
-        }
-      : copyOutput
-
-    // `empty` is nothing from any of the three, the only condition that still refunds a credit.
-    // `copy` is the case this whole arrangement exists for: the copy call came back with nothing and
-    // the other two are full, so the reader gets a report without the copy tab and pays for it.
     const mode = process.env.E2E_FAIL_GENERATION
     const barren = mode === 'empty'
     const noCopy = barren || mode === 'copy'
 
     return resolveTargets({
-      output: noCopy ? { hypotheses: [] } : critiqued,
+      output: noCopy ? { hypotheses: [] } : analysis,
       elements: fixtureElements,
       playbook: barren ? [] : fixturePlaybook(locale),
       visibility: barren ? [] : fixtureVisibility(locale),
-      structure: FIXTURE_STRUCTURE,
-      seo: FIXTURE_SEO,
-      performance: FIXTURE_PERFORMANCE,
-      crawlerAccess: FIXTURE_CRAWLER_ACCESS,
-      keywords: FIXTURE_KEYWORDS,
-      mobile: FIXTURE_MOBILE,
-      market: fixtureMarket,
       competitor: null
     })
   }
@@ -353,50 +287,42 @@ export async function generateFromMeasurement(
     sections,
     crawlerAccess,
     keywords,
-    market
+    market,
+    pagespeed
   } = measured
 
-  // The reader's own page is already measured and already stored. This is the only page still to
-  // fetch, and it waits on its own browser slot, which is why it is not taken together with theirs.
-  // See docs/invariants.md.
-  const competitor = options.competitorUrl ? await measureCompetitor(options.competitorUrl) : null
+  const competitor = options.competitorUrl
+    ? await measureCompetitor(options.competitorUrl, locale)
+    : null
 
-  // **Only here, never in measurePage.** An ownerless run measures the page and calls no model, and
-  // opening two more pages for material a generation would have used is the token-free half spending
-  // browser slots on nothing. This function is the owned branch. See docs/invariants.md.
   const neighbours = await measureNeighbours(url, measured.links ?? [])
 
-  // The page's text, cut to a budget that is stated rather than hidden at the end of the flattener,
-  // and carrying the account of whatever had to go. See lib/page-text.ts.
   const pageText = composePageText({ sections, fallback: preprocessHtml(html) })
   const measuredAt = Date.now()
 
   const competitorHost = competitor ? displayHost(competitor.url) : null
   const competitorSection = competitor
-    ? `\n\nReadout of ${competitorHost}, a second page the reader pointed at, counted by this same code (JSON). Every number in it is a measurement of that one page and of nothing else:\n${JSON.stringify(
-        { structure: competitor.structure, seo: competitor.seo, performance: competitor.performance },
+    ? `\n\nReadout of ${competitorHost}, a second page the reader pointed at (JSON):\n${JSON.stringify(
+        {
+          structure: competitor.structure,
+          seo: competitor.seo,
+          performance: competitor.performance,
+          pagespeed: competitor.pagespeed?.categories ?? null
+        },
         null,
         2
       )}`
     : ''
 
-  // **Only the copy call gets these.** The playbook argues from what was counted and the visibility
-  // audit from the SEO readout; neither writes a sentence an owner publishes, which is the one thing
-  // these pages are here to make specific. See docs/ai-pipeline.md.
   const neighbourSection =
     neighbours.length > 0
-      ? `\n\nOther pages of this same site, read by this code just now. They are the reader's own words about their own business, and they carry the facts their landing page left out. Use them, and never contradict them:\n${neighbours
+      ? `\n\nOther pages of this same site, read by this code just now. They carry the facts the landing page left out:\n${neighbours
           .map((page) => `\n[${page.id}] ${page.url}\n${page.text}`)
           .join('\n')}`
       : ''
 
-  const briefSection = options.brief
-    ? `\n\nBusiness details from the owner (use these real facts to write finished copy):\n\n${options.brief}`
-    : ''
-
-  // Counted over the WHOLE page, including any part the text budget could not carry. It is here so
-  // that a model reading a cut page still knows the page has pricing and an FAQ, instead of
-  // concluding from silence that it has neither -- the failure docs/invariants.md forbids.
+  // Counted over the WHOLE page, including any part the text budget could not carry, so a model
+  // reading a cut page still knows the page has pricing and an FAQ. See docs/invariants.md.
   const structureSection = `\n\nCounted over the whole page, including any part left out of the text
 above (JSON):\n${JSON.stringify(
     {
@@ -412,25 +338,16 @@ above (JSON):\n${JSON.stringify(
   )}`
 
   const elementList = promptElements(elements)
-    .map(
-      (e) =>
-        `<${e.tag}> "${e.text}" (max ${variantWordBudget(wordCount(e.text))} words, max ${e.capacity} characters${e.emphasized ? ', styled fragment' : ''})`
-    )
+    .map((e) => `<${e.tag}> "${e.text}"`)
     .join('\n')
   const elementsSection = elementList
-    ? `\n\nPage elements (each line is one real on-page element; current_copy must quote exactly one of these verbatim, and every variant you write for it must fit inside that element's word ceiling AND its character ceiling. The character ceiling is the measured width of the box that element occupies on the page: copy past it is cut off by the site's own CSS, not merely long):\n\n${elementList}`
+    ? `\n\nPage elements (each line is one real on-page element; current_copy must quote exactly one of these verbatim):\n\n${elementList}`
     : ''
 
-  // The same findings the reader is about to see above the fix lists, computed once and split by
-  // what each generator can actually act on. Handing a generator ids it has no power over is how a
-  // fix ends up linked to the wrong number.
   const findings = measuredFindings({
     structure,
     seo,
     performance,
-    // **Deliberately still null here.** The marks reach the playbook as context on their own key;
-    // letting them into `findings` would offer ids that `readoutRules` forbids attaching to, since
-    // every one of them is `ok`. See PlaybookInput and docs/ai-pipeline.md.
     sameness: null,
     crawler: crawlerAccess,
     keywords,
@@ -440,21 +357,25 @@ above (JSON):\n${JSON.stringify(
   const findingsFor = (groups: ReadoutGroup[]) =>
     findings.filter((finding) => groups.includes(finding.group))
 
+  const playbookFindings = findingsFor(['structure', 'credibility', 'mobile', 'load'])
+  const playbookCategories = PAGESPEED_CATEGORY_BY_FIX_KIND.flow
+  const visibilityFindings = findingsFor(['declared', 'crawler_access'])
+  const visibilityCategories = PAGESPEED_CATEGORY_BY_FIX_KIND.visibility
+
   const [object, playbook, visibility] = await Promise.all([
     generateHypotheses({
       locale,
       market,
       competitorHost,
-      prompt: `Landing page copy:\n\n${pageText.text}${coverageNote(pageText)}${structureSection}${elementsSection}${briefSection}${neighbourSection}${competitorSection}`
+      prompt: `Landing page copy:\n\n${pageText.text}${coverageNote(pageText)}${structureSection}${elementsSection}${neighbourSection}${competitorSection}`
     }),
     generatePlaybook({
       structure,
       mobile,
       performance,
-      findings: findingsFor(['structure', 'credibility', 'mobile', 'load']),
-      // Context, not findings -- see PlaybookInput.
+      findings: playbookFindings,
       sameness,
-      ownerBrief: options.brief ?? null,
+      pagespeed,
       locale,
       market,
       competitor
@@ -462,75 +383,48 @@ above (JSON):\n${JSON.stringify(
     generateVisibility({
       seo,
       structure,
-      findings: findingsFor(['declared', 'crawler_access']),
+      findings: visibilityFindings,
       crawlerAccess,
       keywords,
       pageText,
-      ownerBrief: options.brief ?? null,
+      pagespeed,
       locale,
       market
     })
   ])
 
-  // **The second pass, and the only thing it can do is take rewrites away.** The call that wrote
-  // these also decided they were worth writing and scored its own work, which is the arrangement that
-  // produced an `assessment` saying the CTA removes the cost objection in the same response that
-  // deleted the word "free". Judging is a different job, so it is a different call, and the schema it
-  // answers with has no field for a replacement. See lib/ai/critique.ts.
-  const critiqued = await critique({ hypotheses: object.hypotheses, pageText: pageText.text, locale, market })
+  const allowedIds = (list: MeasuredFinding[], categories: PageSpeedCategory[]) =>
+    new Set([...list.map((finding) => finding.id), ...auditsFor(pagespeed, categories).map((audit) => audit.id)])
 
   const result = resolveTargets({
-    output: { hypotheses: critiqued },
+    output: object,
     elements,
-    playbook,
-    visibility,
-    structure,
-    seo,
-    performance,
-    crawlerAccess,
-    keywords,
-    mobile,
-    market,
+    playbook: keepKnownFindings(playbook, allowedIds(playbookFindings, playbookCategories)),
+    visibility: keepKnownFindings(visibility, allowedIds(visibilityFindings, visibilityCategories)),
     competitor
   })
 
-  // **After `resolveTargets`, so `copyIdeas` is what the reader will actually see.** Logging it above
-  // would report what the model returned, which is a different number from what survives the check on
-  // the way back -- and the gap between the two is the only signal there is that the model is quoting
-  // the page rather than paraphrasing it. `playbookFixes` and `visibilityFixes` were already here;
-  // copy was the one of the three nothing counted.
-  //
-  // **The two drops are counted apart, and merging them would cost the signal above.** `copyRefused`
-  // is a judgement the second pass made about a rewrite; `copyDropped` is a rewrite that quoted a line
-  // the page does not carry, or proposed the words it was replacing. One says the model wrote
-  // something not worth shipping, the other says it wrote something not true of this page.
   console.info('[analyze] timings (ms)', {
     measure: measuredAt - startedAt,
     generation: Date.now() - measuredAt,
     total: Date.now() - startedAt,
     market,
     robots: crawlerAccess.status,
+    pagespeed: pagespeed !== null,
     competitor: competitorHost,
     neighbours: neighbours.map((page) => page.id),
-    copyIdeas: result.hypotheses.length,
-    copyRefused: object.hypotheses.length - critiqued.length,
-    copyDropped: critiqued.length - result.hypotheses.length,
-    playbookFixes: playbook.length,
-    visibilityFixes: visibility.length
+    copyErrors: result.hypotheses.length,
+    copyDropped: object.hypotheses.length - result.hypotheses.length,
+    playbookErrors: playbook.length,
+    visibilityErrors: visibility.length
   })
 
   return result
 }
 
 /**
- * The measured findings, as a generator sees them.
- *
- * Ids, severities and values only -- no labels. The label is the dictionary's job and the model has
- * no use for it; what it needs is the vocabulary of ids to choose from, and the severity, because the
- * prompt forbids hanging a fix off a passing check and Zod cannot see severity.
- *
- * This costs input tokens and never output ones: `maxTokens` caps the completion, so the only growth
- * on that side is one short `finding` per fix.
+ * The measured findings, as a generator sees them: ids, severities and values only. The label is the
+ * dictionary's job and the model has no use for it.
  */
 function findingsSection(findings: MeasuredFinding[]): string {
   const compact = findings.map((finding) => ({
@@ -539,57 +433,13 @@ function findingsSection(findings: MeasuredFinding[]): string {
     value: finding.value
   }))
 
-  return `Findings already counted on this page and already shown to the reader (JSON). The "finding" field of every fix you write must be one of these ids, or null:\n${JSON.stringify(compact, null, 2)}`
+  return `Findings counted on this page (JSON). The "finding" field of every error you write must be one of these ids, a PageSpeed audit id you were given, or null:\n${JSON.stringify(compact, null, 2)}`
 }
 
 /**
- * The copy hypotheses.
- *
- * **It degrades into an empty list like the other two.** `generatePlaybook` and `generateVisibility`
- * swallow a failure the same way, on the reasoning that a missing tab is better than a lost report.
- * Throwing from inside the shared `Promise.all` would reject all three, discarding a flow playbook
- * and a visibility audit that had finished and whose tokens were already spent.
- *
- * What a credit is worth is decided afterwards, over everything that came back, rather than by
- * whichever generator threw first: see the refund in lib/run-analysis.ts.
+ * The copy errors. Degrades into an empty list like the other two, so one failing call never takes the
+ * other two lists down with it. Whether anything came back at all is decided in lib/run-analysis.ts.
  */
-/**
- * Runs the critique and applies it, or returns the set untouched.
- *
- * **Fail open, and it is not a detail.** Everything here has already been paid for and already cost
- * its tokens; an extra call that times out must not be able to take a finished set of rewrites down
- * with it. The same reasoning as the schema floor -- see lib/ai/schema.ts.
- */
-async function critique(input: {
-  hypotheses: HypothesisOutput[]
-  pageText: string
-  locale: Locale
-  market: Market
-}): Promise<HypothesisOutput[]> {
-  if (input.hypotheses.length === 0) return input.hypotheses
-
-  try {
-    const { object } = await generateObject({
-      model: anthropic(MODEL),
-      schema: CritiqueSchema,
-      maxTokens: 2000,
-      system: critiquePrompt(AI_OUTPUT_LANGUAGE[input.locale], MARKET_NAME[input.market]),
-      prompt: `Landing page copy:\n\n${input.pageText}\n\nThe rewrites proposed for it:\n\n${critiqueInput(
-        input.hypotheses
-      )}`
-    })
-
-    const { kept, dropped } = applyCritique(input.hypotheses, object)
-    // The reasons exist for this line and for nothing else: no reader sees them, and a person
-    // comparing two versions of this prompt needs to know what it thought it was doing.
-    if (dropped.length > 0) console.info('[analyze] critique dropped', dropped)
-    return kept
-  } catch (error) {
-    console.error('[analyze] critique failed, keeping every rewrite', error)
-    return input.hypotheses
-  }
-}
-
 async function generateHypotheses(input: {
   locale: Locale
   market: Market
@@ -600,7 +450,7 @@ async function generateHypotheses(input: {
     const { object } = await generateObject({
       model: anthropic(MODEL),
       schema: AnalysisOutputSchema,
-      maxTokens: 16000,
+      maxTokens: 8000,
       system: systemPrompt(
         AI_OUTPUT_LANGUAGE[input.locale],
         MARKET_NAME[input.market],
@@ -617,28 +467,12 @@ async function generateHypotheses(input: {
 
 export type PlaybookInput = {
   structure: PageStructure
-  // Here because `mobile` and `performance` are fix categories. Handed the structural readout alone,
-  // this generator could not answer a mobile or a load finding: the report would count both and then
-  // have nothing to say about either.
   mobile: PageMobile
   performance: PagePerformance
-  /**
-   * The marks of a page built out of defaults, handed over as **context and never as findings**.
-   *
-   * `readoutRules` forbids attaching a fix to a finding whose severity is `ok`, and every mark is
-   * `ok` by construction -- a gradient is a choice, not a defect. So they cannot travel in
-   * `findings`: a fix pointing at one would render the "fix written" pointer beside a row in the one
-   * group that grades nothing, telling the reader a passing check is broken. The fix comes back with
-   * `finding: null`, which `readoutRules` already calls a normal answer. See docs/ai-pipeline.md.
-   */
+  // Context and never findings: every mark is `ok`, and a fix may not attach to a passing check.
   sameness: PageSameness | null
-  /**
-   * The findings this generator may answer, already narrowed to the groups it can act on. Narrowed
-   * rather than handed the whole readout: an id it cannot address is an invitation to link a fix to
-   * the wrong number.
-   */
   findings: MeasuredFinding[]
-  ownerBrief: string | null
+  pagespeed: PageSpeed | null
   locale: Locale
   market: Market
   competitor?: CompetitorMeasurement | null
@@ -652,30 +486,26 @@ export async function generatePlaybook(input: PlaybookInput): Promise<FlowFixOut
   const sections = [
     `Structural readout of the page (JSON):\n${JSON.stringify(input.structure, null, 2)}`,
     `The same page in a phone viewport (JSON):\n${JSON.stringify(input.mobile, null, 2)}`,
-    `What the page cost to load (JSON). These were measured from a datacentre, so they are a floor a real visitor never beats. Never present one as what a visitor experiences:\n${JSON.stringify(input.performance, null, 2)}`,
-    findingsSection(input.findings)
-]
+    `What the page cost to load, measured from a datacentre (JSON):\n${JSON.stringify(input.performance, null, 2)}`,
+    findingsSection(input.findings),
+    pageSpeedSection(input.pagespeed, PAGESPEED_CATEGORY_BY_FIX_KIND.flow)
+  ].filter(Boolean)
 
   if (input.sameness) {
     sections.push(
-      `Marks this page shares with pages built out of the same defaults, COUNTED on it (JSON). These are choices and not defects, and none of them says how the page was made:
-${JSON.stringify(input.sameness, null, 2)}`
+      `Marks this page shares with pages built out of the same defaults, counted on it (JSON):\n${JSON.stringify(input.sameness, null, 2)}`
     )
   }
 
   const competitorHost = input.competitor ? displayHost(input.competitor.url) : null
   if (input.competitor) {
     sections.push(
-      `Structural readout of ${competitorHost}, a second page the reader pointed at, counted by this same code (JSON). Every number in it is a measurement of that one page and of nothing else:\n${JSON.stringify(
-        input.competitor.structure,
+      `Structural readout of ${competitorHost}, a second page the reader pointed at (JSON):\n${JSON.stringify(
+        { structure: input.competitor.structure, pagespeed: input.competitor.pagespeed?.categories ?? null },
         null,
         2
       )}`
     )
-  }
-
-  if (input.ownerBrief) {
-    sections.push(`Business details from the owner:\n${input.ownerBrief}`)
   }
 
   try {
@@ -700,22 +530,13 @@ ${JSON.stringify(input.sameness, null, 2)}`
 export type VisibilityInput = {
   seo: PageSeo
   structure: PageStructure
-  /** See the note on PlaybookInput. */
   findings: MeasuredFinding[]
   crawlerAccess: CrawlerAccess
   keywords: PageKeywords
-  /**
-   * The page's own readable text, and what of it had to be left out.
-   *
-   * **This call had none of it, and that is what produced the invented findings.** The prompt asks
-   * for `ai_answerability` -- whether the page states in plain readable text what the product is,
-   * who it is for and what it costs -- against a payload of metadata, counts and robots.txt. The
-   * model was asked to judge a body it had never been given, and it filled the gap: our own report
-   * told us to publish a price that has been in the served HTML all along, and to add a cancellation
-   * guarantee for a subscription this product does not sell. See docs/ai-pipeline.md.
-   */
+  // The page's own readable text. Without it the call judges a body it was never given. See
+  // docs/ai-pipeline.md.
   pageText: ComposedPageText
-  ownerBrief: string | null
+  pagespeed: PageSpeed | null
   locale: Locale
   market: Market
 }
@@ -746,18 +567,13 @@ judge what the page does and does not SAY against this and never against anythin
 file is missing and does NOT mean anything is blocked, so say nothing about robots.txt in that
 case:\n${JSON.stringify(input.crawlerAccess, null, 2)}`,
     findingsSection(input.findings),
-    `Terms the page itself repeats, counted on the page, with where each one already appears. These
-are the page's own words, NOT search volume and NOT a ranking opportunity: never state how often
-anyone searches for one, and never promise a position:\n${JSON.stringify(
+    pageSpeedSection(input.pagespeed, PAGESPEED_CATEGORY_BY_FIX_KIND.visibility),
+    `Terms the page itself repeats, counted on the page, with where each one already appears:\n${JSON.stringify(
       input.keywords.terms,
       null,
       2
     )}`
-  ]
-
-  if (input.ownerBrief) {
-    sections.push(`Business details from the owner:\n${input.ownerBrief}`)
-  }
+  ].filter(Boolean)
 
   try {
     const { object } = await generateObject({
@@ -774,164 +590,25 @@ anyone searches for one, and never promise a position:\n${JSON.stringify(
   }
 }
 
-export type AlternateVariantsInput = {
-  section: string
-  problem: string
-  currentCopy: string
-  rationale: string
-  recommendedCopy: string
-  /**
-   * Every line the model has already written for this element, the recommendation included.
-   *
-   * **Without it a second round is a fresh draw from the same distribution**, and round three can
-   * hand back round one. The prompt already forbade paraphrasing the recommendation; this extends
-   * that to everything it has tried.
-   */
-  alreadyWritten: string[]
-  /** A direction the reader asked for, or null. Constrains form and never states a fact. */
-  tone: VariantTone | null
-  // Whether the target element has a styled fragment at all. The element list is long gone by now,
-  // so it is inferred from the recommendation having chosen an emphasis.
-  emphasized: boolean
-  ownerBrief: string | null
-  locale: Locale
-  market: Market
-}
-
-export async function generateAlternateVariants(
-  input: AlternateVariantsInput
-): Promise<VariantOutput[]> {
-  if (process.env.E2E_FIXTURES === '1') {
-    return fixtureAlternateVariants(input.locale)
-  }
-
-  const sections = [
-    `Section: ${input.section}`,
-    `Current copy on the page:\n${input.currentCopy}`,
-    `Problem with it:\n${input.problem}`,
-    `Why the challenger should win:\n${input.rationale}`,
-    `Lines already written for this element. Every one of them was seen and not used, so a new line that paraphrases any of them is a wasted slot:\n${input.alreadyWritten
-      .map((copy) => `- ${copy}`)
-      .join('\n')}`,
-    `Word ceiling: the current copy is ${wordCount(input.currentCopy)} words. Every alternate must be ${variantWordBudget(wordCount(input.currentCopy))} words or fewer, and ${variantCharBudget(input.currentCopy)} characters or fewer. Copy past the character ceiling is cut off by the site's own CSS.`,
-    input.emphasized
-      ? 'This element has a styled fragment, so set emphasis on every alternate.'
-      : 'This element has no styled fragment, so set emphasis to null on every alternate.'
-  ]
-
-  // A direction the reader asked for. It constrains the form of the rewrite and never supplies a
-  // fact, which is the whole reason it is an enum rather than a text box -- see lib/enums.ts.
-  if (input.tone) {
-    sections.push(`Direction the reader asked for:\n${VARIANT_TONE_INSTRUCTION[input.tone]}`)
-  }
-
-  if (input.ownerBrief) {
-    sections.push(
-      `Business details from the owner (use these real facts to write finished copy):\n${input.ownerBrief}`
-    )
-  }
-
-  const { object } = await generateObject({
-    model: anthropic(MODEL),
-    schema: AlternateVariantsSchema,
-    maxTokens: 2000,
-    system: alternateVariantsPrompt(AI_OUTPUT_LANGUAGE[input.locale], MARKET_NAME[input.market]),
-    prompt: sections.join('\n\n')
-  })
-
-  // No measured ceiling here: the element list is long gone by the time somebody opens this drawer,
-  // and `variantCharBudget` is the stand-in the prompt is given. Only the heuristic is checkable.
-  object.variants.forEach((v) => warnOverLength(input.section, input.currentCopy, v.copy, null))
-
-  return object.variants
-}
-
-/**
- * Reports a replacement that will not fit, against both ceilings, and enforces neither.
- *
- * **The two are not the same claim and only one of them was ever checked.** `variantWordBudget` is a
- * heuristic over the original's length; `capacity` is the measured width of the element's box, and it
- * is the one that decides whether the site's own CSS cuts the line off. A fifth of real rewrites pass
- * the word ceiling, and the single best rewrite seen so far was one of them, so rejecting on either
- * would throw away the good with the long.
- *
- * It logs because the measured overflow has never been counted: `capacity` is not stored, so no
- * stored row can be scored for it after the fact and `scripts/rewrite-stats.mts` can only report the
- * heuristic. Nothing here becomes a rule until that number exists. See docs/ai-pipeline.md.
- */
-function warnOverLength(
-  section: string,
-  currentCopy: string,
-  variantCopy: string,
-  capacity: number | null
-): void {
-  const budget = variantWordBudget(wordCount(currentCopy))
-  const words = wordCount(variantCopy)
-  const overBudget = words > budget
-  const overBox = capacity !== null && variantCopy.length > capacity
-  if (!overBudget && !overBox) return
-
-  console.warn('[analyze] variant over its ceiling', {
-    section,
-    overBudget,
-    overBox,
-    budget,
-    words,
-    capacity,
-    chars: variantCopy.length
-  })
-}
-
 function resolveTargets(input: {
   output: AnalysisOutput
   elements: PageElement[]
   playbook: FlowFixOutput[]
   visibility: VisibilityFixOutput[]
-  structure: PageStructure
-  seo: PageSeo
-  performance: PagePerformance
-  crawlerAccess: CrawlerAccess
-  keywords: PageKeywords
-  mobile: PageMobile
-  market: Market
   competitor: CompetitorMeasurement | null
 }): AnalysisResult {
-  const {
-    output,
-    elements,
-    playbook,
-    visibility,
-    structure,
-    seo,
-    performance,
-    crawlerAccess,
-    keywords,
-    mobile,
-    market,
-    competitor
-  } = input
+  const { output, elements, playbook, visibility, competitor } = input
+
   return {
     playbook,
     visibility,
-    structure,
-    seo,
-    performance,
-    crawlerAccess,
-    keywords,
-    mobile,
-    market,
     competitor,
     hypotheses: output.hypotheses.flatMap((h) => {
       const resolved = resolveTarget(h.current_copy, elements)
 
-      // **A quote that is on no element is a line the model wrote, and the card renders it struck
-      // through as what the page says today.** The prompt requires it verbatim off the element list
-      // and cannot enforce that, and Zod sees a plain string, so the check has to happen on the way
-      // back, in code.
-      //
-      // The cost is real and worth naming: a usable rewrite is thrown away over a transcription slip.
-      // `resolveTarget` already matches approximately, so nothing here is dropped for punctuation, and
-      // the alternative is showing somebody a sentence attributed to their own page that is not on it.
+      // A quote that is on no element is a line the model wrote, and the card renders it as what the
+      // page says today. The prompt requires it verbatim and cannot enforce that, so the check
+      // happens here, in code.
       if (!resolved.found) {
         console.warn('[analyze] hypothesis dropped, current_copy is on no element', {
           section: h.section,
@@ -940,29 +617,6 @@ function resolveTargets(input: {
         return []
       }
 
-      // **A replacement whose words are all already in the line it replaces proposes nothing.**
-      // Measured rather than judged: two of the 32 real rewrites stored are exactly this, one
-      // reordering three security badges and one swapping two sentences, both ranked and shown as
-      // recommended changes. Whatever a reader thinks of the page, a permutation of its own words
-      // cannot be an improvement to it.
-      //
-      // The threshold is zero new words and nothing looser. A quarter of real rewrites reuse 70% or
-      // more of the original and most are fine -- a rewrite keeps the product's own nouns -- so a
-      // ratio here would throw away work on a number nothing supports. `scripts/rewrite-stats.mts`
-      // is what would earn a tighter one. See lib/rewrite-stats.ts.
-      const recommended = h.variants[0]
-      if (recommended && rewriteStats(resolved.text ?? h.current_copy, recommended.copy).permutation) {
-        console.warn('[analyze] hypothesis dropped, the replacement is a permutation', {
-          section: h.section,
-          currentCopy: h.current_copy,
-          copy: recommended.copy
-        })
-        return []
-      }
-
-      h.variants.forEach((v) =>
-        warnOverLength(h.section, resolved.text ?? h.current_copy, v.copy, resolved.capacity)
-      )
       return [
         {
           ...h,

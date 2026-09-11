@@ -42,7 +42,7 @@ export function readoutUnit(
  * **The `at least` qualifier belongs to the measured value and to nothing else.** It is there
  * because SCRAPE_ALLOWED_RESOURCE_TYPES blocks media, so the bytes counted are a floor. Keeping it
  * out of `readoutUnit` is what stops a delta reading "+at least 0.3 MB" and a threshold reading "at
- * least 2 MB" as if our own boundary were approximate. See docs/invariants.md.
+ * least 2 MB" as if our own boundary were approximate.
  */
 export function readoutValue(
   finding: MeasuredFinding,
