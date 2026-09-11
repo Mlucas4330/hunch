@@ -79,6 +79,12 @@ test.describe('core features', () => {
     const main = page.getByRole('main')
     await expect(main.getByRole('link', { name: 'Contact us' }).first()).toHaveAttribute('href', /^mailto:/)
 
+    await expect(main.getByRole('heading', { name: 'What it costs' })).toBeVisible()
+    // `exact` is load bearing: 'Agency' is a substring of the hero headline and of an FAQ question.
+    for (const plan of ['Studio', 'Agency', 'Network']) {
+      await expect(main.getByRole('heading', { name: plan, exact: true })).toBeVisible()
+    }
+
     await main.getByRole('link', { name: 'Sign in' }).first().click()
     await expect(page).toHaveURL(/\/auth\/signin/)
 

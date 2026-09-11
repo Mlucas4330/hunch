@@ -207,7 +207,7 @@ export const en = {
     report: {
       heading: 'What each report brings',
       errors: {
-        title: 'Four error lists, and no fix written',
+        title: 'Four error lists',
         body: "AI, SEO, structure and copy. Each error names what is wrong on the page and why it is a problem. What to do about it is your agency's work."
       },
       score: {
@@ -227,12 +227,33 @@ export const en = {
         body: 'The report opens without an account. Your client reads the same page you do.'
       }
     },
+    pricing: {
+      heading: 'What it costs',
+      recommended: 'Most agencies',
+      price: 'R$ {value}/mo',
+      quota: '{count} runs a month',
+      note: 'If the quota runs out before the month does, you move up a tier. A run that fails does not count against it.',
+      plans: {
+        studio: {
+          name: 'Studio',
+          body: 'Three to five clients, with room left to audit a prospect before you pitch it.'
+        },
+        agency: {
+          name: 'Agency',
+          body: 'Ten to twenty clients audited every month, and the rest of the quota goes into new business.'
+        },
+        network: {
+          name: 'Network',
+          body: 'A report a day, or a sales team that opens every conversation with one.'
+        }
+      }
+    },
     faq: {
       heading: 'Common questions',
       items: [
         {
           question: 'How does the subscription work?',
-          answer: 'You agree on a plan with us by email, and your account gets a monthly quota of analyses. A new analysis uses one, and so does every "Run again". A run that fails does not count.'
+          answer: 'You agree on a plan with us by email, and your account gets a monthly quota of analyses. A new analysis uses one, and so does every "Run again". A run that fails does not count, and if the quota runs out before the month does, you move up a tier.'
         },
         {
           question: 'Does my client need an account to see the report?',
@@ -358,6 +379,7 @@ export const en = {
       emailLabel: 'Account',
       emailPlaceholder: 'someone@agency.com',
       quotaLabel: 'Analyses per month',
+      presetsAria: 'The quota each tier carries',
       submit: 'Save',
       result: {
         saved: 'Saved.',

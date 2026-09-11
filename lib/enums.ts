@@ -24,6 +24,15 @@ export type BlogSlug = (typeof BLOG_SLUG)[number]
 // The post the landing page's AI section links to.
 export const AI_POST_SLUG: BlogSlug = 'ai-is-the-new-google'
 
+// The subscription tiers, cheapest first. A UI-only enum: what the app enforces is the quota an
+// operator wrote on the row, and no row records which tier paid for it. The price and the quota of
+// each one are in lib/constants.ts. See docs/product.md.
+export const PLAN_TIER = ['studio', 'agency', 'network'] as const
+export type PlanTier = (typeof PLAN_TIER)[number]
+
+// The tier the price list marks, sized for the agency the product is sold to.
+export const RECOMMENDED_PLAN_TIER: PlanTier = 'agency'
+
 // Measured from the page, never from the UI locale. See docs/invariants.md.
 export const MARKET = ['us', 'br'] as const
 export type Market = (typeof MARKET)[number]

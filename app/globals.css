@@ -446,14 +446,18 @@ details[open]::details-content {
 }
 
 /*
- * The hero card catches the light every few seconds.
+ * The surface a reader is meant to land on catches the light every few seconds.
+ *
+ * Two of them on the landing: the open panel in the hero preview and the recommended row in the
+ * price list. Both are the thing the eye should find first on their half of the page, which is why
+ * they share one class rather than each growing its own.
  *
  * Same sweep as the skeletons above and deliberately so, but where a skeleton runs back to back to
  * read as work in progress, this one is mostly pause: the idle stretch lives inside the keyframes,
  * so a single infinite animation gives the rhythm and nothing has to keep time in JavaScript. The
  * landing is a page somebody reads, and a sweep every 1.4s there would be a flicker to read around.
  */
-@keyframes hero-shine {
+@keyframes shine {
   0%,
   85% {
     transform: translateX(-100%);
@@ -463,12 +467,12 @@ details[open]::details-content {
   }
 }
 
-.animate-hero-shine {
+.animate-shine {
   position: relative;
   overflow: hidden;
 }
 
-.animate-hero-shine::after {
+.animate-shine::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -485,7 +489,7 @@ details[open]::details-content {
     color-mix(in oklch, var(--color-foreground) 14%, transparent) 50%,
     transparent 58%
   );
-  animation: hero-shine 6s ease-in-out infinite;
+  animation: shine 6s ease-in-out infinite;
 }
 
 /*
@@ -549,7 +553,7 @@ details[open]::details-content {
   .animate-stagger-in,
   .animate-pop-in,
   .animate-shimmer,
-  .animate-hero-shine::after,
+  .animate-shine::after,
   .animate-score-settle::before,
   details[open] > *:not(summary) {
     animation: none;

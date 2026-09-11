@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { Gauge, History, Link2, ListChecks, Scale, type LucideIcon } from 'lucide-react'
 import { ANALYSIS_SECTION_ICON } from '@/components/analysis-section-icon'
 import { LandingFaq } from '@/components/landing-faq'
+import { LandingPricing } from '@/components/landing-pricing'
 import { PanelCard } from '@/components/panel-card'
 import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
@@ -96,6 +97,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      <LandingPricing copy={copy.pricing} locale={locale} />
+
       <LandingFaq copy={copy.faq} />
 
       <section>
@@ -143,6 +146,7 @@ function ReportOutline({ dictionary }: { dictionary: Dictionary }) {
             icon={ANALYSIS_SECTION_ICON[tab]}
             label={dictionary.analysis.sections[tab]}
             defaultOpen={index === 0}
+            className={cn(index === 0 && 'animate-shine')}
           >
             <div className="space-y-2 p-4 sm:p-5">
               <p className="text-balance font-display text-lg font-semibold tracking-tight">

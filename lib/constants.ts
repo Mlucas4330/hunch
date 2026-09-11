@@ -9,6 +9,7 @@ import type {
   PageSpeedFieldCategory,
   PageSpeedFieldMetric,
   PageSpeedFieldUnit,
+  PlanTier,
   RateLimitKind,
   ReadoutSeverity,
   Section,
@@ -363,6 +364,16 @@ export const ADMIN_QUOTA_MAX = 1000
 
 // What a row gets when nobody has set a quota for it: no analyses until an operator does.
 export const DEFAULT_MONTHLY_QUOTA = 0
+
+// What each tier costs a month in BRL and how many runs it carries. The landing page prints the pair
+// and the operator screen offers the quota as a shortcut, so the number an agency was sold and the
+// number typed into the form come from here. Every quota has to stay under ADMIN_QUOTA_MAX. See
+// docs/product.md.
+export const PLAN: Record<PlanTier, { priceBrl: number; quota: number }> = {
+  studio: { priceBrl: 197, quota: 20 },
+  agency: { priceBrl: 397, quota: 60 },
+  network: { priceBrl: 797, quota: 200 }
+}
 
 // How close a tooltip may come to the edge of the viewport before it slides itself back in. It is
 // the gap that keeps the panel from looking welded to the screen edge, and the reason the number is

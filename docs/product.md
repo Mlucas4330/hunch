@@ -26,6 +26,20 @@ once, and every report it owns shows them in place of Hunch. See
 the account's monthly quota at `/admin/accounts`. The rule is in
 [invariants.md](invariants.md#access-is-a-monthly-quota-an-operator-sets-read-from-the-row).
 
+**There are three tiers, and the app knows only their quota.** `PLAN_TIER` names them and `PLAN` in
+`lib/constants.ts` carries what each one costs a month and how many runs it buys. No row records
+which tier an account is on: the operator types the number and the number is the whole record.
+
+| Tier | Price | Quota | Sold to |
+| ---- | ----- | ----- | ------- |
+| Studio | R$197 | 20 runs | an agency with three to five clients |
+| Agency | R$397 | 60 runs | ten to twenty clients, plus new business. **The tier the price list marks** |
+| Network | R$797 | 200 runs | a report a day, or a sales team |
+
+**A tier is a price, not a feature set.** Every account sees the same product, so nothing in the code
+branches on which one paid. Running out means moving up a tier rather than buying a single run:
+there is no checkout to sell one through.
+
 - **A quota is runs per calendar month (UTC).** A new analysis is one run, and so is every "Run again"
   on an existing one. A run that failed does not count, and deleting an analysis does not give its
   runs back.
@@ -35,9 +49,9 @@ the account's monthly quota at `/admin/accounts`. The rule is in
   form is disabled.
 
 **`/` is the landing page for a signed-out visitor**, and sends a signed-in one to the dashboard. It
-explains the product to agencies and offers two actions: contact by email and sign in. It shows no
-prices, because the subscription is sold outside the app. There is no anonymous analysis. The blog
-stays public. See [analysis-ui.md](analysis-ui.md#landing-appapppagetsx).
+explains the product to agencies and offers two actions: contact by email and sign in. It prints the
+three tiers and their quotas, and nothing on it starts a purchase, because the subscription is agreed
+by email. There is no anonymous analysis. The blog stays public. See [analysis-ui.md](analysis-ui.md#landing-appapppagetsx).
 
 ## What an analysis produces
 
@@ -71,7 +85,8 @@ stays public. See [analysis-ui.md](analysis-ui.md#landing-appapppagetsx).
 
 - **No fix is written.** No replacement copy, no steps, no prompt. The schemas have no field for any
   of them. See [ai-pipeline.md](ai-pipeline.md).
-- **No payment in the app.** No checkout, no credits, no webhooks.
+- **No payment in the app.** No checkout, no credits, no webhooks. The price list is copy, not a
+  purchase, and the quota renews on the first of the month whether or not the agency paid again.
 - **No anonymous analysis, no lead capture, no email sequence.**
 - **No third-party tracker on any surface.** No tag manager, no analytics script, no ad pixel.
 - **No live A/B testing.** It would need a snippet on the client's site and traffic most landing pages

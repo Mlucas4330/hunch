@@ -20,13 +20,23 @@
 ## Landing: `app/(app)/page.tsx`
 
 For an agency that is not a customer yet. The hero, how it works, the AI visibility section, what each
-report brings, the FAQ (`components/landing-faq.tsx`) and a closing call to action.
+report brings, the price list (`components/landing-pricing.tsx`), the FAQ
+(`components/landing-faq.tsx`) and a closing call to action.
 
 - **Two actions, the same two everywhere on the page**: contact, which opens `CONTACT_EMAIL_URL`, and
-  sign in. **There are no prices**: the subscription is agreed by email.
+  sign in. The price list adds no third one, because a button there would carry the same intent as
+  the two already on the page.
+- **The price list reads `PLAN_TIER` and `PLAN`**, so the price and the quota on screen are the ones
+  the operator screen offers. It is one panel of rows rather than three cards: the three-column grid
+  is already the how-it-works section and the tile grid is already the report section. The
+  recommended row is tinted with the same `purple` tokens the `history` tile uses. See
+  [product.md](product.md#how-an-account-works).
 - **The hero's preview is the report's own `PanelCard` bars**, one per `ANALYSIS_TAB`, each carrying
   its `analysis.sectionQuestions` entry. It shows no score, so nothing on the page is a number a
   reader could take for data.
+- **`animate-shine` marks the one surface per half of the page the eye should find first**: the open
+  panel in the preview and the recommended row in the price list. The reasoning and the reduced
+  motion fallback are in `app/globals.css`.
 - `ANALYSIS_SECTION_ICON` lives in `components/analysis-section-icon.ts`, because this server page and
   the client `AnalysisSections` both read it.
 
@@ -76,6 +86,10 @@ A form taking an address and a number of analyses per month, and the list of acc
 how many they used this month. The address does not need to have signed in: `setQuota` creates the row.
 The quota is bounded by `ADMIN_QUOTA_MAX` in the action's schema, so an extra digit is refused. See
 [security.md](security.md) for the three checks behind the screen.
+
+**One button per tier writes that tier's quota into the field**, read from the same `PLAN` the landing
+page prints, so the number an agency was sold and the number typed here cannot drift. The field still
+takes any number up to `ADMIN_QUOTA_MAX`: what an account is owed is an agreement rather than an enum.
 
 ## The analysis screen
 

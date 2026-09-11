@@ -202,7 +202,7 @@ export const ptBR: Dictionary = {
     report: {
       heading: 'O que cada relatório traz',
       errors: {
-        title: 'Quatro listas de erros, sem correção escrita',
+        title: 'Quatro listas de erros',
         body: 'IA, SEO, estrutura e copy. Cada erro diz o que está errado na página e por que isso é um problema. O que fazer com ele é trabalho da sua agência.'
       },
       score: {
@@ -222,12 +222,33 @@ export const ptBR: Dictionary = {
         body: 'O relatório abre sem conta. O seu cliente lê a mesma página que você.'
       }
     },
+    pricing: {
+      heading: 'Quanto custa',
+      recommended: 'O mais escolhido',
+      price: 'R$ {value}/mês',
+      quota: '{count} rodadas por mês',
+      note: 'Se a cota acabar antes do mês, você sobe de faixa. Uma rodada que falha não conta.',
+      plans: {
+        studio: {
+          name: 'Studio',
+          body: 'Três a cinco clientes, e ainda sobra rodada para auditar um prospect antes de apresentar a proposta.'
+        },
+        agency: {
+          name: 'Agência',
+          body: 'Dez a vinte clientes auditados todo mês, e o resto da cota vai para prospecção.'
+        },
+        network: {
+          name: 'Rede',
+          body: 'Um relatório por dia, ou um time de vendas que abre toda conversa com um.'
+        }
+      }
+    },
     faq: {
       heading: 'Perguntas frequentes',
       items: [
         {
           question: 'Como funciona a assinatura?',
-          answer: 'Você fecha o plano com a gente por e-mail e a sua conta recebe uma cota mensal de análises. Uma análise nova usa uma, e cada "Rodar de novo" também. Uma rodada que falha não conta.'
+          answer: 'Você fecha o plano com a gente por e-mail e a sua conta recebe uma cota mensal de análises. Uma análise nova usa uma, e cada "Rodar de novo" também. Uma rodada que falha não conta, e se a cota acabar antes do mês, você sobe de faixa.'
         },
         {
           question: 'O meu cliente precisa de conta para ver o relatório?',
@@ -353,6 +374,7 @@ export const ptBR: Dictionary = {
       emailLabel: 'Conta',
       emailPlaceholder: 'alguem@agencia.com',
       quotaLabel: 'Análises por mês',
+      presetsAria: 'A cota que cada faixa carrega',
       submit: 'Salvar',
       result: {
         saved: 'Salvo.',
