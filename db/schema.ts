@@ -23,6 +23,8 @@ import type {
   PageStructure
 } from '@/lib/scrape'
 import type { CrawlerAccess } from '@/lib/robots'
+import type { SiteCrawl } from '@/lib/crawl'
+import type { BacklinkSummary, RankedKeywords } from '@/lib/seranking'
 import type { PageKeywords } from '@/lib/keywords'
 import type { CompetitorMeasurement } from '@/lib/competitor'
 import type { PageSpeed } from '@/lib/pagespeed'
@@ -67,6 +69,12 @@ export const analyses = pgTable(
     sameness: jsonb('sameness').$type<PageSameness>(),
     // Null when the call failed or no key is configured, which is never read as a zero score.
     pagespeed: jsonb('pagespeed').$type<PageSpeed>(),
+    // Null when the crawl threw or the row predates it. A crawl the site refused is stored, as `unknown`.
+    siteCrawl: jsonb('site_crawl').$type<SiteCrawl>(),
+    // SE Ranking's estimates for the domain. Null when the call failed or no key is set, which is never
+    // read as a zero.
+    backlinks: jsonb('backlinks').$type<BacklinkSummary>(),
+    rankedKeywords: jsonb('ranked_keywords').$type<RankedKeywords>(),
     competitorUrl: text('competitor_url'),
     competitor: jsonb('competitor').$type<CompetitorMeasurement>(),
     locale: localeEnum('locale').notNull().default(DEFAULT_LOCALE),
@@ -120,6 +128,9 @@ export const pageSnapshots = pgTable(
     mobile: jsonb('mobile').$type<PageMobile>(),
     sameness: jsonb('sameness').$type<PageSameness>(),
     pagespeed: jsonb('pagespeed').$type<PageSpeed>(),
+    siteCrawl: jsonb('site_crawl').$type<SiteCrawl>(),
+    backlinks: jsonb('backlinks').$type<BacklinkSummary>(),
+    rankedKeywords: jsonb('ranked_keywords').$type<RankedKeywords>(),
     // Frozen at capture so a later change to how the score is computed never rewrites history.
     score: integer('score'),
     capturedAt: timestamp('captured_at').notNull().defaultNow()

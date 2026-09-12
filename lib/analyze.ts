@@ -13,13 +13,23 @@ import {
 import { playbookPrompt, systemPrompt, visibilityPrompt } from '@/lib/ai/prompt'
 import {
   AI_OUTPUT_LANGUAGE,
+  CRAWL_PROMPT_URLS_MAX,
   DEFAULT_LOCALE,
+  DOMAIN_RANK_MAX,
   MARKET_NAME,
   NEIGHBOUR_TEXT_MAX_CHARS,
-  PAGESPEED_CATEGORY_BY_FIX_KIND
+  PAGESPEED_CATEGORY_BY_FIX_KIND,
+  RANKED_KEYWORDS_PROMPT_MAX,
+  VISIBILITY_MAX_TOKENS
 } from '@/lib/constants'
+import { crawlSite, type SiteCrawl } from '@/lib/crawl'
+import { fetchSeoIndex, type BacklinkSummary, type RankedKeywords } from '@/lib/seranking'
+import { log } from '@/lib/log'
 import {
   FIXTURE_CRAWLER_ACCESS,
+  FIXTURE_SITE_CRAWL,
+  FIXTURE_BACKLINKS,
+  FIXTURE_RANKED_KEYWORDS,
   FIXTURE_KEYWORDS,
   FIXTURE_MOBILE,
   FIXTURE_PAGESPEED,
@@ -53,7 +63,7 @@ import {
   scrapePage,
   scrapePageText
 } from '@/lib/scrape'
-import { measuredFindings, type MeasuredFinding } from '@/lib/readout'
+import { measuredFindings, siteContentReadable, type MeasuredFinding } from '@/lib/readout'
 import type {
   HypothesisTarget,
   Locale,
@@ -90,6 +100,30 @@ export type PageMeasurement = {
   mobile: PageMobile
   sameness: PageSameness
   pagespeed: PageSpeed | null
+  siteCrawl: SiteCrawl | null
+  backlinks: BacklinkSummary | null
+  rankedKeywords: RankedKeywords | null
+}
+
+// SE Ranking is asked about the market the page is written for, which is only known once the scrape has
+// read its `lang`. See docs/invariants.md.
+async function scrapeAndIndex(url: string) {
+  const scraped = await scrapePage(url)
+  const market = detectMarket({ url, lang: scraped.seo.lang })
+  return { scraped, market, index: await fetchSeoIndex(url, market) }
+}
+
+// The crawl reads robots.txt's sitemaps and rules, so it starts once robots.txt is in. A throw costs the
+// site card and never the analysis.
+async function measureSite(url: string): Promise<{ crawlerAccess: CrawlerAccess; siteCrawl: SiteCrawl | null }> {
+  const crawlerAccess = await fetchCrawlerAccess(url)
+
+  try {
+    return { crawlerAccess, siteCrawl: await crawlSite(url, crawlerAccess) }
+  } catch (error) {
+    log.warn('crawl.failed', { url, error: error instanceof Error ? error.message : String(error) })
+    return { crawlerAccess, siteCrawl: null }
+  }
 }
 
 // The page's own words, counted the same way from both entry points.
@@ -108,13 +142,25 @@ function keywordsFor(html: string, seo: PageSeo): PageKeywords {
  * It lives here rather than in lib/competitor.ts because it touches the browser, and that module is
  * imported by a client component.
  */
-export async function measureCompetitor(url: string, locale: Locale): Promise<CompetitorMeasurement> {
-  const [{ html, structure, seo, performance, mobile }, pagespeed] = await Promise.all([
-    scrapePage(url),
-    fetchPageSpeed(url, locale)
-  ])
+export async function measureCompetitor(
+  url: string,
+  locale: Locale,
+  market: Market
+): Promise<CompetitorMeasurement> {
+  const [{ html, structure, seo, performance, mobile }, pagespeed, { backlinks, rankedKeywords }] =
+    await Promise.all([scrapePage(url), fetchPageSpeed(url, locale), fetchSeoIndex(url, market)])
 
-  return { url, structure, seo, performance, mobile, pagespeed, keywords: keywordsFor(html, seo) }
+  return {
+    url,
+    structure,
+    seo,
+    performance,
+    mobile,
+    pagespeed,
+    backlinks,
+    rankedKeywords,
+    keywords: keywordsFor(html, seo)
+  }
 }
 
 /**
@@ -169,6 +215,9 @@ export async function measurePage(url: string, locale: Locale): Promise<Measured
       mobile: FIXTURE_MOBILE,
       sameness: FIXTURE_SAMENESS,
       pagespeed: FIXTURE_PAGESPEED,
+      siteCrawl: FIXTURE_SITE_CRAWL,
+      backlinks: FIXTURE_BACKLINKS,
+      rankedKeywords: FIXTURE_RANKED_KEYWORDS,
       html: '',
       elements: [],
       sections: [],
@@ -176,13 +225,17 @@ export async function measurePage(url: string, locale: Locale): Promise<Measured
     }
   }
 
-  // PageSpeed Insights runs on Google's side and takes no browser slot, so it runs beside the scrape
-  // rather than after it.
+  // PageSpeed Insights runs on Google's side and the crawl is plain fetches, so neither takes a browser
+  // slot and both run beside the scrape rather than after it.
   const [
-    { html, elements, structure, seo, performance, mobile, sections, links, sameness },
-    crawlerAccess,
+    {
+      scraped: { html, elements, structure, seo, performance, mobile, sections, links, sameness },
+      market,
+      index
+    },
+    { crawlerAccess, siteCrawl },
     pagespeed
-  ] = await Promise.all([scrapePage(url), fetchCrawlerAccess(url), fetchPageSpeed(url, locale)])
+  ] = await Promise.all([scrapeAndIndex(url), measureSite(url), fetchPageSpeed(url, locale)])
 
   return {
     structure,
@@ -192,12 +245,15 @@ export async function measurePage(url: string, locale: Locale): Promise<Measured
     mobile,
     sameness,
     pagespeed,
+    siteCrawl,
+    backlinks: index.backlinks,
+    rankedKeywords: index.rankedKeywords,
     keywords: keywordsFor(html, seo),
     html,
     elements,
     sections,
     links,
-    market: detectMarket({ url, lang: seo.lang })
+    market
   }
 }
 
@@ -292,7 +348,7 @@ export async function generateFromMeasurement(
   } = measured
 
   const competitor = options.competitorUrl
-    ? await measureCompetitor(options.competitorUrl, locale)
+    ? await measureCompetitor(options.competitorUrl, locale, market)
     : null
 
   const neighbours = await measureNeighbours(url, measured.links ?? [])
@@ -350,6 +406,9 @@ above (JSON):\n${JSON.stringify(
     performance,
     sameness: null,
     crawler: crawlerAccess,
+    site: measured.siteCrawl,
+    backlinks: measured.backlinks,
+    rankedKeywords: measured.rankedKeywords,
     keywords,
     mobile,
     market
@@ -359,7 +418,7 @@ above (JSON):\n${JSON.stringify(
 
   const playbookFindings = findingsFor(['structure', 'credibility', 'mobile', 'load'])
   const playbookCategories = PAGESPEED_CATEGORY_BY_FIX_KIND.flow
-  const visibilityFindings = findingsFor(['declared', 'crawler_access'])
+  const visibilityFindings = findingsFor(['declared', 'crawler_access', 'site', 'index'])
   const visibilityCategories = PAGESPEED_CATEGORY_BY_FIX_KIND.visibility
 
   const [object, playbook, visibility] = await Promise.all([
@@ -388,6 +447,10 @@ above (JSON):\n${JSON.stringify(
       keywords,
       pageText,
       pagespeed,
+      siteCrawl: measured.siteCrawl,
+      backlinks: measured.backlinks,
+      rankedKeywords: measured.rankedKeywords,
+      competitor,
       locale,
       market
     })
@@ -430,7 +493,8 @@ function findingsSection(findings: MeasuredFinding[]): string {
   const compact = findings.map((finding) => ({
     id: finding.id,
     severity: finding.severity,
-    value: finding.value
+    value: finding.value,
+    ...(finding.urls?.length ? { urls: finding.urls.slice(0, CRAWL_PROMPT_URLS_MAX) } : {})
   }))
 
   return `Findings counted on this page (JSON). The "finding" field of every error you write must be one of these ids, a PageSpeed audit id you were given, or null:\n${JSON.stringify(compact, null, 2)}`
@@ -537,8 +601,63 @@ export type VisibilityInput = {
   // docs/ai-pipeline.md.
   pageText: ComposedPageText
   pagespeed: PageSpeed | null
+  siteCrawl: SiteCrawl | null
+  backlinks: BacklinkSummary | null
+  rankedKeywords: RankedKeywords | null
+  competitor: CompetitorMeasurement | null
   locale: Locale
   market: Market
+}
+
+function siteSection(site: SiteCrawl | null, structure: PageStructure): string {
+  if (!site || site.status === 'unknown') return ''
+
+  return `A crawl of the same site, read from the HTML each page sends without running JavaScript. Its findings are in the findings list above as the "site" group, each with example URLs. When contentReadable is false the HTML is a JavaScript shell, and nothing may be said about titles, headings or word counts across the site (JSON):\n${JSON.stringify(
+    {
+      pagesRead: site.pages.length,
+      source: site.source,
+      truncated: site.truncated,
+      contentReadable: siteContentReadable(site, structure)
+    },
+    null,
+    2
+  )}`
+}
+
+function indexOf(backlinks: BacklinkSummary | null, rankedKeywords: RankedKeywords | null) {
+  return {
+    backlinks: backlinks && {
+      rank: backlinks.rank,
+      rankOutOf: DOMAIN_RANK_MAX,
+      backlinks: backlinks.backlinks,
+      referringDomains: backlinks.referringDomains,
+      dofollowReferringDomains: backlinks.dofollowReferringDomains,
+      topReferringDomains: backlinks.topReferringDomains
+    },
+    rankedKeywords: rankedKeywords && {
+      total: rankedKeywords.total,
+      top: rankedKeywords.keywords.slice(0, RANKED_KEYWORDS_PROMPT_MAX)
+    }
+  }
+}
+
+function indexSection(input: VisibilityInput): string {
+  if (!input.backlinks && !input.rankedKeywords) return ''
+
+  const competitor = input.competitor
+  const theirs =
+    competitor && (competitor.backlinks || competitor.rankedKeywords)
+      ? {
+          host: displayHost(competitor.url),
+          ...indexOf(competitor.backlinks ?? null, competitor.rankedKeywords ?? null)
+        }
+      : null
+
+  return `SE Ranking's estimates for this domain, from its own index of the web and of Google in this market. They are estimates and not measurements of the site. A null half means that call failed, and nothing may be said about it (JSON):\n${JSON.stringify(
+    { site: indexOf(input.backlinks, input.rankedKeywords), competitor: theirs },
+    null,
+    2
+  )}`
 }
 
 export async function generateVisibility(input: VisibilityInput): Promise<VisibilityFixOutput[]> {
@@ -572,14 +691,16 @@ case:\n${JSON.stringify(input.crawlerAccess, null, 2)}`,
       input.keywords.terms,
       null,
       2
-    )}`
+    )}`,
+    siteSection(input.siteCrawl, input.structure),
+    indexSection(input)
   ].filter(Boolean)
 
   try {
     const { object } = await generateObject({
       model: anthropic(MODEL),
       schema: VisibilityOutputSchema,
-      maxTokens: 3000,
+      maxTokens: VISIBILITY_MAX_TOKENS,
       system: visibilityPrompt(AI_OUTPUT_LANGUAGE[input.locale], MARKET_NAME[input.market]),
       prompt: sections.join('\n\n')
     })

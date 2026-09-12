@@ -44,6 +44,10 @@ and never launches Chrome itself.
 **`PAGESPEED_API_KEY`** is a Google Cloud API key with the PageSpeed Insights API enabled. Without it
 every analysis is saved with no PageSpeed section and logs `pagespeed.failed`.
 
+**`SE_RANKING_API_KEY`** is a Data API key from the SE Ranking dashboard (API > Dashboard), on a credit
+wallet. Without it every analysis is saved with no backlink or ranking card and logs
+`seranking.failed`. See [readout.md](readout.md#se-ranking-fetchseoindex-in-libserankingts).
+
 **`BRAND_DIR`** is `/data/brand`, on the `brand-volume` the file mounts on `app`. Set it in the
 dashboard, because the file declares it as `preserve()`. Without it the name still saves and a logo
 upload answers `503`.
@@ -114,7 +118,10 @@ One JSON line per event on stdout. Event names are the `LOG_EVENT` enum.
 | `queue.enqueued` | `depth` | How much work was already ahead of this job |
 | `scrape.slot_acquired` | `waitMs`, `queued` | Whether `SCRAPE_MAX_CONCURRENT_PAGES` is binding |
 | `queue.job_finished` | `ms` | How long a job takes, which sizes `QUEUE_MAX_DEPTH` |
-| `pagespeed.failed` | `status`, `reason` | PageSpeed Insights answered with an error, timed out, or no key is set |
+| `pagespeed.failed` | `status`, `reason`, `retrying` | PageSpeed Insights answered with an error, timed out, or no key is set. `retrying` marks a 5xx that gets another try |
+| `crawl.finished` | `pages`, `truncated`, `ms`, `status` | Whether `CRAWL_BUDGET_MS` or `CRAWL_PAGE_MAX` is what stops the crawl |
+| `crawl.failed` | `error` | The crawl threw, and the report has no site card |
+| `seranking.failed` | `path`, `status`, `reason` | An SE Ranking call failed, timed out, or no key is set |
 
 ## Things that are easy to get wrong
 

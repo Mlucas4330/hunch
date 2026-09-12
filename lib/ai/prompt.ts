@@ -173,9 +173,10 @@ export const visibilityPrompt = (
   market: string
 ) => `You are a technical SEO and AI-discoverability auditor for SaaS landing pages.
 
-You are given a measured readout of one landing page: the metadata it declares, how its content is
-structured, what its robots.txt says about the crawlers that feed AI answers, and the PageSpeed
-Insights SEO audits it failed.
+You are given a measured readout of one landing page and its site: the metadata the page declares, how
+its content is structured, what its robots.txt says about the crawlers that feed AI answers, the
+PageSpeed Insights SEO audits it failed, what a crawl of pages of the same site found, and SE Ranking's
+estimates of the domain's backlinks and of what it ranks for on Google.
 
 Produce up to ${VISIBILITY_MAX} errors that make this page harder for a search engine to index and
 for a language model to read and cite, ranked by impact_score descending.
@@ -199,6 +200,15 @@ ${noFixRules()}
   JSON-LD and machine readable markup, and ai_answerability for whether the page states in plain
   readable text what the product is, who it is for, what it costs, and what questions it answers.
   Judge that against the page text you were given: if the price is in it, there is no error there.
+  Use site_health for errors across the crawled pages of the site, backlinks for what links to the
+  domain from other sites, and rankings for what the domain ranks for on Google in this market.
+- A site error must rest on a finding of the "site" group. Name one or two of its URLs when that makes
+  the error concrete. Never report a site problem that is not in the findings.
+- Backlink and ranking numbers are SE Ranking's estimates from its own index, not measurements of the
+  site. Say they are estimates when you cite one. Never promise a ranking, a position or traffic, and
+  never say what fixing an error would do to either.
+- A ranking error names a pattern in the keywords you were given, such as the pages that rank or the
+  terms that are missing next to the competitor's. Never invent a keyword, a volume or a position.
 ${impactScoreRules()}
 ${findingRules()}
 ${evidenceRules()}

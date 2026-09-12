@@ -9,6 +9,7 @@ import { AI_FIX_CATEGORY, type FixKind } from '@/lib/enums'
 import { EMPTY_HISTORY, type ReadoutHistory } from '@/lib/snapshots'
 import { isUuid } from '@/lib/uuid'
 import type { PageSpeed } from '@/lib/pagespeed'
+import type { BacklinkSummary, RankedKeywords } from '@/lib/seranking'
 import type { ReadoutInput } from '@/lib/readout'
 
 const MAX_PAGE_SIZE = 50
@@ -85,6 +86,9 @@ export function readoutFor(
     | 'keywords'
     | 'mobile'
     | 'sameness'
+    | 'siteCrawl'
+    | 'backlinks'
+    | 'rankedKeywords'
     | 'market'
   >
 ): ReadoutInput {
@@ -96,7 +100,27 @@ export function readoutFor(
     keywords: analysis.keywords,
     mobile: analysis.mobile,
     sameness: analysis.sameness,
+    site: analysis.siteCrawl,
+    backlinks: analysis.backlinks,
+    rankedKeywords: analysis.rankedKeywords,
     market: analysis.market
+  }
+}
+
+/**
+ * The competitor's SE Ranking estimates, or null when the analysis named none or neither call answered
+ * for it. Separate from `competitorFor`, which is null whenever PageSpeed failed for the competitor.
+ */
+export function competitorIndexFor(
+  analysis: Pick<Analysis, 'competitor' | 'competitorUrl'>
+): { host: string; backlinks: BacklinkSummary | null; rankedKeywords: RankedKeywords | null } | null {
+  const competitor = analysis.competitor
+  if (!competitor || (!competitor.backlinks && !competitor.rankedKeywords)) return null
+
+  return {
+    host: displayHost(analysis.competitorUrl ?? competitor.url),
+    backlinks: competitor.backlinks ?? null,
+    rankedKeywords: competitor.rankedKeywords ?? null
   }
 }
 

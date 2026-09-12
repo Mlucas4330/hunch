@@ -130,11 +130,24 @@ Fed the structure readout, the phone viewport, what the page cost to load, the r
 ## 5. Visibility errors: `generateVisibility`
 
 Fed `PageSeo`, the composed page text, the readable-content counts, the robots.txt result, the
-`declared` and `crawler_access` findings, the PageSpeed audits in the
-`PAGESPEED_CATEGORY_BY_FIX_KIND.visibility` categories and the page's own repeated terms. The report
-shows those audits in the section the errors land in; see
+`declared`, `crawler_access`, `site` and `index` findings, the PageSpeed audits in the
+`PAGESPEED_CATEGORY_BY_FIX_KIND.visibility` categories, the page's own repeated terms, a summary of the
+site crawl, and SE Ranking's estimates for the domain and for the competitor. The report shows those
+audits and cards in the section the errors land in; see
 [invariants.md](invariants.md#a-section-shows-the-audits-its-errors-were-written-from).
-**Resolves to `[]` on any failure.**
+**Resolves to `[]` on any failure.** Its budget is `VISIBILITY_MAX_TOKENS`.
+
+**A site error rests on a `site` finding.** Each one reaches the prompt with up to
+`CRAWL_PROMPT_URLS_MAX` of its URLs, and when the crawl's HTML is a JavaScript shell the prompt is told
+to say nothing about titles, headings or words across the site.
+
+**Backlink and ranking errors rest on SE Ranking's block**, capped at `RANKED_KEYWORDS_PROMPT_MAX`
+keywords a side. The prompt calls those numbers estimates, forbids promising a position or traffic,
+and forbids inventing a keyword. See
+[invariants.md](invariants.md#index-numbers-say-where-they-came-from).
+
+`site_health`, `backlinks` and `rankings` join `indexability`, `metadata` and `structured_data` in the
+SEO list; `ai_answerability` alone goes to the AI list.
 
 **The page text is what makes `ai_answerability` honest.** Without it the call judges whether the page
 states what it costs against a body it was never given. A blocked AI crawler or a noindex is ranked

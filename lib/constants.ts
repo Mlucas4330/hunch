@@ -56,9 +56,14 @@ export const CALLBACK_URL_PARAM = 'callbackUrl'
 export const PAGESPEED_API_URL = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed'
 export const PAGESPEED_STRATEGY = 'mobile'
 
-// A Lighthouse run on Google's side routinely takes 10 to 30 seconds and a heavy page more. Past this
-// the analysis continues without it rather than holding the report.
-export const PAGESPEED_TIMEOUT_MS = 60_000
+// A Lighthouse run on Google's side routinely takes 10 to 30 seconds, and a heavy Brazilian page was
+// measured at 40, 51 and past 60. Past this the analysis continues without it rather than holding the
+// report. It bounds every attempt together, so a retry never makes the wait longer.
+export const PAGESPEED_TIMEOUT_MS = 120_000
+
+// Lighthouse answers a 5xx for a run that went wrong on Google's side, and the same page often scores on
+// the next try.
+export const PAGESPEED_RETRIES = 1
 
 // The API reports CLS percentiles multiplied by 100.
 export const PAGESPEED_CLS_SCALE = 100
@@ -209,6 +214,96 @@ export const ROBOTS_MAX_BYTES = 512 * 1024
 // Hops are followed by hand to re-validate each one, so the depth is bounded here, not by fetch.
 // Enough for the http -> https -> www chains that are the reason redirects are followed at all.
 export const ROBOTS_MAX_REDIRECTS = 3
+
+// The status codes the outbound fetches read. `missing` is a page that is not there; 503 is kept apart
+// from the other server errors because bot protection and maintenance pages answer with it.
+export const HTTP_STATUS = {
+  successMin: 200,
+  redirectMin: 300,
+  clientErrorMin: 400,
+  serverErrorMin: 500,
+  unavailable: 503,
+  tooManyRequests: 429,
+  missing: [404, 410]
+} as const
+
+// The site crawl: plain fetches, no browser, same origin only. Sized by how long the reader waits,
+// which is why the budget is a wall clock and not only a page count. See docs/scraping.md.
+export const CRAWL_PAGE_MAX = 100
+export const CRAWL_CONCURRENCY = 5
+export const CRAWL_PAGE_TIMEOUT_MS = 8_000
+export const CRAWL_BUDGET_MS = 90_000
+export const CRAWL_PAGE_MAX_BYTES = 2 * 1024 * 1024
+export const CRAWL_MAX_REDIRECTS = ROBOTS_MAX_REDIRECTS
+
+// A sitemap index can point at hundreds of files, and a hundred pages are found in the first few.
+export const CRAWL_SITEMAP_FILES_MAX = 5
+export const CRAWL_SITEMAP_MAX_BYTES = 10 * 1024 * 1024
+export const CRAWL_SITEMAP_DEFAULT_PATH = '/sitemap.xml'
+
+export const CRAWL_USER_AGENT = 'Mozilla/5.0 (compatible; HunchBot/1.0)'
+export const CRAWL_ACCEPT_HTML = 'text/html,application/xhtml+xml'
+export const CRAWL_ACCEPT_XML = 'application/xml,text/xml'
+export const CRAWL_HTML_CONTENT_TYPE = 'text/html'
+export const ROBOTS_ACCEPT = 'text/plain'
+export const ROBOTS_ALL_AGENTS = '*'
+
+export const CRAWL_ROBOTS_META_NAMES = ['robots', 'googlebot']
+export const CRAWL_NOINDEX_DIRECTIVE = 'noindex'
+
+// Links to these are files, not pages, and fetching one spends a page of the budget on nothing.
+export const CRAWL_SKIP_EXTENSIONS = [
+  '.pdf', '.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.avif', '.ico', '.zip', '.mp4',
+  '.mp3', '.css', '.js', '.json', '.xml', '.txt', '.gz'
+]
+
+// Below this share of the words the browser rendered, the HTML is a JavaScript shell: its titles,
+// headings and text say nothing about what a visitor reads, so they are not judged. See
+// docs/invariants.md.
+export const CRAWL_RAW_TEXT_RATIO_MIN = 0.3
+
+// How many affected URLs the site card lists under a finding, and how many a prompt is given.
+export const CRAWL_CARD_URLS_MAX = 10
+export const CRAWL_PROMPT_URLS_MAX = 5
+
+// SE Ranking, the one source of backlink and ranking numbers. Every call spends credits, so what is
+// asked for is bounded here. See docs/readout.md.
+export const SE_RANKING_API_URL = 'https://api.seranking.com/v1'
+export const SE_RANKING_ENDPOINT = {
+  backlinksSummary: '/backlinks/summary',
+  referringDomains: '/backlinks/refdomains',
+  domainKeywords: '/domain/keywords',
+  domainOverview: '/domain/overview/db'
+} as const
+export const SE_RANKING_TIMEOUT_MS = 30_000
+
+// A trial account is held to one request a second, so a 429 is retried once, after this long.
+export const SE_RANKING_RETRIES = 1
+export const SE_RANKING_RETRY_DELAY_MS = 1_100
+
+// Backlinks for the whole domain, subdomains included, and organic rankings for the same.
+export const SE_RANKING_BACKLINK_MODE = 'domain'
+export const SE_RANKING_KEYWORD_TYPE = 'organic'
+export const SE_RANKING_WITH_SUBDOMAINS = '1'
+
+// SE Ranking's regional databases are keyed by ISO 3166-1 alpha-2 code.
+export const SE_RANKING_SOURCE: Record<Market, string> = {
+  us: 'us',
+  br: 'br'
+}
+
+export const RANKED_KEYWORDS_MAX = 100
+// The keywords that bring the most estimated traffic first, so a hundred rows are the hundred that matter.
+export const RANKED_KEYWORDS_ORDER_FIELD = 'traffic'
+export const SORT_DESC = 'desc'
+export const RANKED_KEYWORDS_TABLE_MAX = 20
+export const RANKED_KEYWORDS_PROMPT_MAX = 20
+
+export const BACKLINK_REFERRING_DOMAINS_MAX = 10
+export const REFERRING_DOMAINS_ORDER = 'domain_inlink_rank'
+
+// SE Ranking's domain authority runs from 0 to this.
+export const DOMAIN_RANK_MAX = 100
 
 // See lib/url-guard.ts.
 export const ALLOWED_SCRAPE_PROTOCOLS = ['http:', 'https:']
@@ -520,7 +615,10 @@ export const READOUT_THRESHOLDS = {
   tapTargetsWarn: 8,
   tapTargetsAlert: 20,
   tinyTextWarn: 5,
-  tinyTextAlert: 20
+  tinyTextAlert: 20,
+  // A page of the site at or under this many words, read from its HTML. Looser than wordCountWarn,
+  // because a contact or a login page is short on purpose.
+  thinPageWords: 150
 } as const
 
 // The sparkline's own coordinate space, scaled by the viewBox. Padding leaves room for the end dot
@@ -843,8 +941,15 @@ export const FLOW_CATEGORY_BADGE_CLASS: Record<FlowCategory, string> = {
   indexability: 'bg-coral/15 text-coral',
   metadata: 'bg-purple/15 text-purple',
   structured_data: 'bg-blue/15 text-blue',
-  ai_answerability: 'bg-green/15 text-green'
+  ai_answerability: 'bg-green/15 text-green',
+  site_health: 'bg-amber/15 text-amber',
+  backlinks: 'bg-purple-soft/15 text-purple-soft',
+  rankings: 'bg-neutral/15 text-neutral'
 }
+
+// The visibility generation's output budget. It covers the site, backlink and ranking errors as well as
+// the page's own.
+export const VISIBILITY_MAX_TOKENS = 4000
 
 // Green is load-bearing: a report that is all coral reads as a sales pitch.
 export const READOUT_SEVERITY_CLASS: Record<ReadoutSeverity, string> = {

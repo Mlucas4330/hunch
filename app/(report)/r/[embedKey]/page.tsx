@@ -23,6 +23,7 @@ import { analysisStateFor, lastFinishedAt, latestRun } from '@/lib/run-analysis'
 import { quotaFor, quotaLeft } from '@/lib/quota'
 import {
   competitorFor,
+  competitorIndexFor,
   fixesByFinding,
   loadReport,
   readoutFor,
@@ -30,7 +31,7 @@ import {
   splitFixes,
   splitVisibility
 } from '@/lib/analyses'
-import { hasEvidence, sectionEvidence, type Evidence } from '@/lib/readout'
+import { hasEvidence, sectionEvidence, siteContentReadable, type Evidence } from '@/lib/readout'
 import { EMPTY_HISTORY } from '@/lib/snapshots'
 import { PLAYBOOK_EXPANDED_COUNT, SECTION_ANCHOR_CLASS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
@@ -154,6 +155,18 @@ export default async function ReportPage({
 
   const crawler = readoutFor(analysis)
   const competitor = competitorFor(analysis)
+  const site = analysis.siteCrawl
+    ? { crawl: analysis.siteCrawl, readable: siteContentReadable(analysis.siteCrawl, analysis.structure) }
+    : null
+  const seoIndex =
+    analysis.backlinks || analysis.rankedKeywords
+      ? {
+          backlinks: analysis.backlinks,
+          rankedKeywords: analysis.rankedKeywords,
+          market: analysis.market,
+          competitor: competitorIndexFor(analysis)
+        }
+      : null
 
   const evidenceByTab = Object.fromEntries(
     ANALYSIS_TAB.map((tab) => [tab, sectionEvidence(tab, analysis.pagespeed, crawler)])
@@ -175,6 +188,8 @@ export default async function ReportPage({
           pagespeed={analysis.pagespeed}
           previous={history.previous}
           {...competitor}
+          site={site}
+          seoIndex={seoIndex}
           fixes={fixTitles}
         />
       ) : null

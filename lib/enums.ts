@@ -100,7 +100,10 @@ export const VISIBILITY_FIX_CATEGORY = [
   'indexability',
   'metadata',
   'structured_data',
-  'ai_answerability'
+  'ai_answerability',
+  'site_health',
+  'backlinks',
+  'rankings'
 ] as const
 export type VisibilityFixCategory = (typeof VISIBILITY_FIX_CATEGORY)[number]
 
@@ -215,9 +218,32 @@ export const READOUT_FINDING = [
   'placeholder_text',
   'unlinked_logo_strip',
   'builder_declared',
-  'stock_hero_image'
+  'stock_hero_image',
+  'broken_pages',
+  'redirected_pages',
+  'noindex_pages',
+  'sitemap_url_errors',
+  'pages_missing_title',
+  'duplicate_titles',
+  'pages_missing_meta_description',
+  'duplicate_meta_descriptions',
+  'pages_missing_h1',
+  'pages_multiple_h1',
+  'thin_pages',
+  'canonical_elsewhere',
+  'referring_domains',
+  'ranked_keywords'
 ] as const
 export type ReadoutFinding = (typeof READOUT_FINDING)[number]
+
+// `unknown` is a site that refused plain fetches or never answered, and says nothing about its pages.
+// See docs/invariants.md.
+export const CRAWL_STATUS = ['crawled', 'unknown'] as const
+export type CrawlStatus = (typeof CRAWL_STATUS)[number]
+
+// Where the crawl found its URLs: a sitemap, or only the links on the pages it read.
+export const CRAWL_SOURCE = ['sitemap', 'links'] as const
+export type CrawlSource = (typeof CRAWL_SOURCE)[number]
 
 // Three states, not two: `ok` is what makes the section an audit rather than a hit piece.
 export const READOUT_SEVERITY = ['ok', 'warn', 'alert'] as const
@@ -229,13 +255,16 @@ export const READOUT_GROUP = [
   'mobile',
   'declared',
   'crawler_access',
+  'site',
+  'index',
   'load',
   'sameness'
 ] as const
 export type ReadoutGroup = (typeof READOUT_GROUP)[number]
 
-// Groups that are counted but never scored.
-export const UNSCORED_READOUT_GROUP: ReadoutGroup[] = ['sameness']
+// Groups that are counted but never scored. `index` is SE Ranking's estimate of the domain, and a /100
+// rail over it would grade a number nobody measured on the site.
+export const UNSCORED_READOUT_GROUP: ReadoutGroup[] = ['sameness', 'index']
 
 // `flow_fixes.finding` is a `text` column, so a value read back is a plain string and has to be
 // narrowed before it can key anything.
@@ -272,6 +301,12 @@ export const LOG_EVENT = [
   'redis.error',
   // PageSpeed Insights answered with an error, timed out, or no key is configured. A warning: the
   // analysis continues without it and the report shows no PageSpeed section.
-  'pagespeed.failed'
+  'pagespeed.failed',
+  'crawl.finished',
+  // The crawl threw. A warning: the analysis continues without the site card.
+  'crawl.failed',
+  // An SE Ranking call answered with an error, timed out, or no key is set. A warning: the report shows
+  // no backlink or ranking card for what failed.
+  'seranking.failed'
 ] as const
 export type LogEvent = (typeof LOG_EVENT)[number]

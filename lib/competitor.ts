@@ -1,5 +1,6 @@
 import { measuredFindings, type MeasuredFinding, type ReadoutInput } from '@/lib/readout'
 import type { PageKeywords } from '@/lib/keywords'
+import type { BacklinkSummary, RankedKeywords } from '@/lib/seranking'
 import type { PageSpeed } from '@/lib/pagespeed'
 import type { PageMobile, PagePerformance, PageSeo, PageStructure } from '@/lib/scrape'
 import type { Market, ReadoutFinding } from '@/lib/enums'
@@ -21,6 +22,10 @@ export type CompetitorMeasurement = {
   mobile: PageMobile
   // Absent on rows measured before PageSpeed Insights replaced the readout.
   pagespeed?: PageSpeed | null
+  // Asked on the reader's market, so both domains are compared on the same Google. Absent on rows
+  // measured before SE Ranking was read.
+  backlinks?: BacklinkSummary | null
+  rankedKeywords?: RankedKeywords | null
 }
 
 // The competitor's page read as a readout, so a prompt compares through one implementation of what a
@@ -37,6 +42,9 @@ export function competitorInput(
     mobile: competitor.mobile,
     crawler: null,
     sameness: null,
+    site: null,
+    backlinks: competitor.backlinks ?? null,
+    rankedKeywords: competitor.rankedKeywords ?? null,
     market
   }
 }

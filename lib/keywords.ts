@@ -35,6 +35,10 @@ function words(text: string): string[] {
   return (text.toLowerCase().match(WORD_PATTERN) ?? []).filter((word) => word.length > 1)
 }
 
+export function countWords(text: string): number {
+  return words(text).length
+}
+
 function isCandidate(parts: string[]): boolean {
   // A phrase may pass through a stopword, but never start or end on one: "page for the pricing"
   // is not a term, "landing page" is.

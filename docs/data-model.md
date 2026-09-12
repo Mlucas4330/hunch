@@ -33,6 +33,12 @@ analyses
 - mobile          (jsonb, nullable: PageMobile. Prompt input)
 - pagespeed       (jsonb, nullable: PageSpeed, the PageSpeed Insights result. Null when the call
                   failed or no key is set, never read as a zero)
+- site_crawl      (jsonb, nullable: SiteCrawl, up to CRAWL_PAGE_MAX pages read by fetch. Rendered.
+                  Null when the crawl threw; a crawl the site refused is stored as `unknown`)
+- backlinks       (jsonb, nullable: BacklinkSummary, SE Ranking's estimate. Rendered. Null when the
+                  call failed or no key is set, never read as a zero)
+- ranked_keywords (jsonb, nullable: RankedKeywords, SE Ranking's estimate for the page's market.
+                  Rendered. Null on the same terms)
 - competitor_url  (text, nullable: a page the reader named)
 - competitor      (jsonb, nullable: CompetitorMeasurement, including its PageSpeed result)
 - embed_key       (uuid, unique: public opaque key the report URL uses; never expose analyses.id)
@@ -57,7 +63,8 @@ analysis_runs                   <- one measure-and-generate pass: the first, and
 page_snapshots                  <- the history behind the analyses columns above
 - id             (uuid, PK)
 - analysis_id    (FK -> analyses.id, cascade)
-- structure / seo / performance / crawler_access / keywords / mobile / sameness / pagespeed (jsonb)
+- structure / seo / performance / crawler_access / keywords / mobile / sameness / pagespeed /
+  site_crawl / backlinks / ranked_keywords (jsonb)
 - score          (int, nullable: pageSpeedScore, FROZEN at capture)
 - captured_at    (timestamp)
 - index(analysis_id, captured_at)
@@ -107,8 +114,9 @@ analyses    1 -> N  page_snapshots
 
 `structure`, `seo`, `performance`, `keywords`, `mobile` and `sameness` are what the scrape counted.
 The report no longer renders them; they are kept because the error generators read them, and a
-every run refreshes them together with `pagespeed`. `crawler_access` is the one the report still
-renders, because PageSpeed Insights does not check robots.txt.
+every run refreshes them together with `pagespeed`. `crawler_access`, `site_crawl`, `backlinks` and
+`ranked_keywords` are the ones the report still renders, because PageSpeed Insights reads none of
+robots.txt, the rest of the site or anybody's index.
 
 **Null is not the only "not measured" here, and the other one is inside the jsonb.** `structure` grew
 fields after rows already existed, so the type marks those fields optional and `lib/readout.ts`

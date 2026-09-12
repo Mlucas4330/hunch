@@ -88,6 +88,7 @@ export default defineRailway(() => {
       PAGESPEED_API_KEY: preserve(),
       PUPPETEER_SKIP_DOWNLOAD: preserve(),
       REDIS_URL: preserve(),
+      SE_RANKING_API_KEY: preserve(),
     },
   });
 

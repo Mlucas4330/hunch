@@ -7,6 +7,8 @@ import type { PageMobile, PagePerformance, PageSameness, PageSeo, PageStructure 
 import type { CrawlerAccess } from './robots'
 import type { PageKeywords } from './keywords'
 import type { Market } from './enums'
+import type { CrawledPage, SiteCrawl } from './crawl'
+import type { BacklinkSummary, RankedKeywords } from './seranking'
 
 const STRUCTURE: PageStructure = {
   hasOauth: false,
@@ -76,6 +78,9 @@ function findingsFor(overrides: {
   keywords?: PageKeywords | null
   mobile?: PageMobile | null
   sameness?: PageSameness | null
+  site?: SiteCrawl | null
+  backlinks?: BacklinkSummary | null
+  rankedKeywords?: RankedKeywords | null
   market?: Market | null
 }) {
   return measuredFindings({
@@ -88,6 +93,9 @@ function findingsFor(overrides: {
     // measured without them -- which is exactly the row shape the guards have to handle.
     mobile: overrides.mobile ?? null,
     sameness: overrides.sameness ?? null,
+    site: overrides.site ?? null,
+    backlinks: overrides.backlinks ?? null,
+    rankedKeywords: overrides.rankedKeywords ?? null,
     market: overrides.market ?? null
   })
 }
@@ -336,6 +344,9 @@ test('a null readout produces nothing at all', () => {
     crawler: null,
     keywords: null,
     mobile: null,
+    site: null,
+    backlinks: null,
+    rankedKeywords: null,
     market: null
   })
 
@@ -593,8 +604,107 @@ const INPUT = {
   keywords: KEYWORDS,
   mobile: null,
   sameness: null,
+  site: null,
+  backlinks: null,
+  rankedKeywords: null,
   market: null
 }
+
+const BACKLINKS: BacklinkSummary = {
+  rank: 34,
+  backlinks: 1480,
+  referringDomains: 96,
+  dofollowReferringDomains: 71,
+  topReferringDomains: []
+}
+
+test('the index is counted and never graded', () => {
+  const findings = findingsFor({ backlinks: BACKLINKS, rankedKeywords: { total: 0, keywords: [] } })
+
+  assert.equal(find(findings, 'referring_domains')?.severity, 'ok')
+  assert.equal(find(findings, 'ranked_keywords')?.value, 0, 'no rankings is a real answer')
+  assert.equal(find(findings, 'ranked_keywords')?.severity, 'ok')
+})
+
+test('a failed SE Ranking call produces no index finding, and neither does an unknown total', () => {
+  assert.equal(findingsFor({}).some((finding) => finding.group === 'index'), false)
+  assert.equal(find(findingsFor({ rankedKeywords: { total: null, keywords: [] } }), 'ranked_keywords'), undefined)
+})
+
+const PAGE: CrawledPage = {
+  url: 'https://acme.com/',
+  status: 200,
+  redirectedTo: null,
+  parsed: true,
+  title: 'Acme',
+  metaDescription: 'A description',
+  canonicalElsewhere: false,
+  noindex: false,
+  h1Count: 1,
+  wordCount: 640,
+  inSitemap: true
+}
+
+const SITE: SiteCrawl = {
+  status: 'crawled',
+  source: 'sitemap',
+  entry: 'https://acme.com/',
+  truncated: false,
+  pages: [
+    PAGE,
+    { ...PAGE, url: 'https://acme.com/pricing', title: 'Pricing', metaDescription: 'Plans' },
+    { ...PAGE, url: 'https://acme.com/about', metaDescription: 'About' },
+    { ...PAGE, url: 'https://acme.com/gone', status: 404, parsed: false, title: null },
+    { ...PAGE, url: 'https://acme.com/busy', status: 503, parsed: false, title: null },
+    { ...PAGE, url: 'https://acme.com/slow', status: null, parsed: false, title: null }
+  ]
+}
+
+test('a page that never answered is not a broken page, and neither is a 503', () => {
+  const broken = find(findingsFor({ site: SITE }), 'broken_pages')
+
+  assert.equal(broken?.value, 1)
+  assert.equal(broken?.severity, 'alert')
+  assert.deepEqual(broken?.urls, ['https://acme.com/gone'])
+})
+
+test('a title shared by two pages counts both of them', () => {
+  const duplicates = find(findingsFor({ site: SITE }), 'duplicate_titles')
+
+  assert.deepEqual(duplicates?.urls, ['https://acme.com/', 'https://acme.com/about'])
+})
+
+test('a crawl the site refused produces no site findings at all', () => {
+  const findings = findingsFor({ site: { ...SITE, status: 'unknown' } })
+
+  assert.equal(findings.some((finding) => finding.group === 'site'), false)
+})
+
+test('a JavaScript shell keeps the status findings and drops the content ones', () => {
+  const shell = { ...SITE, pages: [{ ...PAGE, wordCount: 12 }, ...SITE.pages.slice(1)] }
+  const findings = findingsFor({ site: shell })
+
+  assert.ok(find(findings, 'broken_pages'))
+  assert.equal(find(findings, 'pages_missing_title'), undefined)
+  assert.equal(find(findings, 'thin_pages'), undefined)
+})
+
+test('a canonical pointing elsewhere is counted and never graded', () => {
+  const site = { ...SITE, pages: [{ ...PAGE, canonicalElsewhere: true }] }
+  const canonical = find(findingsFor({ site }), 'canonical_elsewhere')
+
+  assert.equal(canonical?.value, 1)
+  assert.equal(canonical?.severity, 'ok')
+  assert.equal(canonical?.criterion, null)
+})
+
+test('only the SEO section carries the site crawl', () => {
+  const withSite = { ...INPUT, site: SITE }
+
+  assert.ok(sectionEvidence('seo', null, withSite).site.length > 0)
+  assert.deepEqual(sectionEvidence('ai', null, withSite).site, [])
+  assert.equal(hasEvidence(sectionEvidence('seo', null, withSite)), true)
+})
 
 test('each section shows the Lighthouse categories its errors were written from', () => {
   assert.deepEqual(sectionEvidence('flow', PAGESPEED, INPUT).categories, [

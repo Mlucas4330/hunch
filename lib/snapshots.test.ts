@@ -9,6 +9,9 @@ import {
   FIXTURE_PERFORMANCE,
   FIXTURE_SAMENESS,
   FIXTURE_SEO,
+  FIXTURE_SITE_CRAWL,
+  FIXTURE_BACKLINKS,
+  FIXTURE_RANKED_KEYWORDS,
   FIXTURE_STRUCTURE
 } from './ai/fixtures'
 import type { MeasuredColumns } from './snapshots'
@@ -21,7 +24,10 @@ const MEASUREMENT: MeasuredColumns = {
   keywords: FIXTURE_KEYWORDS,
   mobile: FIXTURE_MOBILE,
   sameness: FIXTURE_SAMENESS,
-  pagespeed: FIXTURE_PAGESPEED
+  pagespeed: FIXTURE_PAGESPEED,
+  siteCrawl: FIXTURE_SITE_CRAWL,
+  backlinks: FIXTURE_BACKLINKS,
+  rankedKeywords: FIXTURE_RANKED_KEYWORDS
 }
 
 test('the score is the PageSpeed average, frozen at capture', () => {

@@ -82,6 +82,11 @@ resolves, via **every** address DNS returns, to a public one. `POST /api/analyse
 PageSpeed Insights loads the page from Google's servers, not ours, so it needs no guard of its own; the
 URL has already passed `assertPublicUrl` when the analysis was created.
 
+**Every plain fetch goes through `guardedFetch` in `lib/guarded-fetch.ts`**: robots.txt, the sitemaps
+and each page of the site crawl. It follows redirects by hand and runs `assertPublicUrl` on every hop,
+so a `302` cannot walk a request to a private address, and it drops a body past the caller's byte cap.
+The crawl also never opens a URL off the entry page's origin.
+
 ### The browser service holds no credentials
 
 The deployed browser passes `--no-sandbox` in `Dockerfile.browser`, because Docker's default seccomp

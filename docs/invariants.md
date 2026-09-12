@@ -16,7 +16,28 @@ or a block. "We could not check" and "they block AI crawlers" are opposite concl
 The same holds for PageSpeed Insights: a failed call stores `null`, and a page with no field data in
 the Chrome UX Report has no field card. Neither is shown as a zero.
 
+The site crawl holds it three ways. **A page that timed out or was refused is not a broken page.**
+**A crawl whose entry page does not answer a plain fetch is `unknown`**, because the browser already
+loaded that page and every status after it would describe the refusal rather than the site. **HTML
+built by JavaScript is not judged for titles, headings or words**: a shell has none, and reporting
+that would write the crawl's blindness down as the site's fault.
+
 *Governs:* [scraping.md](scraping.md), [readout.md](readout.md), [ai-pipeline.md](ai-pipeline.md)
+
+### Index numbers say where they came from
+
+Backlinks, referring domains, domain rank, rankings and search volumes come from SE Ranking's index,
+not from anything this code measured on the site. **Every surface that prints one names the source**:
+the backlink and ranking cards carry `readout.index.source`, and the visibility prompt calls them
+estimates and forbids promising a position or traffic from them.
+
+**They are counted and never graded.** The `index` group is unscored, and no finding in it carries a
+severity other than `ok`, because how many links a site should have, or how many keywords it should
+rank for, is not a threshold anybody measured.
+
+A call that failed is `null` and has no card, under the rule above.
+
+*Governs:* [readout.md](readout.md), [ai-pipeline.md](ai-pipeline.md), [analysis-ui.md](analysis-ui.md)
 
 ## Generation
 
@@ -26,7 +47,8 @@ A `.br` domain or a Portuguese `lang` attribute decides it, and nothing else doe
 left out on purpose. A BRL price appears on plenty of global pricing tables, and marking a US page
 Brazilian rewrites the whole analysis around the wrong country.
 
-Pinned to `analyses.market` at creation, for the same reason as `locale`.
+Pinned to `analyses.market` at creation, for the same reason as `locale`. SE Ranking is asked about the
+same market, so the rankings come from the Google the page is written for.
 
 *Governs:* [data-model.md](data-model.md), [ai-pipeline.md](ai-pipeline.md)
 

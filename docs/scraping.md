@@ -10,8 +10,8 @@ Insights and the AI crawler card instead. See [readout.md](readout.md).
 
 ## PageSpeed Insights runs beside the scrape
 
-`measurePage` in `lib/analyze.ts` runs `scrapePage`, `fetchCrawlerAccess` and `fetchPageSpeed` in
-parallel. PageSpeed Insights is a plain `fetch` to Google, so it takes no browser slot, and it is
+`measurePage` in `lib/analyze.ts` runs `scrapePage`, `measureSite` (robots.txt, then the site crawl)
+and `fetchPageSpeed` in parallel. PageSpeed Insights is a plain `fetch` to Google, so it takes no browser slot, and it is
 fail-soft: a failure resolves to `null` and the scrape carries on.
 
 ## Rendering: navigation is not paint
@@ -163,17 +163,45 @@ Every field is `number | null`, and a null is skipped rather than defaulted.
 
 ## `robots.txt`: `fetchCrawlerAccess` in `lib/robots.ts`
 
-Returns `{ status, blockedAgents, blocksAll, sitemaps }`. Four things are load-bearing:
+Returns `{ status, blockedAgents, blocksAll, sitemaps, disallowed }`, where `disallowed` is the
+`Disallow` paths of the `*` group, which the site crawl will not open. Four things are load-bearing:
 
 - **Three states, not two.** See
   [invariants.md](invariants.md#unknown-is-never-reported-as-negative).
-- **Redirects are followed by hand**, re-validating each hop with `assertPublicUrl` and bounded by
-  `ROBOTS_MAX_REDIRECTS`. `redirect: 'follow'` would let a `302` walk the fetch to a private address.
+- **Redirects are followed by hand** in `guardedFetch`, re-validating each hop with `assertPublicUrl`
+  and bounded by `ROBOTS_MAX_REDIRECTS`. See [security.md](security.md).
 - **Fail-soft throughout**: every failure path resolves to `unknown`.
 - **It uses `fetch`, not a browser**, so it takes no `withBrowserSlot` slot.
 
-It is persisted to `analyses.crawler_access` and read twice from there: by the visibility prompt, and
-by the report's AI crawler card.
+It is persisted to `analyses.crawler_access` and read three times: by the visibility prompt, by the
+report's AI crawler card, and by the site crawl for its sitemaps and rules.
+
+## Site crawl: `crawlSite` in `lib/crawl.ts`
+
+Up to `CRAWL_PAGE_MAX` pages of the reader's site, read with `guardedFetch` and **never with a
+browser**, so it takes no `withBrowserSlot` slot. `measureSite` starts it once robots.txt is in. A throw
+stores `null` and logs `crawl.failed`; the analysis carries on without the site card.
+
+- **Where the URLs come from.** The entry page first, then the sitemaps robots.txt declares (or
+  `CRAWL_SITEMAP_DEFAULT_PATH`), following one level of sitemap index and at most
+  `CRAWL_SITEMAP_FILES_MAX` files, then the same-origin links on every page read. `source` says
+  whether a sitemap answered.
+- **What bounds it.** `CRAWL_PAGE_MAX`, `CRAWL_CONCURRENCY` fetches at a time, `CRAWL_PAGE_TIMEOUT_MS`
+  and `CRAWL_PAGE_MAX_BYTES` per page, and `CRAWL_BUDGET_MS` on the wall clock. `truncated` says a limit
+  stopped it before the queue ran out.
+- **What it reads.** `parseCrawledPage` takes the title, the meta description, whether the canonical
+  names another URL, noindex from the meta tag or `X-Robots-Tag`, the H1 count and the word count out of
+  the HTML with regular expressions. It is pure and tested against stored HTML in `lib/crawl.test.ts`.
+- **Same origin only, and the `*` group's `Disallow` is respected.** `Allow` is not read, so the crawl
+  opens fewer pages than the rules permit, never more.
+
+**The HTML is read without running JavaScript.** A site that builds its text in the browser sends a
+shell with no headings and no words. `siteContentReadable` compares the entry page's word count with
+what the browser counted, and below `CRAWL_RAW_TEXT_RATIO_MIN` no content finding is judged.
+
+**The entry page decides whether the crawl is `unknown`.** The browser already loaded it, so a plain
+fetch that gets anything but a 2xx is a site refusing clients that are not browsers. Both rules are in
+[invariants.md](invariants.md#unknown-is-never-reported-as-negative).
 
 ## Neighbour pages
 

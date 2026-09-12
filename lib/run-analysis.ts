@@ -137,6 +137,9 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
             mobile: measurement.mobile,
             sameness: measurement.sameness,
             pagespeed: measurement.pagespeed,
+            siteCrawl: measurement.siteCrawl,
+            backlinks: measurement.backlinks,
+            rankedKeywords: measurement.rankedKeywords,
             // Re-detected from the page's own `lang`, a stronger signal than the URL the route had at
             // creation. See docs/invariants.md.
             market: measurement.market

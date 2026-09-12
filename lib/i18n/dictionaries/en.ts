@@ -102,7 +102,10 @@ export const en = {
       indexability: 'Indexability',
       metadata: 'Metadata',
       structured_data: 'Structured Data',
-      ai_answerability: 'AI Answerability'
+      ai_answerability: 'AI Answerability',
+      site_health: 'Site Health',
+      backlinks: 'Backlinks',
+      rankings: 'Rankings'
     },
     market: {
       us: 'United States',
@@ -502,7 +505,8 @@ export const en = {
     groupOk: '{total} checks, all passing',
     groupWrong: '{wrong} of {total} need attention',
     groups: {
-      crawler_access: 'What an AI crawler is allowed to read'
+      crawler_access: 'What an AI crawler is allowed to read',
+      site: 'What a crawler finds across the site'
     },
     score: {
       label: 'PageSpeed score',
@@ -545,7 +549,58 @@ export const en = {
     findings: {
       ai_crawlers_blocked: 'AI crawlers your robots.txt blocks',
       robots_blocks_all: 'Crawling allowed at all',
-      no_sitemap: 'Sitemap declared in robots.txt'
+      no_sitemap: 'Sitemap declared in robots.txt',
+      broken_pages: 'Pages answering with an error',
+      redirected_pages: 'Pages that redirect',
+      noindex_pages: 'Pages marked noindex',
+      sitemap_url_errors: 'Sitemap URLs that error, redirect or are noindex',
+      pages_missing_title: 'Pages with no title',
+      duplicate_titles: 'Pages sharing a title with another page',
+      pages_missing_meta_description: 'Pages with no meta description',
+      duplicate_meta_descriptions: 'Pages sharing a meta description',
+      pages_missing_h1: 'Pages with no H1',
+      pages_multiple_h1: 'Pages with more than one H1',
+      thin_pages: 'Pages with little readable text',
+      canonical_elsewhere: 'Pages whose canonical points to another URL',
+      referring_domains: 'Domains linking to the site',
+      ranked_keywords: 'Keywords the site ranks for on Google'
+    },
+    site: {
+      pagesRead: '{count} pages read',
+      source: {
+        sitemap: 'Found through the sitemap and internal links.',
+        links: 'Found through internal links, because no sitemap answered.'
+      },
+      truncated: 'Stopped at {count} pages.',
+      noJavaScript: 'Each page is read from the HTML it sends, without running JavaScript.',
+      contentSkipped: 'This site builds its text with JavaScript, so titles, headings and word counts were not judged from the HTML.',
+      urls: 'Show {count} pages',
+      morePages: 'and {count} more'
+    },
+    index: {
+      source: 'Estimated by SE Ranking from its own index of the web, not measured on the site.',
+      competitor: '{host}: {value}',
+      noValue: 'not reported',
+      backlinks: {
+        title: 'Links from other sites',
+        summary: '{count} referring domains',
+        referringDomains: 'Referring domains',
+        backlinks: 'Backlinks',
+        rank: 'Domain rank',
+        rankValue: '{value}/{max}',
+        dofollow: 'Dofollow referring domains',
+        topDomains: 'Show the top {count} referring domains'
+      },
+      keywords: {
+        title: 'What the site ranks for on Google',
+        total: '{count} keywords on Google {market}',
+        shown: 'The {count} that bring the most estimated traffic.',
+        empty: 'SE Ranking has no Google {market} rankings for this domain.',
+        keyword: 'Keyword',
+        position: 'Position',
+        volume: 'Searches a month',
+        page: 'Page'
+      }
     },
     criterion: {
       above: 'flagged from {value}',

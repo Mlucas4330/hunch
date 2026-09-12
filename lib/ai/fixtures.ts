@@ -2,6 +2,8 @@ import type { AnalysisOutput, FlowFixOutput, VisibilityFixOutput } from '@/lib/a
 import type { Locale } from '@/lib/enums'
 import type { PageMobile, PagePerformance, PageSameness, PageSeo, PageStructure } from '@/lib/scrape'
 import type { CrawlerAccess } from '@/lib/robots'
+import type { CrawledPage, SiteCrawl } from '@/lib/crawl'
+import type { BacklinkSummary, RankedKeywords } from '@/lib/seranking'
 import type { PageKeywords } from '@/lib/keywords'
 import type { PageSpeed } from '@/lib/pagespeed'
 
@@ -97,6 +99,57 @@ export const FIXTURE_CRAWLER_ACCESS: CrawlerAccess = {
   blockedAgents: ['GPTBot'],
   blocksAll: false,
   sitemaps: []
+}
+
+const FIXTURE_PAGE: CrawledPage = {
+  url: 'https://acme.example/',
+  status: 200,
+  redirectedTo: null,
+  parsed: true,
+  title: 'Acme - The workspace for modern teams',
+  metaDescription: null,
+  canonicalElsewhere: false,
+  noindex: false,
+  h1Count: 1,
+  wordCount: 640,
+  inSitemap: true
+}
+
+// One page of each kind of problem, so the e2e run renders a finding with pages under it rather than
+// only a clean card. The entry page carries most of the rendered words, so the content findings run.
+export const FIXTURE_SITE_CRAWL: SiteCrawl = {
+  status: 'crawled',
+  source: 'sitemap',
+  entry: 'https://acme.example/',
+  truncated: false,
+  pages: [
+    FIXTURE_PAGE,
+    { ...FIXTURE_PAGE, url: 'https://acme.example/pricing', wordCount: 410 },
+    { ...FIXTURE_PAGE, url: 'https://acme.example/about', h1Count: 0, wordCount: 90, metaDescription: 'About Acme' },
+    { ...FIXTURE_PAGE, url: 'https://acme.example/old-pricing', redirectedTo: 'https://acme.example/pricing' },
+    { ...FIXTURE_PAGE, url: 'https://acme.example/blog/launch', status: 404, parsed: false, title: null, h1Count: 0, wordCount: 0 }
+  ]
+}
+
+export const FIXTURE_BACKLINKS: BacklinkSummary = {
+  rank: 34,
+  backlinks: 1480,
+  referringDomains: 96,
+  dofollowReferringDomains: 71,
+  topReferringDomains: [
+    { domain: 'medium.com', rank: 94, backlinks: 12 },
+    { domain: 'producthunt.com', rank: 91, backlinks: 3 },
+    { domain: 'indiehackers.com', rank: 78, backlinks: 5 }
+  ]
+}
+
+export const FIXTURE_RANKED_KEYWORDS: RankedKeywords = {
+  total: 143,
+  keywords: [
+    { keyword: 'team workspace', position: 8, searchVolume: 2900, url: 'https://acme.example/', traffic: 140, difficulty: 41 },
+    { keyword: 'acme pricing', position: 1, searchVolume: 170, url: 'https://acme.example/pricing', traffic: 51, difficulty: 6 },
+    { keyword: 'workspace for teams', position: 14, searchVolume: 880, url: 'https://acme.example/', traffic: 22, difficulty: 33 }
+  ]
 }
 
 // Scores below the top band in every category and field data present, so the e2e run renders the
@@ -248,6 +301,14 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
         'With no description declared, the snippet a reader sees is assembled from whatever text the crawler picked.'
     },
     {
+      category: 'site_health',
+      finding: 'broken_pages',
+      title: 'A post in the sitemap answers 404',
+      problem: 'The sitemap sends crawlers to a launch post that no longer exists.',
+      impact_score: 7,
+      evidence: 'Every read of the sitemap spends a request on a page that returns an error instead of content.'
+    },
+    {
       category: 'structured_data',
       finding: 'no_structured_data',
       title: 'No structured data about the company',
@@ -275,6 +336,14 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
       impact_score: 8,
       evidence:
         'Sem descrição declarada, o trecho que o leitor vê é montado a partir de qualquer texto que o rastreador escolheu.'
+    },
+    {
+      category: 'site_health',
+      finding: 'broken_pages',
+      title: 'Post do sitemap responde 404',
+      problem: 'O sitemap manda os rastreadores para um post de lançamento que não existe mais.',
+      impact_score: 7,
+      evidence: 'Cada leitura do sitemap gasta uma requisição numa página que devolve erro em vez de conteúdo.'
     },
     {
       category: 'structured_data',

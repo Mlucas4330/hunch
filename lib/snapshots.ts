@@ -1,6 +1,8 @@
 import { pageSpeedScore, type PageSpeed } from '@/lib/pagespeed'
 import { PAGESPEED_CATEGORY, type PageSpeedCategory } from '@/lib/enums'
 import type { CrawlerAccess } from '@/lib/robots'
+import type { SiteCrawl } from '@/lib/crawl'
+import type { BacklinkSummary, RankedKeywords } from '@/lib/seranking'
 import type { PageKeywords } from '@/lib/keywords'
 import type { PageMobile, PagePerformance, PageSameness, PageSeo, PageStructure } from '@/lib/scrape'
 
@@ -26,6 +28,9 @@ export type MeasuredColumns = {
   mobile: PageMobile
   sameness: PageSameness
   pagespeed: PageSpeed | null
+  siteCrawl: SiteCrawl | null
+  backlinks: BacklinkSummary | null
+  rankedKeywords: RankedKeywords | null
 }
 
 export function snapshotValues(analysisId: string, measurement: MeasuredColumns) {
@@ -39,6 +44,9 @@ export function snapshotValues(analysisId: string, measurement: MeasuredColumns)
     mobile: measurement.mobile,
     sameness: measurement.sameness,
     pagespeed: measurement.pagespeed,
+    siteCrawl: measurement.siteCrawl,
+    backlinks: measurement.backlinks,
+    rankedKeywords: measurement.rankedKeywords,
     // Frozen here so a later change to how the score is computed never rewrites the trend.
     score: pageSpeedScore(measurement.pagespeed)
   }

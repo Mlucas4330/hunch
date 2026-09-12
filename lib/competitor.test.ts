@@ -27,6 +27,9 @@ const MINE: ReadoutInput = {
   performance: FIXTURE_PERFORMANCE,
   crawler: FIXTURE_CRAWLER_ACCESS,
   sameness: null,
+  site: null,
+  backlinks: null,
+  rankedKeywords: null,
   keywords: FIXTURE_KEYWORDS,
   mobile: FIXTURE_MOBILE,
   market: 'us'

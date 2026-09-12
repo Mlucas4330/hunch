@@ -36,6 +36,11 @@ which tier an account is on: the operator types the number and the number is the
 | Agency | R$397 | 60 runs | ten to twenty clients, plus new business. **The tier the price list marks** |
 | Network | R$797 | 200 runs | a report a day, or a sales team |
 
+**Every run spends SE Ranking credits**: about 310 for the page (100 for the backlink summary, one per
+referring domain listed, 100 for the keywords and 100 for the overview), and the same again with a
+competitor. The real consumption is read from `account/subscription`, and it is the floor under the
+prices above.
+
 **A tier is a price, not a feature set.** Every account sees the same product, so nothing in the code
 branches on which one paid. Running out means moving up a tier rather than buying a single run:
 there is no checkout to sell one through.
@@ -60,6 +65,12 @@ by email. There is no anonymous analysis. The blog stays public. See [analysis-u
   [readout.md](readout.md).
 - **AI crawler access.** Which AI crawlers the site's robots.txt blocks, whether it blocks everything,
   and whether it declares a sitemap. Counted by this code, because PageSpeed Insights does not check it.
+- **A crawl of the site.** Up to `CRAWL_PAGE_MAX` pages read by fetch: broken pages, redirects,
+  noindex, missing or repeated titles and descriptions, H1s and thin pages. See
+  [readout.md](readout.md#site-crawl).
+- **Backlinks and Google rankings, estimated by SE Ranking.** Referring domains, domain rank,
+  backlinks, and the keywords the domain ranks for in its market, beside the competitor's when there is
+  one. See [invariants.md](invariants.md#index-numbers-say-where-they-came-from).
 - **Four error lists**, written by a model from the scraped page and the PageSpeed audits: structure,
   copy, SEO and AI. See [ai-pipeline.md](ai-pipeline.md).
 - **An optional comparison page.** The agency may name a second URL; it is measured the same way and

@@ -187,6 +187,9 @@ test.describe('core features', () => {
 
     await expect(page.getByTestId('analysis-section-ai').getByTestId('readout-group')).toHaveCount(1)
     await expect(page.getByTestId('analysis-section-seo').getByTestId('pagespeed-category')).toHaveCount(1)
+    await expect(page.getByTestId('analysis-section-seo').getByTestId('site-crawl')).toHaveCount(1)
+    await expect(page.getByTestId('analysis-section-seo').getByTestId('backlinks')).toHaveCount(1)
+    await expect(page.getByTestId('analysis-section-seo').getByTestId('ranked-keywords')).toHaveCount(1)
     await expect(page.getByTestId('analysis-section-flow').getByTestId('pagespeed-category')).toHaveCount(3)
 
     // The top card starts open; the rest of the ranking is collapsed, so the assertion reads the top.
@@ -231,7 +234,7 @@ test.describe('core features', () => {
 
     await openSection(page, 'seo')
     const seo = page.getByTestId('seo-playbook')
-    await expect(seo.getByTestId('seo-fix')).toHaveCount(2)
+    await expect(seo.getByTestId('seo-fix')).toHaveCount(3)
     await expect(seo.getByRole('heading', { name: 'No meta description' })).toBeVisible()
 
     await openSection(page, 'ai')

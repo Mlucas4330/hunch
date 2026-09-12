@@ -1,5 +1,7 @@
 import {
+  HTTP_STATUS,
   PAGESPEED_API_URL,
+  PAGESPEED_RETRIES,
   PAGESPEED_STRATEGY,
   PAGESPEED_TIMEOUT_MS
 } from '@/lib/constants'
@@ -140,6 +142,8 @@ export function pageSpeedScore(pagespeed: PageSpeed | null): number | null {
  * **Fail-soft.** No key, a timeout or an error answer all resolve to null and log, and the analysis
  * continues without a PageSpeed section. A null is never shown as a zero. See docs/invariants.md.
  *
+ * A 5xx is retried PAGESPEED_RETRIES times inside the same PAGESPEED_TIMEOUT_MS.
+ *
  * It is Google's servers that load the page, not ours, so the URL guard that protects the browser
  * does not apply here; the URL has already been through `assertPublicUrl` at creation.
  */
@@ -153,19 +157,27 @@ export async function fetchPageSpeed(url: string, locale: Locale): Promise<PageS
   const params = new URLSearchParams({ url, key, strategy: PAGESPEED_STRATEGY, locale })
   for (const category of PAGESPEED_CATEGORY) params.append('category', category)
 
-  try {
-    const response = await fetch(`${PAGESPEED_API_URL}?${params}`, {
-      signal: AbortSignal.timeout(PAGESPEED_TIMEOUT_MS)
-    })
+  const signal = AbortSignal.timeout(PAGESPEED_TIMEOUT_MS)
 
-    if (!response.ok) {
-      log.warn('pagespeed.failed', { url, status: response.status })
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const response = await fetch(`${PAGESPEED_API_URL}?${params}`, { signal })
+
+      if (response.status >= HTTP_STATUS.serverErrorMin && attempt < PAGESPEED_RETRIES) {
+        await response.body?.cancel()
+        log.warn('pagespeed.failed', { url, status: response.status, retrying: true })
+        continue
+      }
+
+      if (!response.ok) {
+        log.warn('pagespeed.failed', { url, status: response.status })
+        return null
+      }
+
+      return parsePageSpeed(await response.json())
+    } catch (error) {
+      log.warn('pagespeed.failed', { url, error: error instanceof Error ? error.message : String(error) })
       return null
     }
-
-    return parsePageSpeed(await response.json())
-  } catch (error) {
-    log.warn('pagespeed.failed', { url, error: error instanceof Error ? error.message : String(error) })
-    return null
   }
 }

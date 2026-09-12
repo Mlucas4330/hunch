@@ -97,7 +97,10 @@ export const ptBR: Dictionary = {
       indexability: 'Indexação',
       metadata: 'Metadados',
       structured_data: 'Dados estruturados',
-      ai_answerability: 'Legibilidade para IA'
+      ai_answerability: 'Legibilidade para IA',
+      site_health: 'Saúde do site',
+      backlinks: 'Backlinks',
+      rankings: 'Rankings'
     },
     market: {
       us: 'Estados Unidos',
@@ -497,7 +500,8 @@ export const ptBR: Dictionary = {
     groupOk: '{total} verificações, todas passando',
     groupWrong: '{wrong} de {total} precisam de atenção',
     groups: {
-      crawler_access: 'O que um crawler de IA tem permissão de ler'
+      crawler_access: 'O que um crawler de IA tem permissão de ler',
+      site: 'O que um crawler encontra no site'
     },
     score: {
       label: 'Nota do PageSpeed',
@@ -540,7 +544,58 @@ export const ptBR: Dictionary = {
     findings: {
       ai_crawlers_blocked: 'Crawlers de IA bloqueados no robots.txt',
       robots_blocks_all: 'Rastreamento permitido',
-      no_sitemap: 'Sitemap declarado no robots.txt'
+      no_sitemap: 'Sitemap declarado no robots.txt',
+      broken_pages: 'Páginas que respondem com erro',
+      redirected_pages: 'Páginas que redirecionam',
+      noindex_pages: 'Páginas marcadas como noindex',
+      sitemap_url_errors: 'URLs do sitemap com erro, redirect ou noindex',
+      pages_missing_title: 'Páginas sem title',
+      duplicate_titles: 'Páginas com o mesmo title de outra',
+      pages_missing_meta_description: 'Páginas sem meta description',
+      duplicate_meta_descriptions: 'Páginas com a mesma meta description',
+      pages_missing_h1: 'Páginas sem H1',
+      pages_multiple_h1: 'Páginas com mais de um H1',
+      thin_pages: 'Páginas com pouco texto',
+      canonical_elsewhere: 'Páginas com canonical apontando para outra URL',
+      referring_domains: 'Domínios que linkam para o site',
+      ranked_keywords: 'Palavras-chave em que o site ranqueia no Google'
+    },
+    site: {
+      pagesRead: '{count} páginas lidas',
+      source: {
+        sitemap: 'Encontradas pelo sitemap e pelos links internos.',
+        links: 'Encontradas pelos links internos, porque nenhum sitemap respondeu.'
+      },
+      truncated: 'Parou em {count} páginas.',
+      noJavaScript: 'Cada página é lida pelo HTML que ela envia, sem executar JavaScript.',
+      contentSkipped: 'Este site monta o texto com JavaScript, então title, headings e contagem de palavras não foram avaliados pelo HTML.',
+      urls: 'Ver {count} páginas',
+      morePages: 'e mais {count}'
+    },
+    index: {
+      source: 'Estimativa da SE Ranking a partir do índice dela, não medida no site.',
+      competitor: '{host}: {value}',
+      noValue: 'sem dado',
+      backlinks: {
+        title: 'Links de outros sites',
+        summary: '{count} domínios de referência',
+        referringDomains: 'Domínios de referência',
+        backlinks: 'Backlinks',
+        rank: 'Autoridade do domínio',
+        rankValue: '{value}/{max}',
+        dofollow: 'Domínios de referência dofollow',
+        topDomains: 'Ver os {count} principais domínios'
+      },
+      keywords: {
+        title: 'Onde o site ranqueia no Google',
+        total: '{count} palavras-chave no Google {market}',
+        shown: 'As {count} que trazem mais tráfego estimado.',
+        empty: 'A SE Ranking não tem rankings deste domínio no Google {market}.',
+        keyword: 'Palavra-chave',
+        position: 'Posição',
+        volume: 'Buscas por mês',
+        page: 'Página'
+      }
     },
     criterion: {
       above: 'sinalizamos a partir de {value}',

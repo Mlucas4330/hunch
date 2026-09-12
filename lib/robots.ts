@@ -1,29 +1,38 @@
 import {
   AI_CRAWLER_AGENTS,
+  HTTP_STATUS,
+  ROBOTS_ACCEPT,
+  ROBOTS_ALL_AGENTS,
   ROBOTS_FETCH_TIMEOUT_MS,
   ROBOTS_MAX_BYTES,
   ROBOTS_MAX_REDIRECTS
 } from '@/lib/constants'
-import { assertPublicUrl } from '@/lib/url-guard'
+import { guardedFetch } from '@/lib/guarded-fetch'
 
 export interface CrawlerAccess {
   status: 'found' | 'absent' | 'unknown'
   blockedAgents: string[]
   blocksAll: boolean
   sitemaps: string[]
+  // The `Disallow` paths of the `*` group, which the site crawl will not open. Absent on rows measured
+  // before the crawl existed.
+  disallowed?: string[]
 }
 
 const UNKNOWN: CrawlerAccess = {
   status: 'unknown',
   blockedAgents: [],
   blocksAll: false,
-  sitemaps: []
+  sitemaps: [],
+  disallowed: []
 }
 
 export async function fetchCrawlerAccess(pageUrl: string): Promise<CrawlerAccess> {
   const text = await fetchRobotsText(pageUrl)
   if (text === null) return UNKNOWN
-  if (text === '') return { status: 'absent', blockedAgents: [], blocksAll: false, sitemaps: [] }
+  if (text === '') {
+    return { status: 'absent', blockedAgents: [], blocksAll: false, sitemaps: [], disallowed: [] }
+  }
 
   return parseRobots(text)
 }
@@ -36,54 +45,23 @@ async function fetchRobotsText(pageUrl: string): Promise<string | null> {
     return null
   }
 
-  for (let hop = 0; hop <= ROBOTS_MAX_REDIRECTS; hop++) {
-    let response: Response
-    try {
-      const safe = await assertPublicUrl(target)
-      response = await fetch(safe.href, {
-        redirect: 'manual',
-        signal: AbortSignal.timeout(ROBOTS_FETCH_TIMEOUT_MS),
-        headers: { accept: 'text/plain' }
-      })
-    } catch {
-      return null
-    }
+  const response = await guardedFetch(target, {
+    timeoutMs: ROBOTS_FETCH_TIMEOUT_MS,
+    maxBytes: ROBOTS_MAX_BYTES,
+    maxRedirects: ROBOTS_MAX_REDIRECTS,
+    headers: { accept: ROBOTS_ACCEPT }
+  })
 
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get('location')
-      if (!location) return null
-      try {
-        target = new URL(location, target).href
-      } catch {
-        return null
-      }
-      continue
-    }
-
-    if (response.status === 404 || response.status === 410) return ''
-    if (!response.ok) return null
-
-    const body = await readCapped(response)
-    if (body === null) return null
-    if (/^\s*</.test(body)) return null
-    return body
-  }
-
-  return null
+  if (!response) return null
+  if ((HTTP_STATUS.missing as readonly number[]).includes(response.status)) return ''
+  if (response.body === null) return null
+  if (/^\s*</.test(response.body)) return null
+  return response.body
 }
 
-async function readCapped(response: Response): Promise<string | null> {
-  try {
-    const buffer = await response.arrayBuffer()
-    if (buffer.byteLength > ROBOTS_MAX_BYTES) return null
-    return new TextDecoder().decode(buffer)
-  } catch {
-    return null
-  }
-}
-
-function parseRobots(text: string): CrawlerAccess {
+export function parseRobots(text: string): CrawlerAccess {
   const disallowedAll = new Set<string>()
+  const disallowed: string[] = []
   const sitemaps: string[] = []
 
   let group: string[] = []
@@ -115,15 +93,34 @@ function parseRobots(text: string): CrawlerAccess {
 
     readingAgents = false
 
-    if (field === 'disallow' && value === '/') {
-      group.forEach((agent) => disallowedAll.add(agent))
-    }
+    if (field !== 'disallow') continue
+
+    if (value === '/') group.forEach((agent) => disallowedAll.add(agent))
+    if (value.length > 0 && group.includes(ROBOTS_ALL_AGENTS)) disallowed.push(value)
   }
 
   return {
     status: 'found',
     blockedAgents: AI_CRAWLER_AGENTS.filter((agent) => disallowedAll.has(agent.toLowerCase())),
-    blocksAll: disallowedAll.has('*'),
-    sitemaps
+    blocksAll: disallowedAll.has(ROBOTS_ALL_AGENTS),
+    sitemaps,
+    disallowed
   }
+}
+
+/**
+ * Whether a path falls under one of the `Disallow` rules, with the two wildcards robots.txt allows:
+ * `*` for any run of characters and a trailing `$` for the end of the path. `Allow` is not read, so
+ * this errs towards opening fewer pages, never more.
+ */
+export function isDisallowed(path: string, rules: string[]): boolean {
+  return rules.some((rule) => {
+    const anchored = rule.endsWith('$')
+    const body = (anchored ? rule.slice(0, -1) : rule)
+      .split('*')
+      .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+      .join('.*')
+
+    return new RegExp(`^${body}${anchored ? '$' : ''}`).test(path)
+  })
 }

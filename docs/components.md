@@ -258,7 +258,7 @@ below, in `language-toggle.tsx` and `theme-toggle.tsx` alike. Resize the pair in
 ## Disclosure card: `components/disclosure-card.tsx`
 
 **Two kinds of caller, and the `score` rail is why.** The error cards pass `ScoreIndicator` (1-10
-impact); the category and crawler cards in `components/section-evidence.tsx` pass their own 0-100 rail. The shell is shared: a number down the
+impact); the category, crawler and site cards in `components/section-evidence.tsx` pass their own 0-100 rail, and the backlink and ranking cards pass none, because the `index` group is never graded. The shell is shared: a number down the
 left edge is how this report says *here is a thing with a score on it*. **The widget is not shared.**
 See [readout.md](readout.md#layout).
 

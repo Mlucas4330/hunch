@@ -1,4 +1,11 @@
-import { PAGESPEED_CATEGORY_BY_FIX_KIND, READOUT_THRESHOLDS } from '@/lib/constants'
+import {
+  CRAWL_RAW_TEXT_RATIO_MIN,
+  HTTP_STATUS,
+  PAGESPEED_CATEGORY_BY_FIX_KIND,
+  READOUT_THRESHOLDS
+} from '@/lib/constants'
+import type { CrawledPage, SiteCrawl } from '@/lib/crawl'
+import type { BacklinkSummary, RankedKeywords } from '@/lib/seranking'
 import type {
   AnalysisTab,
   PageSpeedCategory,
@@ -31,6 +38,8 @@ export type MeasuredFinding = {
   unit: ReadoutUnit
   /** See ReadoutCriterion. Null when the finding has no numeric boundary. */
   criterion: ReadoutCriterion | null
+  // The pages a `site` finding counted, so the card can name them.
+  urls?: string[]
 }
 
 /**
@@ -51,6 +60,9 @@ export type ReadoutInput = {
   keywords: PageKeywords | null
   mobile: PageMobile | null
   sameness: PageSameness | null
+  site: SiteCrawl | null
+  backlinks: BacklinkSummary | null
+  rankedKeywords: RankedKeywords | null
   // Only one finding reads it, and it reads it to stay silent: a CNPJ in the footer is a Brazilian
   // convention, so its absence is a finding in Brazil and noise anywhere else. Same rule as
   // everywhere else -- the market filters what may be said, it is never a fact about buyers. See
@@ -149,7 +161,19 @@ function mark(
 }
 
 export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
-  const { structure, seo, performance, crawler, keywords, mobile, sameness, market } = input
+  const {
+    structure,
+    seo,
+    performance,
+    crawler,
+    keywords,
+    mobile,
+    sameness,
+    site,
+    backlinks,
+    rankedKeywords,
+    market
+  } = input
   const out: MeasuredFinding[] = []
 
   if (structure) {
@@ -562,7 +586,119 @@ export function measuredFindings(input: ReadoutInput): MeasuredFinding[] {
     }
   }
 
+  // The site crawl. `unknown` takes the whole group out, like robots.txt above, and a page that never
+  // answered is never counted as broken: "we could not reach it" is not "it is down". See
+  // docs/invariants.md.
+  if (site && site.status !== 'unknown') {
+    const answered = site.pages.filter((page) => page.status !== null)
+    const broken = answered.filter((page) => isBrokenStatus(page.status))
+    const redirected = answered.filter((page) => page.redirectedTo !== null)
+    const noindex = answered.filter((page) => page.parsed && page.noindex)
+
+    out.push(affected('broken_pages', broken, 'alert'))
+    out.push(affected('redirected_pages', redirected, 'warn'))
+    out.push(affected('noindex_pages', noindex, 'warn'))
+    out.push(
+      affected(
+        'sitemap_url_errors',
+        answered.filter(
+          (page) =>
+            page.inSitemap &&
+            (isBrokenStatus(page.status) || page.redirectedTo !== null || (page.parsed && page.noindex))
+        ),
+        'warn'
+      )
+    )
+
+    // Only when the HTML carries what the browser rendered. A JavaScript shell has no title, no H1 and
+    // no words to count, and reporting every page as missing them would be the crawl's blindness
+    // written down as the site's fault.
+    if (siteContentReadable(site, structure)) {
+      const indexable = answered.filter((page) => page.parsed && !page.noindex && page.redirectedTo === null)
+
+      out.push(affected('pages_missing_title', indexable.filter((page) => page.title === null), 'warn'))
+      out.push(affected('duplicate_titles', sharing(indexable, (page) => page.title), 'warn'))
+      out.push(
+        affected(
+          'pages_missing_meta_description',
+          indexable.filter((page) => page.metaDescription === null),
+          'warn'
+        )
+      )
+      out.push(
+        affected('duplicate_meta_descriptions', sharing(indexable, (page) => page.metaDescription), 'warn')
+      )
+      out.push(affected('pages_missing_h1', indexable.filter((page) => page.h1Count === 0), 'warn'))
+      out.push(affected('pages_multiple_h1', indexable.filter((page) => page.h1Count > 1), 'warn'))
+      out.push(
+        affected(
+          'thin_pages',
+          indexable.filter((page) => page.wordCount <= READOUT_THRESHOLDS.thinPageWords),
+          'warn'
+        )
+      )
+      // A canonical pointing elsewhere is often a choice (a variant, a filtered list), so it is counted
+      // and never graded.
+      out.push({
+        ...affected('canonical_elsewhere', indexable.filter((page) => page.canonicalElsewhere), 'ok'),
+        criterion: null
+      })
+    }
+  }
+
+  // What SE Ranking's index holds about the domain. Counted and never graded, because how many links a
+  // site should have, or how many keywords it should rank for, is not a threshold anybody measured. An
+  // unknown total is no finding rather than a zero. See docs/invariants.md.
+  if (backlinks) {
+    out.push(mark('referring_domains', 'index', backlinks.referringDomains, 'count'))
+  }
+
+  if (rankedKeywords && rankedKeywords.total !== null) {
+    out.push(mark('ranked_keywords', 'index', rankedKeywords.total, 'count'))
+  }
+
   return out
+}
+
+// A missing page or a server that failed. 503 is left out: bot protection and maintenance pages answer
+// with it, and neither is a broken page.
+export function isBrokenStatus(status: number | null): boolean {
+  if (status === null) return false
+  return (
+    (HTTP_STATUS.missing as readonly number[]).includes(status) ||
+    (status >= HTTP_STATUS.serverErrorMin && status !== HTTP_STATUS.unavailable)
+  )
+}
+
+/**
+ * Whether the crawled HTML says what a visitor reads. Measured on the entry page, the one page both the
+ * browser and the crawl read, against CRAWL_RAW_TEXT_RATIO_MIN.
+ */
+export function siteContentReadable(site: SiteCrawl, structure: PageStructure | null): boolean {
+  const entry = site.pages[0]
+  if (!entry?.parsed) return false
+  if (!structure) return true
+  return entry.wordCount >= structure.wordCount * CRAWL_RAW_TEXT_RATIO_MIN
+}
+
+function affected(id: ReadoutFinding, pages: CrawledPage[], hit: ReadoutSeverity): MeasuredFinding {
+  return { ...count(id, 'site', pages.length, anyOf(pages.length, hit)), urls: pages.map((page) => page.url) }
+}
+
+// Every page whose value another page also carries, compared without case.
+function sharing(pages: CrawledPage[], value: (page: CrawledPage) => string | null): CrawledPage[] {
+  const key = (page: CrawledPage) => value(page)?.toLowerCase() ?? null
+  const counts = new Map<string, number>()
+
+  for (const page of pages) {
+    const k = key(page)
+    if (k) counts.set(k, (counts.get(k) ?? 0) + 1)
+  }
+
+  return pages.filter((page) => {
+    const k = key(page)
+    return k !== null && (counts.get(k) ?? 0) > 1
+  })
 }
 
 // `undefined` has to survive the trip so the guard above can drop the field, which a plain
@@ -579,11 +715,16 @@ export function hasReadout(value: Readout): boolean {
   return value.findings.length > 0
 }
 
-export type Evidence = { categories: PageSpeedCategory[]; crawler: MeasuredFinding[] }
+export type Evidence = {
+  categories: PageSpeedCategory[]
+  crawler: MeasuredFinding[]
+  site: MeasuredFinding[]
+  searchIndex: MeasuredFinding[]
+}
 
 /**
  * What one report section shows above its errors: the Lighthouse categories its generator was given,
- * and for AI the robots.txt findings. See docs/invariants.md.
+ * for AI the robots.txt findings, and for SEO the site crawl. See docs/invariants.md.
  */
 export function sectionEvidence(
   tab: AnalysisTab,
@@ -601,14 +742,22 @@ export function sectionEvidence(
         )
       : []
 
-  const crawler =
-    tab === 'ai'
-      ? measuredFindings(input).filter((finding) => finding.group === 'crawler_access')
-      : []
+  const findings = tab === 'ai' || tab === 'seo' ? measuredFindings(input) : []
+  const inGroup = (group: ReadoutGroup) => findings.filter((finding) => finding.group === group)
 
-  return { categories, crawler }
+  return {
+    categories,
+    crawler: tab === 'ai' ? inGroup('crawler_access') : [],
+    site: tab === 'seo' ? inGroup('site') : [],
+    searchIndex: tab === 'seo' ? inGroup('index') : []
+  }
 }
 
 export function hasEvidence(evidence: Evidence): boolean {
-  return evidence.categories.length > 0 || evidence.crawler.length > 0
+  return (
+    evidence.categories.length > 0 ||
+    evidence.crawler.length > 0 ||
+    evidence.site.length > 0 ||
+    evidence.searchIndex.length > 0
+  )
 }
