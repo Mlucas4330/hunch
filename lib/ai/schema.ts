@@ -23,7 +23,11 @@ export const HypothesisSchema = z.object({
   assessment: z.string(),
   problem: z.string(),
   impact_score: z.number().int().min(IMPACT_SCORE_MIN).max(IMPACT_SCORE_MAX),
-  rationale: z.string()
+  rationale: z.string(),
+  // What the error costs the business, in one sentence. Last, because a consequence is only worth
+  // stating once the line has been quoted, judged and faulted. It is still not a fix: see the
+  // prompt's rule, which forbids a remedy and forbids a figure.
+  business_impact: z.string()
 })
 
 // No floor: a page whose lines are doing their job comes back with none. See docs/ai-pipeline.md.
@@ -36,6 +40,8 @@ const fixFields = {
   problem: z.string(),
   impact_score: z.number().int().min(IMPACT_SCORE_MIN).max(IMPACT_SCORE_MAX),
   evidence: z.string(),
+  // The same sentence the hypotheses carry, under the same rule. See HypothesisSchema.
+  business_impact: z.string(),
   // The id of the measured finding or PageSpeed audit this error answers, or null. Checked against
   // the ids the prompt was actually given in lib/analyze.ts, so an invented one is dropped there
   // rather than rejecting the whole call here.

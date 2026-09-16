@@ -1,5 +1,11 @@
 import type { Account, Profile } from 'next-auth'
-import { ADMIN_ROLE, GITHUB_EMAILS_URL, POST_SIGNIN_REDIRECT, VERIFIED_EMAIL } from '@/lib/constants'
+import {
+  ADMIN_ROLE,
+  BULK_PLAN_TIERS,
+  GITHUB_EMAILS_URL,
+  POST_SIGNIN_REDIRECT,
+  VERIFIED_EMAIL
+} from '@/lib/constants'
 import type { OAuthProvider } from '@/lib/enums'
 import type { User } from '@/db/schema'
 
@@ -124,4 +130,16 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 
 export function isAdmin(user: Pick<User, 'role'> | null | undefined): boolean {
   return user?.role === ADMIN_ROLE
+}
+
+/**
+ * Whether this account's tier includes bulk generation.
+ *
+ * **It reads the stored tier, never the price list.** What the landing page showed is marketing; what
+ * the webhook wrote on the row is the entitlement. It lives beside `isAdmin` for the same reason that
+ * one does: no call site may inline the comparison, and like `isAdmin` it is checked at the entry
+ * point, at the page and again at the route. See docs/invariants.md.
+ */
+export function canBulkGenerate(user: Pick<User, 'planTier'> | null | undefined): boolean {
+  return user?.planTier != null && BULK_PLAN_TIERS.includes(user.planTier)
 }

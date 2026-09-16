@@ -1,4 +1,6 @@
+import Link from 'next/link'
 import { signOut } from '@/auth'
+import { SETTINGS_PATH } from '@/lib/constants'
 import { Dropdown } from '@/components/ui/dropdown'
 import { SubmitButton } from '@/components/submit-button'
 import { getDictionary } from '@/lib/i18n'
@@ -56,6 +58,17 @@ export async function AccountPanel({ user }: { user: AccountUser }) {
       <p className="mt-3 border-t pt-3 text-xs text-muted-foreground" data-testid="quota-usage">
         {fill(t.quota.usage, { used: quota.used, limit: quota.limit })}
       </p>
+
+      {/* The account screen belongs to the account, not to the main nav, which is for the work:
+          pages, bulk, the blog. See docs/analysis-ui.md. */}
+      <div className="mt-3 border-t pt-3">
+        <Link
+          href={SETTINGS_PATH}
+          className="flex min-h-9 items-center rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {t.nav.settings}
+        </Link>
+      </div>
 
       <form action={signOutAction} className="mt-3 border-t pt-3">
         <SubmitButton variant="ghost" className="h-auto w-full justify-start px-2 py-1.5">

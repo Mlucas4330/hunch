@@ -1,5 +1,5 @@
 import { cache } from 'react'
-import { desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db'
 import { analyses, pageSnapshots, type Analysis, type FlowFix, type User } from '@/db/schema'
@@ -157,6 +157,47 @@ export async function readoutHistory(analysisId: string): Promise<ReadoutHistory
       .map((row) => ({ score: row.score as number, capturedAt: row.capturedAt }))
       .reverse()
   }
+}
+
+/** Where a page stands, and where it stood before the last run. `previous` is null until it has been run twice. */
+export type ScoreStanding = { score: number; previous: number | null }
+
+/**
+ * How each of these analyses scores now and scored before, for the dashboard.
+ *
+ * **Two points rather than one**, because the dashboard's question is whether the work is paying off,
+ * and a single number cannot answer it. The report carries the full trend; this is the glance.
+ *
+ * One query for the whole page rather than one per card. An analysis with no scored snapshot is
+ * simply absent from the map, which is the same rule as everywhere else: a page PageSpeed could not
+ * measure has no number, and never a zero. See docs/invariants.md.
+ */
+export async function latestScoresFor(analysisIds: string[]): Promise<Map<string, ScoreStanding>> {
+  if (analysisIds.length === 0) return new Map()
+
+  const rows = await db
+    .select({
+      analysisId: pageSnapshots.analysisId,
+      score: pageSnapshots.score,
+      capturedAt: pageSnapshots.capturedAt
+    })
+    .from(pageSnapshots)
+    .where(
+      and(inArray(pageSnapshots.analysisId, analysisIds), isNotNull(pageSnapshots.score))
+    )
+    .orderBy(desc(pageSnapshots.capturedAt))
+
+  const standings = new Map<string, ScoreStanding>()
+
+  for (const row of rows) {
+    const score = row.score as number
+    const standing = standings.get(row.analysisId)
+
+    if (!standing) standings.set(row.analysisId, { score, previous: null })
+    else if (standing.previous === null) standing.previous = score
+  }
+
+  return standings
 }
 
 export async function listAnalysesForUser(

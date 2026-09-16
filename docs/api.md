@@ -10,7 +10,12 @@ performance detail, not the security boundary. See [security.md](security.md).
 | `GET /api/analyses` | session, or embed key for `?embedKey=` | history, or one analysis' progress |
 | `GET\|DELETE /api/analyses/[id]` | session + ownership | |
 | `POST /api/analyses/[id]/runs` | session + ownership, quota | runs the page again: measures it and rewrites the error lists |
+| `POST /api/analyses/bulk` | session, tier, rate limit `bulk`, quota | queues a list of URLs as one batch |
+| `GET /api/analyses/bulk/[id]` | session + ownership | the batch's rows, for the table that polls it |
+| `GET /api/analyses/bulk/[id]/csv` | session + ownership | the same rows as a spreadsheet |
 | `POST /api/brand` | session | saves the agency name and logo the account's reports carry |
+| `POST\|DELETE /api/billing/mercadopago/subscribe` | session, rate limit `billing` | opens the tier's preapproval and answers its `initPoint`; `DELETE` ends the caller's own |
+| `POST /api/billing/mercadopago/webhook` | signature only | what the provider says happened; writes the tier and the quota |
 | `GET /brand/[file]` | none | serves an uploaded logo; not under `/api`, see [security.md](security.md#uploads-post-apibrand-and-appbrandfileroutets) |
 | `GET /api/health` | none | Railway's deploy probe, imports nothing: see [deployment.md](deployment.md#healthcheck) |
 
@@ -99,6 +104,56 @@ Answers `202 { runId }`.
 
 Errors: `401` no session · `403 quota_exhausted` · `404` unknown or unowned id · `409 run_in_progress`
 · `429` rate limited · `503 queue_unavailable`.
+
+## Bulk
+
+`POST /api/analyses/bulk` runs in this order: session, rate limit, **tier**, parse, `assertPublicUrl`
+on every URL, quota, then one analysis and one `startRun` per URL.
+
+- **The tier is checked here and not only in the UI.** `canBulkGenerate` reads the stored
+  `users.plan_tier`; the nav hiding the link and the page answering `notFound()` are conveniences.
+  Same three-place discipline as `isAdmin`. See [invariants.md](invariants.md).
+- **One bad URL refuses the whole batch**, before anything is inserted: a half-accepted batch leaves
+  the caller to work out which lines took, having already paid for them.
+- **`BULK_URLS_MAX` is well under `QUEUE_MAX_DEPTH`.** See [scraping.md](scraping.md).
+- The quota check is the friendly refusal; the atomic charge inside `startRun` is the boundary, and a
+  run that cannot be paid for stops the loop with the batch keeping what already started.
+
+The CSV is written with a BOM, because Excel in pt-BR reads UTF-8 without one as Latin-1 and mangles
+every accent. Header labels come from the dictionary; the data does not.
+
+## Billing
+
+**A `TEST-` access token cannot produce a checkout anybody can open.** Everything on this side
+succeeds, the reader is redirected, and Mercado Pago answers "Esta página não existe", because the
+subscription was created in sandbox while `init_point` points at the live site. The application's own
+`sandbox_mode` flag is what decides it. `mercadoPagoSandbox()` logs a warning at startup, since
+nothing in the API response says any of this.
+
+**`back_url` comes from `billingReturnUrl()`, not from `siteOrigin()`.** Mercado Pago refuses URLs
+its validator dislikes and answers "Invalid value for back_url, must be a valid URL" for every one of
+them, which names neither rule. Two were measured against the live API: `http://localhost:3000` is
+refused, so the checkout cannot be exercised from a developer's machine without `BILLING_RETURN_URL`
+pointing somewhere public; and some apex domains on newer TLDs are refused where the `www` host of
+the same domain is accepted. See [deployment.md](deployment.md).
+
+`POST /api/billing/mercadopago/subscribe` takes a `tier` and nothing else. **The amount is read from
+`PLAN` on the server**, so a caller editing the request can only ever buy the tier they named, and
+the webhook matches the confirmed amount back against the same map through `planTierForAmount`. The
+row is written `pending`, which entitles nothing: somebody who opens a checkout and walks away has
+bought nothing. With no `MERCADOPAGO_ACCESS_TOKEN` the route answers `503 billing_unavailable` and an
+operator still sets quotas by hand.
+
+`DELETE` ends the caller's own subscription, and **takes no id**: `subscriptionFor` looks the row up
+by the session, so there is no field to aim at somebody else's. The provider is called first and the
+row written second, because writing `cancelled` and then failing to reach Mercado Pago would stop the
+quota of somebody who is still being charged.
+
+The webhook is **unauthenticated by design and signed instead**. `verifyWebhookSignature` is the whole
+of its authorization and every failure of it refuses; the delivery is then claimed in `payment_events`
+keyed on the id **and** the type, and the claim is released before any 500 so the retry can work. Only
+`authorized` writes a quota, and it writes an absolute number. See
+[invariants.md](invariants.md#access-is-a-quota-read-from-the-row-written-by-the-subscription-or-by-an-operator).
 
 ## Brand
 

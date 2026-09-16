@@ -24,11 +24,21 @@ export type BlogSlug = (typeof BLOG_SLUG)[number]
 // The post the landing page's AI section links to.
 export const AI_POST_SLUG: BlogSlug = 'ai-is-the-new-google'
 
-// The subscription tiers, cheapest first. A UI-only enum: what the app enforces is the quota an
-// operator wrote on the row, and no row records which tier paid for it. The price and the quota of
-// each one are in lib/constants.ts. See docs/product.md.
+// The subscription tiers, cheapest first. What the app enforces is still the quota on the row; the
+// tier is stored beside it, written by the subscription webhook, and read by the features sold only
+// with the larger plans. The price and the quota of each one are in lib/constants.ts. See
+// docs/product.md.
 export const PLAN_TIER = ['studio', 'agency', 'network'] as const
 export type PlanTier = (typeof PLAN_TIER)[number]
+
+// What Mercado Pago says about an authorisation. **Only `authorized` entitles anything**, and
+// `pending` is somebody who opened a checkout and walked away. See docs/api.md.
+export const SUBSCRIPTION_STATUS = ['pending', 'authorized', 'paused', 'cancelled'] as const
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUS)[number]
+
+export function isSubscriptionStatus(value: string): value is SubscriptionStatus {
+  return (SUBSCRIPTION_STATUS as readonly string[]).includes(value)
+}
 
 // The tier the price list marks, sized for the agency the product is sold to.
 export const RECOMMENDED_PLAN_TIER: PlanTier = 'agency'
@@ -53,6 +63,13 @@ export type Section = (typeof SECTIONS)[number]
 // Discriminates the two ranked lists sharing flow_fixes. See docs/data-model.md.
 export const FIX_KIND = ['flow', 'visibility'] as const
 export type FixKind = (typeof FIX_KIND)[number]
+
+// How an error's `impact_score` reads as a word, in the order a reader should work through them.
+// **Derived, so it is never a column**: `severityForImpact` in lib/constants.ts is the one place the
+// scale is cut, and storing the answer would let a row's label and its score disagree. Unrelated to
+// READOUT_SEVERITY, which grades a measurement rather than a written error.
+export const ERROR_SEVERITY = ['critical', 'medium', 'low'] as const
+export type ErrorSeverity = (typeof ERROR_SEVERITY)[number]
 
 // The two shapes a route's loading shell can take: a grid of rows, or one analysis.
 export const ROUTE_SKELETON = ['list', 'detail'] as const
@@ -133,7 +150,7 @@ export type AnalysisState = (typeof ANALYSIS_STATE)[number]
 
 // Abuse gates. Windows live in RATE_LIMITS, so a kind added here fails typecheck until it is given
 // one.
-export const RATE_LIMIT_KIND = ['analysis', 'job_status', 'signin', 'brand'] as const
+export const RATE_LIMIT_KIND = ['analysis', 'job_status', 'signin', 'brand', 'billing', 'bulk'] as const
 export type RateLimitKind = (typeof RATE_LIMIT_KIND)[number]
 
 // The four Lighthouse categories PageSpeed Insights scores, in render order. The values are the ids
@@ -297,6 +314,19 @@ export const LOG_EVENT = [
   'queue.enqueue_failed',
   'queue.reap_failed',
   'scrape.slot_acquired',
+  // A checkout was opened, authorised, renewed or cancelled, or the provider reported something we
+  // could not match to a tier or to an account.
+  'subscription.created_failed',
+  'subscription.status_changed',
+  'subscription.renewed',
+  'subscription.unmatched',
+  'subscription.cancel_failed',
+  // The phone screenshot or the element boxes could not be taken. The analysis continues: the
+  // numbers are the measurement and the picture is evidence beside them.
+  'scrape.screenshot_failed',
+  // The screenshot came back but could not be written to the volume, or read back out of it.
+  'screenshot.write_failed',
+  'screenshot.prune_failed',
   'rate_limit.failed_open',
   'redis.error',
   // PageSpeed Insights answered with an error, timed out, or no key is configured. A warning: the

@@ -57,6 +57,7 @@ export default async function AdminAccountsPage() {
                 <span className="font-mono text-sm">{account.email}</span>
                 <span className="font-mono text-sm tabular-nums text-muted-foreground">
                   {fill(copy.usage, { used: account.used, limit: account.limit })}
+                  {account.trial > 0 && ` ${fill(copy.trial, { count: account.trial })}`}
                 </span>
               </li>
             ))}

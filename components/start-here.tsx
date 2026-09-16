@@ -4,6 +4,7 @@ import type { CSSProperties } from 'react'
 import { FlowCategoryBadge } from '@/components/flow-category-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
 import { SectionLink } from '@/components/section-link'
+import { SeverityBadge } from '@/components/severity-badge'
 import { useI18n } from '@/components/i18n-provider'
 import { Card } from '@/components/ui/card'
 import { fixAnchor, SECTION_ANCHOR_CLASS, START_HERE_COUNT } from '@/lib/constants'
@@ -49,6 +50,7 @@ export function StartHere({ fixes, className }: { fixes: FlowFix[]; className?: 
       <div className="space-y-1">
         <p className="panel-label text-micro text-muted-foreground">{copy.eyebrow}</p>
         <h2 className="text-balance font-display text-xl font-bold tracking-tight">{copy.title}</h2>
+        <p className="max-w-2xl text-pretty text-sm text-muted-foreground">{copy.lead}</p>
       </div>
 
       <Card className="divide-y overflow-hidden">
@@ -65,11 +67,15 @@ export function StartHere({ fixes, className }: { fixes: FlowFix[]; className?: 
             <ScoreIndicator score={fix.impactScore} />
             <span className="flex min-w-0 flex-1 flex-col gap-1 p-4">
               <span className="flex flex-wrap items-center gap-2">
+                <SeverityBadge score={fix.impactScore} />
                 <FlowCategoryBadge category={fix.category} />
               </span>
               <span className="text-pretty font-display text-base font-medium leading-snug">
                 {fix.title}
               </span>
+              {fix.businessImpact && (
+                <span className="text-pretty text-sm text-muted-foreground">{fix.businessImpact}</span>
+              )}
             </span>
           </SectionLink>
         ))}

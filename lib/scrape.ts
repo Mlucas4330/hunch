@@ -223,6 +223,22 @@ export interface PageLink {
   text: string
 }
 
+/**
+ * Where one element sits inside the phone screenshot, in CSS pixels of the mobile layout, with the
+ * page's own scroll added in so the box is relative to the whole document rather than to the
+ * viewport it happened to be in.
+ *
+ * **Measured in the phone pass and nowhere else.** `captureElements` runs at the desktop viewport,
+ * where the same element is somewhere else entirely, and a crop drawn from those coordinates would
+ * frame the wrong part of the picture.
+ */
+export interface ElementRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface ScrapedPage {
   url: string
   html: string
@@ -239,6 +255,11 @@ export interface ScrapedPage {
   // Required here and nullable in the column, exactly like `mobile`: every scrape from now on
   // carries it, and only rows measured before it existed have none.
   sameness: PageSameness
+  // The phone screenshot, as PNG bytes, and where each captured element sits in it. Both optional:
+  // a screenshot that failed must not fail the scrape, because the numbers are the measurement and
+  // the picture is evidence beside them.
+  screenshot?: Buffer
+  elementRects?: Record<string, ElementRect>
 }
 
 export class ScrapeError extends Error {
@@ -464,7 +485,41 @@ export async function scrapePage(url: string): Promise<ScrapedPage> {
         ctaMaxWords: GOAL_CANDIDATE_MAX_WORDS
       })
 
-      return { url, html, elements, structure, seo, performance, mobile, sections, links, sameness }
+      // The picture and the boxes drawn on it, both from this same phone layout. Wrapped, because a
+      // screenshot is evidence beside the measurement and never the measurement: a page that will
+      // not paint into a PNG still has a readout worth sending.
+      let screenshot: Buffer | undefined
+      let elementRects: Record<string, ElementRect> | undefined
+
+      try {
+        elementRects = await page.evaluate(captureElementRects, {
+          selectors: elements.map((element) => element.selector)
+        })
+        screenshot = Buffer.from(
+          await page.screenshot({
+            type: 'png',
+            fullPage: true,
+            captureBeyondViewport: true
+          })
+        )
+      } catch (error) {
+        log.error('scrape.screenshot_failed', error, { url })
+      }
+
+      return {
+        url,
+        html,
+        elements,
+        structure,
+        seo,
+        performance,
+        mobile,
+        sections,
+        links,
+        sameness,
+        screenshot,
+        elementRects
+      }
     } catch (error) {
       throw new ScrapeError(`Failed to scrape ${url}`, { cause: error })
     } finally {
@@ -1045,6 +1100,44 @@ export function captureSameness(options: {
     declaredBuilder,
     hasStockHeroImage
   }
+}
+
+/**
+ * Where each captured element ended up once the page was laid out for a phone.
+ *
+ * Runs in the page, so it takes the selectors rather than the elements themselves. A selector that
+ * now matches nothing is skipped: a responsive layout is allowed to drop an element, and a box for
+ * something the phone never showed would frame empty space.
+ */
+function captureElementRects(options: { selectors: string[] }): Record<string, ElementRect> {
+  const rects: Record<string, ElementRect> = {}
+  const scrollX = window.scrollX
+  const scrollY = window.scrollY
+
+  for (const selector of options.selectors) {
+    let element: Element | null = null
+
+    // A selector is built from the page's own attributes, so it can be syntactically invalid here.
+    try {
+      element = document.querySelector(selector)
+    } catch {
+      continue
+    }
+
+    if (!element) continue
+
+    const rect = element.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) continue
+
+    rects[selector] = {
+      x: rect.left + scrollX,
+      y: rect.top + scrollY,
+      width: rect.width,
+      height: rect.height
+    }
+  }
+
+  return rects
 }
 
 function captureMobile(options: {

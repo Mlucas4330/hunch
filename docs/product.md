@@ -22,13 +22,20 @@ once, and every report it owns shows them in place of Hunch. See
 
 ## How an account works
 
-**The subscription is sold and billed outside the app.** Once the agency has paid, an operator sets
-the account's monthly quota at `/admin/accounts`. The rule is in
-[invariants.md](invariants.md#access-is-a-monthly-quota-an-operator-sets-read-from-the-row).
+**An agency subscribes from the price list, and the quota lands on its own.** The tier's button opens
+a Mercado Pago preapproval, the reader confirms it on the provider's page, and the webhook writes the
+tier and its quota onto the row. An operator can still set a quota by hand at `/admin/accounts`, which
+is how an account is provisioned before anyone there has signed in, and how anything agreed outside
+the price list is honoured. The rule is in
+[invariants.md](invariants.md#access-is-a-quota-read-from-the-row-written-by-the-subscription-or-by-an-operator).
 
-**There are three tiers, and the app knows only their quota.** `PLAN_TIER` names them and `PLAN` in
-`lib/constants.ts` carries what each one costs a month and how many runs it buys. No row records
-which tier an account is on: the operator types the number and the number is the whole record.
+**A new account gets `TRIAL_RUNS` analyses before it pays for anything.** A one-time credit rather
+than a free plan: nothing refills it, it is spent before the monthly quota, and a run that failed
+gives it back.
+
+**There are three tiers.** `PLAN_TIER` names them and `PLAN` in `lib/constants.ts` carries what each
+one costs a month and how many runs it buys. `users.plan_tier` records which one a live subscription
+is on, written only by the webhook.
 
 | Tier | Price | Quota | Sold to |
 | ---- | ----- | ----- | ------- |
@@ -41,22 +48,24 @@ referring domain listed, 100 for the keywords and 100 for the overview), and the
 competitor. The real consumption is read from `account/subscription`, and it is the floor under the
 prices above.
 
-**A tier is a price, not a feature set.** Every account sees the same product, so nothing in the code
-branches on which one paid. Running out means moving up a tier rather than buying a single run:
-there is no checkout to sell one through.
+**A tier is mostly a price.** What it buys is the quota, and every account sees the same report.
+The one exception is bulk generation, sold with Agency and Network and gated on the stored tier
+through `BULK_PLAN_TIERS`. Running out means moving up a tier rather than buying a single run: there
+is nothing that sells one.
 
 - **A quota is runs per calendar month (UTC).** A new analysis is one run, and so is every "Run again"
   on an existing one. A run that failed does not count, and deleting an analysis does not give its
   runs back.
 - **The address does not need to have signed in first.** `setQuota` creates the row, and the first
   sign-in with a verified address claims it.
-- **An account with no quota can sign in and cannot run an analysis.** The dashboard says so and the
-  form is disabled.
+- **An account with no quota and no trial left can sign in and cannot run an analysis.** The dashboard
+  says so, points at the price list, and the form is disabled.
 
 **`/` is the landing page for a signed-out visitor**, and sends a signed-in one to the dashboard. It
-explains the product to agencies and offers two actions: contact by email and sign in. It prints the
-three tiers and their quotas, and nothing on it starts a purchase, because the subscription is agreed
-by email. There is no anonymous analysis. The blog stays public. See [analysis-ui.md](analysis-ui.md#landing-appapppagetsx).
+explains the product to agencies and offers four actions, in this order: WhatsApp, the sample report
+when one is published, email, and sign in. It prints the three tiers with their quotas and features,
+and each tier carries a subscribe button, which sends a signed-out reader to sign in first. There is
+no anonymous analysis. The blog stays public. See [analysis-ui.md](analysis-ui.md#landing-appapppagetsx).
 
 ## What an analysis produces
 
@@ -95,9 +104,11 @@ by email. There is no anonymous analysis. The blog stays public. See [analysis-u
 ## What it deliberately does not do
 
 - **No fix is written.** No replacement copy, no steps, no prompt. The schemas have no field for any
-  of them. See [ai-pipeline.md](ai-pipeline.md).
-- **No payment in the app.** No checkout, no credits, no webhooks. The price list is copy, not a
-  purchase, and the quota renews on the first of the month whether or not the agency paid again.
+  of them, and `business_impact` is not one: it names what an error costs, which is a consequence and
+  not a remedy. See [ai-pipeline.md](ai-pipeline.md).
+- **No credits and no one-off purchases.** What is sold is a monthly subscription, as a Mercado Pago
+  preapproval; the app stores the tier and the quota and never a card. There is no ledger, no balance
+  and nothing to top up, and the trial is a column rather than an account of credits.
 - **No anonymous analysis, no lead capture, no email sequence.**
 - **No third-party tracker on any surface.** No tag manager, no analytics script, no ad pixel.
 - **No live A/B testing.** It would need a snippet on the client's site and traffic most landing pages

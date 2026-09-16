@@ -1,22 +1,35 @@
-import { and, count, desc, eq, gt, gte, isNull } from 'drizzle-orm'
+import { and, count, desc, eq, gt, gte, isNull, or } from 'drizzle-orm'
 import { db } from '@/db'
 import { analysisRuns, users } from '@/db/schema'
+import { PLAN } from '@/lib/constants'
+import { monthStart, type Quota } from '@/lib/quota-math'
+import { entitledTierFor } from '@/lib/subscriptions'
 
-export type Quota = { limit: number; used: number }
-
-// The first instant of the current calendar month, in UTC. See docs/invariants.md.
-export function monthStart(now: Date = new Date()): Date {
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
-}
+// The sums live in lib/quota-math.ts so they can be tested without a database, and are re-exported
+// here because every call site wants them beside the query that produced the numbers.
+export { quotaLeft, type Quota } from '@/lib/quota-math'
 
 /**
- * The account's quota and how many runs it started this month, read from the rows on every call and
- * never from the session. A run that failed does not count; a run whose analysis was deleted still
- * does.
+ * The account's quota, how many runs it started this month, and what is left of its trial. Read from
+ * the rows on every call and never from the session. A run that failed does not count; a run whose
+ * analysis was deleted still does.
+ *
+ * **A subscription that has run out drops the limit to zero here, and no scheduled job is involved.**
+ * The row is read per request anyway, so reading the entitlement beside it is what makes a cancelled
+ * account lose its quota the moment the month it paid for ends, rather than whenever a cron next
+ * happened to run. An account an operator provisioned by hand has no subscription row and keeps
+ * whatever the operator wrote. See docs/invariants.md.
  */
 export async function quotaFor(userId: string): Promise<Quota> {
-  const [[row], [usage]] = await Promise.all([
-    db.select({ limit: users.monthlyQuota }).from(users).where(eq(users.id, userId)),
+  const [[row], [usage], entitled] = await Promise.all([
+    db
+      .select({
+        limit: users.monthlyQuota,
+        trial: users.trialRunsLeft,
+        tier: users.planTier
+      })
+      .from(users)
+      .where(eq(users.id, userId)),
     db
       .select({ used: count() })
       .from(analysisRuns)
@@ -26,14 +39,14 @@ export async function quotaFor(userId: string): Promise<Quota> {
           gte(analysisRuns.createdAt, monthStart()),
           isNull(analysisRuns.failedAt)
         )
-      )
+      ),
+    entitledTierFor(userId)
   ])
 
-  return { limit: row?.limit ?? 0, used: usage?.used ?? 0 }
-}
+  const subscribed = row?.tier != null
+  const limit = subscribed && !entitled ? 0 : (row?.limit ?? 0)
 
-export function quotaLeft(quota: Quota): number {
-  return Math.max(0, quota.limit - quota.used)
+  return { limit, used: usage?.used ?? 0, trial: row?.trial ?? 0 }
 }
 
 /**
@@ -50,17 +63,40 @@ export async function setQuota(email: string, limit: number): Promise<void> {
     .onConflictDoUpdate({ target: users.email, set: { monthlyQuota: limit } })
 }
 
-export type AccountQuota = { email: string; limit: number; used: number }
+/**
+ * Writes what a confirmed subscription bought: the tier, and the quota that tier carries.
+ *
+ * **An absolute write, never an increment.** That is what makes it safe for a webhook delivered
+ * twice: applying the same authorisation again lands on the same number. See docs/invariants.md.
+ *
+ * It updates by id and never inserts, because a row keyed on an email may only be created by
+ * something that has seen the address verified.
+ */
+export async function applySubscribedTier(
+  userId: string,
+  tier: keyof typeof PLAN
+): Promise<void> {
+  await db
+    .update(users)
+    .set({ planTier: tier, monthlyQuota: PLAN[tier].quota })
+    .where(eq(users.id, userId))
+}
 
-// Every account with a quota, for the operator screen, with this month's usage beside it.
+export type AccountQuota = { email: string; limit: number; used: number; trial: number }
+
+// Every account with something to spend, for the operator screen, with this month's usage beside it.
+// Trial-only accounts are included: they can run analyses, so an operator has to be able to see them.
 export async function listAccountQuotas(): Promise<AccountQuota[]> {
   const rows = await db
     .select({ id: users.id, email: users.email, limit: users.monthlyQuota })
     .from(users)
-    .where(gt(users.monthlyQuota, 0))
+    .where(or(gt(users.monthlyQuota, 0), gt(users.trialRunsLeft, 0)))
     .orderBy(desc(users.createdAt))
 
   return Promise.all(
-    rows.map(async (row) => ({ email: row.email, limit: row.limit, used: (await quotaFor(row.id)).used }))
+    rows.map(async (row) => {
+      const quota = await quotaFor(row.id)
+      return { email: row.email, limit: quota.limit, used: quota.used, trial: quota.trial }
+    })
   )
 }

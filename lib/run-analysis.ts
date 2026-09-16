@@ -1,10 +1,13 @@
-import { desc, eq, max } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, isNotNull, isNull, max, sql } from 'drizzle-orm'
 import { db } from '@/db'
-import { analyses, analysisRuns, flowFixes, hypotheses, pageSnapshots } from '@/db/schema'
+import { analyses, analysisRuns, flowFixes, hypotheses, pageSnapshots, users } from '@/db/schema'
 import { generateFromMeasurement, measurePage } from '@/lib/analyze'
 import { enqueue, jobId, jobRef, readJob, type RunOutcome } from '@/lib/queue'
 import { analysisState } from '@/lib/analysis-state'
 import { JOB_IN_FLIGHT, type AnalysisState } from '@/lib/enums'
+import { log } from '@/lib/log'
+import { SCREENSHOT_PRUNE_BATCH, SNAPSHOT_HISTORY_MAX } from '@/lib/constants'
+import { deleteScreenshot, saveScreenshot, screenshotStorageReady } from '@/lib/screenshots'
 import { snapshotValues } from '@/lib/snapshots'
 
 export const ANALYSIS_JOB_KIND = 'analysis'
@@ -74,28 +77,143 @@ export async function analysisStateFor(facts: {
   return analysisState({ ...base, running: run !== null && (await jobInFlight(run.id)) })
 }
 
+/**
+ * Marks a run failed and gives back what it took.
+ *
+ * A failed run does not count against the quota, and the monthly half of that is free: the count
+ * ignores rows with a `failed_at`. The trial half is not, because it was spent by decrementing a
+ * column, so it has to be put back, and only for a run that actually took it.
+ */
 async function markFailed(runId: string): Promise<void> {
-  await db.update(analysisRuns).set({ failedAt: new Date() }).where(eq(analysisRuns.id, runId))
+  await db.transaction(async (tx) => {
+    const [run] = await tx
+      .update(analysisRuns)
+      .set({ failedAt: new Date() })
+      .where(and(eq(analysisRuns.id, runId), isNull(analysisRuns.failedAt)))
+      .returning({ userId: analysisRuns.userId, trial: analysisRuns.trial })
+
+    if (!run?.trial) return
+
+    await tx
+      .update(users)
+      .set({ trialRunsLeft: sql`${users.trialRunsLeft} + 1` })
+      .where(eq(users.id, run.userId))
+  })
 }
 
 /**
- * Records a run and queues its job. The job's ref is the run, not the analysis: `enqueue` hands back
- * a finished job for as long as its status lives, so a job keyed on the analysis could not run again
- * within that window. Null when there is no queue, with the run removed so it never counts.
+ * Records a run, charges it to the account, and queues its job.
+ *
+ * **The charge and the run are one transaction, and the trial is spent by a conditional update.**
+ * A route that checks the quota and then inserts leaves a window two requests can both pass through;
+ * `where trial_runs_left > 0 ... returning` cannot be won twice. The routes still answer 403 from
+ * `quotaLeft` first, because that is the fast and friendly reply. This is the boundary.
+ *
+ * The job's ref is the run, not the analysis: `enqueue` hands back a finished job for as long as its
+ * status lives, so a job keyed on the analysis could not run again within that window. Null when
+ * there is no queue, with the run removed so it never counts.
  */
 export async function startRun(analysisId: string, userId: string): Promise<{ runId: string } | null> {
-  const [run] = await db
-    .insert(analysisRuns)
-    .values({ analysisId, userId })
-    .returning({ id: analysisRuns.id })
+  const run = await db.transaction(async (tx) => {
+    const [charged] = await tx
+      .update(users)
+      .set({ trialRunsLeft: sql`${users.trialRunsLeft} - 1` })
+      .where(and(eq(users.id, userId), gt(users.trialRunsLeft, 0)))
+      .returning({ id: users.id })
+
+    const [inserted] = await tx
+      .insert(analysisRuns)
+      .values({ analysisId, userId, trial: charged !== undefined })
+      .returning({ id: analysisRuns.id })
+
+    return inserted
+  })
 
   const job = await enqueue(jobId(ANALYSIS_JOB_KIND, run.id))
   if (!job || job.status === 'unavailable') {
+    // The run never happened, so whatever it was charged goes back.
+    await markFailed(run.id)
     await db.delete(analysisRuns).where(eq(analysisRuns.id, run.id))
     return null
   }
 
   return { runId: run.id }
+}
+
+/**
+ * The screenshot on the volume, or null.
+ *
+ * **Every way this can go wrong ends in null**: no volume configured, no shot taken, or a write that
+ * failed. The report then shows no picture, which is the honest answer, rather than a frame pointing
+ * at a file nobody wrote.
+ */
+async function storeScreenshot(image: Buffer | undefined): Promise<string | null> {
+  if (!image || !screenshotStorageReady()) return null
+
+  try {
+    return await saveScreenshot(image)
+  } catch (error) {
+    log.error('screenshot.write_failed', error)
+    return null
+  }
+}
+
+/**
+ * Deletes the screenshots of snapshots that have fallen out of the trend.
+ *
+ * **Only superseded ones, and never the one on `analyses`.** A report stays online behind its link
+ * for as long as the agency keeps sending it, so the current picture is kept for good; what the
+ * trend needs from an old snapshot is its score, not a twelfth photograph of the same page.
+ *
+ * Runs after the snapshot was written, outside its transaction, and swallows everything. A file
+ * left behind costs disk; a throw here would cost the run that just measured the page.
+ */
+async function pruneSupersededScreenshots(analysisId: string): Promise<void> {
+  try {
+    const stale = await db
+      .select({ id: pageSnapshots.id, url: pageSnapshots.mobileScreenshotUrl })
+      .from(pageSnapshots)
+      .where(
+        and(
+          eq(pageSnapshots.analysisId, analysisId),
+          isNotNull(pageSnapshots.mobileScreenshotUrl)
+        )
+      )
+      .orderBy(desc(pageSnapshots.capturedAt))
+      .offset(SNAPSHOT_HISTORY_MAX)
+      .limit(SCREENSHOT_PRUNE_BATCH)
+
+    if (stale.length === 0) return
+
+    // The column is cleared first. A row still pointing at a deleted file renders a broken frame,
+    // which is the one outcome worse than no picture.
+    await db
+      .update(pageSnapshots)
+      .set({ mobileScreenshotUrl: null })
+      .where(
+        inArray(
+          pageSnapshots.id,
+          stale.map((row) => row.id)
+        )
+      )
+
+    const kept = new Set(
+      (
+        await db
+          .select({ url: analyses.mobileScreenshotUrl })
+          .from(analyses)
+          .where(eq(analyses.id, analysisId))
+      )
+        .map((row) => row.url)
+        .filter((url): url is string => url !== null)
+    )
+
+    for (const row of stale) {
+      if (row.url && !kept.has(row.url)) await deleteScreenshot(row.url)
+    }
+  } catch (error) {
+    log.error('screenshot.prune_failed', error, { analysis: analysisId })
+  }
 }
 
 /**
@@ -122,6 +240,10 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
     // Measured and stored first, so the PageSpeed section is current before the generation starts.
     const measurement = await measurePage(analysis.url, analysis.locale)
 
+    // Written before the transaction, because it is a file rather than a row: a failed write leaves
+    // the report without its picture, and must not cost the reader the measurement beside it.
+    const screenshotUrl = await storeScreenshot(measurement.screenshot)
+
     // Skipped when this run already stored its measurement: a second snapshot for the same run would
     // be a second point in the trend at a moment nothing was measured again.
     if (!run.measuredAt) {
@@ -142,13 +264,21 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
             rankedKeywords: measurement.rankedKeywords,
             // Re-detected from the page's own `lang`, a stronger signal than the URL the route had at
             // creation. See docs/invariants.md.
-            market: measurement.market
+            market: measurement.market,
+            // A run whose screenshot failed keeps the one the last run wrote: an older picture of
+            // the same page is closer to the truth than no picture. `undefined` is how drizzle is
+            // told to leave a column alone.
+            mobileScreenshotUrl: screenshotUrl ?? undefined
           })
           .where(eq(analyses.id, analysis.id))
 
-        await tx.insert(pageSnapshots).values(snapshotValues(analysis.id, measurement))
+        await tx
+          .insert(pageSnapshots)
+          .values({ ...snapshotValues(analysis.id, measurement), mobileScreenshotUrl: screenshotUrl })
         await tx.update(analysisRuns).set({ measuredAt: new Date() }).where(eq(analysisRuns.id, run.id))
       })
+
+      if (screenshotUrl) await pruneSupersededScreenshots(analysis.id)
     }
 
     const output = await generateFromMeasurement(analysis.url, measurement, {
@@ -196,8 +326,12 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
             currentCopy: h.current_copy,
             impactScore: h.impact_score,
             rationale: h.rationale,
+            businessImpact: h.business_impact,
             selector: h.selector,
-            target: h.target
+            target: h.target,
+            // Only an element the scrape actually resolved has a box, and only in the phone layout.
+            // See docs/report.md.
+            elementRect: h.selector ? (measurement.elementRects?.[h.selector] ?? null) : null
           }))
         )
       }
@@ -212,6 +346,7 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
             problem: fix.problem,
             impactScore: fix.impact_score,
             evidence: fix.evidence,
+            businessImpact: fix.business_impact,
             finding: fix.finding,
             position
           }))

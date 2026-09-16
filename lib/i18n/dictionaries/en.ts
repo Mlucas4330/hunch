@@ -9,8 +9,8 @@ export const en = {
     reportOgImageAlt: 'A landing page audit',
     pages: {
       settings: {
-        title: 'Your brand',
-        description: 'The logo and name every report you send carries.'
+        title: 'Settings',
+        description: 'The brand your reports carry, and the plan your account is on.'
       },
       landing: {
         title: 'Landing page audits for agencies',
@@ -29,6 +29,10 @@ export const en = {
       dashboard: {
         title: 'Your pages',
         description: 'Every landing page you have audited, and the report each one produced.'
+      },
+      bulk: {
+        title: 'Audit a list of pages',
+        description: 'Paste a list of URLs and get one report for each of them.'
       },
       admin: {
         title: 'Accounts',
@@ -77,6 +81,12 @@ export const en = {
   },
 
   labels: {
+    // Read from the impact score, never stored. See lib/constants.ts.
+    severity: {
+      critical: 'Critical',
+      medium: 'Medium',
+      low: 'Minor'
+    },
     section: {
       headline: 'Headline',
       subheadline: 'Subheadline',
@@ -117,7 +127,9 @@ export const en = {
     homeAria: 'Hunch home',
     blog: 'Blog',
     dashboard: 'My pages',
-    settings: 'Your brand',
+    bulk: 'In bulk',
+    bulkReady: 'Ready',
+    settings: 'Settings',
     admin: 'Admin',
     signIn: 'Sign in',
     signOut: 'Sign out',
@@ -139,8 +151,9 @@ export const en = {
   },
 
   settings: {
-    eyebrow: 'White label',
-    title: 'Your brand',
+    eyebrow: 'Account',
+    title: 'Settings',
+    brandTitle: 'Your brand',
     hintLabel: 'Where your brand shows up',
     hint: 'Once you save a logo or a name, the reports you send carry *your brand instead of ours*: at the top of the report your client opens, on the preview card when the link is pasted into WhatsApp or email, and in the browser tab title.',
     nameLabel: 'Agency name',
@@ -156,15 +169,28 @@ export const en = {
     errorLogoTooLarge: 'That file is over {kb} KB. Export it smaller and try again.',
     errorUnsupportedLogo: 'That file is not a PNG or a JPEG.',
     errorNameTooLong: 'The name can be up to {max} characters.',
-    errorStorage: 'Logo uploads are not available right now. Try again later.'
+    errorStorage: 'Logo uploads are not available right now. Try again later.',
+    subscription: {
+      title: 'Your subscription',
+      active: 'You are on {tier}.',
+      activeUntil: 'You are on {tier}, renewing on {date}.',
+      cancel: 'Cancel subscription',
+      confirmCancel: 'Yes, cancel it',
+      keep: 'Keep it',
+      cancelling: 'Cancelling...',
+      cancelFailed: 'That did not cancel. Try again in a moment.'
+    }
   },
 
   landing: {
     eyebrow: 'For agencies',
-    headlineTop: 'Landing page audits your agency sends by link.',
-    headlineBottom: 'Starting with what AI can read.',
-    lead: "Paste a client's URL and get the PageSpeed score, what AI crawlers may read, and the page's errors.",
+    headlineTop: 'Show a prospect why their landing page loses customers.',
+    headlineBottom: "In a report carrying your agency's brand.",
+    lead: "Paste the URL and get the errors in copy, structure, SEO and AI readability, under your agency's brand.",
     actions: {
+      whatsapp: 'Talk on WhatsApp',
+      whatsappMessage: 'Hi! I run an agency and I would like to see a Hunch report for one of my clients.',
+      sample: 'See a sample report',
       contact: 'Contact us',
       signIn: 'Sign in'
     },
@@ -211,7 +237,11 @@ export const en = {
       heading: 'What each report brings',
       errors: {
         title: 'Four error lists',
-        body: "AI, SEO, structure and copy. Each error names what is wrong on the page and why it is a problem. What to do about it is your agency's work."
+        body: 'AI, SEO, structure and copy. Each error names what is wrong on the page and why it is a problem, and becomes a line item your agency can charge to fix.'
+      },
+      prospecting: {
+        title: "Open every meeting with the lead's diagnosis",
+        body: "Run the prospect's page before the first conversation and arrive showing what is wrong, instead of asking what they need."
       },
       score: {
         title: 'The Google PageSpeed score',
@@ -235,19 +265,29 @@ export const en = {
       recommended: 'Most agencies',
       price: 'R$ {value}/mo',
       quota: '{count} runs a month',
+      subscribe: 'Subscribe',
+      subscribing: 'Opening checkout...',
+      subscribeFailed: 'That did not open. Try again in a moment.',
       note: 'If the quota runs out before the month does, you move up a tier. A run that fails does not count against it.',
       plans: {
         studio: {
           name: 'Studio',
-          body: 'Three to five clients, with room left to audit a prospect before you pitch it.'
+          body: 'Three to five clients, with room left to audit a prospect before you pitch it.',
+          features: [
+            "Reports carrying your agency's brand",
+            'A link that opens without signing in',
+            "One competitor's page to compare against"
+          ]
         },
         agency: {
           name: 'Agency',
-          body: 'Ten to twenty clients audited every month, and the rest of the quota goes into new business.'
+          body: 'Ten to twenty clients audited every month, and the rest of the quota goes into new business.',
+          features: ['Everything in Studio', "Widget for the agency's site (coming)"]
         },
         network: {
           name: 'Network',
-          body: 'A report a day, or a sales team that opens every conversation with one.'
+          body: 'A report a day, or a sales team that opens every conversation with one.',
+          features: ['Everything in Agency', "Widget for the agency's site (coming)"]
         }
       }
     },
@@ -268,7 +308,7 @@ export const en = {
         },
         {
           question: 'Does the report write the fixes?',
-          answer: "No. Each error says what is wrong on the page and why. There is no replacement copy and no step by step, because what to do about the error is the agency's work."
+          answer: 'No, and that is deliberate. Each error says what is wrong on the page and why, with no replacement copy and no step by step. That way every error is a line item your agency can charge to fix, rather than work the report already gave away.'
         },
         {
           question: 'Where do the numbers come from?',
@@ -392,13 +432,54 @@ export const en = {
       },
       listTitle: 'Accounts with a quota',
       listEmpty: 'No account has a quota yet.',
-      usage: '{used} of {limit} this month'
+      usage: '{used} of {limit} this month',
+      trial: '+{count} trial'
+    }
+  },
+
+  bulk: {
+    eyebrow: 'Prospecting',
+    title: 'Audit a list of pages',
+    subtitle:
+      'Paste up to {max} URLs, one per line. Each one costs a run, and the table fills in as they finish.',
+    navLabel: 'In bulk',
+    label: 'URLs, one per line',
+    placeholder: 'https://client.com.br\nhttps://prospect.com.br',
+    submit: 'Audit {count} pages',
+    submitting: 'Queueing...',
+    willSpend: '{count} of your {max} per batch.',
+    overQuota: '{count} pages, and you have {remaining} analyses left.',
+    errors: {
+      invalid_urls: 'Add at least one URL.',
+      too_many_urls: 'That is more URLs than one batch takes.',
+      invalid_url: 'One of those addresses cannot be opened. Check the list.',
+      quota_exhausted: 'That is more analyses than you have left this month.',
+      forbidden: 'Bulk auditing comes with the Agency and Network plans.',
+      failed: 'That did not start. Try again in a moment.'
+    },
+    results: {
+      title: 'What the batch found',
+      running: 'Still running',
+      download: 'Download CSV',
+      failed: 'This run failed',
+      pending: 'Still running',
+      open: 'Open {host}',
+      columns: {
+        page: 'Page',
+        score: 'PageSpeed',
+        critical: 'Critical errors',
+        problem: 'Main problem',
+        report: 'Report'
+      }
     }
   },
 
   quota: {
     usage: '{used} of {limit} analyses used this month',
-    none: 'No analyses left this month. Talk to the team that manages your account.'
+    remaining: '({count} left)',
+    trial: 'You still have {count} free analyses, and they do not expire at the end of the month.',
+    none: 'No analyses left this month.',
+    seePlans: 'See the plans'
   },
 
   dashboard: {
@@ -440,7 +521,9 @@ export const en = {
 
 
   history: {
-    openAria: 'Open analysis for {url}',
+    trendAria: "This client's pages, with the score before the last run beside each one",
+    wasScore: '(was {score})',
+    openAria:'Open analysis for {url}',
     deleteAria: 'Delete analysis for {url}',
   },
 
@@ -644,7 +727,8 @@ export const en = {
     hintLabel: 'How to read these',
     hint: 'Each one quotes the line *as it stands on the page* and says what is wrong with it.',
     testThisFirst: 'Start here',
-    assessmentLabel: 'What it does today'
+    assessmentLabel: 'What it does today',
+    cropLabel: 'This line on the page'
   },
 
   report: {
@@ -675,7 +759,25 @@ export const en = {
     copyErrors: 'Wording errors',
     startHere: {
       eyebrow: 'Priority',
-      title: 'The biggest errors'
+      title: 'The three biggest problems',
+      lead: 'The rest of the report lists everything found. These three cost the most.'
+    },
+    mobileShot: 'The page on a phone, as it was measured',
+    shareWhatsapp: {
+      label: 'Send on WhatsApp',
+      message: 'I ran an audit on {host} and found a few things worth fixing. The report is here: {url}'
+    },
+    agencyNote: {
+      label: 'Your note on this report',
+      readerLabel: 'A note from the agency',
+      placeholder: 'What you want the reader to see first, in your words.',
+      save: 'Save note',
+      result: {
+        saved: 'Note saved.',
+        invalid: 'That note is too long to save.',
+        forbidden: 'This report is not yours to edit.',
+        failed: 'That did not save. Try again.'
+      }
     },
     rail: {
       label: 'On this page',

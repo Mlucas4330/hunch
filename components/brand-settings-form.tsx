@@ -63,7 +63,10 @@ export function BrandSettingsForm({ brand }: { brand: ReportBrand }) {
   }
 
   return (
-    <form onSubmit={save} className="space-y-6" data-testid="brand-settings">
+    // The card fills its screen; the fields do not. A text input a thousand pixels wide is harder to
+    // read than a short one, so the measure is set here, on the content, rather than by shrinking the
+    // panel around it. See docs/components.md.
+    <form onSubmit={save} className="max-w-xl space-y-6" data-testid="brand-settings">
       <div className="space-y-2">
         <label htmlFor="brand-name" className="panel-label text-micro text-muted-foreground">
           {copy.nameLabel}

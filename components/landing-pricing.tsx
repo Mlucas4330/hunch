@@ -1,3 +1,5 @@
+import { Check } from 'lucide-react'
+import { SubscribeButton } from '@/components/subscribe-button'
 import { PLAN } from '@/lib/constants'
 import { PLAN_TIER, RECOMMENDED_PLAN_TIER, type Locale } from '@/lib/enums'
 import { formatNumber, t } from '@/lib/i18n/format'
@@ -7,9 +9,11 @@ import { cn } from '@/lib/utils'
 /**
  * The price list, as one panel of rows. Not three cards: the three-column grid is already the
  * how-it-works section and the tile grid is already the report section. The row a reader is meant to
- * land on is the tinted one, and the section carries no button of its own, because contact and sign
- * in are the page's two actions and they sit in the hero and in the closing card. See
- * docs/analysis-ui.md.
+ * land on is the tinted one, and the section carries no button of its own, because the page's
+ * actions sit in the hero and in the closing card. See docs/analysis-ui.md.
+ *
+ * A tier's features are copy and nothing branches on them: every account sees the same product, and
+ * the one line that is not shipped yet says so.
  */
 export function LandingPricing({
   copy,
@@ -46,15 +50,26 @@ export function LandingPricing({
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">{copy.plans[tier].body}</p>
+                <ul className="space-y-1 pt-1.5">
+                  {copy.plans[tier].features.map((feature) => (
+                    <li key={feature} className="flex gap-2 text-sm text-muted-foreground">
+                      <Check className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                      <span className="min-w-0">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
-              <div className="shrink-0 space-y-1 sm:text-right">
-                <p className="font-display text-2xl font-bold tracking-tight">
-                  {t(copy.price, { value: formatNumber(PLAN[tier].priceBrl, locale) })}
-                </p>
-                <p className="panel-label text-micro text-muted-foreground">
-                  {t(copy.quota, { count: formatNumber(PLAN[tier].quota, locale) })}
-                </p>
+              <div className="shrink-0 space-y-3 sm:text-right">
+                <div className="space-y-1">
+                  <p className="font-display text-2xl font-bold tracking-tight">
+                    {t(copy.price, { value: formatNumber(PLAN[tier].priceBrl, locale) })}
+                  </p>
+                  <p className="panel-label text-micro text-muted-foreground">
+                    {t(copy.quota, { count: formatNumber(PLAN[tier].quota, locale) })}
+                  </p>
+                </div>
+                <SubscribeButton tier={tier} />
               </div>
             </div>
           )

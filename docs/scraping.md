@@ -58,6 +58,26 @@ on a phone than on a laptop.
 whole navigation in the DOM translated off to one side. It also requires the element to intersect the
 viewport horizontally and to have non-zero opacity. Tap targets exclude `display: inline`.
 
+## The screenshot and the element boxes
+
+Both are taken at the end of the phone pass, in the same slot and the same layout, and **both are
+wrapped**: a page that will not paint into a PNG still has a readout worth sending, so a failure here
+is logged as `scrape.screenshot_failed` and costs the report its picture and nothing else.
+
+`captureElementRects` re-measures the selectors `captureElements` produced, because those were
+measured at `SCRAPE_VIEWPORT` and the same element is somewhere else entirely on a phone. A selector
+that now matches nothing is skipped: a responsive layout may drop an element, and a box for something
+the phone never showed would frame empty space.
+
+**The picture is taken at `SCREENSHOT_SCALE_FACTOR`, which is 1, not at the viewport's
+`deviceScaleFactor` of 3.** The 3 exists so the tap target audit measures what a phone measures; a
+full page shot of a long landing page at 3x is megabytes per run on a volume shared with every brand
+logo, to feed a crop read a few hundred pixels wide.
+
+Superseded snapshot screenshots are deleted at the end of the run that superseded them, which is why
+there is no cron: the current picture on `analyses` is kept for good. See
+[data-model.md](data-model.md).
+
 ## `PageSameness`: what the page has in common with every other one
 
 The last of the desktop reads, run after `capturePerformance` so it cannot push the LCP flush later,
@@ -202,6 +222,21 @@ what the browser counted, and below `CRAWL_RAW_TEXT_RATIO_MIN` no content findin
 **The entry page decides whether the crawl is `unknown`.** The browser already loaded it, so a plain
 fetch that gets anything but a 2xx is a site refusing clients that are not browsers. Both rules are in
 [invariants.md](invariants.md#unknown-is-never-reported-as-negative).
+
+## What a batch costs the queue
+
+`BULK_URLS_MAX` is 10, and it is a number about this pipeline rather than about the form.
+
+- **`QUEUE_MAX_DEPTH` is 50 and `QUEUE_DRAIN_CONCURRENCY` is 3**, against one browser with
+  `SCRAPE_MAX_CONCURRENT_PAGES` slots on a single pinned replica. A batch large enough to fill the
+  queue parks every interactive analysis behind it, including other accounts'.
+- **Each run makes three `generateObject` calls**, so a saturated queue is up to nine concurrent
+  Sonnet requests. A 429 inside one of them surfaces as an empty list, which `runAnalysis` records as
+  a failed run: no report, and no charge. That is the failure mode to watch when raising the cap.
+- **PageSpeed is not the binding constraint** at one call per run. The browser is.
+- **SE Ranking is the real money**: about 310 credits per run, so a batch of ten is roughly 3,100.
+
+**Time a real batch on staging before raising it**, and write the numbers here.
 
 ## Neighbour pages
 

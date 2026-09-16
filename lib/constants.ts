@@ -1,5 +1,6 @@
 import type {
   BlogSlug,
+  ErrorSeverity,
   FixKind,
   FlowCategory,
   Locale,
@@ -16,6 +17,7 @@ import type {
   Theme,
   UserRole
 } from '@/lib/enums'
+import { PLAN_TIER } from '@/lib/enums'
 
 // Only reached when NEXT_PUBLIC_APP_URL is unset: local dev and the e2e run.
 export const FALLBACK_APP_ORIGIN = 'http://localhost:3000'
@@ -38,6 +40,15 @@ export const PRIVACY_PATH = '/privacy'
 export const PRIVACY_UPDATED = '2026-09-11'
 
 export const SIGNIN_PATH = '/auth/signin'
+
+// Where a report lives. The key is the whole credential, so the path is only ever this prefix plus
+// one. See docs/report.md.
+export const REPORT_PATH = '/r'
+
+// One real analysis, published so the landing can show the product instead of describing it. Read
+// from the environment because the row differs between a developer's database and production, and a
+// literal key would 404 everywhere but one. Unset means the landing offers no sample.
+export const SAMPLE_REPORT_EMBED_KEY = process.env.SAMPLE_REPORT_EMBED_KEY ?? null
 
 export const URL_FIELD_ID = 'url'
 
@@ -114,12 +125,37 @@ export const GITHUB_EMAILS_URL = 'https://api.github.com/user/emails'
 // but for a reason nothing in the error would name.
 export const GITHUB_SCOPE = 'read:user user:email'
 
-// The operator's own channel, in the site footer. Never on a report surface -- see
-// docs/components.md.
+// The operator's own channel: the site footer, and the landing's first action through
+// `whatsappUrl` below. Never on a report surface, which carries the agency's brand and not ours --
+// see docs/components.md.
 //
 // wa.me takes the number in E.164 without the plus.
 export const WHATSAPP_NUMBER = '5551989431913'
 export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`
+
+// **A share link, with no number in it.** wa.me with only a `text` opens the sender's own chat
+// picker, so an agency forwarding a report picks their own client and nothing here names us. This is
+// the one WhatsApp URL allowed on a report surface, and `WHATSAPP_URL` above is still not: a report
+// carries the agency's brand, not ours. See docs/invariants.md.
+export const WHATSAPP_SHARE_URL = 'https://wa.me/'
+
+// The landing's first action opens the chat with the first message already written, so an agency
+// that clicks it arrives saying something rather than staring at an empty thread. The text itself is
+// a dictionary string, because it is copy a reader sends in their own language.
+export function whatsappUrl(message: string): string {
+  return `${WHATSAPP_URL}?text=${encodeURIComponent(message)}`
+}
+
+// What an agency actually said, and who said it. It sits here rather than in the dictionaries
+// because it is the only copy on the page that is not ours to write or to translate: a quote
+// rewritten into another language is a quote nobody said. Null until an agency agrees to be named,
+// and the landing shows no testimonial while it is.
+export const LANDING_TESTIMONIAL: {
+  quote: string
+  name: string
+  role: string
+  agency: string
+} | null = null
 
 // The written channel, next to WhatsApp in the footer and named by the privacy policy.
 export const CONTACT_EMAIL = 'contact@hunch.solutions'
@@ -470,6 +506,59 @@ export const PLAN: Record<PlanTier, { priceBrl: number; quota: number }> = {
   network: { priceBrl: 797, quota: 200 }
 }
 
+/**
+ * Which tier an amount bought, read back from our own map.
+ *
+ * **The amount the provider confirms decides the tier, and it is matched against this map rather
+ * than trusted.** Nothing the browser sent reaches it: the checkout route reads the price from
+ * `PLAN` on the way out, and the webhook reads the tier from the confirmed amount on the way back.
+ * An amount matching no tier buys nothing. See docs/security.md.
+ */
+export function planTierForAmount(amount: number): PlanTier | null {
+  return PLAN_TIER.find((tier) => PLAN[tier].priceBrl === amount) ?? null
+}
+
+// How the preapproval is billed. Monthly, in BRL, and every tier is on the same cycle.
+export const PLAN_FREQUENCY = { frequency: 1, frequencyType: 'months', currency: 'BRL' } as const
+
+// What a new account may run before it has paid for anything. **A one-time credit, not a monthly
+// allowance**: it is the row's starting value and nothing refills it, so an account that has spent
+// it has to subscribe. See docs/invariants.md.
+export const TRIAL_RUNS = 3
+
+// The features sold only with the larger plans. One list, read by `canBulkGenerate` and by nothing
+// else, so what a tier buys is stated in a single place. See docs/product.md.
+export const BULK_PLAN_TIERS: PlanTier[] = ['agency', 'network']
+
+/**
+ * How many URLs one batch may carry.
+ *
+ * **Deliberately well under `QUEUE_MAX_DEPTH`.** The queue holds 50 jobs and drains 3 at a time
+ * against a single browser with `SCRAPE_MAX_CONCURRENT_PAGES` slots, so a batch big enough to fill it
+ * would park every interactive analysis behind it. Ten is also about 3,100 SE Ranking credits, which
+ * is the real money. Raise it only after timing a real batch on staging. See docs/scraping.md.
+ */
+export const BULK_URLS_MAX = 10
+
+export const BULK_PATH = '/dashboard/bulk'
+
+// Where a signed-in reader subscribes. The landing sends anyone with an account to the dashboard, so
+// the price list has to exist somewhere behind the sign-in too, and the account screen is where the
+// subscription is already managed. The anchor is what the exhausted-quota line points at.
+export const PLANS_ANCHOR = 'plans'
+export const PLANS_PATH = `${SETTINGS_PATH}#${PLANS_ANCHOR}`
+
+// Mercado Pago. The provider's own name for itself in our tables, the two notification topics we
+// act on, and the one status that means money moved. See docs/api.md.
+export const MERCADOPAGO_PROVIDER = 'mercadopago'
+export const MERCADOPAGO_PREAPPROVAL_TOPIC = 'subscription_preapproval'
+export const MERCADOPAGO_SUBSCRIPTION_PAYMENT_TOPIC = 'subscription_authorized_payment'
+export const MERCADOPAGO_AUTHORIZED = 'authorized'
+
+// Where the reader lands after the provider's checkout, and where they manage what they bought.
+export const BILLING_RETURN_PATH = '/dashboard'
+export const BILLING_SUBSCRIBE_PATH = '/api/billing/mercadopago/subscribe'
+
 // How close a tooltip may come to the edge of the viewport before it slides itself back in. It is
 // the gap that keeps the panel from looking welded to the screen edge, and the reason the number is
 // here rather than in the component is that it is a spacing decision, not a mechanism. See
@@ -484,7 +573,12 @@ export const RATE_LIMITS: Record<RateLimitKind, { tokens: number; windowMs: numb
   job_status: { tokens: 600, windowMs: HOUR_MS },
   signin: { tokens: 5, windowMs: 15 * MINUTE_MS },
   // Each accepted call can write a file to the volume.
-  brand: { tokens: 20, windowMs: HOUR_MS }
+  brand: { tokens: 20, windowMs: HOUR_MS },
+  // Each accepted call is one request to Mercado Pago and one `pending` row, which entitles nothing.
+  billing: { tokens: 10, windowMs: HOUR_MS },
+  // A batch is many runs at once, so this is deliberately tight. The quota is what actually bounds
+  // the work; this bounds how often somebody may queue a wave of it.
+  bulk: { tokens: 3, windowMs: HOUR_MS }
 }
 
 // The agency's logo, served from BRAND_DIR under this path. See docs/security.md.
@@ -504,6 +598,35 @@ export const BRAND_LOGO_SIGNATURES = [
 ] as const
 
 export const BRAND_NAME_MAX_LENGTH = 40
+
+// The phone screenshot of a measured page, served from SCREENSHOT_DIR under this path. Same volume
+// as the brand logo and the same traversal guard, because it is the same class of file: bytes we
+// wrote, served back by name. See docs/security.md.
+export const SCREENSHOT_PUBLIC_PATH = '/screenshots'
+
+// Exactly what saveScreenshot() writes, so the serving route can refuse every other name.
+export const SCREENSHOT_FILENAME_PATTERN =
+  /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.png$/
+
+// A phone viewport is captured at deviceScaleFactor 3 so the tap target audit measures what a
+// phone measures. **The picture is taken at 1.** A full page shot of a long Brazilian landing page
+// at 3x is megabytes per run on a volume shared with every brand logo, and the crop this feeds is
+// read at a few hundred pixels wide.
+export const SCREENSHOT_SCALE_FACTOR = 1
+
+// How many superseded screenshots one prune pass deletes. A cap because the delete list becomes
+// bind parameters, and because a pass that runs long holds nothing open.
+export const SCREENSHOT_PRUNE_BATCH = 200
+
+// How the crop is framed: the margin kept around the element so it is read in its surroundings, and
+// the width the frame is scaled down to fit. It never scales up, so a narrow element is shown at its
+// own size rather than enlarged into blur.
+export const ELEMENT_CROP_PADDING_PX = 12
+export const ELEMENT_CROP_WIDTH_PX = 520
+
+// The agency's own words on the report, written by the owner and read by their client. Bounded for
+// the same reason the brand name is: it is rendered on a surface neither of them can scroll away.
+export const AGENCY_NOTE_MAX_LENGTH = 600
 
 // next/image needs intrinsic dimensions; the drawn size comes from CSS, so these bound the box.
 export const BRAND_LOGO_DISPLAY_HEIGHT = 32
@@ -987,18 +1110,41 @@ export const READOUT_SCORE_THRESHOLDS = {
 export const IMPACT_SCORE_MIN = 1
 export const IMPACT_SCORE_MAX = 10
 
+// Where the impact scale is cut into the three words a reader is given. **The only place these two
+// numbers appear**: the label, the chip and the rail all read `severityForImpact`, so a card cannot
+// print `critical` in amber. Nothing stores a severity, because it is this function of a score that
+// is stored -- see docs/readout.md.
+export const IMPACT_SEVERITY_MIN: Record<Exclude<ErrorSeverity, 'low'>, number> = {
+  critical: 8,
+  medium: 5
+}
+
+export function severityForImpact(score: number): ErrorSeverity {
+  if (score >= IMPACT_SEVERITY_MIN.critical) return 'critical'
+  if (score >= IMPACT_SEVERITY_MIN.medium) return 'medium'
+  return 'low'
+}
+
+export const ERROR_SEVERITY_BADGE_CLASS: Record<ErrorSeverity, string> = {
+  critical: 'bg-coral/15 text-coral',
+  medium: 'bg-amber/15 text-amber',
+  low: 'bg-neutral/15 text-neutral'
+}
+
 export function impactScoreBadgeClass(score: number): string {
-  if (score >= 8) return 'bg-coral/15 text-coral'
-  if (score >= 5) return 'bg-amber/15 text-amber'
-  return 'bg-neutral/15 text-neutral'
+  return ERROR_SEVERITY_BADGE_CLASS[severityForImpact(score)]
 }
 
 // The score rail down the left edge of a ranked card. Same three bands as the chip above, as a
 // tinted ground with a matching foreground -- see components/score-indicator.tsx.
+export const ERROR_SEVERITY_RAIL_CLASS: Record<ErrorSeverity, string> = {
+  critical: 'bg-coral/10 text-coral',
+  medium: 'bg-amber/10 text-amber',
+  low: 'bg-neutral/10 text-neutral'
+}
+
 export function impactScoreRailClass(score: number): string {
-  if (score >= 8) return 'bg-coral/10 text-coral'
-  if (score >= 5) return 'bg-amber/10 text-amber'
-  return 'bg-neutral/10 text-neutral'
+  return ERROR_SEVERITY_RAIL_CLASS[severityForImpact(score)]
 }
 
 // A default, never a state the reader is stuck in -- every row can still be closed.

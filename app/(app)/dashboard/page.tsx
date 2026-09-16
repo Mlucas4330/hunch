@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { PLANS_PATH } from '@/lib/constants'
 import { getCurrentUser } from '@/lib/current-user'
-import { listAnalysesForUser, parsePaging } from '@/lib/analyses'
+import { latestScoresFor, listAnalysesForUser, parsePaging } from '@/lib/analyses'
 import { quotaFor, quotaLeft } from '@/lib/quota'
 import { UrlInputForm } from '@/components/url-input-form'
 import { AnalysisHistory } from '@/components/analysis-history'
@@ -9,7 +10,7 @@ import { InfoHint } from '@/components/info-hint'
 import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { displayHost } from '@/lib/host'
+import { displayHost, displayPath } from '@/lib/host'
 import { dictionaryFor, getDictionary, getLocale } from '@/lib/i18n'
 // Aliased: this page already binds `t` to the dictionary.
 import { formatDate, t as interpolate } from '@/lib/i18n/format'
@@ -40,6 +41,7 @@ export default async function DashboardPage({
     quotaFor(user.id)
   ])
   const exhausted = quotaLeft(quota) === 0
+  const scores = await latestScoresFor(rows.map((analysis) => analysis.id))
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -57,8 +59,24 @@ export default async function DashboardPage({
       <div className="space-y-2">
         <p className="font-mono text-xs tabular-nums text-muted-foreground" data-testid="dashboard-quota">
           {interpolate(t.quota.usage, { used: quota.used, limit: quota.limit })}
+          {' '}
+          {interpolate(t.quota.remaining, { count: quotaLeft(quota) })}
         </p>
-        {exhausted && <p className="text-sm text-amber">{t.quota.none}</p>}
+        {quota.trial > 0 && (
+          <p className="text-sm text-muted-foreground" data-testid="dashboard-trial">
+            {interpolate(t.quota.trial, { count: quota.trial })}
+          </p>
+        )}
+        {/* The line that says there is nothing left also has to say what to do about it, and the
+            price list is behind the sign-in. See docs/analysis-ui.md. */}
+        {exhausted && (
+          <p className="text-sm text-amber">
+            {t.quota.none}{' '}
+            <Link href={PLANS_PATH} className="underline underline-offset-4">
+              {t.quota.seePlans}
+            </Link>
+          </p>
+        )}
       </div>
 
       <UrlInputForm blocked={exhausted} />
@@ -81,6 +99,9 @@ export default async function DashboardPage({
               url: analysis.url,
               embedKey: analysis.embedKey,
               client: displayHost(analysis.url),
+              page: displayPath(analysis.url),
+              score: scores.get(analysis.id)?.score ?? null,
+              previousScore: scores.get(analysis.id)?.previous ?? null,
               market: t.labels.market[analysis.market],
               date: formatDate(analysis.createdAt, locale)
             }))}

@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/current-user'
-import { isAdmin } from '@/lib/auth-policy'
+import { canBulkGenerate, isAdmin } from '@/lib/auth-policy'
 import { AccountMenu, AccountPanel } from '@/components/account-menu'
 import { MobileMenu } from '@/components/mobile-menu'
 import { NavLinks } from '@/components/nav-links'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Wordmark } from '@/components/wordmark'
 import { Button } from '@/components/ui/button'
+import { unreadBatch } from '@/lib/bulk-batches'
 import { CONTAINER_CLASS } from '@/lib/constants'
 import { dictionaryFor, getLocale } from '@/lib/i18n'
 import { getTheme } from '@/lib/theme'
@@ -17,6 +18,12 @@ export async function Navbar() {
   const locale = await getLocale()
   const theme = await getTheme()
   const t = dictionaryFor(locale)
+
+  // A batch finishes long after the reader has left the page that queued it, so the one place that
+  // can tell them is the bar they carry from screen to screen. Only asked for when the account has
+  // the feature at all, so nobody else pays for the query. See docs/analysis-ui.md.
+  const bulk = canBulkGenerate(user)
+  const finishedBatch = bulk && user ? await unreadBatch(user.id) : null
 
   return (
     // `border-b-transparent` is the resting state and the keyframe brings the rule back with the
@@ -31,7 +38,12 @@ export async function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-5 md:flex">
-          <NavLinks signedIn={Boolean(user)} admin={isAdmin(user)} />
+          <NavLinks
+            signedIn={Boolean(user)}
+            admin={isAdmin(user)}
+            bulk={bulk}
+            bulkReady={finishedBatch !== null}
+          />
           {/* Outside the account menu on purpose: a signed-out reader on the landing page or a
               public report is exactly who needs it, and burying it behind a sign-in would be a
               preference only paying readers get. */}
@@ -47,7 +59,12 @@ export async function Navbar() {
 
         <MobileMenu label={t.nav.menuAria}>
           <div className="flex flex-col items-start gap-2">
-            <NavLinks signedIn={Boolean(user)} admin={isAdmin(user)} />
+            <NavLinks
+              signedIn={Boolean(user)}
+              admin={isAdmin(user)}
+              bulk={bulk}
+              bulkReady={finishedBatch !== null}
+            />
           </div>
           <div className="flex items-center gap-2 border-t pt-3">
             <ThemeToggle theme={theme} />

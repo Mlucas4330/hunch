@@ -110,6 +110,37 @@ The agency logo is the only file this product accepts.
 - The size is capped at `BRAND_LOGO_MAX_BYTES` and the route is rate limited as `brand`, because each
   accepted call writes to the volume.
 
+**The phone screenshots are served the same way and by the same rules.** `screenshotPath()` in
+`lib/screenshots.ts` is the only way from a request to a file, refusing any name that is not a uuid
+plus `.png` and any path resolving outside `SCREENSHOT_DIR`; `app/screenshots/[file]/route.ts`
+answers `404` for both. Nothing there is uploaded: the bytes come from our own browser, and the name
+is a fresh uuid, so there is no sniffing step to get wrong. The route is public, exactly as the
+report that shows the image is.
+
+## Billing and the tier gate
+
+**The webhook is unauthenticated and signed instead.** It is called by Mercado Pago, which carries no
+session, so `verifyWebhookSignature` is the whole of its authorization: a missing header, a wrong
+secret, a different request id and a malformed header all refuse. It is not under
+`PROTECTED_PREFIXES` and must not be, and it is not CORS-open either.
+
+**`external_reference` is trusted only as a lookup.** The webhook reads a `user_id` from it and
+updates that row; it never inserts one. A webhook that could create a row by email would be a way to
+claim an address no provider vouched for. See
+[invariants.md](invariants.md#a-user-row-may-exist-before-its-first-sign-in-and-only-a-provider-verified-email-may-claim-one).
+
+**Prices are read from `PLAN`, never from the request.** The checkout route takes a tier and looks the
+amount up; the webhook reads the tier back from the amount the provider confirmed, through
+`planTierForAmount`, and an amount matching no tier writes nothing.
+
+**The Payment Brick was deliberately not restored.** Its SDK would need `script-src`, `connect-src`
+and `frame-src` holes in the CSP; a preapproval `init_point` is an ordinary top-level navigation and
+needs none.
+
+**Bulk generation is gated three times**, the same discipline as `isAdmin`: the nav hides the link,
+the page answers `notFound()`, and the route re-checks `canBulkGenerate` before enqueueing. Only the
+last two are boundaries.
+
 ## Rate limiting: `lib/rate-limit.ts`
 
 Backed by Redis over `ioredis`. The window is a **sorted set per (kind, identifier)**, evaluated by one

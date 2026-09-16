@@ -217,7 +217,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Signing up means typing an email, inventing a password, and waiting on a confirmation.',
       impact_score: 9,
       evidence:
-        'Every account created today costs the visitor a password they must invent and then remember.'
+        'Every account created today costs the visitor a password they must invent and then remember.',
+      business_impact: 'Visitors who will not invent another password leave without an account.'
     },
     {
       category: 'objections',
@@ -227,7 +228,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'The page never answers what happens after the trial, so visitors leave to find out.',
       impact_score: 7,
       evidence:
-        'The page sends the visitor elsewhere to learn what the trial costs and how to leave it.'
+        'The page sends the visitor elsewhere to learn what the trial costs and how to leave it.',
+      business_impact: 'A visitor who leaves to answer their own question rarely comes back to sign up.'
     },
     {
       category: 'decision_load',
@@ -235,7 +237,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       title: 'Signup form asks for six fields',
       problem: 'The form asks for six fields before the visitor has seen any value.',
       impact_score: 7,
-      evidence: 'Four of the six fields are asked before the visitor has any reason to answer them.'
+      evidence: 'Four of the six fields are asked before the visitor has any reason to answer them.',
+      business_impact: 'Each extra field is another place an interested visitor abandons the form.'
     },
     {
       category: 'performance',
@@ -244,7 +247,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       problem: 'A visitor on a phone waits for the largest element before the page shows what it is.',
       impact_score: 5,
       evidence:
-        'PageSpeed Insights measured the largest contentful paint well past the point a visitor starts to scroll away.'
+        'PageSpeed Insights measured the largest contentful paint well past the point a visitor starts to scroll away.',
+      business_impact: 'Visitors arriving from a phone ad leave before the page says what it sells.'
     }
   ],
   'pt-BR': [
@@ -256,7 +260,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'Criar conta exige digitar um email, inventar uma senha e esperar por uma confirmação.',
       impact_score: 9,
       evidence:
-        'Toda conta criada hoje custa ao visitante uma senha que ele precisa inventar e depois lembrar.'
+        'Toda conta criada hoje custa ao visitante uma senha que ele precisa inventar e depois lembrar.',
+      business_impact: 'Quem não quer inventar mais uma senha vai embora sem criar conta.'
     },
     {
       category: 'objections',
@@ -266,7 +271,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
         'A página nunca responde o que acontece depois do teste, então o visitante sai para descobrir.',
       impact_score: 7,
       evidence:
-        'A página faz o visitante sair para descobrir preço e cancelamento.'
+        'A página faz o visitante sair para descobrir preço e cancelamento.',
+      business_impact: 'O visitante que sai para tirar a própria dúvida raramente volta para se cadastrar.'
     },
     {
       category: 'decision_load',
@@ -275,7 +281,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       problem: 'O formulário pede seis campos antes de o visitante ter visto qualquer valor.',
       impact_score: 7,
       evidence:
-        'Quatro dos seis campos são pedidos antes de o visitante ter qualquer motivo para respondê-los.'
+        'Quatro dos seis campos são pedidos antes de o visitante ter qualquer motivo para respondê-los.',
+      business_impact: 'Cada campo a mais é mais um ponto onde um interessado desiste do formulário.'
     },
     {
       category: 'performance',
@@ -284,7 +291,8 @@ const PLAYBOOK: Record<Locale, FlowFixOutput[]> = {
       problem: 'No celular, o visitante espera o maior elemento carregar antes de entender a página.',
       impact_score: 5,
       evidence:
-        'O PageSpeed Insights mediu o maior elemento visível carregando bem depois do momento em que o visitante começa a rolar.'
+        'O PageSpeed Insights mediu o maior elemento visível carregando bem depois do momento em que o visitante começa a rolar.',
+      business_impact: 'Quem chega de um anúncio no celular sai antes de a página dizer o que vende.'
     }
   ]
 }
@@ -298,7 +306,8 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
       problem: 'The page declares no description, so search engines write their own from the copy.',
       impact_score: 8,
       evidence:
-        'With no description declared, the snippet a reader sees is assembled from whatever text the crawler picked.'
+        'With no description declared, the snippet a reader sees is assembled from whatever text the crawler picked.',
+      business_impact: 'The search result selling this page is written by a crawler rather than by the company.'
     },
     {
       category: 'site_health',
@@ -306,7 +315,8 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
       title: 'A post in the sitemap answers 404',
       problem: 'The sitemap sends crawlers to a launch post that no longer exists.',
       impact_score: 7,
-      evidence: 'Every read of the sitemap spends a request on a page that returns an error instead of content.'
+      evidence: 'Every read of the sitemap spends a request on a page that returns an error instead of content.',
+      business_impact: 'Crawl budget goes to a dead page instead of the pages that bring in visitors.'
     },
     {
       category: 'structured_data',
@@ -315,7 +325,8 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
       problem: 'Nothing on the page states in machine readable form what this company is.',
       impact_score: 6,
       evidence:
-        'A model reading this page has to infer what the company is from prose, because no markup states it.'
+        'A model reading this page has to infer what the company is from prose, because no markup states it.',
+      business_impact: 'An assistant asked about this category describes the company from guesswork or not at all.'
     },
     {
       category: 'ai_answerability',
@@ -323,7 +334,8 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
       title: 'Product images carry no alt text',
       problem: 'Several images carry no alt attribute, so their content reaches no crawler at all.',
       impact_score: 5,
-      evidence: 'What those images show is currently readable only by a person looking at the page.'
+      evidence: 'What those images show is currently readable only by a person looking at the page.',
+      business_impact: 'What the product looks like never reaches image search or a model answering about it.'
     }
   ],
   'pt-BR': [
@@ -335,7 +347,8 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
         'A página não declara descrição, então os buscadores escrevem a deles a partir do texto.',
       impact_score: 8,
       evidence:
-        'Sem descrição declarada, o trecho que o leitor vê é montado a partir de qualquer texto que o rastreador escolheu.'
+        'Sem descrição declarada, o trecho que o leitor vê é montado a partir de qualquer texto que o rastreador escolheu.',
+      business_impact: 'Quem vende a página no resultado de busca é o rastreador, não a empresa.'
     },
     {
       category: 'site_health',
@@ -343,7 +356,8 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
       title: 'Post do sitemap responde 404',
       problem: 'O sitemap manda os rastreadores para um post de lançamento que não existe mais.',
       impact_score: 7,
-      evidence: 'Cada leitura do sitemap gasta uma requisição numa página que devolve erro em vez de conteúdo.'
+      evidence: 'Cada leitura do sitemap gasta uma requisição numa página que devolve erro em vez de conteúdo.',
+      business_impact: 'O rastreamento vai para uma página morta em vez das páginas que trazem visitante.'
     },
     {
       category: 'structured_data',
@@ -352,7 +366,8 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
       problem: 'Nada na página diz, em formato legível por máquina, o que é esta empresa.',
       impact_score: 6,
       evidence:
-        'Um modelo que lê esta página precisa deduzir o que é a empresa a partir do texto corrido.'
+        'Um modelo que lê esta página precisa deduzir o que é a empresa a partir do texto corrido.',
+      business_impact: 'Um assistente perguntado sobre essa categoria descreve a empresa por dedução ou nem cita.'
     },
     {
       category: 'ai_answerability',
@@ -362,7 +377,8 @@ const VISIBILITY: Record<Locale, VisibilityFixOutput[]> = {
         'Várias imagens não têm atributo alt, então o conteúdo delas não chega a rastreador nenhum.',
       impact_score: 5,
       evidence:
-        'O que essas imagens mostram hoje só é legível por uma pessoa olhando para a página.'
+        'O que essas imagens mostram hoje só é legível por uma pessoa olhando para a página.',
+      business_impact: 'A aparência do produto não chega à busca por imagens nem a um modelo que responde sobre ele.'
     }
   ]
 }
@@ -378,7 +394,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         problem:
           'The headline describes the product category instead of the outcome the visitor wants.',
         impact_score: 9,
-        rationale: 'The visitor has to work out what they get before they know whether to keep reading.'
+        rationale: 'The visitor has to work out what they get before they know whether to keep reading.',
+        business_impact: 'Visitors who cannot tell what this is leave before any other line gets a chance.'
       },
       {
         section: 'cta',
@@ -386,7 +403,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         assessment: 'The button says an action is available and nothing else about it.',
         problem: 'The label never says what happens after the click or what it costs.',
         impact_score: 8,
-        rationale: 'A visitor unsure of the commitment holds back at the one moment the page asks them to act.'
+        rationale: 'A visitor unsure of the commitment holds back at the one moment the page asks them to act.',
+        business_impact: 'The page loses people at the click it was built to win.'
       },
       {
         section: 'social_proof',
@@ -394,7 +412,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         assessment: 'The line claims other teams already use the product.',
         problem: 'The claim names nobody and nothing the visitor could check.',
         impact_score: 7,
-        rationale: 'An unverifiable claim of trust asks the visitor to take the page at its word.'
+        rationale: 'An unverifiable claim of trust asks the visitor to take the page at its word.',
+        business_impact: 'A buyer comparing two vendors has nothing here to weigh against the other one.'
       },
       {
         section: 'pricing',
@@ -402,7 +421,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         assessment: 'The line states a real price and who it is for.',
         problem: 'Pricing opens on the most expensive tier.',
         impact_score: 6,
-        rationale: 'The first number the visitor reads is the largest one on the page.'
+        rationale: 'The first number the visitor reads is the largest one on the page.',
+        business_impact: 'Smaller buyers rule the product out on price before seeing the tier meant for them.'
       },
       {
         section: 'features',
@@ -410,7 +430,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         assessment: 'The list names three things the product can do, accurately.',
         problem: 'Each item is a capability with no job attached to it.',
         impact_score: 5,
-        rationale: 'The visitor has to map each feature to their own work without help.'
+        rationale: 'The visitor has to map each feature to their own work without help.',
+        business_impact: 'A visitor who cannot picture the product in their week does not book the call.'
       },
       {
         section: 'subheadline',
@@ -418,7 +439,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         assessment: 'The subheadline restates the audience the headline already named.',
         problem: 'The subheadline repeats the headline instead of answering the next question.',
         impact_score: 4,
-        rationale: 'The space under the headline says nothing the visitor has not already read.'
+        rationale: 'The space under the headline says nothing the visitor has not already read.',
+        business_impact: 'The best read space on the page sells nothing.'
       }
     ]
   },
@@ -432,7 +454,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         problem:
           'O título descreve a categoria do produto em vez do resultado que o visitante quer.',
         impact_score: 9,
-        rationale: 'O visitante precisa deduzir o que recebe antes de saber se vale continuar lendo.'
+        rationale: 'O visitante precisa deduzir o que recebe antes de saber se vale continuar lendo.',
+        business_impact: 'Quem não entende o que é isso sai antes de qualquer outra linha ter chance.'
       },
       {
         section: 'cta',
@@ -440,7 +463,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         assessment: 'O botão diz que existe uma ação disponível e nada mais sobre ela.',
         problem: 'O rótulo não diz o que acontece depois do clique nem quanto custa.',
         impact_score: 8,
-        rationale: 'Quem não sabe o compromisso recua justo no momento em que a página pede a ação.'
+        rationale: 'Quem não sabe o compromisso recua justo no momento em que a página pede a ação.',
+        business_impact: 'A página perde gente justo no clique para o qual ela foi feita.'
       },
       {
         section: 'social_proof',
@@ -448,7 +472,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         assessment: 'A linha afirma que outros times já usam o produto.',
         problem: 'A afirmação não cita ninguém nem nada que o visitante possa conferir.',
         impact_score: 7,
-        rationale: 'Uma confiança que não dá para verificar pede que o visitante acredite na palavra da página.'
+        rationale: 'Uma confiança que não dá para verificar pede que o visitante acredite na palavra da página.',
+        business_impact: 'Quem compara dois fornecedores não encontra aqui nada para pesar contra o outro.'
       },
       {
         section: 'pricing',
@@ -456,7 +481,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         assessment: 'A linha informa um preço real e para quem ele vale.',
         problem: 'Os planos começam pelo mais caro.',
         impact_score: 6,
-        rationale: 'O primeiro número que o visitante lê é o maior da página.'
+        rationale: 'O primeiro número que o visitante lê é o maior da página.',
+        business_impact: 'Cliente menor descarta o produto pelo preço antes de ver o plano feito para ele.'
       },
       {
         section: 'features',
@@ -464,7 +490,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         assessment: 'A lista nomeia com precisão três coisas que o produto faz.',
         problem: 'Cada item é uma capacidade sem a tarefa que ela resolve.',
         impact_score: 5,
-        rationale: 'O visitante precisa ligar cada recurso ao próprio trabalho sozinho.'
+        rationale: 'O visitante precisa ligar cada recurso ao próprio trabalho sozinho.',
+        business_impact: 'Quem não consegue imaginar o produto na própria semana não marca a conversa.'
       },
       {
         section: 'subheadline',
@@ -472,7 +499,8 @@ const ANALYSIS: Record<Locale, AnalysisOutput> = {
         assessment: 'O subtítulo repete o público que o título já nomeou.',
         problem: 'O subtítulo repete o título em vez de responder a próxima dúvida.',
         impact_score: 4,
-        rationale: 'O espaço abaixo do título não diz nada que o visitante já não tenha lido.'
+        rationale: 'O espaço abaixo do título não diz nada que o visitante já não tenha lido.',
+        business_impact: 'O espaço mais lido da página não vende nada.'
       }
     ]
   }

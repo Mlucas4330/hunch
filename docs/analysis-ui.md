@@ -11,21 +11,45 @@
 | `/dashboard` | My pages | The monthly quota, the new-analysis form, and a grid of past analyses |
 | `/analyses/[id]` | Redirect | Owner-checked, then `redirect('/r/<embedKey>')`. See [report.md](report.md) |
 | `/r/[embedKey]` | The analysis | Cover, overall PageSpeed score, then four sections. Public, authorized by the key. See [report.md](report.md) |
+| `/dashboard/bulk` | In bulk | Agency and Network only. A textarea of URLs, then the results table |
 | `/admin/accounts` | Accounts | Operator only. Sets each account's monthly quota |
-| `/settings` | Your brand | The agency name and logo its reports carry. See [components.md](components.md#brand-componentsbrand-settings-formtsx-and-componentsreport-brand-marktsx) |
+| `/settings` | Settings | The agency name and logo its reports carry, and the subscription: the price list when there is none, managing it when there is. Reached from the account menu rather than the nav. See [components.md](components.md#brand-componentsbrand-settings-formtsx-and-componentsreport-brand-marktsx) |
 | `/privacy` | Policy | |
 
 **There is one analysis screen, not two.** See [report.md](report.md).
 
 ## Landing: `app/(app)/page.tsx`
 
-For an agency that is not a customer yet. The hero, how it works, the AI visibility section, what each
-report brings, the price list (`components/landing-pricing.tsx`), the FAQ
+For an agency that is not a customer yet. The hero, how it works, what each report brings, the AI
+visibility section, the testimonial, the price list (`components/landing-pricing.tsx`), the FAQ
 (`components/landing-faq.tsx`) and a closing call to action.
 
-- **Two actions, the same two everywhere on the page**: contact, which opens `CONTACT_EMAIL_URL`, and
-  sign in. The price list adds no third one, because a button there would carry the same intent as
-  the two already on the page.
+- **What the report holds comes before what AI can read.** The PageSpeed score is free from Google
+  and the four error lists are not, so leading with the score sells somebody else's product. Inside
+  the tile grid the same order holds: the error lists, the client's link and the prospecting tile
+  first, the measured tiles after them.
+- **Four actions in one hierarchy, and the closing card carries two of them**: WhatsApp through
+  `whatsappUrl`, which opens the chat with `actions.whatsappMessage` already written; the sample
+  report, rendered only while `SAMPLE_REPORT_EMBED_KEY` is set; email through `CONTACT_EMAIL_URL`;
+  and sign in. `LandingActions` takes `compact` for the closing card, which shows only the first two,
+  because four buttons in it read as a menu rather than a call. The price list still adds none of its
+  own.
+- **The price list is mounted twice, and `/settings` is the half that matters once someone has an
+  account.** The landing sends a signed-in reader to the dashboard, so the subscribe buttons there
+  are only ever seen by someone without one; `PLANS_PATH` is where everybody else goes, and the
+  exhausted-quota line on the dashboard links to it. The account screen shows the list when there is
+  no live subscription and the cancel control when there is, never both, and **only `authorized`
+  counts as live**: a checkout nobody finished must not read as something already bought.
+- **The account screen fills its column**, like every other signed-in screen. The measure is set on
+  the form inside the card, not by shrinking the card, because a card capped on its own sits at about
+  half the container on a wide display and reads as a bug.
+- **The testimonial renders only while `LANDING_TESTIMONIAL` is set**, and its text lives in that
+  constant rather than in the dictionaries: it is the one string on the page that is not ours to
+  write, and a quote rewritten into another language is a quote nobody said. See
+  [i18n.md](i18n.md).
+- **A tier's features are copy.** Nothing branches on them, every account sees the same product, and
+  the widget line says it is not shipped. See
+  [product.md](product.md#what-it-deliberately-does-not-do).
 - **The price list reads `PLAN_TIER` and `PLAN`**, so the price and the quota on screen are the ones
   the operator screen offers. It is one panel of rows rather than three cards: the three-column grid
   is already the how-it-works section and the tile grid is already the report section. The
@@ -54,12 +78,41 @@ Two screens under the `(app)` group. The index is three cards over `BLOG_SLUG`; 
 `app/(app)/dashboard/page.tsx`.
 
 - **The quota line** reads `quotaFor(user.id)` from the rows on every render and prints how many of
-  the month's runs were used, a new analysis and every "Run again" alike. At zero left it adds `quota.none` and passes `blocked` to the form,
-  which disables it. The route refuses the request anyway; the disabled form is courtesy.
-- **`components/analysis-history.tsx`** lists the account's analyses, one card each, named by
-  `displayHost()` with the full URL under it, never truncated. The card is a link via an
-  `absolute inset-0` overlay; the delete cluster and `CopyReportLink` escape it with `relative z-10`.
+  the month's runs were used and how many are left, a new analysis and every "Run again" alike. An
+  account with trial credit left gets a second line saying so, because those do not expire with the
+  month. At zero left it adds `quota.none`, which points at the price list, and passes `blocked` to
+  the form, which disables it. The route refuses the request anyway; the disabled form is courtesy.
+- **`components/analysis-history.tsx`** groups the account's analyses under the client they are
+  about, which is the hostname through `groupByClient`: no client table, and nothing to fill in
+  before an analysis. Each group header carries that client's pages with the score each one stood at
+  before its last run beside it, which is the question the dashboard is for: a single number cannot
+  say whether the work is paying off. The full trend stays on the report. A card is one page of
+  that site, titled by its path, with the full URL under it, never truncated. The card is a link via
+  an `absolute inset-0` overlay; the delete cluster and `CopyReportLink` escape it with
+  `relative z-10`.
+- **Grouping happens after paging**, so a group holds what is on this page rather than everything
+  ever run for that client.
 - **Empty state** when there are no analyses yet.
+
+## In bulk: `app/(app)/dashboard/bulk/page.tsx`
+
+A textarea of URLs, one per line, then a table of what each one found.
+
+- **`notFound()` for a tier without it**, the same answer `/admin/accounts` gives someone without the
+  role: a page explaining what you cannot reach is an invitation to try it. See
+  [invariants.md](invariants.md#entitlement-is-the-stored-tier-checked-at-the-boundary).
+- **The count under the form is read with the same `parseBulkUrls` the route uses**, so what the
+  reader is told they are about to spend is what they are charged.
+- **The table is every number the report already carries**: the PageSpeed score, the count of errors
+  `severityForImpact` calls critical, and the top error's own `business_impact` as the main problem.
+  Nothing here summarises anything. A page PageSpeed could not measure shows a dash and never a zero,
+  and a failed row says so instead of showing the run before it.
+- **`useBatchPoll` refreshes the rows while they are still running** and stops when they settle, the
+  same shape as `useAnalysisPoll` and for the same reason.
+- The CSV button appears once the batch is finished.
+- **The navbar carries the notice, not this page.** A batch finishes long after whoever queued it has
+  moved on, so `unreadBatch` puts a word beside the nav link and opening the table clears it. The
+  query runs only for an account whose tier has the feature.
 
 ### Paging
 

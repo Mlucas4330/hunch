@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Gauge, History, Link2, ListChecks, Scale, type LucideIcon } from 'lucide-react'
+import { Gauge, History, Link2, ListChecks, Scale, Target, type LucideIcon } from 'lucide-react'
 import { ANALYSIS_SECTION_ICON } from '@/components/analysis-section-icon'
 import { LandingFaq } from '@/components/landing-faq'
 import { LandingPricing } from '@/components/landing-pricing'
@@ -10,7 +10,16 @@ import { RichText } from '@/components/rich-text'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { getCurrentUser } from '@/lib/current-user'
-import { BLOG_PATH, CONTACT_EMAIL_URL, POST_SIGNIN_REDIRECT, SIGNIN_PATH } from '@/lib/constants'
+import {
+  BLOG_PATH,
+  CONTACT_EMAIL_URL,
+  LANDING_TESTIMONIAL,
+  POST_SIGNIN_REDIRECT,
+  REPORT_PATH,
+  SAMPLE_REPORT_EMBED_KEY,
+  SIGNIN_PATH,
+  whatsappUrl
+} from '@/lib/constants'
 import { AI_POST_SLUG, ANALYSIS_TAB } from '@/lib/enums'
 import { dictionaryFor, getDictionary, getLocale, type Dictionary } from '@/lib/i18n'
 import { pageMetadata } from '@/lib/seo'
@@ -23,8 +32,11 @@ export async function generateMetadata() {
 
 /**
  * The landing page, for an agency that is not a customer yet. A signed-in reader already is one and
- * goes to the dashboard. It sells nothing in the app: the subscription is agreed by email, so the two
- * actions are contact and sign in. See docs/analysis-ui.md.
+ * goes to the dashboard. It sells nothing in the app: the subscription is agreed in a conversation,
+ * so the actions open one. See docs/analysis-ui.md.
+ *
+ * What the report holds comes before what AI can read, because the PageSpeed score is free from
+ * Google and the four error lists are not. Leading with the free half sells somebody else's product.
  */
 export default async function LandingPage() {
   const user = await getCurrentUser()
@@ -64,6 +76,22 @@ export default async function LandingPage() {
         </ol>
       </section>
 
+      <section className="space-y-10">
+        <h2 className="text-balance font-display text-2xl font-bold tracking-tight">{copy.report.heading}</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          <ReportCell icon={ListChecks} copy={copy.report.errors} className="bg-card md:col-span-2" />
+          <ReportCell icon={Link2} copy={copy.report.link} className="bg-card" />
+          <ReportCell
+            icon={Target}
+            copy={copy.report.prospecting}
+            className="border-purple-soft bg-purple/10 md:col-span-2"
+          />
+          <ReportCell icon={Gauge} copy={copy.report.score} className="bg-muted/40" />
+          <ReportCell icon={Scale} copy={copy.report.compare} className="bg-muted/40" />
+          <ReportCell icon={History} copy={copy.report.history} className="bg-muted/40 md:col-span-2" />
+        </div>
+      </section>
+
       <section className="grid gap-10 lg:grid-cols-2 lg:items-start">
         <div className="space-y-4">
           <h2 className="text-balance font-display text-2xl font-bold tracking-tight">{copy.ai.heading}</h2>
@@ -86,16 +114,7 @@ export default async function LandingPage() {
         </ul>
       </section>
 
-      <section className="space-y-10">
-        <h2 className="text-balance font-display text-2xl font-bold tracking-tight">{copy.report.heading}</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          <ReportCell icon={ListChecks} copy={copy.report.errors} className="bg-card md:col-span-2" />
-          <ReportCell icon={Gauge} copy={copy.report.score} className="bg-muted/40" />
-          <ReportCell icon={Scale} copy={copy.report.compare} className="bg-muted/40" />
-          <ReportCell icon={History} copy={copy.report.history} className="border-purple-soft bg-purple/10" />
-          <ReportCell icon={Link2} copy={copy.report.link} className="bg-card" />
-        </div>
-      </section>
+      <Testimonial />
 
       <LandingPricing copy={copy.pricing} locale={locale} />
 
@@ -107,7 +126,7 @@ export default async function LandingPage() {
             <h2 className="max-w-lg text-balance font-display text-2xl font-bold tracking-tight">
               {copy.finalCta.heading}
             </h2>
-            <LandingActions copy={copy.actions} className="justify-center" />
+            <LandingActions copy={copy.actions} compact className="justify-center" />
           </CardContent>
         </Card>
       </section>
@@ -115,22 +134,67 @@ export default async function LandingPage() {
   )
 }
 
+/**
+ * The page's actions, in the order an agency reaches for them: WhatsApp first, because that is where
+ * this market answers, then email, then the door for someone who already has an account. The sample
+ * report is a link rather than a button and appears only once there is one to show.
+ *
+ * `compact` drops the two lesser actions. The closing card is one decision wide, and four buttons in
+ * it is a menu rather than a call.
+ */
 function LandingActions({
   copy,
+  compact,
   className
 }: {
   copy: Dictionary['landing']['actions']
+  compact?: boolean
   className?: string
 }) {
   return (
     <div className={cn('flex flex-wrap items-center gap-3', className)}>
       <Button asChild size="lg">
-        <a href={CONTACT_EMAIL_URL}>{copy.contact}</a>
+        <a href={whatsappUrl(copy.whatsappMessage)} target="_blank" rel="noreferrer noopener">
+          {copy.whatsapp}
+        </a>
       </Button>
-      <Button asChild size="lg" variant="outline">
-        <Link href={SIGNIN_PATH}>{copy.signIn}</Link>
-      </Button>
+
+      {SAMPLE_REPORT_EMBED_KEY && (
+        <Button asChild size="lg" variant="outline">
+          <Link href={`${REPORT_PATH}/${SAMPLE_REPORT_EMBED_KEY}`}>{copy.sample}</Link>
+        </Button>
+      )}
+
+      {!compact && (
+        <>
+          <Button asChild size="lg" variant="outline">
+            <a href={CONTACT_EMAIL_URL}>{copy.contact}</a>
+          </Button>
+          <Button asChild size="lg" variant="ghost">
+            <Link href={SIGNIN_PATH}>{copy.signIn}</Link>
+          </Button>
+        </>
+      )}
     </div>
+  )
+}
+
+// An agency in its own words, or nothing at all. Written by the agency and never translated, which
+// is why it comes from a constant rather than from the dictionaries -- see lib/constants.ts.
+function Testimonial() {
+  if (!LANDING_TESTIMONIAL) return null
+
+  return (
+    <section>
+      <figure className="max-w-2xl space-y-4 border-l-2 border-purple-soft pl-6">
+        <blockquote className="text-balance font-display text-xl font-semibold leading-snug tracking-tight">
+          {LANDING_TESTIMONIAL.quote}
+        </blockquote>
+        <figcaption className="text-sm text-muted-foreground">
+          {LANDING_TESTIMONIAL.name}, {LANDING_TESTIMONIAL.role}, {LANDING_TESTIMONIAL.agency}
+        </figcaption>
+      </figure>
+    </section>
   )
 }
 

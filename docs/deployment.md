@@ -24,9 +24,29 @@ deprecated and must never be named again.
 | `postgres` | `postgres()` helper | |
 | `redis` | `redis()` helper | rate limit counters and the job queue |
 
-**The screenshots volume and the four cron services are gone from the file**, so the first apply after
-they were removed deletes them. That diff is destructive and needs `--confirm-destructive`. Anything
-still on the volume is lost with it.
+**The four cron services are gone from the file**, so the first apply after they were removed deletes
+them. That diff is destructive and needs `--confirm-destructive`.
+
+**`brand-volume` now holds two things**: the agency logos under `BRAND_DIR` and the phone screenshots
+under `SCREENSHOT_DIR`, both at `/data`. It was raised to 3 GB when the screenshots arrived. There is
+no prune cron: a run deletes the screenshots its own snapshots superseded, and the current picture of
+each analysis is kept for good so an old shared report never goes blank. See
+[scraping.md](scraping.md).
+
+**`BILLING_RETURN_URL`** is where Mercado Pago sends the reader back, and it exists because the
+provider will not accept every URL this app answers on. Measured against the live API:
+`http://localhost:3000` is refused outright, and `https://hunch.solutions` is refused where
+`https://www.hunch.solutions` is accepted. The error names neither rule, so set the variable rather
+than debug it again. Unset, the app uses its own origin.
+
+**The access token must be the production one (`APP_USR-`), from an application whose `sandbox_mode`
+is false.** A `TEST-` token creates subscriptions whose checkout page does not open, and the app logs
+a warning at startup when it sees one. See [api.md](api.md).
+
+**`MERCADOPAGO_ACCESS_TOKEN` and `MERCADOPAGO_WEBHOOK_SECRET`** are what the subscription needs. The
+secret is shown by Mercado Pago when the notification URL is registered, and it has to point at
+`/api/billing/mercadopago/webhook`. With neither set the checkout answers `503` and an operator sets
+quotas by hand, which is the state the app shipped in before.
 
 ## Bringing a project up
 

@@ -36,7 +36,9 @@ export default defineRailway(() => {
   };
   const redisVolume = volume("redis-volume", DB_VOLUME);
 
-  const brandVolume = volume("brand-volume", { ...DB_VOLUME, sizeMB: 1000 });
+  // One volume for every file the app writes: the agency logos and the phone screenshots. Larger
+  // than it was, because a screenshot per run on a busy account adds up faster than logos do.
+  const brandVolume = volume("brand-volume", { ...DB_VOLUME, sizeMB: 3000 });
 
   const browser = service("browser", {
     source,
@@ -84,10 +86,14 @@ export default defineRailway(() => {
       BROWSER_URL: preserve(),
       CSP_ENFORCE: preserve(),
       DATABASE_URL: preserve(),
+      BILLING_RETURN_URL: preserve(),
+      MERCADOPAGO_ACCESS_TOKEN: preserve(),
+      MERCADOPAGO_WEBHOOK_SECRET: preserve(),
       NEXT_PUBLIC_APP_URL: preserve(),
       PAGESPEED_API_KEY: preserve(),
       PUPPETEER_SKIP_DOWNLOAD: preserve(),
       REDIS_URL: preserve(),
+      SCREENSHOT_DIR: preserve(),
       SE_RANKING_API_KEY: preserve(),
     },
   });

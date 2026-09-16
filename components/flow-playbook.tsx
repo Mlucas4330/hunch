@@ -5,6 +5,7 @@ import { CardDrawers } from '@/components/card-drawers'
 import { DisclosureCard } from '@/components/disclosure-card'
 import { FlowCategoryBadge } from '@/components/flow-category-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
+import { SeverityBadge } from '@/components/severity-badge'
 import { RankedListHeader } from '@/components/ranked-list-header'
 import { useI18n } from '@/components/i18n-provider'
 import { fixAnchor } from '@/lib/constants'
@@ -47,12 +48,21 @@ export function FlowPlaybook({
             title={fix.title}
             testId={`${section}-fix`}
             defaultOpen={expandFrom === undefined || index < expandFrom}
-            badge={<FlowCategoryBadge category={fix.category} />}
+            badge={
+              <>
+                <SeverityBadge score={fix.impactScore} />
+                <FlowCategoryBadge category={fix.category} />
+              </>
+            }
             score={<ScoreIndicator score={fix.impactScore} />}
             className="animate-stagger-in"
             style={{ '--index': index } as CSSProperties}
           >
             <p className="text-sm text-muted-foreground">{fix.problem}</p>
+
+            {fix.businessImpact && (
+              <p className="text-pretty text-sm font-medium">{fix.businessImpact}</p>
+            )}
 
             <CardDrawers
               drawers={[{ id: 'why', label: copy.evidenceLabel, content: fix.evidence ?? null }]}

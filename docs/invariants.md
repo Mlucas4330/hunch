@@ -84,18 +84,50 @@ forbids the characters Portuguese requires.
 
 ## Access
 
-### Access is a monthly quota an operator sets, read from the row
+### Access is a quota read from the row, written by the subscription or by an operator
 
-The subscription is sold and billed outside the app. What the app knows is `users.monthly_quota`,
-written only from `/admin/accounts`, and how many runs the account started this calendar month (UTC).
-A new analysis is one run and so is every "Run again". A run that failed does not count against it,
-and deleting an analysis does not give its runs back.
+What the app knows is `users.monthly_quota` and how many runs the account started this calendar month
+(UTC). A new analysis is one run and so is every "Run again". A run that failed does not count against
+it, and deleting an analysis does not give its runs back.
+
+**Two things write that number and they never disagree**, because both write it absolutely. The
+Mercado Pago webhook writes `PLAN[tier].quota` when it confirms an authorisation, through
+`applySubscribedTier`, and an operator writes whatever was agreed from `/admin/accounts`. An absolute
+write is also what makes a webhook delivered twice harmless: the same authorisation applied again
+lands on the same number. **If either one ever becomes an increment, a re-delivery starts handing out
+quota.**
+
+**A cancelled subscription expires on read, not on a schedule.** `quotaFor` reads `entitledTierFor`
+beside the row, so an account whose paid month has ended has a limit of zero on its very next request,
+rather than whenever a nightly job happened to run. `cancelled` keeps `current_period_end` for exactly
+this reason: the month already paid for is honoured. An account with no subscription row keeps
+whatever the operator wrote.
+
+**The trial is a one-time credit, not a quota.** `users.trial_runs_left` starts at `TRIAL_RUNS`, is
+spent before the monthly quota, and nothing refills it. It is spent by a conditional update inside the
+same transaction that inserts the run, so two requests cannot both spend the last one; a run that
+failed gives it back, which is why `analysis_runs.trial` records which of the two paid.
 
 **The quota is never in the JWT.** A token lives `SESSION_MAX_AGE_SECONDS`, so a quota stamped into
 one is stale the moment an operator changes it. It is read from the row per request, exactly as the
 role is.
 
 *Governs:* [api.md](api.md), [data-model.md](data-model.md), [product.md](product.md)
+
+### Entitlement is the stored tier, checked at the boundary
+
+What a tier buys beyond its quota is read from `users.plan_tier`, never from the price the landing
+page showed and never from anything the client sent. `canBulkGenerate` in `lib/auth-policy.ts` is the
+one predicate, beside `isAdmin` and for the same reason: no call site may inline the comparison.
+
+**It is checked three times, and only the last two are boundaries.** The nav hides the link, the page
+answers `notFound()`, and the route re-checks before it enqueues anything. Hiding a link is a
+convenience; the route is the gate.
+
+The tier is written only by the subscription webhook, so revoking is what the provider says plus the
+period already paid for, exactly as the quota is.
+
+*Governs:* [security.md](security.md), [api.md](api.md), [product.md](product.md)
 
 ## Brand
 

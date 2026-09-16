@@ -392,6 +392,18 @@ Visibility: `indexability` -> coral · `metadata` -> purple · `structured_data`
 `impact_score` (1-10). Higher = warmer: coral at 8-10, amber at 5-7, gray at 1-4, over
 `impactScoreRailClass` and `impactScoreBadgeClass`.
 
+**Those two read `severityForImpact`, which is where the 8 and the 5 live.** `SeverityBadge` reads
+the same function for the word it prints, so the label on a card and the colour beside it cannot
+disagree. Nothing stores a severity: see [data-model.md](data-model.md).
+
+## Element crop: `components/element-crop.tsx`
+
+The quoted line, framed inside the run's phone screenshot by `position` and `scale` rather than by a
+cut file. One image per run already exists, so cropping at render costs no image library, no file per
+error, and no re-render of old crops the day the framing changes. It never scales up, and it renders
+nothing when the screenshot is missing, when the phone layout dropped the element, or when the image
+fails to load.
+
 - **Impact is the only scale it renders.** There is no effort scale beside it, anywhere in the
   product. See [analysis-ui.md](analysis-ui.md#nothing-shows-an-effort-score-anywhere).
 - **`variant="rail"` is the default and the ranked-row treatment**: a `w-14` tinted block down the

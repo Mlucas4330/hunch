@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { AgencyNote, AgencyNoteEditor } from '@/components/agency-note'
 import { ReportCover } from '@/components/report-cover'
 import { ReportBrandMark } from '@/components/report-brand-mark'
 import { GeneratingNotice, PendingList } from '@/components/generating-notice'
@@ -16,6 +17,7 @@ import { MeasuredReadout } from '@/components/measured-readout'
 import { RunAgain, RunInProgress } from '@/components/run-again'
 import { ReportRail } from '@/components/report-rail'
 import { SectionEvidence } from '@/components/section-evidence'
+import { ShareWhatsapp } from '@/components/share-whatsapp'
 import { StartHere } from '@/components/start-here'
 import { brandFor, type ReportBrand } from '@/lib/brand'
 import { getCurrentUser } from '@/lib/current-user'
@@ -144,6 +146,7 @@ export default async function ReportPage({
           isOwner={isOwner}
           t={t}
           embedKey={analysis.embedKey}
+          host={displayHost(analysis.url)}
           brand={brand}
         />
         <GenerationFailed measured={false} />
@@ -200,7 +203,12 @@ export default async function ReportPage({
     ai: fixPanel(visibility.ai, 'ai'),
     seo: fixPanel(visibility.seo, 'seo'),
     flow: fixPanel(fixes.flow, 'flow'),
-    copy: <HypothesisList hypotheses={analysis.hypotheses} />
+    copy: (
+      <HypothesisList
+        hypotheses={analysis.hypotheses}
+        screenshotUrl={analysis.mobileScreenshotUrl}
+      />
+    )
   }
 
   const panels = Object.fromEntries(
@@ -229,6 +237,7 @@ export default async function ReportPage({
         isOwner={isOwner}
         t={t}
         embedKey={analysis.embedKey}
+        host={displayHost(analysis.url)}
         brand={brand}
         runControl={runControl}
       />
@@ -244,6 +253,12 @@ export default async function ReportPage({
           </InfoHint>
         }
       />
+
+      {isOwner ? (
+        <AgencyNoteEditor analysisId={analysis.id} note={analysis.agencyNote ?? ''} />
+      ) : (
+        analysis.agencyNote && <AgencyNote note={analysis.agencyNote} />
+      )}
 
       {lastRunFailed && (
         <p className="text-sm text-coral print:hidden" data-testid="last-run-failed">
@@ -266,6 +281,7 @@ export default async function ReportPage({
 
           <div id="readout" className={cn(SECTION_ANCHOR_CLASS, 'space-y-4')}>
             <MeasuredReadout pagespeed={analysis.pagespeed} {...competitor} scores={history.scores} />
+            <PageShot url={analysis.mobileScreenshotUrl} label={t.report.mobileShot} />
             {isOwner && !hasHistory && state === 'ready' && (
               <RunAgain analysisId={analysis.id} variant="trend_start" blocked={blocked} />
             )}
@@ -292,12 +308,14 @@ function ReportHeader({
   isOwner,
   t,
   embedKey,
+  host,
   brand,
   runControl = null
 }: {
   isOwner: boolean
   t: Dictionary
   embedKey: string
+  host: string
   brand: ReportBrand
   runControl?: ReactNode
 }) {
@@ -309,6 +327,11 @@ function ReportHeader({
             <Link href="/dashboard">{t.analysis.backToDashboard}</Link>
           </Button>
           <CopyReportLink reportUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''} embedKey={embedKey} />
+          <ShareWhatsapp
+            reportUrl={process.env.NEXT_PUBLIC_APP_URL ?? ''}
+            embedKey={embedKey}
+            host={host}
+          />
           {runControl}
         </div>
       ) : (
@@ -328,6 +351,30 @@ function SummaryCell({ label, value }: { label: string; value: string }) {
       <p className="panel-label text-nano text-muted-foreground">{label}</p>
       <p className="mt-1 font-display text-xl font-semibold tabular-nums">{value}</p>
     </div>
+  )
+}
+
+/**
+ * The page as a phone rendered it, on the run that measured it.
+ *
+ * Nothing at all when the shot failed or the volume is unset. An empty frame would read as a page
+ * that renders nothing, which is a verdict on the site rather than on our own storage. See
+ * docs/invariants.md.
+ */
+function PageShot({ url, label }: { url: string | null; label: string }) {
+  if (!url) return null
+
+  return (
+    <figure className="space-y-1.5">
+      <div className="mx-auto max-h-144 w-full max-w-xs overflow-y-auto rounded-lg border bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element -- a full page shot has no known
+            height, and the image pipeline wants both dimensions up front. */}
+        <img src={url} alt={label} className="w-full" />
+      </div>
+      <figcaption className="panel-label text-center text-nano text-muted-foreground">
+        {label}
+      </figcaption>
+    </figure>
   )
 }
 

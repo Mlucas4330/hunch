@@ -18,6 +18,7 @@ const FIX = {
   problem: 'Signing up means inventing a password.',
   impact_score: 9,
   evidence: 'Every account created today costs the visitor a password.',
+  business_impact: 'Visitors who will not invent a password leave without an account.',
   finding: 'no_social_signin'
 }
 
@@ -27,7 +28,8 @@ const HYPOTHESIS = {
   assessment: 'The subheadline restates the audience the headline already named.',
   problem: 'It leaves the setup question the visitor is about to ask unanswered.',
   impact_score: 4,
-  rationale: 'The space under the headline says nothing the visitor has not already read.'
+  rationale: 'The space under the headline says nothing the visitor has not already read.',
+  business_impact: 'The visitor reaches the pricing table still unsure what setup involves.'
 }
 
 test('an error carries the finding or audit it answers', () => {
@@ -86,8 +88,24 @@ test('a line is quoted and judged before its error is named', () => {
     'assessment',
     'problem',
     'impact_score',
-    'rationale'
+    'rationale',
+    'business_impact'
   ])
+})
+
+test('the consequence is required, because a severity with no cost attached says nothing', () => {
+  const { business_impact, ...withoutImpact } = HYPOTHESIS
+  void business_impact
+
+  assert.equal(HypothesisSchema.safeParse(withoutImpact).success, false)
+  assert.equal(FlowFixSchema.safeParse({ ...FIX, business_impact: undefined }).success, false)
+})
+
+test('the consequence is not a remedy: an error still carries no fix field', () => {
+  const parsed = FlowFixSchema.parse({ ...FIX, fix: 'Add a Google button', steps: ['do this'] })
+
+  assert.equal('fix' in parsed, false)
+  assert.equal('steps' in parsed, false)
 })
 
 test('assessment is required, because a verdict left to the instructions cannot be checked', () => {

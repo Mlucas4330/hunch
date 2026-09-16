@@ -77,7 +77,16 @@ test.describe('core features', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
     const main = page.getByRole('main')
+    await expect(main.getByRole('link', { name: 'Talk on WhatsApp' }).first()).toHaveAttribute(
+      'href',
+      /^https:\/\/wa\.me\//
+    )
     await expect(main.getByRole('link', { name: 'Contact us' }).first()).toHaveAttribute('href', /^mailto:/)
+    // The sample button points at the published report, and only exists because the key is set.
+    await expect(main.getByRole('link', { name: 'See a sample report' }).first()).toHaveAttribute(
+      'href',
+      '/r/00000000-0000-4000-8000-000000000001'
+    )
 
     await expect(main.getByRole('heading', { name: 'What it costs' })).toBeVisible()
     // `exact` is load bearing: 'Agency' is a substring of the hero headline and of an FAQ question.

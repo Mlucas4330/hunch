@@ -54,7 +54,8 @@ const HypothesisSchema = z.object({
   assessment: z.string(),
   problem: z.string(),
   impact_score: z.number().int().min(1).max(10),
-  rationale: z.string()
+  rationale: z.string(),
+  business_impact: z.string()
 })
 
 const fixFields = {
@@ -62,9 +63,20 @@ const fixFields = {
   problem: z.string(),
   impact_score: z.number().int().min(1).max(10),
   evidence: z.string(),
+  business_impact: z.string(),
   finding: z.string().nullable().catch(null)
 }
 ```
+
+**`business_impact` comes last for the same reason `rationale` does**: a consequence is only worth
+stating once the line has been quoted, judged and faulted.
+
+**It is a consequence and never a remedy**, and `businessImpactRules` forbids both halves of how it
+would otherwise drift. No advice, because the product points out errors and the agency sells the fix.
+**And no figure of any kind**: a model asked what an error costs will answer with a percentage
+nobody measured, and an invented number is the one thing in the report a reader could act on and be
+wrong about. `schema.test.ts` pins that the field is required and that no `fix` or `steps` field ever
+joins it.
 
 `AnalysisOutputSchema` has no floor and a `HYPOTHESES_MAX` ceiling. `PlaybookOutputSchema` takes
 `PLAYBOOK_MIN` to `PLAYBOOK_MAX` structure errors; `VisibilityOutputSchema` has no floor.

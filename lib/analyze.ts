@@ -51,6 +51,7 @@ import { fetchPageSpeed, type PageSpeed } from '@/lib/pagespeed'
 import { promptElements, resolveTarget } from '@/lib/prompt-elements'
 import { pickNeighbours } from '@/lib/site-pages'
 import {
+  type ElementRect,
   type PageElement,
   type PageLink,
   type PageMobile,
@@ -202,6 +203,10 @@ export type MeasuredPage = PageMeasurement & {
   // Detected here because this is the first moment `lang` is known. See docs/invariants.md.
   market: Market
   links?: PageLink[]
+  // The phone screenshot and where each element sits in it. Both absent when the shot failed, which
+  // costs the report its picture and nothing else.
+  screenshot?: Buffer
+  elementRects?: Record<string, ElementRect>
 }
 
 export async function measurePage(url: string, locale: Locale): Promise<MeasuredPage> {
@@ -229,7 +234,19 @@ export async function measurePage(url: string, locale: Locale): Promise<Measured
   // slot and both run beside the scrape rather than after it.
   const [
     {
-      scraped: { html, elements, structure, seo, performance, mobile, sections, links, sameness },
+      scraped: {
+        html,
+        elements,
+        structure,
+        seo,
+        performance,
+        mobile,
+        sections,
+        links,
+        sameness,
+        screenshot,
+        elementRects
+      },
       market,
       index
     },
@@ -253,7 +270,9 @@ export async function measurePage(url: string, locale: Locale): Promise<Measured
     elements,
     sections,
     links,
-    market
+    market,
+    screenshot,
+    elementRects
   }
 }
 

@@ -164,6 +164,65 @@ is always one the report can point at.
 families, `FLOW_FIX_CATEGORY` and `VISIBILITY_FIX_CATEGORY`, and each generation's Zod schema is given
 only its own family.
 
+### `business_impact` is nullable, and severity is not a column at all
+
+Both error tables carry `business_impact`: one generated sentence about what the error costs the
+business. Nullable, because every row written before the column existed has none and the card renders
+without it.
+
+**There is no severity column, and there must not be one.** The word a reader sees is
+`severityForImpact(impact_score)`, cut in the single place the scale is cut, so a stored severity
+could only ever be a second copy of a fact the row already holds, free to disagree with it. See
+[readout.md](readout.md).
+
+### The screenshot is stored twice, and pruned in only one of them
+
+`analyses.mobile_screenshot_url` is the current picture of the page and **is never pruned**: a report
+stays online behind its link, and a blank frame on a report an agency already sent is indistinguishable
+from a broken product. `page_snapshots.mobile_screenshot_url` is that run's own picture and is deleted
+once it falls past `SNAPSHOT_HISTORY_MAX`, because what an old snapshot owes the trend is its score.
+
+`hypotheses.element_rect` is where the quoted element sat in that picture, measured in the phone
+layout. Null for a manual target and for every row older than the column. Both files live on the same
+volume as the brand logos, under `SCREENSHOT_DIR`. See [scraping.md](scraping.md).
+
+### `analyses.agency_note` is the only column a reader's own agency writes
+
+Written from the report by its owner, rendered to whoever holds the link, and null for almost every
+row. Bounded by `AGENCY_NOTE_MAX_LENGTH` in the action's schema, which re-checks the session and the
+ownership itself. See [report.md](report.md).
+
+### `subscriptions` and `payment_events` record what the provider said, not what we owe
+
+`subscriptions` is a copy of what Mercado Pago last reported about one preapproval, kept so a screen
+can render without calling them. Unique on `(provider, provider_ref)` because the redirect back from
+the checkout and the webhook announcing the same authorisation arrive in an order nobody controls and
+must converge on one row. `current_period_end` is kept on a cancellation rather than cleared: it is
+what honours the month already paid for.
+
+`payment_events` claims one delivery, keyed on the provider's id **and** the notification type,
+because one subscription notifies under two topics. The claim is released when handling fails, so the
+retry can work.
+
+**Neither table is read to decide what an account may run.** `users.monthly_quota` is, and
+`users.plan_tier` is what a tier-gated feature reads. See
+[invariants.md](invariants.md#access-is-a-quota-read-from-the-row-written-by-the-subscription-or-by-an-operator).
+
+### `users.trial_runs_left` is a credit, and `analysis_runs.trial` says which one paid
+
+The trial column starts at `TRIAL_RUNS` and nothing refills it. A run spends it with a conditional
+update inside the same transaction that inserts the run, so the last credit cannot be spent twice,
+and `analysis_runs.trial` records that this run took it, which is what lets a failure give it back.
+The monthly half needs no such column: the usage count simply ignores rows with a `failed_at`.
+
+### `bulk_batches` holds no progress counter
+
+A batch is its items, and each item's latest run says whether it settled. `batchFinished` computes
+that from the rows, because a counter beside them would be a second record of one fact, and the two
+disagree the first time a write is lost. `read_at` is the only state the batch itself keeps, and it
+is what clears the badge in the nav. `bulk_batch_items.analysis_id` is set null on delete, for the
+same reason `analysis_runs` does it.
+
 ## Where rows are split, never inline at a call site
 
 All in `lib/analyses.ts`:

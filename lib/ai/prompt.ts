@@ -84,6 +84,19 @@ const noFixRules = () => `- **You point out errors. You never write the fix.** N
   copy, never write steps, never tell the owner what to add, remove, rewrite or change. Every field
   describes what is wrong today and why it is a problem.`
 
+/**
+ * The consequence in the owner's own terms, and the field most likely to drift into advice or into
+ * invented arithmetic. Both are forbidden by name here, because a model asked what an error costs
+ * will otherwise answer with a percentage nobody measured. See docs/ai-pipeline.md.
+ */
+const businessImpactRules = () => `- business_impact is ONE sentence (about 20 words or fewer) saying
+  what this error costs the business: the lead, the sale, the call or the trust that does not happen.
+- **It is a consequence, never a remedy.** Do not say what to do about it, and do not say what fixing
+  it would achieve.
+- **Never put a number in it.** No percentages, no multiples, no counts of lost visitors, no money.
+  You have not measured any of that, and an invented figure is the one thing in the report a reader
+  could act on and be wrong about.`
+
 export const systemPrompt = (
   language: string,
   market: string,
@@ -124,6 +137,7 @@ ${noFixRules()}
   must quote the page's exact characters in whatever language the page itself is written in.
 ${assessmentRules()}
 ${impactScoreRules()}
+${businessImpactRules()}
 ${evidenceRules()}
 ${marketRules(market)}${competitorHost ? `\n${competitorRules(competitorHost)}` : ''}
 
@@ -161,6 +175,7 @@ ${noFixRules()}
   unless the readout shows this page actually has a way to sign in.
 ${samenessRules()}
 ${impactScoreRules()}
+${businessImpactRules()}
 ${findingRules()}
 ${evidenceRules()}
 ${marketRules(market)}${competitorHost ? `\n${competitorRules(competitorHost)}` : ''}
@@ -204,6 +219,7 @@ ${noFixRules()}
   domain from other sites, and rankings for what the domain ranks for on Google in this market.
 - A site error must rest on a finding of the "site" group. Name one or two of its URLs when that makes
   the error concrete. Never report a site problem that is not in the findings.
+${businessImpactRules()}
 - Backlink and ranking numbers are SE Ranking's estimates from its own index, not measurements of the
   site. Say they are estimates when you cite one. Never promise a ranking, a position or traffic, and
   never say what fixing an error would do to either.

@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { HypothesisCard } from '@/components/hypothesis-card'
 import { CardDrawers } from '@/components/card-drawers'
+import { ElementCrop } from '@/components/element-crop'
 import { RankedListHeader } from '@/components/ranked-list-header'
 import { HYPOTHESIS_EXPANDED_COUNT } from '@/lib/constants'
 import { useI18n } from '@/components/i18n-provider'
@@ -12,7 +13,13 @@ import type { Hypothesis } from '@/db/schema'
  * The copy errors, on the one analysis surface there is. Each card quotes the line and says what is
  * wrong with it; nothing here writes a replacement.
  */
-export function HypothesisList({ hypotheses }: { hypotheses: Hypothesis[] }) {
+export function HypothesisList({
+  hypotheses,
+  screenshotUrl
+}: {
+  hypotheses: Hypothesis[]
+  screenshotUrl: string | null
+}) {
   const { dictionary } = useI18n()
   const copy = dictionary.hypothesisList
 
@@ -36,14 +43,20 @@ export function HypothesisList({ hypotheses }: { hypotheses: Hypothesis[] }) {
           isTop={index === 0}
           defaultOpen={index < HYPOTHESIS_EXPANDED_COUNT}
         >
-          <HypothesisBody hypothesis={hypothesis} />
+          <HypothesisBody hypothesis={hypothesis} screenshotUrl={screenshotUrl} />
         </HypothesisCard>
       ))}
     </div>
   )
 }
 
-function HypothesisBody({ hypothesis }: { hypothesis: Hypothesis }) {
+function HypothesisBody({
+  hypothesis,
+  screenshotUrl
+}: {
+  hypothesis: Hypothesis
+  screenshotUrl: string | null
+}) {
   const { dictionary } = useI18n()
   const copy = dictionary.hypothesisList
 
@@ -53,6 +66,16 @@ function HypothesisBody({ hypothesis }: { hypothesis: Hypothesis }) {
         <span className="sr-only">{dictionary.report.current}: </span>
         {hypothesis.currentCopy}
       </blockquote>
+
+      <ElementCrop
+        screenshotUrl={screenshotUrl}
+        rect={hypothesis.elementRect}
+        label={copy.cropLabel}
+      />
+
+      {hypothesis.businessImpact && (
+        <p className="text-pretty text-sm font-medium">{hypothesis.businessImpact}</p>
+      )}
 
       <CardDrawers
         drawers={[

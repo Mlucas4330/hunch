@@ -47,6 +47,12 @@ push goes live: Railway ships whatever is on `main`.
   `pagespeed.failed` warning in the log. Everything else still runs.
 - **`BRAND_DIR`** is where uploaded logos are written, `./.brand` locally. Unset, the name still saves
   and a logo upload answers `503 brand_storage_unavailable`. The e2e suite writes to `.brand-e2e`.
+- **`SCREENSHOT_DIR`** is where the phone screenshot of each measured page is written, `./.screenshots`
+  locally. Unset, the run still measures everything and the report simply shows no picture and no
+  crops. The e2e suite writes to `.screenshots-e2e`.
+- **`MERCADOPAGO_ACCESS_TOKEN` unset** makes the subscribe route answer `503 billing_unavailable`, so
+  the checkout buttons do nothing and quotas are set at `/admin/accounts` as before. The webhook
+  refuses every delivery without `MERCADOPAGO_WEBHOOK_SECRET`, which is what you want locally.
 - **`PUPPETEER_SKIP_DOWNLOAD` must stay unset locally**, where Chrome is launched in-process.
 - **`E2E_FAIL_GENERATION`** (`throw`, `empty` or `copy`) makes the fixture generation fail on purpose.
   It is nested inside the `E2E_FIXTURES` branch, so no production deploy can reach it.

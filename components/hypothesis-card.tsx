@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { DisclosureCard } from '@/components/disclosure-card'
 import { SectionBadge } from '@/components/section-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
+import { SeverityBadge } from '@/components/severity-badge'
 import { useI18n } from '@/components/i18n-provider'
 import type { Hypothesis } from '@/db/schema'
 import { cn } from '@/lib/utils'
@@ -32,6 +33,7 @@ export function HypothesisCard({
       score={<ScoreIndicator score={hypothesis.impactScore} />}
       badge={
         <>
+          <SeverityBadge score={hypothesis.impactScore} />
           <SectionBadge section={hypothesis.section} />
           {isTop && (
             <span className="panel-label text-nano text-coral">

@@ -55,12 +55,23 @@ and call `router.refresh()` once when the state stops being `generating` or `rer
 - **`ReportCover`**: the host as the `<h1>`, the full URL, the date of the last finished run, and a
   summary sentence assembled in code from counted facts. With nothing generated it prints `report.summaryPending` instead, because
   "0 errors" would read as a clean page.
+- **The agency note**: the owner sees a textarea and a save button, everybody else sees the saved
+  text, and an analysis with no note renders nothing. It is rendered as the agency's own words, with
+  no mark of ours beside it, for the same reason the header shows their logo. The action behind it
+  re-checks the session and the ownership itself. See
+  [invariants.md](invariants.md#the-agencys-brand-comes-from-one-resolver-on-three-surfaces).
 - **Two summary cells** when there is something generated: errors found, wording errors.
 - **The rail and `StartHere`**: a sticky column of anchors above `lg`, built from `REPORT_SECTION` and
   the same section list the page renders, and the three highest-impact structure and visibility errors
   linking to their cards. Neither adds information; see [components.md](components.md).
 - **`MeasuredReadout`**: the overall PageSpeed Insights score, the trend and the field data. See
-  [readout.md](readout.md).
+  [readout.md](readout.md). Under it, the phone screenshot of the page from the run that measured
+  it, and **nothing at all when that run took none**: an empty frame would read as a page that
+  renders nothing, which is a verdict on the site rather than on our storage.
+- **Every error card carries its severity and what it costs**: `SeverityBadge`, read from the impact
+  score the card already shows, and one sentence of `business_impact`. A copy card also carries
+  `ElementCrop`, the quoted line framed inside that same screenshot, which renders only when the run
+  measured a box for it in the phone layout.
 - **`AnalysisSections`**: AI, SEO, structure and copy, stacked `PanelCard`s, each opening with what
   was measured on its theme. See [analysis-ui.md](analysis-ui.md). **A closed panel is a print bug**, and `@media print` in
   `app/globals.css` prints every `<details>` open.

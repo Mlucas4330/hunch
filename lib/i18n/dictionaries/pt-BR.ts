@@ -10,8 +10,8 @@ export const ptBR: Dictionary = {
     reportOgImageAlt: 'Auditoria de landing page',
     pages: {
       settings: {
-        title: 'Sua marca',
-        description: 'O logo e o nome que vão em todo relatório que você manda.'
+        title: 'Configurações',
+        description: 'A marca que os seus relatórios carregam e o plano da sua conta.'
       },
       landing: {
         title: 'Auditoria de landing page para agências',
@@ -30,6 +30,10 @@ export const ptBR: Dictionary = {
       dashboard: {
         title: 'Suas páginas',
         description: 'Todas as landing pages que você auditou e o relatório que cada uma gerou.'
+      },
+      bulk: {
+        title: 'Auditar uma lista de páginas',
+        description: 'Cole uma lista de URLs e receba um relatório para cada uma delas.'
       },
       admin: {
         title: 'Contas',
@@ -72,6 +76,12 @@ export const ptBR: Dictionary = {
   },
 
   labels: {
+    // Lido do impacto, nunca armazenado. Veja lib/constants.ts.
+    severity: {
+      critical: 'Crítico',
+      medium: 'Médio',
+      low: 'Leve'
+    },
     section: {
       headline: 'Título',
       subheadline: 'Subtítulo',
@@ -112,7 +122,9 @@ export const ptBR: Dictionary = {
     homeAria: 'Início do Hunch',
     blog: 'Blog',
     dashboard: 'Minhas páginas',
-    settings: 'Sua marca',
+    bulk: 'Em lote',
+    bulkReady: 'Pronto',
+    settings: 'Configurações',
     admin: 'Admin',
     signIn: 'Entrar',
     signOut: 'Sair',
@@ -134,8 +146,9 @@ export const ptBR: Dictionary = {
   },
 
   settings: {
-    eyebrow: 'White label',
-    title: 'Sua marca',
+    eyebrow: 'Conta',
+    title: 'Configurações',
+    brandTitle: 'Sua marca',
     hintLabel: 'Onde a sua marca aparece',
     hint: 'Com um logo ou um nome salvo aqui, os relatórios que você manda saem *com a sua marca no lugar da nossa*: no topo do relatório que o cliente abre, no card de prévia quando o link é colado no WhatsApp ou no e-mail e no título da aba do navegador.',
     nameLabel: 'Nome da agência',
@@ -151,15 +164,28 @@ export const ptBR: Dictionary = {
     errorLogoTooLarge: 'Esse arquivo passa de {kb} KB. Exporte menor e tente de novo.',
     errorUnsupportedLogo: 'Esse arquivo não é PNG nem JPEG.',
     errorNameTooLong: 'O nome pode ter até {max} caracteres.',
-    errorStorage: 'O envio de logo não está disponível agora. Tente de novo mais tarde.'
+    errorStorage: 'O envio de logo não está disponível agora. Tente de novo mais tarde.',
+    subscription: {
+      title: 'Sua assinatura',
+      active: 'Você está no {tier}.',
+      activeUntil: 'Você está no {tier}, com renovação em {date}.',
+      cancel: 'Cancelar assinatura',
+      confirmCancel: 'Sim, cancelar',
+      keep: 'Manter',
+      cancelling: 'Cancelando...',
+      cancelFailed: 'Não deu para cancelar. Tente de novo em instantes.'
+    }
   },
 
   landing: {
     eyebrow: 'Para agências',
-    headlineTop: 'A auditoria de landing page que a sua agência manda por link.',
-    headlineBottom: 'Começando pelo que a IA consegue ler.',
-    lead: 'Cole a URL do cliente e receba a nota do PageSpeed, o acesso dos crawlers de IA e os erros da página.',
+    headlineTop: 'Mostre ao seu prospect por que a landing page dele perde cliente.',
+    headlineBottom: 'Num relatório com a marca da sua agência.',
+    lead: 'Cole a URL e receba os erros de copy, estrutura, SEO e leitura por IA, com a sua marca no relatório.',
     actions: {
+      whatsapp: 'Falar no WhatsApp',
+      whatsappMessage: 'Oi! Tenho uma agência e quero ver um relatório do Hunch para um cliente meu.',
+      sample: 'Ver relatório de exemplo',
       contact: 'Entrar em contato',
       signIn: 'Entrar'
     },
@@ -206,7 +232,11 @@ export const ptBR: Dictionary = {
       heading: 'O que cada relatório traz',
       errors: {
         title: 'Quatro listas de erros',
-        body: 'IA, SEO, estrutura e copy. Cada erro diz o que está errado na página e por que isso é um problema. O que fazer com ele é trabalho da sua agência.'
+        body: 'IA, SEO, estrutura e copy. Cada erro diz o que está errado na página e por que isso é um problema, e vira um item que a sua agência pode cobrar para corrigir.'
+      },
+      prospecting: {
+        title: 'Abra toda reunião com o diagnóstico do lead',
+        body: 'Rode a página do prospect antes da primeira conversa e chegue mostrando o que está errado, em vez de perguntar o que ele precisa.'
       },
       score: {
         title: 'A nota do Google PageSpeed',
@@ -230,19 +260,29 @@ export const ptBR: Dictionary = {
       recommended: 'O mais escolhido',
       price: 'R$ {value}/mês',
       quota: '{count} rodadas por mês',
+      subscribe: 'Assinar',
+      subscribing: 'Abrindo o checkout...',
+      subscribeFailed: 'Não deu para abrir. Tente de novo em instantes.',
       note: 'Se a cota acabar antes do mês, você sobe de faixa. Uma rodada que falha não conta.',
       plans: {
         studio: {
           name: 'Studio',
-          body: 'Três a cinco clientes, e ainda sobra rodada para auditar um prospect antes de apresentar a proposta.'
+          body: 'Três a cinco clientes, e ainda sobra rodada para auditar um prospect antes de apresentar a proposta.',
+          features: [
+            'Relatório com a marca da sua agência',
+            'Link que abre sem login',
+            'Uma página concorrente para comparar'
+          ]
         },
         agency: {
           name: 'Agência',
-          body: 'Dez a vinte clientes auditados todo mês, e o resto da cota vai para prospecção.'
+          body: 'Dez a vinte clientes auditados todo mês, e o resto da cota vai para prospecção.',
+          features: ['Tudo do Studio', 'Widget para o site da agência (em breve)']
         },
         network: {
           name: 'Rede',
-          body: 'Um relatório por dia, ou um time de vendas que abre toda conversa com um.'
+          body: 'Um relatório por dia, ou um time de vendas que abre toda conversa com um.',
+          features: ['Tudo do plano Agência', 'Widget para o site da agência (em breve)']
         }
       }
     },
@@ -263,7 +303,7 @@ export const ptBR: Dictionary = {
         },
         {
           question: 'O relatório escreve as correções?',
-          answer: 'Não. Cada erro diz o que está errado na página e por quê. Não tem texto substituto nem passo a passo, porque o que fazer com o erro é trabalho da agência.'
+          answer: 'Não, e isso é de propósito. Cada erro diz o que está errado na página e por quê, sem texto pronto nem passo a passo. Assim cada erro vira um item que a sua agência pode cobrar para corrigir, em vez de um trabalho que o relatório já entregou de graça.'
         },
         {
           question: 'De onde vêm os números?',
@@ -387,13 +427,54 @@ export const ptBR: Dictionary = {
       },
       listTitle: 'Contas com cota',
       listEmpty: 'Nenhuma conta tem cota ainda.',
-      usage: '{used} de {limit} este mês'
+      usage: '{used} de {limit} este mês',
+      trial: '+{count} de teste'
+    }
+  },
+
+  bulk: {
+    eyebrow: 'Prospecção',
+    title: 'Auditar uma lista de páginas',
+    subtitle:
+      'Cole até {max} URLs, uma por linha. Cada uma gasta uma rodada, e a tabela vai se preenchendo conforme elas terminam.',
+    navLabel: 'Em lote',
+    label: 'URLs, uma por linha',
+    placeholder: 'https://cliente.com.br\nhttps://prospect.com.br',
+    submit: 'Auditar {count} páginas',
+    submitting: 'Colocando na fila...',
+    willSpend: '{count} das suas {max} por lote.',
+    overQuota: '{count} páginas, e você tem {remaining} análises restantes.',
+    errors: {
+      invalid_urls: 'Coloque pelo menos uma URL.',
+      too_many_urls: 'São mais URLs do que cabem em um lote.',
+      invalid_url: 'Um desses endereços não pode ser aberto. Confira a lista.',
+      quota_exhausted: 'São mais análises do que você tem disponíveis este mês.',
+      forbidden: 'A auditoria em lote vem com os planos Agência e Rede.',
+      failed: 'Não deu para começar. Tente de novo em instantes.'
+    },
+    results: {
+      title: 'O que o lote encontrou',
+      running: 'Ainda rodando',
+      download: 'Baixar CSV',
+      failed: 'Esta rodada falhou',
+      pending: 'Ainda rodando',
+      open: 'Abrir {host}',
+      columns: {
+        page: 'Página',
+        score: 'PageSpeed',
+        critical: 'Erros críticos',
+        problem: 'Problema principal',
+        report: 'Relatório'
+      }
     }
   },
 
   quota: {
     usage: '{used} de {limit} análises usadas este mês',
-    none: 'Não há mais análises disponíveis este mês. Fale com quem administra a sua conta.'
+    remaining: '({count} restantes)',
+    trial: 'Você ainda tem {count} análises gratuitas, e elas não expiram no fim do mês.',
+    none: 'Não há mais análises disponíveis este mês.',
+    seePlans: 'Ver os planos'
   },
 
   dashboard: {
@@ -435,7 +516,9 @@ export const ptBR: Dictionary = {
 
 
   history: {
-    openAria: 'Abrir análise de {url}',
+    trendAria: 'As páginas deste cliente, com a nota anterior à última rodada ao lado de cada uma',
+    wasScore: '(era {score})',
+    openAria:'Abrir análise de {url}',
     deleteAria: 'Excluir análise de {url}',
   },
 
@@ -639,7 +722,8 @@ export const ptBR: Dictionary = {
     hintLabel: 'Como ler isto',
     hint: 'Cada uma cita a linha *como ela está na página* e diz o que está errado nela.',
     testThisFirst: 'Comece por aqui',
-    assessmentLabel: 'O que ela faz hoje'
+    assessmentLabel: 'O que ela faz hoje',
+    cropLabel: 'Esta linha na página'
   },
 
   report: {
@@ -670,7 +754,25 @@ export const ptBR: Dictionary = {
     copyErrors: 'Erros de texto',
     startHere: {
       eyebrow: 'Prioridade',
-      title: 'Os maiores erros'
+      title: 'Os três maiores problemas',
+      lead: 'O resto do relatório lista tudo o que foi encontrado. Estes três são os que mais custam.'
+    },
+    mobileShot: 'A página no celular, como ela foi medida',
+    shareWhatsapp: {
+      label: 'Enviar no WhatsApp',
+      message: 'Rodei uma auditoria em {host} e encontrei alguns pontos para corrigir. O relatório está aqui: {url}'
+    },
+    agencyNote: {
+      label: 'Seu recado neste relatório',
+      readerLabel: 'Recado da agência',
+      placeholder: 'O que você quer que o leitor veja primeiro, com as suas palavras.',
+      save: 'Salvar recado',
+      result: {
+        saved: 'Recado salvo.',
+        invalid: 'Esse recado é longo demais para salvar.',
+        forbidden: 'Este relatório não é seu para editar.',
+        failed: 'Não deu para salvar. Tente de novo.'
+      }
     },
     rail: {
       label: 'Nesta página',
