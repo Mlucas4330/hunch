@@ -4,11 +4,14 @@ import { z } from 'zod'
 import { billingReturnUrl } from '@/lib/app-url'
 import {
   BILLING_RETURN_PATH,
+  MERCADOPAGO_AUTHORIZED,
   MERCADOPAGO_PROVIDER,
   PLAN,
-  PLAN_FREQUENCY
+  PLAN_FREQUENCY,
+  PLAN_REASON
 } from '@/lib/constants'
-import { PLAN_TIER } from '@/lib/enums'
+import { isSubscriptionStatus, PLAN_TIER } from '@/lib/enums'
+import { applySubscribedTier } from '@/lib/quota'
 import { getCurrentUser } from '@/lib/current-user'
 import { log } from '@/lib/log'
 import { cancelPreapproval, createPreapproval, mercadoPagoEnabled } from '@/lib/mercadopago'
@@ -17,17 +20,22 @@ import { recordSubscription, subscriptionFor } from '@/lib/subscriptions'
 
 export const runtime = 'nodejs'
 
-const BodySchema = z.object({ tier: z.enum(PLAN_TIER) })
+const BodySchema = z.object({
+  tier: z.enum(PLAN_TIER),
+  // What the provider's card form produced in the browser. Single use, and the only thing about the
+  // card that ever reaches this server.
+  cardToken: z.string().min(1)
+})
 
 /**
- * Opens the subscription and hands back the URL where the reader confirms it.
+ * Subscribes the caller to a tier, on a card they entered on our own page.
  *
  * **Session required, and the amount comes from `PLAN`.** The tier arrives in the body and is
- * validated against the enum; the price is never read from the request, and the webhook matches the
- * confirmed amount back against the same map. See docs/security.md.
+ * validated against the enum; the price is never read from the request. See docs/security.md.
  *
- * **It entitles nothing.** The row is written `pending`, which `entitledTierFor` does not read, so
- * somebody who opens a checkout and walks away has bought nothing.
+ * **The provider answers `authorized`, so this is the moment the account is entitled.** The webhook
+ * still writes every later change, and writes the same absolute quota, so a delivery that arrives
+ * after this has nothing to disagree with. See docs/invariants.md.
  */
 export async function POST(request: Request) {
   const user = await getCurrentUser()
@@ -43,16 +51,20 @@ export async function POST(request: Request) {
   const parsed = BodySchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'invalid_tier' }, { status: 422 })
 
-  const { tier } = parsed.data
+  const { tier, cardToken } = parsed.data
 
   try {
     const preapproval = await createPreapproval(
       {
-        reason: tier,
+        reason: PLAN_REASON[tier],
         external_reference: user.id,
         payer_email: user.email,
+        card_token_id: cardToken,
+        // **Required by the API even though nobody is redirected here.** With a card there is no
+        // trip to the provider and no way back from one, so this is a field the request has to
+        // carry rather than a page anyone visits. See docs/api.md.
         back_url: billingReturnUrl(BILLING_RETURN_PATH),
-        status: 'pending',
+        status: 'authorized',
         auto_recurring: {
           frequency: PLAN_FREQUENCY.frequency,
           frequency_type: PLAN_FREQUENCY.frequencyType,
@@ -63,20 +75,32 @@ export async function POST(request: Request) {
       randomUUID()
     )
 
-    // Written before the reader is sent anywhere, so the webhook has a row to find whichever way the
-    // race falls. `recordSubscription` upserts for exactly that reason.
+    const status = isSubscriptionStatus(preapproval.status) ? preapproval.status : 'pending'
+
     await recordSubscription({
       userId: user.id,
       provider: MERCADOPAGO_PROVIDER,
       providerRef: preapproval.id,
-      status: 'pending',
-      tier
+      status,
+      tier,
+      currentPeriodEnd: preapproval.next_payment_date
+        ? new Date(preapproval.next_payment_date)
+        : null
     })
 
-    return NextResponse.json({ id: preapproval.id, initPoint: preapproval.init_point ?? null })
+    // Only an authorisation entitles anything, here exactly as in the webhook, and it writes the
+    // same absolute number so the two can never disagree.
+    if (status === MERCADOPAGO_AUTHORIZED) await applySubscribedTier(user.id, tier)
+
+    log.info('subscription.status_changed', { user: user.id, status, tier })
+
+    return NextResponse.json({ id: preapproval.id, status })
   } catch (error) {
     log.error('subscription.created_failed', error, { user: user.id })
-    return NextResponse.json({ error: 'subscription_failed' }, { status: 502 })
+
+    // The provider refuses a card for reasons the reader can act on, so the refusal is passed back
+    // as its own code rather than as a generic failure.
+    return NextResponse.json({ error: 'card_refused' }, { status: 402 })
   }
 }
 

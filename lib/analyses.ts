@@ -2,7 +2,15 @@ import { cache } from 'react'
 import { and, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/db'
-import { analyses, pageSnapshots, type Analysis, type FlowFix, type User } from '@/db/schema'
+import {
+  analyses,
+  flowFixes,
+  hypotheses,
+  pageSnapshots,
+  type Analysis,
+  type FlowFix,
+  type User
+} from '@/db/schema'
 import { SNAPSHOT_HISTORY_MAX } from '@/lib/constants'
 import { displayHost } from '@/lib/host'
 import { AI_FIX_CATEGORY, type FixKind } from '@/lib/enums'
@@ -40,6 +48,31 @@ export const loadReport = cache(async (embedKey: string) => {
   })
 
   return analysis ?? null
+})
+
+/**
+ * The report the landing page offers as its sample: the first one this database holds.
+ *
+ * **It must be a finished one.** The first row is not necessarily a report at all -- an analysis that
+ * failed, or one still being written, has no error lists -- and a sample that opens on an empty page
+ * argues against the product it is there to sell. So the oldest row that actually generated
+ * something is the one taken.
+ *
+ * Null when there is nothing to show, and the landing then offers no sample. Cached per request like
+ * `loadReport`, because the landing renders the link in two places.
+ */
+export const sampleReportKey = cache(async (): Promise<string | null> => {
+  const [row] = await db
+    .select({ embedKey: analyses.embedKey })
+    .from(analyses)
+    .where(
+      sql`exists (select 1 from ${hypotheses} where ${hypotheses.analysisId} = ${analyses.id})
+        or exists (select 1 from ${flowFixes} where ${flowFixes.analysisId} = ${analyses.id})`
+    )
+    .orderBy(analyses.createdAt)
+    .limit(1)
+
+  return row?.embedKey ?? null
 })
 
 export function splitFixes(fixes: FlowFix[]): Record<FixKind, FlowFix[]> {

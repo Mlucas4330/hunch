@@ -266,8 +266,12 @@ export const en = {
       price: 'R$ {value}/mo',
       quota: '{count} runs a month',
       subscribe: 'Subscribe',
-      subscribing: 'Opening checkout...',
-      subscribeFailed: 'That did not open. Try again in a moment.',
+      subscribeSignedOut: 'Sign in to subscribe',
+      cardLoading: 'Loading the card form...',
+      cardSubmit: 'Subscribe',
+      subscribed: 'You are subscribed. The runs are on your account already.',
+      cardRefused: 'The card was refused. Check the details, or try another one.',
+      subscribeFailed: 'That did not go through. Try again in a moment.',
       note: 'If the quota runs out before the month does, you move up a tier. A run that fails does not count against it.',
       plans: {
         studio: {

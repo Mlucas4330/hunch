@@ -45,10 +45,8 @@ export const SIGNIN_PATH = '/auth/signin'
 // one. See docs/report.md.
 export const REPORT_PATH = '/r'
 
-// One real analysis, published so the landing can show the product instead of describing it. Read
-// from the environment because the row differs between a developer's database and production, and a
-// literal key would 404 everywhere but one. Unset means the landing offers no sample.
-export const SAMPLE_REPORT_EMBED_KEY = process.env.SAMPLE_REPORT_EMBED_KEY ?? null
+// The sample report the landing links to is read from the database, never configured: see
+// `sampleReportKey` in lib/analyses.ts.
 
 export const URL_FIELD_ID = 'url'
 
@@ -518,6 +516,15 @@ export function planTierForAmount(amount: number): PlanTier | null {
   return PLAN_TIER.find((tier) => PLAN[tier].priceBrl === amount) ?? null
 }
 
+// What the subscription is called on the payer's card statement and in their Mercado Pago account.
+// Not a dictionary string: it is read by somebody looking at a charge months later, in whatever
+// language their bank speaks, and it has to match what we can look up.
+export const PLAN_REASON: Record<PlanTier, string> = {
+  studio: 'Hunch Studio',
+  agency: 'Hunch Agencia',
+  network: 'Hunch Rede'
+}
+
 // How the preapproval is billed. Monthly, in BRL, and every tier is on the same cycle.
 export const PLAN_FREQUENCY = { frequency: 1, frequencyType: 'months', currency: 'BRL' } as const
 
@@ -558,6 +565,16 @@ export const MERCADOPAGO_AUTHORIZED = 'authorized'
 // Where the reader lands after the provider's checkout, and where they manage what they bought.
 export const BILLING_RETURN_PATH = '/dashboard'
 export const BILLING_SUBSCRIBE_PATH = '/api/billing/mercadopago/subscribe'
+
+// The card form, rendered in our own page by the provider's script. See docs/security.md for the
+// three CSP holes it needs.
+export const MERCADOPAGO_SDK_URL = 'https://sdk.mercadopago.com/js/v2'
+export const MERCADOPAGO_BRICK_CONTAINER = 'mercadopago-card-brick'
+
+export const MERCADOPAGO_LOCALE: Record<Locale, string> = {
+  en: 'en-US',
+  'pt-BR': 'pt-BR'
+}
 
 // How close a tooltip may come to the edge of the viewport before it slides itself back in. It is
 // the gap that keeps the panel from looking welded to the screen edge, and the reason the number is

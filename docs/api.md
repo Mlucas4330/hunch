@@ -137,12 +137,21 @@ refused, so the checkout cannot be exercised from a developer's machine without 
 pointing somewhere public; and some apex domains on newer TLDs are refused where the `www` host of
 the same domain is accepted. See [deployment.md](deployment.md).
 
-`POST /api/billing/mercadopago/subscribe` takes a `tier` and nothing else. **The amount is read from
-`PLAN` on the server**, so a caller editing the request can only ever buy the tier they named, and
-the webhook matches the confirmed amount back against the same map through `planTierForAmount`. The
-row is written `pending`, which entitles nothing: somebody who opens a checkout and walks away has
-bought nothing. With no `MERCADOPAGO_ACCESS_TOKEN` the route answers `503 billing_unavailable` and an
-operator still sets quotas by hand.
+`POST /api/billing/mercadopago/subscribe` takes a `tier` and a single-use `cardToken`. **The amount
+is read from `PLAN` on the server**, so a caller editing the request can only ever buy the tier they
+named, and the webhook matches the confirmed amount back against the same map through
+`planTierForAmount`. The provider answers `authorized`, so the quota is written in the same request
+and nobody is redirected anywhere. With no `MERCADOPAGO_ACCESS_TOKEN` the route answers
+`503 billing_unavailable` and an operator still sets quotas by hand; a refused card answers `402`.
+
+**Three things the provider refuses, each measured against the live API rather than guessed:**
+
+- **A payer who is also the collector.** Nobody subscribes to themselves.
+- **Mixing a real account with a test one**, in either direction: "Both payer and collector must be
+  real or test users".
+- **`back_url`, which is required even here.** There is no redirect in this flow and the field is
+  never visited, but the request is refused without one, and refused again if the URL has a shape its
+  validator dislikes. See [deployment.md](deployment.md).
 
 `DELETE` ends the caller's own subscription, and **takes no id**: `subscriptionFor` looks the row up
 by the session, so there is no field to aim at somebody else's. The provider is called first and the

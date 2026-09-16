@@ -1,5 +1,11 @@
+'use client'
+
+import { useState } from 'react'
 import { Check } from 'lucide-react'
-import { SubscribeButton } from '@/components/subscribe-button'
+import { SignInToSubscribe, SubscribeButton } from '@/components/subscribe-button'
+import { SubscribeCard } from '@/components/subscribe-card'
+import { CALLBACK_URL_PARAM, SIGNIN_PATH } from '@/lib/constants'
+import type { PlanTier } from '@/lib/enums'
 import { PLAN } from '@/lib/constants'
 import { PLAN_TIER, RECOMMENDED_PLAN_TIER, type Locale } from '@/lib/enums'
 import { formatNumber, t } from '@/lib/i18n/format'
@@ -14,14 +20,25 @@ import { cn } from '@/lib/utils'
  *
  * A tier's features are copy and nothing branches on them: every account sees the same product, and
  * the one line that is not shipped yet says so.
+ *
+ * **A client component because the card form opens in place.** Only one may be open at a time, so
+ * which tier that is lives here rather than in each row.
  */
 export function LandingPricing({
   copy,
-  locale
+  locale,
+  signedIn = false,
+  payerEmail = ''
 }: {
   copy: Dictionary['landing']['pricing']
   locale: Locale
+  /** A card cannot be taken without a session, so a signed-out reader is sent to sign in first. */
+  signedIn?: boolean
+  /** The signed-in reader's address, to save them typing it into the card form. */
+  payerEmail?: string
 }) {
+  const [openTier, setOpenTier] = useState<PlanTier | null>(null)
+
   return (
     <section className="space-y-6">
       <h2 className="text-balance font-display text-2xl font-bold tracking-tight">{copy.heading}</h2>
@@ -30,14 +47,11 @@ export function LandingPricing({
         {PLAN_TIER.map((tier) => {
           const recommended = tier === RECOMMENDED_PLAN_TIER
 
+          const open = openTier === tier
+
           return (
-            <div
-              key={tier}
-              className={cn(
-                'flex flex-col gap-4 p-6 sm:flex-row sm:items-baseline sm:justify-between sm:gap-8',
-                recommended && 'animate-shine bg-purple/10'
-              )}
-            >
+            <div key={tier} className={cn('p-6', recommended && 'animate-shine bg-purple/10')}>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-8">
               <div className="min-w-0 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <h3 className="font-display text-lg font-semibold tracking-tight">
@@ -69,8 +83,28 @@ export function LandingPricing({
                     {t(copy.quota, { count: formatNumber(PLAN[tier].quota, locale) })}
                   </p>
                 </div>
-                <SubscribeButton tier={tier} />
+                {signedIn ? (
+                  !open && <SubscribeButton onOpen={() => setOpenTier(tier)} />
+                ) : (
+                  <SignInToSubscribe
+                    href={`${SIGNIN_PATH}?${CALLBACK_URL_PARAM}=${encodeURIComponent('/settings')}`}
+                  />
+                )}
               </div>
+              </div>
+
+              {/* Full width, under the row rather than in the price column: a card form does not fit
+                  beside a price, and shrinking it is how a checkout starts feeling unsafe. */}
+              {open && (
+                <div className="mt-6 border-t pt-6">
+                  <SubscribeCard
+                    tier={tier}
+                    amount={PLAN[tier].priceBrl}
+                    payerEmail={payerEmail}
+                    onCancel={() => setOpenTier(null)}
+                  />
+                </div>
+              )}
             </div>
           )
         })}

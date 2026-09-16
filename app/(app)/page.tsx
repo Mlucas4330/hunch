@@ -16,10 +16,10 @@ import {
   LANDING_TESTIMONIAL,
   POST_SIGNIN_REDIRECT,
   REPORT_PATH,
-  SAMPLE_REPORT_EMBED_KEY,
   SIGNIN_PATH,
   whatsappUrl
 } from '@/lib/constants'
+import { sampleReportKey } from '@/lib/analyses'
 import { AI_POST_SLUG, ANALYSIS_TAB } from '@/lib/enums'
 import { dictionaryFor, getDictionary, getLocale, type Dictionary } from '@/lib/i18n'
 import { pageMetadata } from '@/lib/seo'
@@ -46,6 +46,10 @@ export default async function LandingPage() {
   const d = dictionaryFor(locale)
   const copy = d.landing
 
+  // Read from the database rather than configured: a key pinned in the environment is one more thing
+  // to remember per deploy, and it points at nothing on a database that does not hold that row.
+  const sampleKey = await sampleReportKey()
+
   return (
     <div className="animate-fade-up space-y-24 pb-12">
       <section className="grid items-center gap-10 pt-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -56,7 +60,7 @@ export default async function LandingPage() {
             <span className="block text-muted-foreground">{copy.headlineBottom}</span>
           </h1>
           <p className="max-w-md text-base text-muted-foreground">{copy.lead}</p>
-          <LandingActions copy={copy.actions} />
+          <LandingActions copy={copy.actions} sampleKey={sampleKey} />
         </div>
 
         <ReportOutline dictionary={d} />
@@ -116,6 +120,7 @@ export default async function LandingPage() {
 
       <Testimonial />
 
+      {/* Signed out by definition: a reader with an account was redirected to the dashboard above. */}
       <LandingPricing copy={copy.pricing} locale={locale} />
 
       <LandingFaq copy={copy.faq} />
@@ -126,7 +131,12 @@ export default async function LandingPage() {
             <h2 className="max-w-lg text-balance font-display text-2xl font-bold tracking-tight">
               {copy.finalCta.heading}
             </h2>
-            <LandingActions copy={copy.actions} compact className="justify-center" />
+            <LandingActions
+              copy={copy.actions}
+              sampleKey={sampleKey}
+              compact
+              className="justify-center"
+            />
           </CardContent>
         </Card>
       </section>
@@ -144,10 +154,13 @@ export default async function LandingPage() {
  */
 function LandingActions({
   copy,
+  sampleKey,
   compact,
   className
 }: {
   copy: Dictionary['landing']['actions']
+  /** The report to show as the sample, or null when this database holds no finished one. */
+  sampleKey: string | null
   compact?: boolean
   className?: string
 }) {
@@ -159,9 +172,9 @@ function LandingActions({
         </a>
       </Button>
 
-      {SAMPLE_REPORT_EMBED_KEY && (
+      {sampleKey && (
         <Button asChild size="lg" variant="outline">
-          <Link href={`${REPORT_PATH}/${SAMPLE_REPORT_EMBED_KEY}`}>{copy.sample}</Link>
+          <Link href={`${REPORT_PATH}/${sampleKey}`}>{copy.sample}</Link>
         </Button>
       )}
 

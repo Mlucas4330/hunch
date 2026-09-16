@@ -30,7 +30,8 @@ visibility section, the testimonial, the price list (`components/landing-pricing
   first, the measured tiles after them.
 - **Four actions in one hierarchy, and the closing card carries two of them**: WhatsApp through
   `whatsappUrl`, which opens the chat with `actions.whatsappMessage` already written; the sample
-  report, rendered only while `SAMPLE_REPORT_EMBED_KEY` is set; email through `CONTACT_EMAIL_URL`;
+  report, which is `sampleReportKey()`, the oldest analysis in this database that actually generated
+  something, and absent when there is none; email through `CONTACT_EMAIL_URL`;
   and sign in. `LandingActions` takes `compact` for the closing card, which shows only the first two,
   because four buttons in it read as a menu rather than a call. The price list still adds none of its
   own.
@@ -40,6 +41,10 @@ visibility section, the testimonial, the price list (`components/landing-pricing
   exhausted-quota line on the dashboard links to it. The account screen shows the list when there is
   no live subscription and the cancel control when there is, never both, and **only `authorized`
   counts as live**: a checkout nobody finished must not read as something already bought.
+- **The card form opens in place, under the tier it belongs to.** Which tier is open lives in
+  `LandingPricing` so that opening one closes the others, and the form is full width rather than
+  squeezed beside a price. It offers no instalments, because a monthly subscription is not a purchase
+  to spread over a year, and the provider otherwise refuses to submit until one is chosen.
 - **The account screen fills its column**, like every other signed-in screen. The measure is set on
   the form inside the card, not by shrinking the card, because a card capped on its own sits at about
   half the container on a wide display and reads as a bug.

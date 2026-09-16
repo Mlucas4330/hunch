@@ -63,7 +63,7 @@ is nothing that sells one.
 
 **`/` is the landing page for a signed-out visitor**, and sends a signed-in one to the dashboard. It
 explains the product to agencies and offers four actions, in this order: WhatsApp, the sample report
-when one is published, email, and sign in. It prints the three tiers with their quotas and features,
+when the database holds one, email, and sign in. It prints the three tiers with their quotas and features,
 and each tier carries a subscribe button, which sends a signed-out reader to sign in first. There is
 no anonymous analysis. The blog stays public. See [analysis-ui.md](analysis-ui.md#landing-appapppagetsx).
 

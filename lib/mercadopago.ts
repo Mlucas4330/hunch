@@ -16,8 +16,12 @@ const API_ORIGIN = 'https://api.mercadopago.com'
 
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
 
+/**
+ * Both halves have to be present. The public key alone renders a card form no subscription can be
+ * created from, and the token alone renders no form at all.
+ */
 export function mercadoPagoEnabled(): boolean {
-  return Boolean(accessToken)
+  return Boolean(accessToken && process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY)
 }
 
 /**
@@ -91,7 +95,11 @@ async function call<T>(path: string, init: RequestInit): Promise<T> {
 }
 
 /**
- * Opens a recurring authorisation and hands back where it is confirmed.
+ * Opens a recurring authorisation against a card the reader already entered.
+ *
+ * **It comes back `authorized`, so nothing is pending and nobody is redirected.** The card was
+ * tokenized in the browser by the provider's own form, which is why a single-use token is all this
+ * server ever sees of it.
  *
  * `idempotencyKey` is the provider's own guard against a double submit: the same key replays the
  * first answer instead of opening a second subscription.

@@ -261,8 +261,12 @@ export const ptBR: Dictionary = {
       price: 'R$ {value}/mês',
       quota: '{count} rodadas por mês',
       subscribe: 'Assinar',
-      subscribing: 'Abrindo o checkout...',
-      subscribeFailed: 'Não deu para abrir. Tente de novo em instantes.',
+      subscribeSignedOut: 'Entre para assinar',
+      cardLoading: 'Carregando o formulário do cartão...',
+      cardSubmit: 'Assinar',
+      subscribed: 'Assinatura confirmada. As rodadas já estão na sua conta.',
+      cardRefused: 'O cartão foi recusado. Confira os dados ou use outro.',
+      subscribeFailed: 'Não deu certo. Tente de novo em instantes.',
       note: 'Se a cota acabar antes do mês, você sobe de faixa. Uma rodada que falha não conta.',
       plans: {
         studio: {

@@ -78,7 +78,12 @@ export default async function SettingsPage() {
         </Card>
       ) : (
         <div id={PLANS_ANCHOR} className="scroll-mt-24">
-          <LandingPricing copy={t.landing.pricing} locale={locale} />
+          <LandingPricing
+            copy={t.landing.pricing}
+            locale={locale}
+            signedIn
+            payerEmail={user.email}
+          />
         </div>
       )}
     </div>

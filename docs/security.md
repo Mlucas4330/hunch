@@ -133,9 +133,20 @@ claim an address no provider vouched for. See
 amount up; the webhook reads the tier back from the amount the provider confirmed, through
 `planTierForAmount`, and an amount matching no tier writes nothing.
 
-**The Payment Brick was deliberately not restored.** Its SDK would need `script-src`, `connect-src`
-and `frame-src` holes in the CSP; a preapproval `init_point` is an ordinary top-level navigation and
-needs none.
+**The card form runs in our own page, and the policy pays for it.** The SDK needs `script-src` and
+`connect-src` for `sdk.mercadopago.com`, `api.mercadopago.com` and `http2.mlstatic.com`, which is
+where the form loads the rest of itself, plus `frame-src` for `secure-fields.mercadopago.com`. That
+last one is the reason the card number never reaches this origin at all: the fields are the
+provider's iframes, and what our code receives is a single-use token.
+
+**`unsafe-eval` is granted to `/settings` alone.** The SDK evaluates strings, so an enforced policy
+without it breaks the checkout; granting it everywhere would hand the same power to every other page,
+including the public report. `next.config.ts` declares the checkout's headers before the general ones,
+because the first matching source wins.
+
+**The policy caught two of these before production did**, while it was still report-only. Keep
+`CSP_ENFORCE` unset somewhere that exercises the checkout, or the next host the SDK adds is found by
+a customer.
 
 **Bulk generation is gated three times**, the same discipline as `isAdmin`: the nav hides the link,
 the page answers `notFound()`, and the route re-checks `canBulkGenerate` before enqueueing. Only the

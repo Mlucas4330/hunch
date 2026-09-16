@@ -82,11 +82,12 @@ test.describe('core features', () => {
       /^https:\/\/wa\.me\//
     )
     await expect(main.getByRole('link', { name: 'Contact us' }).first()).toHaveAttribute('href', /^mailto:/)
-    // The sample button points at the published report, and only exists because the key is set.
-    await expect(main.getByRole('link', { name: 'See a sample report' }).first()).toHaveAttribute(
-      'href',
-      '/r/00000000-0000-4000-8000-000000000001'
-    )
+    // The sample is whichever finished report this database holds first, so the assertion is on the
+    // shape of the link rather than on a key. A database with no finished report offers none.
+    const sample = main.getByRole('link', { name: 'See a sample report' })
+    if ((await sample.count()) > 0) {
+      await expect(sample.first()).toHaveAttribute('href', /^\/r\/[0-9a-f-]{36}$/)
+    }
 
     await expect(main.getByRole('heading', { name: 'What it costs' })).toBeVisible()
     // `exact` is load bearing: 'Agency' is a substring of the hero headline and of an FAQ question.

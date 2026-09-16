@@ -52,10 +52,7 @@ export default defineConfig({
       AUTH_URL: baseURL,
       ALLOW_CREDENTIALS_LOGIN: '1',
       BRAND_DIR: '.brand-e2e',
-      SCREENSHOT_DIR: '.screenshots-e2e',
-      // Pinned, so the landing's sample button is exercised rather than depending on whichever
-      // analysis the developer's own .env happens to point at.
-      SAMPLE_REPORT_EMBED_KEY: '00000000-0000-4000-8000-000000000001'
+      SCREENSHOT_DIR: '.screenshots-e2e'
     }
   }
 })

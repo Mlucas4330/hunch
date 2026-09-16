@@ -35,9 +35,16 @@ each analysis is kept for good so an old shared report never goes blank. See
 
 **`BILLING_RETURN_URL`** is where Mercado Pago sends the reader back, and it exists because the
 provider will not accept every URL this app answers on. Measured against the live API:
-`http://localhost:3000` is refused outright, and `https://hunch.solutions` is refused where
-`https://www.hunch.solutions` is accepted. The error names neither rule, so set the variable rather
-than debug it again. Unset, the app uses its own origin.
+`http://localhost:3000` is refused outright, and so is the apex `https://hunch.solutions`, while any
+subdomain of it is accepted. The error says only "Invalid value for back_url", naming neither rule.
+
+**Nobody is ever sent there.** The card is entered on our own page and the subscription comes back
+authorised, so this URL is a field the API demands rather than a page anyone visits. It still has to
+satisfy the validator, which is why it exists as a variable at all.
+
+**It should still be a host that serves the app.** `www.hunch.solutions` is accepted by the API and
+resolves nowhere, which is fine while nothing redirects and a trap the day something does. The
+service's own Railway domain is both accepted and served, and needs no DNS of its own.
 
 **The access token must be the production one (`APP_USR-`), from an application whose `sandbox_mode`
 is false.** A `TEST-` token creates subscriptions whose checkout page does not open, and the app logs
