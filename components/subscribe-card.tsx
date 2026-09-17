@@ -6,7 +6,10 @@ import { useRouter } from 'next/navigation'
 import { useI18n } from '@/components/i18n-provider'
 import {
   BILLING_SUBSCRIBE_PATH,
+  MERCADOPAGO_BRICK_COLOR_TOKENS,
   MERCADOPAGO_BRICK_CONTAINER,
+  MERCADOPAGO_BRICK_RADIUS_TOKEN,
+  MERCADOPAGO_BRICK_RADIUS_VARIABLES,
   MERCADOPAGO_LOCALE,
   MERCADOPAGO_SDK_URL
 } from '@/lib/constants'
@@ -31,6 +34,31 @@ declare global {
   interface Window {
     MercadoPago?: MercadoPagoSdk
   }
+}
+
+/**
+ * Our tokens, in a form the provider's script can use. It derives shades from what it is given, and
+ * our tokens are `oklch()`, so each one is painted on a pixel and read back as `rgb()`.
+ */
+function brickVariables() {
+  const styles = getComputedStyle(document.documentElement)
+  const context = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+  const variables: Record<string, string> = {}
+
+  for (const [variable, token] of Object.entries(MERCADOPAGO_BRICK_COLOR_TOKENS)) {
+    const value = styles.getPropertyValue(token).trim()
+    if (!context || !value) continue
+    context.clearRect(0, 0, 1, 1)
+    context.fillStyle = value
+    context.fillRect(0, 0, 1, 1)
+    const [red, green, blue] = context.getImageData(0, 0, 1, 1).data
+    variables[variable] = `rgb(${red}, ${green}, ${blue})`
+  }
+
+  const radius = styles.getPropertyValue(MERCADOPAGO_BRICK_RADIUS_TOKEN).trim()
+  if (radius) for (const variable of MERCADOPAGO_BRICK_RADIUS_VARIABLES) variables[variable] = radius
+
+  return variables
 }
 
 /**
@@ -103,7 +131,10 @@ export function SubscribeCard({
             // **Read off `<html>`, which the server stamped before anything painted.** The form is
             // the provider's own markup in our page, and a white panel in the middle of a dark one
             // is the moment a checkout stops looking like part of the site. See lib/theme.ts.
-            style: { theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default' },
+            style: {
+              theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default',
+              customVariables: brickVariables()
+            },
             texts: { formSubmit: copy.cardSubmit }
           }
         },

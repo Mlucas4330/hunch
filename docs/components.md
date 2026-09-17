@@ -136,6 +136,13 @@ The theme is a cookie read on the server in `lib/theme.ts` and stamped on `<html
 `app/layout.tsx`, mirroring `getLocale()` exactly. That is why there is no flash and no inline script.
 `prefers-color-scheme` is deliberately not consulted: the server cannot read it.
 
+**The Mercado Pago card form is the one surface we do not render**, so it cannot take utilities.
+`SubscribeCard` reads the tokens named in `MERCADOPAGO_BRICK_COLOR_TOKENS` off `<html>` when it builds
+the form and passes them as the form's `customVariables`, with `--radius` for its corners. The
+provider derives shades from those colours, and our tokens are `oklch()`, so each one is painted on a
+one-pixel canvas and passed as plain `rgb()` rather than trusting its parser with a newer syntax. The form is built once per opening, so a theme toggled while
+it is open shows on the next opening.
+
 **A reader with no cookie gets dark** (`DEFAULT_THEME`). The one thing that does not follow it is
 `OG_COLORS`, which mirrors the light tokens because an unfurl is rendered once for every reader.
 

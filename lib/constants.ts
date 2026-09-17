@@ -571,6 +571,30 @@ export const BILLING_SUBSCRIBE_PATH = '/api/billing/mercadopago/subscribe'
 export const MERCADOPAGO_SDK_URL = 'https://sdk.mercadopago.com/js/v2'
 export const MERCADOPAGO_BRICK_CONTAINER = 'mercadopago-card-brick'
 
+// The form's `customVariables`, each read off one of our tokens when the form is built. See
+// docs/components.md.
+export const MERCADOPAGO_BRICK_COLOR_TOKENS = {
+  baseColor: '--primary',
+  baseColorFirstVariant: '--foreground',
+  baseColorSecondVariant: '--muted',
+  buttonTextColor: '--primary-foreground',
+  textPrimaryColor: '--foreground',
+  textSecondaryColor: '--muted-foreground',
+  formBackgroundColor: '--card',
+  inputBackgroundColor: '--background',
+  outlinePrimaryColor: '--border',
+  outlineSecondaryColor: '--border',
+  errorColor: '--destructive',
+  successColor: '--green'
+} as const
+
+export const MERCADOPAGO_BRICK_RADIUS_TOKEN = '--radius'
+export const MERCADOPAGO_BRICK_RADIUS_VARIABLES = [
+  'borderRadiusSmall',
+  'borderRadiusMedium',
+  'borderRadiusLarge'
+] as const
+
 export const MERCADOPAGO_LOCALE: Record<Locale, string> = {
   en: 'en-US',
   'pt-BR': 'pt-BR'
