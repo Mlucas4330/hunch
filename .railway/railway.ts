@@ -12,14 +12,6 @@ import {
 const REPO = "Mlucas4330/hunch";
 const REGION = "us-west2";
 const DOMAIN = "hunch.solutions";
-
-// **Mercado Pago refuses the apex as a return URL** and accepts any subdomain of it, and the checkout
-// has to carry one. The app answers on this host too, but it is not a second address for the
-// product: `NEXT_PUBLIC_APP_URL` stays the apex, and every canonical, OG URL and sitemap entry is
-// built from that rather than from the Host header. Declared here because this file is the source of
-// truth, so a domain added only in the dashboard is deleted by the next apply. Needs a CNAME at the
-// registrar as well. See docs/deployment.md.
-const BILLING_DOMAIN = `www.${DOMAIN}`;
 const BROWSER_IMAGE = "Dockerfile.browser";
 const BROWSER_SCRIPT = "scripts/browser-entrypoint.sh";
 const APP_DATA_MOUNT = "/data";
@@ -46,7 +38,12 @@ export default defineRailway(() => {
 
   // One volume for every file the app writes: the agency logos and the phone screenshots. Larger
   // than it was, because a screenshot per run on a busy account adds up faster than logos do.
-  const brandVolume = volume("brand-volume", { ...DB_VOLUME, sizeMB: 3000 });
+  // **The name has to be `screenshots`, because that is the volume Railway has mounted at /data**, and
+  // it holds every agency's logo as well as the phone screenshots. It predates the brand logos, and
+  // the name stuck. Declaring any other name here makes an apply create an empty volume, mount it at
+  // /data in this one's place, and every logo on every report goes blank. See docs/deployment.md.
+  // Its real size. A smaller number here is not a no-op: an apply tries to shrink the disk.
+  const brandVolume = volume("screenshots", { ...DB_VOLUME, sizeMB: 5000 });
 
   const browser = service("browser", {
     source,
@@ -64,7 +61,7 @@ export default defineRailway(() => {
   const app = service("app", {
     source,
     replicas: { [REGION]: 1 },
-    domains: [DOMAIN, BILLING_DOMAIN],
+    domains: [DOMAIN],
     networking: { privateNetworkEndpoint: "hunch" },
     build: {
       builder: "RAILPACK",
@@ -97,6 +94,9 @@ export default defineRailway(() => {
       BILLING_RETURN_URL: preserve(),
       MERCADOPAGO_ACCESS_TOKEN: preserve(),
       MERCADOPAGO_WEBHOOK_SECRET: preserve(),
+      // Read by the card form in the browser, so it is inlined at build time: changing it needs a new
+      // build, not only a restart.
+      NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: preserve(),
       NEXT_PUBLIC_APP_URL: preserve(),
       PAGESPEED_API_KEY: preserve(),
       PUPPETEER_SKIP_DOWNLOAD: preserve(),

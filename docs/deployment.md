@@ -19,7 +19,7 @@ deprecated and must never be named again.
 
 | Service | Source | Notes |
 | ------- | ------ | ----- |
-| `app` | repo, Railpack | public domain, `brand-volume` mounted at `/data` |
+| `app` | repo, Railpack | public domain, the `screenshots` volume mounted at `/data` |
 | `browser` | repo, `Dockerfile.browser` | **no variables, no public domain** |
 | `postgres` | `postgres()` helper | |
 | `redis` | `redis()` helper | rate limit counters and the job queue |
@@ -27,10 +27,16 @@ deprecated and must never be named again.
 **The four cron services are gone from the file**, so the first apply after they were removed deletes
 them. That diff is destructive and needs `--confirm-destructive`.
 
-**`brand-volume` now holds two things**: the agency logos under `BRAND_DIR` and the phone screenshots
-under `SCREENSHOT_DIR`, both at `/data`. It was raised to 3 GB when the screenshots arrived. There is
-no prune cron: a run deletes the screenshots its own snapshots superseded, and the current picture of
-each analysis is kept for good so an old shared report never goes blank. See
+**The volume mounted at `/data` is called `screenshots`, and it holds every agency's logo.** The name
+predates the logos and stuck; the file declares it as `brandVolume` but its resource name has to stay
+`screenshots`. **Declaring any other name is destructive**: an apply creates an empty volume, mounts
+it at `/data` in this one's place, and every logo on every report goes blank. Its size in the file
+must match Railway's, 5 GB, or the apply tries to shrink it. `railway config plan` shows both before
+anything happens; read it.
+
+It holds the agency logos under `BRAND_DIR` and the phone screenshots under `SCREENSHOT_DIR`. There
+is no prune cron: a run deletes the screenshots its own snapshots superseded, and the current picture
+of each analysis is kept for good so an old shared report never goes blank. See
 [scraping.md](scraping.md).
 
 **`BILLING_RETURN_URL`** is where Mercado Pago sends the reader back, and it exists because the
@@ -44,13 +50,15 @@ satisfy the validator, which is why it exists as a variable at all.
 
 **It is `https://www.hunch.solutions`, and that host has to exist.** The provider validates the
 URL's shape and never whether it resolves, so a host it accepts can still be a dead end the day
-something redirects. `app` declares `www.hunch.solutions` beside the apex for this reason, and two
-things make it real:
+something redirects. Two things make it real, and neither is in this repository:
 
-1. **A CNAME at the registrar**: name `www`, value the target Railway shows for that domain under the
-   service's Networking settings.
-2. **An apply**, since `.railway/railway.ts` is the source of truth: a domain added only in the
-   dashboard is deleted by the next one.
+1. **The custom domain, added in the dashboard**, under the `app` service's Networking settings.
+   **Railway configuration cannot register a custom domain**: declaring it in `.railway/railway.ts`
+   before it exists makes `railway config plan` refuse the whole file. Once it is added, `railway
+   config pull` brings it into the file.
+2. **A CNAME at the registrar**: name `www`, value the target Railway shows for that domain. Without
+   the domain in step 1, the CNAME resolves and the browser gets the apex's certificate, which fails
+   as `ERR_CERT_COMMON_NAME_INVALID`.
 
 The app answers on both hosts. `NEXT_PUBLIC_APP_URL` stays the apex, so every canonical and OG URL
 still points there and search engines see one site.
@@ -65,6 +73,14 @@ secret is shown by Mercado Pago when the notification URL is registered, and it 
 quotas by hand, which is the state the app shipped in before.
 
 ## Bringing a project up
+
+**On Windows with the CLI installed through npm, `railway.exe` has to be on PATH.** The `railway`
+package checks the CLI's version by re-running it without a shell, and a shell-less spawn cannot run
+the `.cmd`/`.ps1` shim npm puts on PATH; the executable itself sits in
+`%APPDATA%\npm\node_modules\@railway\cli\bin`, which npm does not add. The check fails and reports it
+as "requires Railway CLI 5.42.1 or newer", whatever the version. Add that folder to the user PATH and
+restart the editor completely: a terminal opened inside an editor that was already running inherits
+the old PATH.
 
 `railway link` the project, then **`railway config pull` first**: a clean import must plan to zero
 changes. Merge the `build` and `deploy` blocks back on top of what it brought, then `railway config
@@ -84,7 +100,7 @@ every analysis is saved with no PageSpeed section and logs `pagespeed.failed`.
 wallet. Without it every analysis is saved with no backlink or ranking card and logs
 `seranking.failed`. See [readout.md](readout.md#se-ranking-fetchseoindex-in-libserankingts).
 
-**`BRAND_DIR`** is `/data/brand`, on the `brand-volume` the file mounts on `app`. Set it in the
+**`BRAND_DIR`** is `/data/brand`, on the `screenshots` volume the file mounts on `app`. Set it in the
 dashboard, because the file declares it as `preserve()`. Without it the name still saves and a logo
 upload answers `503`.
 
