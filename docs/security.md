@@ -133,20 +133,29 @@ claim an address no provider vouched for. See
 amount up; the webhook reads the tier back from the amount the provider confirmed, through
 `planTierForAmount`, and an amount matching no tier writes nothing.
 
-**The card form runs in our own page, and the policy pays for it.** The SDK needs `script-src` and
-`connect-src` for `sdk.mercadopago.com`, `api.mercadopago.com` and `http2.mlstatic.com`, which is
-where the form loads the rest of itself, plus `frame-src` for `secure-fields.mercadopago.com`. That
-last one is the reason the card number never reaches this origin at all: the fields are the
-provider's iframes, and what our code receives is a single-use token.
+**The card form runs in our own page, and the policy pays for it.** Every host in `next.config.ts`
+was observed from a real checkout, because the provider's documentation does not list them:
+
+- `sdk.mercadopago.com` and `api.mercadopago.com`, the SDK and its API.
+- `http2.mlstatic.com`, where the form loads the rest of itself and the card brand icons.
+- `secure-fields.mercadopago.com`, in both `frame-src` and `connect-src`. The card fields are the
+  provider's iframes, which is the reason the number never reaches this origin, and they call home.
+- `www.mercadolibre.com` and `www.mercadolivre.com`, in `connect-src` and `img-src`: the provider's
+  anti-fraud check fingerprints the device. **Blocking it is not harmless**: the SDK fails reading an
+  answer that never came, and the reader is left with a form that does nothing.
 
 **`unsafe-eval` is granted to `/settings` alone.** The SDK evaluates strings, so an enforced policy
 without it breaks the checkout; granting it everywhere would hand the same power to every other page,
-including the public report. `next.config.ts` declares the checkout's headers before the general ones,
-because the first matching source wins.
+including the public report. **In `next.config.ts` the checkout's rule comes after the general one,
+because when two rules match a path and set the same header, Next applies the later.** The other
+order serves `/settings` the general policy, which is invisible while the policy only reports and
+breaks the form the moment it is enforced. It reached production that way once;
+`e2e/settings.spec.ts` now pins it.
 
-**The policy caught two of these before production did**, while it was still report-only. Keep
-`CSP_ENFORCE` unset somewhere that exercises the checkout, or the next host the SDK adds is found by
-a customer.
+**To find a missing host, run the checkout with the policy in report-only mode and read the
+console.** Report-only logs every request an enforced policy would block, with its full URL, while
+production's browser console hides them as `<URL>`. `next dev` cannot be run enforced at all, since
+the dev server itself evaluates strings.
 
 **Bulk generation is gated three times**, the same discipline as `isAdmin`: the nav hides the link,
 the page answers `notFound()`, and the route re-checks `canBulkGenerate` before enqueueing. Only the

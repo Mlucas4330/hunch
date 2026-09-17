@@ -42,9 +42,18 @@ subdomain of it is accepted. The error says only "Invalid value for back_url", n
 authorised, so this URL is a field the API demands rather than a page anyone visits. It still has to
 satisfy the validator, which is why it exists as a variable at all.
 
-**It should still be a host that serves the app.** `www.hunch.solutions` is accepted by the API and
-resolves nowhere, which is fine while nothing redirects and a trap the day something does. The
-service's own Railway domain is both accepted and served, and needs no DNS of its own.
+**It is `https://www.hunch.solutions`, and that host has to exist.** The provider validates the
+URL's shape and never whether it resolves, so a host it accepts can still be a dead end the day
+something redirects. `app` declares `www.hunch.solutions` beside the apex for this reason, and two
+things make it real:
+
+1. **A CNAME at the registrar**: name `www`, value the target Railway shows for that domain under the
+   service's Networking settings.
+2. **An apply**, since `.railway/railway.ts` is the source of truth: a domain added only in the
+   dashboard is deleted by the next one.
+
+The app answers on both hosts. `NEXT_PUBLIC_APP_URL` stays the apex, so every canonical and OG URL
+still points there and search engines see one site.
 
 **The access token must be the production one (`APP_USR-`), from an application whose `sandbox_mode`
 is false.** A `TEST-` token creates subscriptions whose checkout page does not open, and the app logs

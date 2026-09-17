@@ -42,6 +42,37 @@ test('the account screen hangs off the account menu, not the main nav', async ({
   await expect(page).toHaveURL(/\/settings$/)
 })
 
+/**
+ * The card form evaluates strings, so its page needs `unsafe-eval`, and no other page may have it.
+ *
+ * **Next applies the later of two matching header rules**, so declaring them in the wrong order
+ * serves the checkout the general policy. That is invisible while the policy is report-only and
+ * breaks the form the moment it is enforced, which is how it reached production once.
+ */
+test('only the checkout page may evaluate strings', async ({ request }) => {
+  const policyOf = async (path: string) => {
+    const headers = (await request.get(path, { maxRedirects: 0 })).headers()
+    return headers['content-security-policy'] ?? headers['content-security-policy-report-only'] ?? ''
+  }
+
+  expect(await policyOf('/settings')).toContain("'unsafe-eval'")
+
+  for (const path of ['/', '/dashboard', '/r/00000000-0000-4000-8000-000000000000']) {
+    expect(await policyOf(path), path).not.toContain("'unsafe-eval'")
+  }
+
+  // The anti-fraud check and the card fields both call home; blocking either leaves a form that
+  // does nothing.
+  const checkout = await policyOf('/settings')
+  for (const host of [
+    'https://secure-fields.mercadopago.com',
+    'https://www.mercadolibre.com',
+    'https://www.mercadolivre.com'
+  ]) {
+    expect(checkout, host).toMatch(new RegExp(`connect-src[^;]*${host.replaceAll('.', '\\.')}`))
+  }
+})
+
 test('an account with no live subscription is offered the plans', async ({ page }) => {
   await page.goto('/settings')
 

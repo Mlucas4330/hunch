@@ -12,6 +12,14 @@ import {
 const REPO = "Mlucas4330/hunch";
 const REGION = "us-west2";
 const DOMAIN = "hunch.solutions";
+
+// **Mercado Pago refuses the apex as a return URL** and accepts any subdomain of it, and the checkout
+// has to carry one. The app answers on this host too, but it is not a second address for the
+// product: `NEXT_PUBLIC_APP_URL` stays the apex, and every canonical, OG URL and sitemap entry is
+// built from that rather than from the Host header. Declared here because this file is the source of
+// truth, so a domain added only in the dashboard is deleted by the next apply. Needs a CNAME at the
+// registrar as well. See docs/deployment.md.
+const BILLING_DOMAIN = `www.${DOMAIN}`;
 const BROWSER_IMAGE = "Dockerfile.browser";
 const BROWSER_SCRIPT = "scripts/browser-entrypoint.sh";
 const APP_DATA_MOUNT = "/data";
@@ -56,7 +64,7 @@ export default defineRailway(() => {
   const app = service("app", {
     source,
     replicas: { [REGION]: 1 },
-    domains: [DOMAIN],
+    domains: [DOMAIN, BILLING_DOMAIN],
     networking: { privateNetworkEndpoint: "hunch" },
     build: {
       builder: "RAILPACK",
