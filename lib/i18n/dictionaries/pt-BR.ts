@@ -729,8 +729,7 @@ export const ptBR: Dictionary = {
 
   hypothesisList: {
     testThisFirst: 'Comece por aqui',
-    assessmentLabel: 'O que ela faz hoje',
-    cropLabel: 'Esta linha na página'
+    assessmentLabel: 'O que ela faz hoje'
   },
 
   report: {
@@ -784,6 +783,16 @@ export const ptBR: Dictionary = {
       lead: 'O resto do relatório lista tudo o que foi encontrado. Estes três são os que mais custam.'
     },
     mobileShot: 'A página no celular, como ela foi medida',
+    pageShot: {
+      // A contagem existe porque os erros de estrutura, SEO e IA não têm onde ser apontados, e uma
+      // imagem calada sobre isso seria lida como "o resto da página está limpo".
+      marked: {
+        one: '{count} de {total} erros de texto está marcado aqui',
+        other: '{count} de {total} erros de texto estão marcados aqui'
+      },
+      noMarkers: 'Nenhum dos erros de texto pôde ser localizado na imagem.',
+      markerAria: 'Erro {rank}: {title}'
+    },
     shareWhatsapp: {
       label: 'Enviar no WhatsApp',
       message: 'Rodei uma auditoria em {host} e encontrei alguns pontos para corrigir. O relatório está aqui: {url}'

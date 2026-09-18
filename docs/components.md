@@ -87,6 +87,17 @@ zero-height element and the reader arrives nowhere. `revealAnchor` opens every a
 scrolls. `components/section-link.tsx` is the `<a>` that calls it, and it stays a real anchor so it
 works without JavaScript.
 
+**Opening takes time, and scrolling before it finishes lands in the wrong place.** Cards animate their
+height over `--disclosure-duration`, so an immediate `scrollIntoView` measures a card that is still a
+bar, and the reader ends up above or short of what they clicked. `revealAnchor` waits that long,
+reading the number off the custom property rather than holding a copy of it.
+
+**A scroll ends somewhere, and somewhere is not the same as something.** The optional second argument
+is the element that lights up on arrival, through `reveal-flash`: the screenshot's markers send the
+reader to a card, so its title and severity are on screen, and light up the one quoted line inside it
+that the marker was pointing at. The flash is removed on `animationend` and is off under reduced
+motion.
+
 ## The report rail is a fixed row height, so its labels have to fit one
 
 `--rail-row` in `app/globals.css` is what makes the active marker's position `index * row` instead of
@@ -126,6 +137,10 @@ hairline of light on the top edge.
 
 **Shadows derive from `--shade`, never from `--ink`.** `--ink` is the foreground and inverts with the
 theme, so a shadow mixed from it would light every panel with a white halo in dark mode.
+
+**Two tokens deliberately do not invert**: `--shade`, which shadows are mixed from, and `--device`
+with `--device-edge`, the phone frame around the report's screenshot. A shadow is the absence of light
+in both themes, and a phone chassis is dark in both rooms.
 
 **Dark mode is a block of variables and nothing else.** No component holds a colour: every map in
 `lib/constants.ts` is token utilities like `bg-coral/15 text-coral`. Three relationships invert rather
@@ -421,13 +436,38 @@ Visibility: `indexability` -> coral · `metadata` -> purple · `structured_data`
 the same function for the word it prints, so the label on a card and the colour beside it cannot
 disagree. Nothing stores a severity: see [data-model.md](data-model.md).
 
-## Element crop: `components/element-crop.tsx`
+## The marked page: `components/page-shot-marked.tsx`
 
-The quoted line, framed inside the run's phone screenshot by `position` and `scale` rather than by a
-cut file. One image per run already exists, so cropping at render costs no image library, no file per
-error, and no re-render of old crops the day the framing changes. It never scales up, and it renders
-nothing when the screenshot is missing, when the phone layout dropped the element, or when the image
-fails to load.
+The run's phone screenshot inside a phone frame, with the quoted lines drawn on it and numbered, each
+one a button that opens its card. **One picture pointed at, in place of one crop per error.** The
+crops it replaced showed a line without showing where on the page it sat, which is half of what the
+reader wants to know, and six of them down a column read as six pictures rather than one page.
+
+**Nothing is measured and nothing is stored for it.** The boxes are `element_rect`, already written by
+the run, and the page's own width and height in CSS pixels come from the image's natural size divided
+by `SCREENSHOT_PIXEL_RATIO` once it loads. Every marker is then positioned in percentages, so the
+frame can be any width. Before the image loads there are no markers rather than markers in the wrong
+place. Each box is the element plus `ELEMENT_MARK_PADDING_PX` of the page's own pixels, so it frames
+the line instead of clamping onto its glyphs.
+
+**The size is read from `onLoad` and from `complete`, and both halves are needed.** Screenshots are
+served immutable, so from the second visit on the picture is decoded before React attaches anything
+and `onLoad` never fires: the markers showed once and never again. The effect asks the element whether
+it has already finished.
+
+**The frame is the shape of the phone the page was measured on.** `PAGE_SHOT_ASPECT` comes from
+`SCRAPE_VIEWPORT_MOBILE`, so the window is the proportion the visitor saw, and the full-page shot
+scrolls inside it. The body, the rim, the side buttons, the island and the home bar are all
+`aria-hidden`: they are what makes the eye read a phone instead of a rounded card, and they say
+nothing. Their two colours are `--device` and `--device-edge`, which **do not invert with the theme**,
+for the reason `--shade` does not: a chassis that turned white in light mode would stop being a
+device.
+
+**Only copy errors can be marked, and the caption says how many were.** A quoted line has a selector
+and a box; a structure, SEO or AI error has neither, and several of them are the absence of something,
+which has nowhere to be pointed at. A picture silent about that would be read as "the rest of the page
+is clean". It renders nothing when the screenshot is missing or fails to load, for the reason in
+[report.md](report.md).
 
 - **Impact is the only scale it renders.** There is no effort scale beside it, anywhere in the
   product. See [analysis-ui.md](analysis-ui.md#nothing-shows-an-effort-score-anywhere).

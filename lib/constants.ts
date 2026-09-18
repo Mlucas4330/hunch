@@ -70,9 +70,16 @@ export const PAGESPEED_STRATEGY = 'mobile'
 // report. It bounds every attempt together, so a retry never makes the wait longer.
 export const PAGESPEED_TIMEOUT_MS = 120_000
 
-// Lighthouse answers a 5xx for a run that went wrong on Google's side, and the same page often scores on
-// the next try.
-export const PAGESPEED_RETRIES = 1
+// Lighthouse answers a 5xx for a run that went wrong on Google's side, and the same page often scores
+// on the next try. **Measured against the live API**: a page that scores 0.8 on one call answers
+// "Lighthouse returned error: Something went wrong" on another, minutes apart, and so does
+// `example.com`. The failure is Google's run, not the page and not the key.
+export const PAGESPEED_RETRIES = 2
+
+// **And the retry waits.** An immediate second call lands on the same unhappy worker often enough to
+// be worth three seconds, and `PAGESPEED_TIMEOUT_MS` bounds every attempt together, so this spends
+// the report's patience rather than adding to it.
+export const PAGESPEED_RETRY_DELAY_MS = 3_000
 
 // The API reports CLS percentiles multiplied by 100.
 export const PAGESPEED_CLS_SCALE = 100
@@ -665,17 +672,15 @@ export const SCREENSHOT_PIXEL_RATIO = SCRAPE_VIEWPORT_MOBILE.deviceScaleFactor
 // bind parameters, and because a pass that runs long holds nothing open.
 export const SCREENSHOT_PRUNE_BATCH = 200
 
-// How the crop is framed: the margin kept around the element so it is read in its surroundings, and
-// the width the frame is scaled down to fit. It never scales up, so a narrow element is shown at its
-// own size rather than enlarged into blur.
-export const ELEMENT_CROP_PADDING_PX = 12
-export const ELEMENT_CROP_WIDTH_PX = 520
+// **The frame is the shape of the phone the page was measured on**, so the picture inside it is the
+// proportion a visitor actually saw. Taken from the viewport rather than written down again, for the
+// same reason `SCREENSHOT_PIXEL_RATIO` is. The shot is a full page, several screens of it, so the
+// frame is a window that scrolls rather than the whole thing shrunk to nothing.
+export const PAGE_SHOT_ASPECT = `${SCRAPE_VIEWPORT_MOBILE.width} / ${SCRAPE_VIEWPORT_MOBILE.height}`
 
-// **The frame is never taller than this, whatever the element is.** A quoted line can sit inside a
-// section that runs most of the screen, and a frame that tall stops being a crop: it pushes the card
-// it belongs to off the page and shows everything except what is being pointed at. The top is kept,
-// because that is where the quoted line starts.
-export const ELEMENT_CROP_MAX_HEIGHT_PX = 320
+// The margin drawn around a marked element, in the page's own pixels, so the box frames the line
+// instead of clamping onto it. The old crop kept the same breathing room for the same reason.
+export const ELEMENT_MARK_PADDING_PX = 6
 
 // The agency's own words on the report, written by the owner and read by their client. Bounded for
 // the same reason the brand name is: it is rendered on a surface neither of them can scroll away.
@@ -1200,6 +1205,30 @@ export function impactScoreRailClass(score: number): string {
   return ERROR_SEVERITY_RAIL_CLASS[severityForImpact(score)]
 }
 
+// The box drawn over the quoted element on the phone screenshot, and the numbered pin at its corner.
+// Two maps rather than one because they sit on top of a photograph of somebody else's page: the box
+// has to stay legible over whatever colour is under it, and the pin has to stay legible against the
+// box. See docs/components.md.
+export const ERROR_SEVERITY_MARK_CLASS: Record<ErrorSeverity, string> = {
+  critical: 'border-coral bg-coral/15',
+  medium: 'border-amber bg-amber/15',
+  low: 'border-neutral bg-neutral/15'
+}
+
+export const ERROR_SEVERITY_PIN_CLASS: Record<ErrorSeverity, string> = {
+  critical: 'bg-coral text-paper',
+  medium: 'bg-amber text-paper',
+  low: 'bg-neutral text-paper'
+}
+
+export function impactScoreMarkClass(score: number): string {
+  return ERROR_SEVERITY_MARK_CLASS[severityForImpact(score)]
+}
+
+export function impactScorePinClass(score: number): string {
+  return ERROR_SEVERITY_PIN_CLASS[severityForImpact(score)]
+}
+
 // A default, never a state the reader is stuck in -- every row can still be closed.
 export const HYPOTHESIS_EXPANDED_COUNT = 3
 // Fewer: playbook cards are taller than hypothesis cards.
@@ -1226,7 +1255,30 @@ export function fixAnchor(fixId: string): string {
   return `fix-${fixId}`
 }
 
+// The same, for one copy error. It exists because the marked screenshot points at these cards, and a
+// link and its target in different files have to agree on the shape of the id.
+export function hypothesisAnchor(hypothesisId: string): string {
+  return `copy-${hypothesisId}`
+}
+
+// The quoted line inside that card. Separate from the card's own id because a marker on the
+// screenshot scrolls to the card, so its title and severity are on screen, and lights up the line,
+// which is the thing the reader clicked. See lib/anchor.ts.
+export function hypothesisQuoteAnchor(hypothesisId: string): string {
+  return `copy-quote-${hypothesisId}`
+}
+
 // How far below the sticky navbar an anchored section comes to rest. Matches RAIL_ACTIVE_MARGIN's
 // top inset: land a section somewhere the rail does not consider current and the marker jumps to the
 // neighbour the moment the scroll settles.
 export const SECTION_ANCHOR_CLASS = 'scroll-mt-24'
+
+// What `lib/anchor.ts` needs from the stylesheet: how long a card takes to open, and the class that
+// says where a cross-reference landed. Both are defined in app/globals.css, and named here so a
+// rename breaks the build rather than the scroll.
+export const DISCLOSURE_DURATION_PROPERTY = '--disclosure-duration'
+export const REVEAL_FLASH_CLASS = 'reveal-flash'
+
+// Used only when that property cannot be read. Slightly longer than the transition it stands in for,
+// because landing late is a scroll and landing early is the wrong place.
+export const ANCHOR_SETTLE_FALLBACK_MS = 250

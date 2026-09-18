@@ -15,6 +15,7 @@ import { RichText } from '@/components/rich-text'
 import { CopyReportLink } from '@/components/copy-report-link'
 import { Button } from '@/components/ui/button'
 import { MeasuredReadout } from '@/components/measured-readout'
+import { PageShotMarked, type ShotMarker } from '@/components/page-shot-marked'
 import { RunAgain, RunInProgress } from '@/components/run-again'
 import { ReportRail } from '@/components/report-rail'
 import { SectionEvidence } from '@/components/section-evidence'
@@ -104,6 +105,21 @@ export default async function ReportPage({
     owned: analysis.userId !== null,
     run
   })
+
+  // The quoted lines that the phone screenshot can point at, in the order the copy list shows them,
+  // so the number on the picture and the position in the list are the same fact. An error whose
+  // element the phone layout dropped has no box and simply is not marked.
+  const shotMarkers: ShotMarker[] = [...analysis.hypotheses]
+    .sort((a, b) => b.impactScore - a.impactScore)
+    .map((hypothesis, index) => ({ hypothesis, rank: index + 1 }))
+    .filter(({ hypothesis }) => hypothesis.elementRect !== null)
+    .map(({ hypothesis, rank }) => ({
+      id: hypothesis.id,
+      rank,
+      rect: hypothesis.elementRect!,
+      title: hypothesis.problem,
+      score: hypothesis.impactScore
+    }))
 
   const fixes = splitFixes(analysis.flowFixes)
   const visibility = splitVisibility(analysis.flowFixes)
@@ -208,10 +224,7 @@ export default async function ReportPage({
     seo: fixPanel(visibility.seo, 'seo'),
     flow: fixPanel(fixes.flow, 'flow'),
     copy: (
-      <HypothesisList
-        hypotheses={analysis.hypotheses}
-        screenshotUrl={analysis.mobileScreenshotUrl}
-      />
+      <HypothesisList hypotheses={analysis.hypotheses} />
     )
   }
 
@@ -285,7 +298,12 @@ export default async function ReportPage({
 
           <div id="readout" className={cn(SECTION_ANCHOR_CLASS, 'space-y-4')}>
             <MeasuredReadout pagespeed={analysis.pagespeed} {...competitor} scores={history.scores} />
-            <PageShot url={analysis.mobileScreenshotUrl} label={t.report.mobileShot} />
+            <PageShotMarked
+              url={analysis.mobileScreenshotUrl}
+              label={t.report.mobileShot}
+              markers={shotMarkers}
+              total={analysis.hypotheses.length}
+            />
             {isOwner && !hasHistory && state === 'ready' && (
               <RunAgain analysisId={analysis.id} variant="trend_start" blocked={blocked} />
             )}
@@ -372,20 +390,4 @@ function SummaryCell({ label, value }: { label: string; value: string }) {
  * that renders nothing, which is a verdict on the site rather than on our own storage. See
  * docs/invariants.md.
  */
-function PageShot({ url, label }: { url: string | null; label: string }) {
-  if (!url) return null
-
-  return (
-    <figure className="space-y-1.5">
-      <div className="mx-auto max-h-144 w-full max-w-xs overflow-y-auto rounded-lg border bg-muted">
-        {/* eslint-disable-next-line @next/next/no-img-element -- a full page shot has no known
-            height, and the image pipeline wants both dimensions up front. */}
-        <img src={url} alt={label} className="w-full" />
-      </div>
-      <figcaption className="panel-label text-center text-nano text-muted-foreground">
-        {label}
-      </figcaption>
-    </figure>
-  )
-}
 

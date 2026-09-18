@@ -73,8 +73,8 @@ the phone never showed would frame empty space.
 `element_rect` is in CSS pixels.** `SCREENSHOT_PIXEL_RATIO` is that number, read off
 `SCRAPE_VIEWPORT_MOBILE` rather than written down a second time, and **anything positioning a box
 against the picture divides by it**. A constant that merely said 1 while the screenshot was taken at
-3 is exactly the bug `ElementCrop` shipped with: every crop was framed at a third of the offset and
-blown up three times, which looked like empty boxes and giant letters.
+3 is exactly the bug the report's crops shipped with: every one was framed at a third of the offset
+and blown up three times, which looked like empty boxes and giant letters.
 
 The cost is that a full page shot of a long landing page at 3x is megabytes per run, on a volume
 shared with every brand logo. Lowering it means recording the ratio per screenshot, because the ones

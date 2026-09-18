@@ -74,6 +74,13 @@
      to wrap does the same, so the fix is the row, not the wording. */
   --rail-row: 2.5rem;
 
+  /* The phone the report's screenshot sits in. **These two do not invert**, for the same reason
+     `--shade` does not: a phone chassis is dark in a lit room and dark in a dark one, and a frame
+     that flipped to white in light mode would stop reading as a device and start reading as a card.
+     The edge is the rim catching light, one step up from the body. */
+  --device: oklch(0.16 0.008 264);
+  --device-edge: oklch(0.32 0.008 264);
+
   /* Signal channels -- referenced by lib/constants.ts badge/score/section maps.
    *
    * **Every one of these clears 4.5:1 against `--panel`, and four of them had to be darkened to get
@@ -202,6 +209,9 @@
   --font-display: var(--font-space-grotesk);
   --font-mono: var(--font-plex-mono);
 
+  --color-device: var(--device);
+  --color-device-edge: var(--device-edge);
+
   --color-ink: var(--ink);
   --color-paper: var(--paper);
   --color-panel: var(--panel);
@@ -281,6 +291,24 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-variant-numeric: tabular-nums;
+}
+
+/* A scroller with no bar.
+ *
+ * **One place uses it: the page inside the phone frame on the report.** That frame is a drawing of a
+ * device, and a grey browser scrollbar down the inside of it is the one detail that breaks the
+ * illusion. Everywhere else in the app a scrollbar is how a reader knows there is more, so this is a
+ * class rather than a global rule.
+ *
+ * The element that wears it has to stay reachable from a keyboard, because hiding the bar does not
+ * remove the scrolling: see components/page-shot-marked.tsx, which gives it a tabindex and a label.
+ */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* **A `.numeral` and a `.display-heading` class were written here and removed before shipping**, and
@@ -405,14 +433,20 @@ details[open] > *:not(summary) {
    restricted to the property below by only transitioning that one. */
 :root {
   interpolate-size: allow-keywords;
+
+  /* How long a card takes to reach its height, as a variable because two things need to agree on it:
+     the transition below, and `revealAnchor`, which has to wait for the card in front of its target
+     to finish opening before it can know where that target ended up. `lib/anchor.ts` reads this off
+     the computed style rather than holding a second copy of the number. */
+  --disclosure-duration: 0.2s;
 }
 
 details::details-content {
   block-size: 0;
   overflow: hidden;
   transition:
-    block-size 0.2s ease-out,
-    content-visibility 0.2s allow-discrete;
+    block-size var(--disclosure-duration) ease-out,
+    content-visibility var(--disclosure-duration) allow-discrete;
 }
 
 details[open]::details-content {
@@ -443,6 +477,34 @@ details[open]::details-content {
     transparent
   );
   animation: shimmer 1.4s infinite;
+}
+
+/*
+ * Where a cross-reference landed the reader.
+ *
+ * **A scroll ends somewhere, and somewhere is not the same as something.** A marker on the report's
+ * screenshot opens a card several paragraphs long, and without this the reader arrives at a card and
+ * has to find the line it was pointing at. The target holds a tinted plate and then lets go.
+ *
+ * **It holds before it fades, and that plateau is the whole point.** A plain fade starts going the
+ * instant the class lands, which is while the card is still opening and the page is still scrolling,
+ * so the reader arrives at a highlight that has already mostly gone. The tint is flat until past
+ * halfway and only then fades.
+ *
+ * Applied by `revealAnchor` and removed when the animation ends, so nothing has to keep time.
+ */
+@keyframes reveal-flash {
+  0%,
+  55% {
+    background-color: color-mix(in oklch, var(--color-amber) 22%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.reveal-flash {
+  animation: reveal-flash 3.2s ease-out;
 }
 
 /*
@@ -575,6 +637,7 @@ details[open]::details-content {
   .animate-stagger-in,
   .animate-pop-in,
   .animate-scan,
+  .reveal-flash,
   /* Tailwind's own, worn by the spinner on the waiting screen. Frozen rather than hidden: the icon
      still marks which line is the one working. */
   .animate-spin,

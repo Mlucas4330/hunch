@@ -734,8 +734,7 @@ export const en = {
 
   hypothesisList: {
     testThisFirst: 'Start here',
-    assessmentLabel: 'What it does today',
-    cropLabel: 'This line on the page'
+    assessmentLabel: 'What it does today'
   },
 
   report: {
@@ -789,6 +788,16 @@ export const en = {
       lead: 'The rest of the report lists everything found. These three cost the most.'
     },
     mobileShot: 'The page on a phone, as it was measured',
+    pageShot: {
+      // The count is here because structure, SEO and AI errors have nowhere to be pointed at, and a
+      // picture that said nothing about that would read as "the rest of the page is clean".
+      marked: {
+        one: '{count} of {total} copy errors is marked here',
+        other: '{count} of {total} copy errors are marked here'
+      },
+      noMarkers: 'None of the copy errors could be located on the picture.',
+      markerAria: 'Error {rank}: {title}'
+    },
     shareWhatsapp: {
       label: 'Send on WhatsApp',
       message: 'I ran an audit on {host} and found a few things worth fixing. The report is here: {url}'

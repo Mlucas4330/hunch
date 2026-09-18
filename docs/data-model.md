@@ -183,7 +183,8 @@ from a broken product. `page_snapshots.mobile_screenshot_url` is that run's own 
 once it falls past `SNAPSHOT_HISTORY_MAX`, because what an old snapshot owes the trend is its score.
 
 `hypotheses.element_rect` is where the quoted element sat in that picture, measured in the phone
-layout. Null for a manual target and for every row older than the column. Both files live on the same
+layout, and what `PageShotMarked` draws its markers from. Null for a manual target and for every row
+older than the column, and a null is simply not marked. Both files live on the same
 volume as the brand logos, under `SCREENSHOT_DIR`. See [scraping.md](scraping.md).
 
 ### `analyses.agency_note` is the only column a reader's own agency writes

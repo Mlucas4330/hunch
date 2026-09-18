@@ -85,17 +85,16 @@ lines that move twice, instead of eight steps that move once each.
   the same section list the page renders, and the three highest-impact structure and visibility errors
   linking to their cards. Neither adds information; see [components.md](components.md).
 - **`MeasuredReadout`**: the overall PageSpeed Insights score, the trend and the field data. See
-  [readout.md](readout.md). Under it, the phone screenshot of the page from the run that measured
-  it, and **nothing at all when that run took none**: an empty frame would read as a page that
-  renders nothing, which is a verdict on the site rather than on our storage.
+  [readout.md](readout.md). Under it, `PageShotMarked`: the phone screenshot from the run that
+  measured the page, in a phone frame, with the quoted lines drawn on it and numbered in the order the
+  copy list ranks them. A marker opens its card through `revealAnchor`, which is what gets past the
+  closed panel in front of it. **Nothing at all when that run took no picture**: an empty frame would
+  read as a page that renders nothing, which is a verdict on the site rather than on our storage.
+  See [components.md](components.md).
 - **Every error card carries its severity and what it costs**: `SeverityBadge`, read from the impact
-  score the card already shows, and one sentence of `business_impact`. A copy card also carries
-  `ElementCrop`, the quoted line framed inside that same screenshot, which renders only when the run
-  measured a box for it in the phone layout. **The frame is CSS over one shared picture**, never a
-  file cut per error, and it divides by `SCREENSHOT_PIXEL_RATIO` because the box is in CSS pixels
-  while the picture is not. See [scraping.md](scraping.md#the-screenshot-and-the-element-boxes). It
-  is capped at `ELEMENT_CROP_MAX_HEIGHT_PX`, because a line quoted from a section that runs most of
-  the screen would otherwise get a frame taller than the card it belongs to.
+  score the card already shows, and one sentence of `business_impact`. A copy card carries no picture
+  of its own: it quotes the line, and the marked screenshot above is where that line is pointed at.
+  Its `id` comes from `hypothesisAnchor`, which is what the marker links to.
 - **`AnalysisSections`**: AI, SEO, structure and copy, stacked `PanelCard`s, each opening with what
   was measured on its theme. See [analysis-ui.md](analysis-ui.md). **A closed panel is a print bug**, and `@media print` in
   `app/globals.css` prints every `<details>` open.

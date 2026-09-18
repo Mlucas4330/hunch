@@ -6,6 +6,7 @@ import { SectionBadge } from '@/components/section-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
 import { SeverityBadge } from '@/components/severity-badge'
 import { useI18n } from '@/components/i18n-provider'
+import { hypothesisAnchor } from '@/lib/constants'
 import type { Hypothesis } from '@/db/schema'
 import { cn } from '@/lib/utils'
 
@@ -26,6 +27,7 @@ export function HypothesisCard({
 
   return (
     <DisclosureCard
+      id={hypothesisAnchor(hypothesis.id)}
       title={hypothesis.problem}
       testId="hypothesis-card"
       className={cn(isTop && 'ring-1 ring-coral/40', className)}

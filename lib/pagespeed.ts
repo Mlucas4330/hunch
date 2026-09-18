@@ -2,6 +2,7 @@ import {
   HTTP_STATUS,
   PAGESPEED_API_URL,
   PAGESPEED_RETRIES,
+  PAGESPEED_RETRY_DELAY_MS,
   PAGESPEED_STRATEGY,
   PAGESPEED_TIMEOUT_MS
 } from '@/lib/constants'
@@ -142,11 +143,29 @@ export function pageSpeedScore(pagespeed: PageSpeed | null): number | null {
  * **Fail-soft.** No key, a timeout or an error answer all resolve to null and log, and the analysis
  * continues without a PageSpeed section. A null is never shown as a zero. See docs/invariants.md.
  *
- * A 5xx is retried PAGESPEED_RETRIES times inside the same PAGESPEED_TIMEOUT_MS.
+ * A 5xx is retried PAGESPEED_RETRIES times, spaced by PAGESPEED_RETRY_DELAY_MS and bounded together
+ * by the same PAGESPEED_TIMEOUT_MS. **A 5xx here is usually Google's own run failing**, not the page
+ * refusing to load, and the reason it gives is logged so the two can be told apart.
  *
  * It is Google's servers that load the page, not ours, so the URL guard that protects the browser
  * does not apply here; the URL has already been through `assertPublicUrl` at creation.
  */
+/**
+ * What Google said went wrong, for the log line.
+ *
+ * **Worth reading rather than counting.** A 500 from this API is usually "Lighthouse returned error"
+ * with the reason attached, which is the difference between a page that will never score and a run
+ * that will work on the next call. Without it, every failure in production looks the same.
+ */
+async function errorMessage(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: { message?: string } }
+    return body.error?.message ?? 'unknown'
+  } catch {
+    return 'unreadable'
+  }
+}
+
 export async function fetchPageSpeed(url: string, locale: Locale): Promise<PageSpeed | null> {
   const key = process.env.PAGESPEED_API_KEY
   if (!key) {
@@ -164,13 +183,24 @@ export async function fetchPageSpeed(url: string, locale: Locale): Promise<PageS
       const response = await fetch(`${PAGESPEED_API_URL}?${params}`, { signal })
 
       if (response.status >= HTTP_STATUS.serverErrorMin && attempt < PAGESPEED_RETRIES) {
-        await response.body?.cancel()
-        log.warn('pagespeed.failed', { url, status: response.status, retrying: true })
+        log.warn('pagespeed.failed', {
+          url,
+          status: response.status,
+          reason: await errorMessage(response),
+          retrying: true
+        })
+        // Spaced, because an immediate retry lands on the same unhappy Lighthouse worker often
+        // enough to be worth the wait. See lib/constants.ts.
+        await new Promise((resolve) => setTimeout(resolve, PAGESPEED_RETRY_DELAY_MS))
         continue
       }
 
       if (!response.ok) {
-        log.warn('pagespeed.failed', { url, status: response.status })
+        log.warn('pagespeed.failed', {
+          url,
+          status: response.status,
+          reason: await errorMessage(response)
+        })
         return null
       }
 
