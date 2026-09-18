@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import { AgencyNote, AgencyNoteEditor } from '@/components/agency-note'
 import { ReportCover } from '@/components/report-cover'
 import { ReportBrandMark } from '@/components/report-brand-mark'
-import { GeneratingNotice, PendingList } from '@/components/generating-notice'
+import { PendingList } from '@/components/pending-list'
+import { AnalysisProgress } from '@/components/analysis-progress'
 import { GenerationFailed } from '@/components/generation-failed'
 import { HypothesisList } from '@/components/hypothesis-list'
 import { FlowPlaybook } from '@/components/flow-playbook'
@@ -152,7 +153,10 @@ export default async function ReportPage({
         <GenerationFailed measured={false} />
       </div>
     ) : (
-      <MeasuringNotice t={t} url={analysis.url} />
+      <div className="space-y-4">
+        <p className="panel-label text-micro text-muted-foreground">{t.report.teardown}</p>
+        <AnalysisProgress embedKey={analysis.embedKey} url={analysis.url} waiting="measuring" />
+      </div>
     )
   }
 
@@ -287,7 +291,14 @@ export default async function ReportPage({
             )}
           </div>
 
-          {state === 'generating' && <GeneratingNotice embedKey={embedKey} />}
+          {state === 'generating' && (
+            <AnalysisProgress
+              embedKey={embedKey}
+              url={analysis.url}
+              waiting="generating"
+              variant="bare"
+            />
+          )}
           {!generated && state === 'failed' && <GenerationFailed />}
 
           <AnalysisSections
@@ -378,16 +389,3 @@ function PageShot({ url, label }: { url: string | null; label: string }) {
   )
 }
 
-function MeasuringNotice({ t, url }: { t: Dictionary; url: string }) {
-  return (
-    <div className="space-y-4" data-testid="measuring">
-      <p className="panel-label text-micro text-muted-foreground">{t.report.teardown}</p>
-      <h1 className="text-balance font-display text-2xl font-bold tracking-tight">
-        {t.report.measuringHeading}
-      </h1>
-      <p className="break-all font-mono text-sm text-muted-foreground">{url}</p>
-      <p className="max-w-xl text-sm text-muted-foreground">{t.report.measuringBody}</p>
-      <div className="h-40 w-full animate-pulse rounded-md border bg-muted" aria-busy="true" />
-    </div>
-  )
-}

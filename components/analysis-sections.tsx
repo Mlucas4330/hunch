@@ -2,7 +2,10 @@
 
 import type { ReactNode } from 'react'
 import { ANALYSIS_SECTION_ICON } from '@/components/analysis-section-icon'
+import { ImpactLegend } from '@/components/impact-legend'
+import { InfoHint } from '@/components/info-hint'
 import { PanelCard } from '@/components/panel-card'
+import { RichText } from '@/components/rich-text'
 import { useI18n } from '@/components/i18n-provider'
 import type { AnalysisTab } from '@/lib/enums'
 import { cn } from '@/lib/utils'
@@ -50,9 +53,24 @@ export function AnalysisSections({
           }
         >
           <div className="space-y-6 p-4 sm:p-6">
-            <h2 className="text-balance font-display text-xl font-bold tracking-tight">
-              {dictionary.analysis.sectionQuestions[tab]}
-            </h2>
+            {/* **One heading per section.** The card's own strip already names the theme, so the
+                question is the only title inside it, and what used to be a second header over the
+                list is now the hint beside that question and the legend at the end of its row. */}
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <h2 className="text-balance font-display text-xl font-bold tracking-tight">
+                  {dictionary.analysis.sectionQuestions[tab]}
+                </h2>
+                <span className="print:hidden">
+                  <InfoHint label={dictionary.analysis.sectionHints[tab].label}>
+                    <RichText>{dictionary.analysis.sectionHints[tab].body}</RichText>
+                  </InfoHint>
+                </span>
+              </div>
+              {/* The score is what the legend explains, and there is none until something was
+                  written. */}
+              {counts && panels[tab] && <ImpactLegend />}
+            </div>
 
             {/* Each slot is built by the page and handed over as a prop, so it gets a wrapper of its
                 own: beside the heading it would be a keyless array member and React warns. */}

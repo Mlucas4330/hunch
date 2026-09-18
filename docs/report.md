@@ -28,8 +28,8 @@ this page and `GET /api/analyses` go through it**, so the screen and the client 
 
 | State | The rows | What renders |
 | --- | --- | --- |
-| `measuring` | nothing measured | `MeasuringNotice` |
-| `generating` | measured, nothing generated, the latest run's job in flight | `GeneratingNotice` above the four sections, each with a placeholder where its list goes |
+| `measuring` | nothing measured | `AnalysisProgress` |
+| `generating` | measured, nothing generated, the latest run's job in flight | `AnalysisProgress` above the four sections, each with a `PendingList` where its list goes |
 | `rerunning` | errors exist, the latest run's job in flight | the current lists, with `RunInProgress` in the owner's header |
 | `failed` | the latest run has `failed_at`, or nothing generated and no job | `GenerationFailed` above the sections that have something measured, or in place of the readout when nothing was |
 | `ready` | errors exist | `AnalysisSections` |
@@ -42,9 +42,29 @@ Three orderings are load bearing:
 - **No job and nothing recorded is `failed`**, not a placeholder that never fills. A row from before
   the quota existed has no owner and was only ever measured, so it reads as `ready`.
 
-`GeneratingNotice` and `RunInProgress` poll `GET /api/analyses?embedKey=` through `useAnalysisPoll`
+`AnalysisProgress` and `RunInProgress` poll `GET /api/analyses?embedKey=` through `useAnalysisPoll`
 and call `router.refresh()` once when the state stops being `generating` or `rerunning`. They stop at
 `ANALYSIS_WAIT_MAX_MS`.
+
+## The wait
+
+A run is minutes long: a browser opens the page, Google scores it, the site is crawled, the index is
+asked, and three models write. `components/analysis-progress.tsx` is what somebody looks at for those
+minutes, on the dashboard form and here, and its shape is in [components.md](components.md).
+
+**Everything it shows is something that happened.** `lib/run-progress.ts` records a `RUN_STEP` in
+Redis *after* the call it names returned, `analysisProgress` reads them back, and the four lines of
+`lib/run-phases.ts` are grouped from them. A call that failed records nothing and its line stays
+short, which is the honest reading: we did not measure that. The screenshot is the run's own, and the
+two numbers are the ones the report opens with.
+
+**Nothing on it is a timer**, apart from the clock and the rotating line. That line says what the
+audit covers, never what it has found, because a sentence like "hero analysed, 3 errors" would be a
+finding invented to fill a wait.
+
+**It degrades rather than breaks.** Steps live in Redis and Redis is allowed to be missing, so with no
+steps at all the lines still advance on `measured` and `generated`, which are read from the row. Four
+lines that move twice, instead of eight steps that move once each.
 
 ## The page: `app/(report)/r/[embedKey]/page.tsx`
 
@@ -71,7 +91,11 @@ and call `router.refresh()` once when the state stops being `generating` or `rer
 - **Every error card carries its severity and what it costs**: `SeverityBadge`, read from the impact
   score the card already shows, and one sentence of `business_impact`. A copy card also carries
   `ElementCrop`, the quoted line framed inside that same screenshot, which renders only when the run
-  measured a box for it in the phone layout.
+  measured a box for it in the phone layout. **The frame is CSS over one shared picture**, never a
+  file cut per error, and it divides by `SCREENSHOT_PIXEL_RATIO` because the box is in CSS pixels
+  while the picture is not. See [scraping.md](scraping.md#the-screenshot-and-the-element-boxes). It
+  is capped at `ELEMENT_CROP_MAX_HEIGHT_PX`, because a line quoted from a section that runs most of
+  the screen would otherwise get a frame taller than the card it belongs to.
 - **`AnalysisSections`**: AI, SEO, structure and copy, stacked `PanelCard`s, each opening with what
   was measured on its theme. See [analysis-ui.md](analysis-ui.md). **A closed panel is a print bug**, and `@media print` in
   `app/globals.css` prints every `<details>` open.

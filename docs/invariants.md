@@ -24,6 +24,19 @@ that would write the crawl's blindness down as the site's fault.
 
 *Governs:* [scraping.md](scraping.md), [readout.md](readout.md), [ai-pipeline.md](ai-pipeline.md)
 
+### A step on the waiting screen is a step the run recorded
+
+`lib/run-progress.ts` writes a `RUN_STEP` **after** the call it names returned with something, so a
+PageSpeed that timed out or a generator that answered with an empty list writes nothing and its line
+stays short. The screen is a record of the past, never a schedule, and the same rule that keeps a
+failed measurement out of the report keeps it off the screen somebody waits on.
+
+The steps live in Redis and Redis is allowed to be missing, so the lines also advance on `measured`
+and `generated`, which are read from the row. **What is never allowed is a line that advances on a
+clock**: that is the one way this screen could claim work nobody did.
+
+*Governs:* [report.md](report.md), [api.md](api.md), [analysis-ui.md](analysis-ui.md)
+
 ### Index numbers say where they came from
 
 Backlinks, referring domains, domain rank, rankings and search volumes come from SE Ranking's index,
@@ -119,6 +132,10 @@ role is.
 What a tier buys beyond its quota is read from `users.plan_tier`, never from the price the landing
 page showed and never from anything the client sent. `canBulkGenerate` in `lib/auth-policy.ts` is the
 one predicate, beside `isAdmin` and for the same reason: no call site may inline the comparison.
+
+**An admin passes it whatever the tier says**, because an operator who cannot open a screen cannot
+support the account sitting on it. That is the one bypass, it reads the stored role through `isAdmin`,
+and it is therefore revoked on the next request like every other thing the role opens.
 
 **It is checked three times, and only the last two are boundaries.** The nav hides the link, the page
 answers `notFound()`, and the route re-checks before it enqueues anything. Hiding a link is a

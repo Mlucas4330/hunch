@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AnalysisProgress } from '@/components/analysis-progress'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/components/i18n-provider'
@@ -48,7 +49,9 @@ export function UrlInputForm({ blocked = false }: { blocked?: boolean }) {
   const [error, setError] = useState<string | null>(null)
   const [competitorError, setCompetitorError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [elapsed, setElapsed] = useState(0)
+  // The key of the analysis being waited on, which is what the progress screen polls. Set the moment
+  // the route answers, so the wait is drawn from the run itself rather than from this form's clock.
+  const [waitingFor, setWaitingFor] = useState<string | null>(null)
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -74,9 +77,7 @@ export function UrlInputForm({ blocked = false }: { blocked?: boolean }) {
     }
 
     setPending(true)
-    setElapsed(0)
-    const startedAt = Date.now()
-    const ticker = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000)
+    setWaitingFor(null)
 
     try {
       const res = await fetch('/api/analyses', {
@@ -92,6 +93,7 @@ export function UrlInputForm({ blocked = false }: { blocked?: boolean }) {
       }
 
       const { embedKey }: { embedKey: string } = await res.json()
+      setWaitingFor(embedKey)
 
       const done = await waitForAnalysis(embedKey)
       if (!done) {
@@ -103,8 +105,8 @@ export function UrlInputForm({ blocked = false }: { blocked?: boolean }) {
     } catch {
       setError(dictionary.urlForm.errorGeneric)
     } finally {
-      clearInterval(ticker)
       setPending(false)
+      setWaitingFor(null)
     }
   }
 
@@ -158,19 +160,19 @@ export function UrlInputForm({ blocked = false }: { blocked?: boolean }) {
         )}
       </div>
 
-      {pending && (
-        <div className="space-y-2" role="status" aria-live="polite">
-          <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/50 px-3 py-2">
-            <span className="panel-label text-micro text-muted-foreground">
-              {dictionary.urlForm.measuring}
-            </span>
-            <span className="font-mono text-xs tabular-nums text-muted-foreground">
-              {formatElapsed(elapsed)}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">{dictionary.urlForm.waitNote}</p>
-        </div>
-      )}
+      {pending &&
+        (waitingFor ? (
+          <AnalysisProgress
+            embedKey={waitingFor}
+            url={url}
+            waiting="measuring"
+            variant="inline"
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+            {dictionary.urlForm.measuring}
+          </p>
+        ))}
 
       {error && (
         <p className="text-sm text-destructive" role="alert">
@@ -179,12 +181,6 @@ export function UrlInputForm({ blocked = false }: { blocked?: boolean }) {
       )}
     </form>
   )
-}
-
-function formatElapsed(seconds: number): string {
-  const minutes = Math.floor(seconds / 60)
-  const rest = seconds % 60
-  return `${minutes}:${String(rest).padStart(2, '0')}`
 }
 
 // The statuses this route actually answers with. See app/api/analyses/route.ts.

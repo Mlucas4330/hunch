@@ -76,7 +76,15 @@ integer reads as page one.
 ### `GET /api/analyses?embedKey=`
 
 Progress for one analysis, readable by whoever holds the key, because the report is shared by link.
-It answers `id`, `owned`, `measured`, `generated`, `failed` and `state`.
+It answers `id`, `owned`, `measured`, `generated`, `failed` and `state`, plus what the waiting screen
+draws: `url`, `screenshotUrl`, `score`, `crawledPages` and `steps`.
+
+**The five extra fields are what the run has already produced**, so they are null or empty until it
+has. `score` is `pageSpeedScore`, the same average the report opens with, and `crawledPages` counts
+the pages the crawl read. **A call that failed stays null and never becomes a zero**, under the rule
+in [invariants.md](invariants.md#unknown-is-never-reported-as-negative). `steps` is `RUN_STEP`, read
+from Redis, and an empty list means no Redis rather than no progress. See
+[report.md](report.md#the-wait).
 
 **`state` is what a caller should switch on**, and it comes from `analysisStateFor`, the same helper
 the report renders from. The values are `ANALYSIS_STATE`: `measuring`, `generating`, `rerunning`,

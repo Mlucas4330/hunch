@@ -508,7 +508,6 @@ export const en = {
     urlPlaceholder: 'https://client-landing-page.com',
     analyze: 'Analyze',
     analyzing: 'Analyzing...',
-    waitNote: 'Keep this tab open. As soon as the measurement is ready we take you to the report, and the error lists carry on being written there.',
     errorInvalidUrl: 'Enter a valid URL, including https://',
     errorInvalidCompetitor: 'The page to compare against needs a valid URL, including https://',
     competitorLabel: 'Compare against another page (optional)',
@@ -550,15 +549,31 @@ export const en = {
       copy: 'Which lines describe without convincing?',
       seo: 'What stops a search engine reading the page?',
       ai: 'What stops an AI from reading and quoting the page?'
+    },
+    // What each section looked at, beside that section's question. This used to live in a second
+    // header inside the card, under a second heading that restated the question.
+    sectionHints: {
+      flow: {
+        label: 'What this section covers',
+        body: 'Errors in how the page is *put together*: the form, the calls to action, what answers objections, what loads slowly.'
+      },
+      copy: {
+        label: 'How to read these',
+        body: 'Each error quotes the line *as it stands on the page* and says what is wrong with it.'
+      },
+      seo: {
+        label: 'What this section checked',
+        body: 'From what the page *declares about itself* and the PageSpeed Insights SEO audits: title, description, canonical, structured data, robots.txt.'
+      },
+      ai: {
+        label: 'What this section checked',
+        body: 'To cite a page, an assistant has to *read an answer off it*: facts in text rather than locked inside an image or a script.'
+      }
     }
   },
 
 
   flow: {
-    eyebrow: 'Structure',
-    title: 'What the page puts in the way',
-    hintLabel: 'What this section covers',
-    hint: 'Errors in how the page is *put together*: the form, the calls to action, what answers objections, what loads slowly.',
     evidenceLabel: 'Why',
     count: {
       one: '{count} structure error',
@@ -567,18 +582,10 @@ export const en = {
   },
 
   seo: {
-    eyebrow: 'SEO',
-    title: 'What a search engine cannot read here',
-    hintLabel: 'What this section checked',
-    hint: 'From what the page *declares about itself* and the PageSpeed Insights SEO audits: title, description, canonical, structured data, robots.txt.',
     evidenceLabel: 'Why'
   },
 
   ai: {
-    eyebrow: 'AI visibility',
-    title: 'What a language model cannot quote',
-    hintLabel: 'What this section checked',
-    hint: 'To cite a page, an assistant has to *read an answer off it*: facts in text rather than locked inside an image or a script.',
     evidenceLabel: 'Why'
   },
 
@@ -726,18 +733,35 @@ export const en = {
   },
 
   hypothesisList: {
-    eyebrow: 'Copy',
-    title: 'Lines that are not doing their job',
-    hintLabel: 'How to read these',
-    hint: 'Each one quotes the line *as it stands on the page* and says what is wrong with it.',
     testThisFirst: 'Start here',
     assessmentLabel: 'What it does today',
     cropLabel: 'This line on the page'
   },
 
   report: {
+    progress: {
+      title: 'Reading the page',
+      titleWriting: 'Writing the report',
+      phases: {
+        open: 'Opening the page in a browser',
+        measure: 'Measuring speed, SEO and the rest of the site',
+        write: 'Writing the errors we found',
+        assemble: 'Putting the report together'
+      },
+      chipScore: 'PageSpeed {score}',
+      chipPages: '{count} pages of the site read',
+      chipShot: 'Phone screenshot taken',
+      // What the audit covers, never what it has found: the line rotates while the run works and has
+      // to be true at any second of it.
+      tips: [
+        'We start at the hero: what it promises, and what it asks for.',
+        'Every error says what it costs the business, and never how to fix it.',
+        'The PageSpeed score comes from Google, measured on a phone.',
+        'The report carries your brand, ready to send to the client.'
+      ],
+      stalled: 'This is taking longer than usual. The work is still queued, and this page updates itself when it lands.'
+    },
     generating: {
-      eyebrow: 'Still being written',
       note: 'The measurement in each section is final. The error lists are being written now and appear here on their own, so you can leave this page and come back to it.',
       stalled: 'This is taking longer than usual. The work is still queued. Reload the page to check on it.'
     },
@@ -751,8 +775,6 @@ export const en = {
       body: 'The run did not finish, and it does not count against the monthly quota.'
     },
     teardown: 'Landing page audit',
-    measuringHeading: 'Measuring this page...',
-    measuringBody: 'We are opening it and running PageSpeed Insights on it. This takes about a minute. The page updates itself when the numbers land.',
     plan: 'Landing page audit',
     landingPageAnalyzed: 'Landing page analyzed',
     dated: 'Reviewed on {date}',

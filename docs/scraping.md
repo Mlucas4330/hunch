@@ -69,10 +69,16 @@ measured at `SCRAPE_VIEWPORT` and the same element is somewhere else entirely on
 that now matches nothing is skipped: a responsive layout may drop an element, and a box for something
 the phone never showed would frame empty space.
 
-**The picture is taken at `SCREENSHOT_SCALE_FACTOR`, which is 1, not at the viewport's
-`deviceScaleFactor` of 3.** The 3 exists so the tap target audit measures what a phone measures; a
-full page shot of a long landing page at 3x is megabytes per run on a volume shared with every brand
-logo, to feed a crop read a few hundred pixels wide.
+**The picture comes out at the viewport's `deviceScaleFactor`, which is 3, while every box in
+`element_rect` is in CSS pixels.** `SCREENSHOT_PIXEL_RATIO` is that number, read off
+`SCRAPE_VIEWPORT_MOBILE` rather than written down a second time, and **anything positioning a box
+against the picture divides by it**. A constant that merely said 1 while the screenshot was taken at
+3 is exactly the bug `ElementCrop` shipped with: every crop was framed at a third of the offset and
+blown up three times, which looked like empty boxes and giant letters.
+
+The cost is that a full page shot of a long landing page at 3x is megabytes per run, on a volume
+shared with every brand logo. Lowering it means recording the ratio per screenshot, because the ones
+already on disk were taken at 3.
 
 Superseded snapshot screenshots are deleted at the end of the run that superseded them, which is why
 there is no cron: the current picture on `analyses` is kept for good. See
@@ -343,6 +349,17 @@ A requeued job runs its handler a second time, so **the handler has to be able t
 ### Redis down means no analysis
 
 `POST /api/analyses` has no inline fallback: without Redis it deletes the row and answers `503`.
+
+### The run says where it got to, beside the queue rather than inside it
+
+`measurePage` and `generateFromMeasurement` take an optional `onStep`, called from a `.then` on each of
+the six calls they run side by side, and `runAnalysis` binds it to `markStep` for that run. The steps
+go to `progress:<runId>` in Redis, **not** into the job record: the queue moves ids and statuses and
+holds no domain knowledge, and a list of analysis steps is exactly that knowledge.
+
+**Marking is fire and forget and fails open.** A Redis that will not take the step must never hold up
+the work the step is about, so nothing awaits it and a failure logs `progress.write_failed` and is
+dropped. The screen reading them degrades on its own; see [report.md](report.md#the-wait).
 
 ## Running the scraper outside the Next build
 

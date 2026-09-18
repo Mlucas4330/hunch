@@ -70,7 +70,8 @@ import type {
   Locale,
   Market,
   PageSpeedCategory,
-  ReadoutGroup
+  ReadoutGroup,
+  RunStep
 } from '@/lib/enums'
 
 const MODEL = 'claude-sonnet-4-6'
@@ -87,9 +88,17 @@ export type AnalysisResult = {
   competitor: CompetitorMeasurement | null
 }
 
+/**
+ * Told when one of the calls below has returned, so the screen somebody is waiting on can say so.
+ * Optional everywhere, and every call site is a `.then` on the work itself: a step is a record of
+ * what happened, never an announcement of what is about to. See lib/run-progress.ts.
+ */
+export type OnStep = (step: RunStep) => void
+
 export type AnalyzeOptions = {
   locale?: Locale
   competitorUrl?: string | null
+  onStep?: OnStep
 }
 
 export type PageMeasurement = {
@@ -108,10 +117,15 @@ export type PageMeasurement = {
 
 // SE Ranking is asked about the market the page is written for, which is only known once the scrape has
 // read its `lang`. See docs/invariants.md.
-async function scrapeAndIndex(url: string) {
+async function scrapeAndIndex(url: string, onStep?: OnStep) {
   const scraped = await scrapePage(url)
+  onStep?.('open')
+
   const market = detectMarket({ url, lang: scraped.seo.lang })
-  return { scraped, market, index: await fetchSeoIndex(url, market) }
+  const index = await fetchSeoIndex(url, market)
+  if (index.backlinks || index.rankedKeywords) onStep?.('index')
+
+  return { scraped, market, index }
 }
 
 // The crawl reads robots.txt's sitemaps and rules, so it starts once robots.txt is in. A throw costs the
@@ -209,7 +223,11 @@ export type MeasuredPage = PageMeasurement & {
   elementRects?: Record<string, ElementRect>
 }
 
-export async function measurePage(url: string, locale: Locale): Promise<MeasuredPage> {
+export async function measurePage(
+  url: string,
+  locale: Locale,
+  onStep?: OnStep
+): Promise<MeasuredPage> {
   if (process.env.E2E_FIXTURES === '1') {
     return {
       structure: FIXTURE_STRUCTURE,
@@ -252,7 +270,20 @@ export async function measurePage(url: string, locale: Locale): Promise<Measured
     },
     { crawlerAccess, siteCrawl },
     pagespeed
-  ] = await Promise.all([scrapeAndIndex(url), measureSite(url), fetchPageSpeed(url, locale)])
+  ] = await Promise.all([
+    scrapeAndIndex(url, onStep),
+    // **A step is marked only when the call came back with something.** All three of these degrade to
+    // null rather than throwing, and a screen that ticked "speed measured" off a PageSpeed that
+    // timed out would be writing our blindness down as a measurement. See docs/invariants.md.
+    measureSite(url).then((site) => {
+      if (site.siteCrawl) onStep?.('crawl')
+      return site
+    }),
+    fetchPageSpeed(url, locale).then((pagespeed) => {
+      if (pagespeed) onStep?.('pagespeed')
+      return pagespeed
+    })
+  ])
 
   return {
     structure,
@@ -440,12 +471,18 @@ above (JSON):\n${JSON.stringify(
   const visibilityFindings = findingsFor(['declared', 'crawler_access', 'site', 'index'])
   const visibilityCategories = PAGESPEED_CATEGORY_BY_FIX_KIND.visibility
 
+  // Each generator tells the waiting screen once it has written something. **Marked on a list with
+  // something in it**: they degrade to an empty list rather than throwing, and an empty one wrote
+  // nothing, so it stays pending, which is what happened. See lib/run-progress.ts.
   const [object, playbook, visibility] = await Promise.all([
     generateHypotheses({
       locale,
       market,
       competitorHost,
       prompt: `Landing page copy:\n\n${pageText.text}${coverageNote(pageText)}${structureSection}${elementsSection}${neighbourSection}${competitorSection}`
+    }).then((written) => {
+      if (written.hypotheses.length) options.onStep?.('copy')
+      return written
     }),
     generatePlaybook({
       structure,
@@ -457,6 +494,9 @@ above (JSON):\n${JSON.stringify(
       locale,
       market,
       competitor
+    }).then((written) => {
+      if (written.length) options.onStep?.('flow')
+      return written
     }),
     generateVisibility({
       seo,
@@ -472,6 +512,9 @@ above (JSON):\n${JSON.stringify(
       competitor,
       locale,
       market
+    }).then((written) => {
+      if (written.length) options.onStep?.('visibility')
+      return written
     })
   ])
 

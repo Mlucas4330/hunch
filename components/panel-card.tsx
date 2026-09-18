@@ -10,8 +10,7 @@ import { cn } from '@/lib/utils'
  * **One component because there are callers that had already started to differ.** The four analysis
  * sections that replaced the tabs and the terms section that closes the document are the same
  * object: a heading somebody clicks, a summary of what is inside it on the same line, and a body.
- * Written twice it drifts the first time either is touched, which is the failure `RankedListHeader`
- * exists to stop one level up.
+ * Written twice it drifts the first time either is touched.
  *
  * **The bar is the whole `<summary>`, and that is a fix rather than a style.** The readout's group
  * cards, which used this before they moved to `DisclosureCard`, first put the label in the bar and

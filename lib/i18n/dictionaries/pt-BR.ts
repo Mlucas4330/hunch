@@ -503,7 +503,6 @@ export const ptBR: Dictionary = {
     urlPlaceholder: 'https://landing-page-do-cliente.com',
     analyze: 'Analisar',
     analyzing: 'Analisando...',
-    waitNote: 'Mantenha esta aba aberta. Assim que a medição estiver pronta a gente te leva ao relatório, e as listas de erros continuam sendo escritas lá.',
     errorInvalidUrl: 'Informe uma URL válida, incluindo https://',
     errorInvalidCompetitor: 'A página de comparação precisa de uma URL válida, incluindo https://',
     competitorLabel: 'Comparar com outra página (opcional)',
@@ -545,15 +544,31 @@ export const ptBR: Dictionary = {
       copy: 'Quais linhas descrevem sem convencer?',
       seo: 'O que impede um buscador de ler a página?',
       ai: 'O que impede uma IA de ler e citar a página?'
+    },
+    // O que cada seção olhou, ao lado da pergunta dela. Antes isto ficava num segundo cabeçalho
+    // dentro do card, junto de um segundo título que repetia a pergunta.
+    sectionHints: {
+      flow: {
+        label: 'O que esta seção cobre',
+        body: 'Erros em como a página está *montada*: o formulário, as chamadas para ação, o que responde objeções, o que carrega devagar.'
+      },
+      copy: {
+        label: 'Como ler isto',
+        body: 'Cada erro cita a linha *como ela está na página* e diz o que está errado nela.'
+      },
+      seo: {
+        label: 'O que esta seção verificou',
+        body: 'Vem do que a página *declara sobre si mesma* e das auditorias de SEO do PageSpeed Insights: title, meta description, canonical, dados estruturados, robots.txt.'
+      },
+      ai: {
+        label: 'O que esta seção verificou',
+        body: 'Para citar uma página, um assistente precisa *ler uma resposta nela*: fatos em texto, não presos dentro de uma imagem ou de um script.'
+      }
     }
   },
 
 
   flow: {
-    eyebrow: 'Estrutura',
-    title: 'O que a página coloca no caminho',
-    hintLabel: 'O que esta seção cobre',
-    hint: 'Erros em como a página está *montada*: o formulário, as chamadas para ação, o que responde objeções, o que carrega devagar.',
     evidenceLabel: 'Por quê',
     count: {
       one: '{count} erro de estrutura',
@@ -562,18 +577,10 @@ export const ptBR: Dictionary = {
   },
 
   seo: {
-    eyebrow: 'SEO',
-    title: 'O que um buscador não consegue ler aqui',
-    hintLabel: 'O que esta seção verificou',
-    hint: 'Vem do que a página *declara sobre si mesma* e das auditorias de SEO do PageSpeed Insights: title, meta description, canonical, dados estruturados, robots.txt.',
     evidenceLabel: 'Por quê'
   },
 
   ai: {
-    eyebrow: 'Visibilidade para IA',
-    title: 'O que um modelo de linguagem não consegue citar',
-    hintLabel: 'O que esta seção verificou',
-    hint: 'Para citar uma página, um assistente precisa *ler uma resposta nela*: fatos em texto, não presos dentro de uma imagem ou de um script.',
     evidenceLabel: 'Por quê'
   },
 
@@ -721,18 +728,35 @@ export const ptBR: Dictionary = {
   },
 
   hypothesisList: {
-    eyebrow: 'Copy',
-    title: 'Linhas que não estão fazendo o seu trabalho',
-    hintLabel: 'Como ler isto',
-    hint: 'Cada uma cita a linha *como ela está na página* e diz o que está errado nela.',
     testThisFirst: 'Comece por aqui',
     assessmentLabel: 'O que ela faz hoje',
     cropLabel: 'Esta linha na página'
   },
 
   report: {
+    progress: {
+      title: 'Analisando a página',
+      titleWriting: 'Escrevendo o relatório',
+      phases: {
+        open: 'Abrindo a página num navegador',
+        measure: 'Medindo velocidade, SEO e o resto do site',
+        write: 'Escrevendo os erros encontrados',
+        assemble: 'Montando o relatório'
+      },
+      chipScore: 'PageSpeed {score}',
+      chipPages: '{count} páginas do site lidas',
+      chipShot: 'Print da página capturado',
+      // O que a auditoria cobre, nunca o que já foi encontrado: a linha gira enquanto a rodada corre
+      // e precisa ser verdadeira em qualquer segundo dela.
+      tips: [
+        'Vamos olhar a promessa da hero e o que ela pede do visitante.',
+        'Cada erro vem com o que ele custa ao negócio, sem receita de bolo.',
+        'A nota do PageSpeed vem do Google, medida no celular.',
+        'O relatório sai com a sua marca, pronto para mandar ao cliente.'
+      ],
+      stalled: 'Está demorando mais que o normal. O trabalho continua na fila, e a página se atualiza sozinha quando ele terminar.'
+    },
     generating: {
-      eyebrow: 'Ainda sendo escrito',
       note: 'A medição de cada seção já está fechada. As listas de erros estão sendo escritas agora e aparecem aqui sozinhas, então dá para sair desta página e voltar depois.',
       stalled: 'Está demorando mais que o normal. O trabalho continua na fila. Recarregue a página para conferir.'
     },
@@ -746,8 +770,6 @@ export const ptBR: Dictionary = {
       body: 'A rodada não terminou e não conta na cota do mês.'
     },
     teardown: 'Auditoria de landing page',
-    measuringHeading: 'Medindo esta página...',
-    measuringBody: 'Estamos abrindo a página e rodando o PageSpeed Insights nela. Isso leva cerca de um minuto. A página se atualiza quando os números chegarem.',
     plan: 'Auditoria de landing page',
     landingPageAnalyzed: 'Landing page analisada',
     dated: 'Revisado em {date}',

@@ -139,7 +139,13 @@ export function isAdmin(user: Pick<User, 'role'> | null | undefined): boolean {
  * the webhook wrote on the row is the entitlement. It lives beside `isAdmin` for the same reason that
  * one does: no call site may inline the comparison, and like `isAdmin` it is checked at the entry
  * point, at the page and again at the route. See docs/invariants.md.
+ *
+ * **An admin passes whatever tier the row carries**, because the operator has to be able to open every
+ * screen to support the people on them. It reads the stored role, exactly as `isAdmin` does, so
+ * revoking the role closes this on the next request.
  */
-export function canBulkGenerate(user: Pick<User, 'planTier'> | null | undefined): boolean {
+export function canBulkGenerate(user: Pick<User, 'planTier' | 'role'> | null | undefined): boolean {
+  if (isAdmin(user)) return true
+
   return user?.planTier != null && BULK_PLAN_TIERS.includes(user.planTier)
 }

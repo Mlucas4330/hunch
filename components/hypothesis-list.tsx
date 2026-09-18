@@ -4,7 +4,6 @@ import { useMemo } from 'react'
 import { HypothesisCard } from '@/components/hypothesis-card'
 import { CardDrawers } from '@/components/card-drawers'
 import { ElementCrop } from '@/components/element-crop'
-import { RankedListHeader } from '@/components/ranked-list-header'
 import { HYPOTHESIS_EXPANDED_COUNT } from '@/lib/constants'
 import { useI18n } from '@/components/i18n-provider'
 import type { Hypothesis } from '@/db/schema'
@@ -20,9 +19,6 @@ export function HypothesisList({
   hypotheses: Hypothesis[]
   screenshotUrl: string | null
 }) {
-  const { dictionary } = useI18n()
-  const copy = dictionary.hypothesisList
-
   const ranked = useMemo(
     () => [...hypotheses].sort((a, b) => b.impactScore - a.impactScore),
     [hypotheses]
@@ -30,12 +26,6 @@ export function HypothesisList({
 
   return (
     <div className="space-y-3">
-      <RankedListHeader
-        eyebrow={copy.eyebrow}
-        title={copy.title}
-        hintLabel={copy.hintLabel}
-        hint={copy.hint}
-      />
       {ranked.map((hypothesis, index) => (
         <HypothesisCard
           key={hypothesis.id}

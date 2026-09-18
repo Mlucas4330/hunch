@@ -460,6 +460,10 @@ export const JOB_TTL_MS = 10 * MINUTE_MS
 // is not a busy loop against Redis.
 export const JOB_POLL_INTERVAL_MS = 2_000
 
+// How long each line on the waiting screen stays up. Long enough to read twice, short enough that a
+// two-minute wait shows more than one of them.
+export const PROGRESS_TIP_INTERVAL_MS = 6_000
+
 // Past this the queue stops accepting rather than promising work it will not get to. An unbounded
 // queue on one browser container is the outage it exists to prevent, not a safeguard against it.
 export const QUEUE_MAX_DEPTH = 50
@@ -649,11 +653,13 @@ export const SCREENSHOT_PUBLIC_PATH = '/screenshots'
 export const SCREENSHOT_FILENAME_PATTERN =
   /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.png$/
 
-// A phone viewport is captured at deviceScaleFactor 3 so the tap target audit measures what a
-// phone measures. **The picture is taken at 1.** A full page shot of a long Brazilian landing page
-// at 3x is megabytes per run on a volume shared with every brand logo, and the crop this feeds is
-// read at a few hundred pixels wide.
-export const SCREENSHOT_SCALE_FACTOR = 1
+// **How many pixels of the stored picture one CSS pixel of the page is.** The phone pass runs at
+// `SCRAPE_VIEWPORT_MOBILE.deviceScaleFactor` so the tap target audit measures what a phone measures,
+// and the screenshot is taken in that same pass, so the PNG comes out at that ratio while every box
+// in `element_rect` is in CSS pixels. **Anything that positions one against the other has to divide
+// by this**, and it is read from the viewport rather than written down again so the two can never
+// drift apart. See docs/report.md.
+export const SCREENSHOT_PIXEL_RATIO = SCRAPE_VIEWPORT_MOBILE.deviceScaleFactor
 
 // How many superseded screenshots one prune pass deletes. A cap because the delete list becomes
 // bind parameters, and because a pass that runs long holds nothing open.
@@ -664,6 +670,12 @@ export const SCREENSHOT_PRUNE_BATCH = 200
 // own size rather than enlarged into blur.
 export const ELEMENT_CROP_PADDING_PX = 12
 export const ELEMENT_CROP_WIDTH_PX = 520
+
+// **The frame is never taller than this, whatever the element is.** A quoted line can sit inside a
+// section that runs most of the screen, and a frame that tall stops being a crop: it pushes the card
+// it belongs to off the page and shows everything except what is being pointed at. The top is kept,
+// because that is where the quoted line starts.
+export const ELEMENT_CROP_MAX_HEIGHT_PX = 320
 
 // The agency's own words on the report, written by the owner and read by their client. Bounded for
 // the same reason the brand name is: it is rendered on a surface neither of them can scroll away.

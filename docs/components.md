@@ -314,8 +314,25 @@ The owner's "Run again", in two shapes: the bare button in the report header, an
 so the owner learns why rather than finding a control gone. The route refuses anyway.
 
 `RunInProgress` takes its place in the header while the state is `rerunning`, polling through
-`components/use-analysis-poll.ts`, the same hook `GeneratingNotice` uses. See
+`components/use-analysis-poll.ts`, the same hook the waiting screen uses. See
 [report.md](report.md).
+
+## The wait: `components/analysis-progress.tsx`
+
+One piece for both places somebody waits: the dashboard form, while the page is being measured, and
+the report, while the lists are being written. Three shapes of the same thing. `page` is the report
+with nothing on it yet, `inline` is the form, and **`bare` drops the browser frame** because that
+report already shows this page's screenshot further down, and one picture of the same page is
+evidence while two is decoration.
+
+The frame is a browser: three dots, the real URL in mono, and the run's own phone screenshot inside
+once it exists, with a `PageWireframe` skeleton before that. **The wireframe carries no text, no
+number and no verdict**, because a drawn page that nobody has seen would be a guess at the reader's
+site.
+
+`animate-scan` is the band crossing it. It is decoration over a real picture, so the element wearing
+it is `aria-hidden`, the step it stands for is written out in text beside it, and it stops under
+`prefers-reduced-motion`. The whole section is `print:hidden`.
 
 ## Brand: `components/brand-settings-form.tsx` and `components/report-brand-mark.tsx`
 
@@ -363,8 +380,9 @@ the chevron and must stay short enough not to wrap.
 
 ## Impact legend: `components/impact-legend.tsx`
 
-What the number on the rail means, said once per list rather than once per card. It is mounted by
-`RankedListHeader`, see [analysis-ui.md](analysis-ui.md#the-header-over-a-list-componentsranked-list-headertsx).
+What the number on the rail means, said once per section rather than once per card. It is mounted by
+`AnalysisSections`, on the row with that section's question, see
+[analysis-ui.md](analysis-ui.md#four-sections-componentsanalysis-sectionstsx-over-the-analysis_tab-enum).
 
 **It cannot go in the card.** `InfoHint` is a `<button>`, and a button inside a `<summary>` would
 toggle the card. The answer is the same for every row anyway.

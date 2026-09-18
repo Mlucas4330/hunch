@@ -148,6 +148,26 @@ export const JOB_IN_FLIGHT: readonly JobStatus[] = ['queued', 'running']
 export const ANALYSIS_STATE = ['measuring', 'generating', 'rerunning', 'failed', 'ready'] as const
 export type AnalysisState = (typeof ANALYSIS_STATE)[number]
 
+// What a run has finished doing, in the order the waiting screen lists them. Six of the eight happen
+// in two groups of three that run side by side, so they arrive out of order and the screen shows each
+// one the moment it lands. A step is recorded after the work it names returned, never before. See
+// docs/report.md.
+export const RUN_STEP = [
+  'open',
+  'pagespeed',
+  'crawl',
+  'index',
+  'snapshot',
+  'copy',
+  'flow',
+  'visibility'
+] as const
+export type RunStep = (typeof RUN_STEP)[number]
+
+// The four lines the screen groups those eight into. A line is done when every step in it is in.
+export const RUN_PHASE = ['open', 'measure', 'write', 'assemble'] as const
+export type RunPhase = (typeof RUN_PHASE)[number]
+
 // Abuse gates. Windows live in RATE_LIMITS, so a kind added here fails typecheck until it is given
 // one.
 export const RATE_LIMIT_KIND = ['analysis', 'job_status', 'signin', 'brand', 'billing', 'bulk'] as const
@@ -327,6 +347,10 @@ export const LOG_EVENT = [
   // The screenshot came back but could not be written to the volume, or read back out of it.
   'screenshot.write_failed',
   'screenshot.prune_failed',
+  // The step a run reached could not be written to or read from Redis. A warning: the waiting screen
+  // falls back to the two coarse phases the run's own timestamps give it.
+  'progress.write_failed',
+  'progress.read_failed',
   'rate_limit.failed_open',
   'redis.error',
   // PageSpeed Insights answered with an error, timed out, or no key is configured. A warning: the

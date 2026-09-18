@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { batchFinished, parseBulkUrls } from './bulk'
 import { canBulkGenerate } from './auth-policy'
-import { BULK_URLS_MAX } from './constants'
+import { ADMIN_ROLE, BULK_URLS_MAX, DEFAULT_USER_ROLE } from './constants'
 
 // What a pasted list means. Every rule here is one the reader is charged for, so the count the form
 // shows and the count the route charges come from this one function.
@@ -64,16 +64,21 @@ test('an empty batch is not a finished one', () => {
   assert.equal(batchFinished([]), false)
 })
 
-// The tier gate. It reads the stored tier and nothing else.
+// The tier gate. It reads the stored tier and the stored role, and nothing else.
 
 test('bulk belongs to the two larger tiers', () => {
-  assert.equal(canBulkGenerate({ planTier: 'agency' }), true)
-  assert.equal(canBulkGenerate({ planTier: 'network' }), true)
+  assert.equal(canBulkGenerate({ planTier: 'agency', role: DEFAULT_USER_ROLE }), true)
+  assert.equal(canBulkGenerate({ planTier: 'network', role: DEFAULT_USER_ROLE }), true)
 })
 
 test('studio, no subscription and no user are all refused', () => {
-  assert.equal(canBulkGenerate({ planTier: 'studio' }), false)
-  assert.equal(canBulkGenerate({ planTier: null }), false)
+  assert.equal(canBulkGenerate({ planTier: 'studio', role: DEFAULT_USER_ROLE }), false)
+  assert.equal(canBulkGenerate({ planTier: null, role: DEFAULT_USER_ROLE }), false)
   assert.equal(canBulkGenerate(null), false)
   assert.equal(canBulkGenerate(undefined), false)
+})
+
+test('an admin passes on any tier, including none', () => {
+  assert.equal(canBulkGenerate({ planTier: null, role: ADMIN_ROLE }), true)
+  assert.equal(canBulkGenerate({ planTier: 'studio', role: ADMIN_ROLE }), true)
 })

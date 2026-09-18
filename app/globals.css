@@ -446,6 +446,28 @@ details[open]::details-content {
 }
 
 /*
+ * The band that crosses the page being audited while somebody waits for it.
+ *
+ * It reads as reading: one pass down the screenshot, a pause at the bottom, again. The pause lives
+ * in the keyframes for the same reason `shine`'s does, so nothing keeps time in JavaScript. It is
+ * decoration over a real picture and carries no information, which is why the element wearing it is
+ * `aria-hidden` and the step it belongs to is written out in text beside it.
+ */
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  75%,
+  100% {
+    transform: translateY(1100%);
+  }
+}
+
+.animate-scan {
+  animation: scan 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/*
  * The surface a reader is meant to land on catches the light every few seconds.
  *
  * Two of them on the landing: the open panel in the hero preview and the recommended row in the
@@ -552,6 +574,10 @@ details[open]::details-content {
   .animate-fade-up,
   .animate-stagger-in,
   .animate-pop-in,
+  .animate-scan,
+  /* Tailwind's own, worn by the spinner on the waiting screen. Frozen rather than hidden: the icon
+     still marks which line is the one working. */
+  .animate-spin,
   .animate-shimmer,
   .animate-shine::after,
   .animate-score-settle::before,

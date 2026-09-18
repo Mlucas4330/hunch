@@ -131,10 +131,14 @@ A page past the end is clamped to the last one. `e2e/pagination.spec.ts` holds t
   own error, tied to it by `aria-describedby`.
 - **Input and button share a row only when the form's own box can hold both**, which is a
   `@container` query rather than a viewport breakpoint.
-- While pending: one label and a running clock. The form polls `GET /api/analyses?embedKey=` and
-  navigates as soon as the page is **measured**, rather than waiting for the error lists.
+- While pending: `AnalysisProgress`, the same piece the report waits with, in its `inline` shape. The
+  form polls `GET /api/analyses?embedKey=` and navigates as soon as the page is **measured**, rather
+  than waiting for the error lists.
+- **The screen exists only once there is a run to read.** Between the submit and the route's answer
+  there is no embed key and so nothing to poll, and that gap shows one line of text.
 - Errors map from the route's statuses: `403` quota, `429` rate limit, `422` URL, `502` scrape, `503`
-  queue. **Nothing here narrates a phase**: the elapsed counter measures a real clock.
+  queue. **Nothing here narrates a phase it cannot see**: every line the screen ticks was recorded by
+  the run. See [report.md](report.md#the-wait).
 
 ## Admin: `/admin/accounts`
 
@@ -164,6 +168,14 @@ Each panel opens with a direct question from `analysis.sectionQuestions[tab]`, t
 on its theme, then the errors. See
 [invariants.md](invariants.md#a-section-shows-the-audits-its-errors-were-written-from).
 
+**One heading per section, and the card's bar is not one of them.** The bar names the theme and the
+question is the only title inside it. There used to be a third: a header over the list repeating the
+theme as an eyebrow and adding a second `<h2>`, which is what a reader met three times before getting
+to the first error. What that header carried that the question does not is now on the question's own
+row: `analysis.sectionHints[tab]` as an `InfoHint` beside it, and `ImpactLegend` at the end of the
+row, **only once something has been written**, because the legend explains a score that does not
+exist yet while the lists are being generated.
+
 **A section renders when it has errors or something measured.** All four render while the lists are
 being written, each with a placeholder where its list goes. The count on the bar is absent until
 something has been generated, because a zero would read as a clean section.
@@ -174,11 +186,10 @@ something has been generated, because a zero would read as a clean section.
 child rather than a keyless array member when it crosses from the server page into the client
 component.
 
-### The header over a list: `components/ranked-list-header.tsx`
-
-Eyebrow, title, the section's `InfoHint`, and the impact legend. The copy list's strings live in
-`hypothesisList`, not beside `flow`/`seo`/`ai`, because those three are `PLAYBOOK_SECTION` values
-reached through `dictionary[section]`.
+The hints are keyed by tab beside the questions, rather than beside `flow`/`seo`/`ai`, because the
+copy section has no entry among those three: they are `PLAYBOOK_SECTION` values reached through
+`dictionary[section]` and the copy list is not one. The landing's `ReportOutline` prints the same four
+bodies, which is why all four exist rather than three plus a special case.
 
 ### The copy errors: `components/hypothesis-list.tsx`
 

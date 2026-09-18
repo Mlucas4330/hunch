@@ -229,11 +229,9 @@ function ReportOutline({ dictionary }: { dictionary: Dictionary }) {
               <p className="text-balance font-display text-lg font-semibold tracking-tight">
                 {dictionary.analysis.sectionQuestions[tab]}
               </p>
-              {tab !== 'copy' && (
-                <p className="text-sm text-muted-foreground">
-                  <RichText>{dictionary[tab].hint}</RichText>
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                <RichText>{dictionary.analysis.sectionHints[tab].body}</RichText>
+              </p>
             </div>
           </PanelCard>
         </div>

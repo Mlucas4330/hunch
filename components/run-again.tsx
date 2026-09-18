@@ -97,7 +97,7 @@ export function RunAgain({
  */
 export function RunInProgress({ embedKey }: { embedKey: string }) {
   const { dictionary } = useI18n()
-  const stalled = useAnalysisPoll(embedKey, 'rerunning')
+  const { stalled } = useAnalysisPoll(embedKey, 'rerunning')
 
   return (
     <p

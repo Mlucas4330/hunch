@@ -6,7 +6,6 @@ import { DisclosureCard } from '@/components/disclosure-card'
 import { FlowCategoryBadge } from '@/components/flow-category-badge'
 import { ScoreIndicator } from '@/components/score-indicator'
 import { SeverityBadge } from '@/components/severity-badge'
-import { RankedListHeader } from '@/components/ranked-list-header'
 import { useI18n } from '@/components/i18n-provider'
 import { fixAnchor } from '@/lib/constants'
 import type { FlowFix } from '@/db/schema'
@@ -33,13 +32,6 @@ export function FlowPlaybook({
 
   return (
     <section className={cn('space-y-3', className)} data-testid={`${section}-playbook`}>
-      <RankedListHeader
-        eyebrow={copy.eyebrow}
-        title={copy.title}
-        hintLabel={copy.hintLabel}
-        hint={copy.hint}
-      />
-
       <div className="space-y-3">
         {ordered.map((fix, index) => (
           <DisclosureCard

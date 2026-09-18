@@ -4,9 +4,11 @@ import { analyses, analysisRuns, flowFixes, hypotheses, pageSnapshots, users } f
 import { generateFromMeasurement, measurePage } from '@/lib/analyze'
 import { enqueue, jobId, jobRef, readJob, type RunOutcome } from '@/lib/queue'
 import { analysisState } from '@/lib/analysis-state'
-import { JOB_IN_FLIGHT, type AnalysisState } from '@/lib/enums'
+import { JOB_IN_FLIGHT, type AnalysisState, type RunStep } from '@/lib/enums'
+import { markStep, readSteps } from '@/lib/run-progress'
 import { log } from '@/lib/log'
 import { SCREENSHOT_PRUNE_BATCH, SNAPSHOT_HISTORY_MAX } from '@/lib/constants'
+import { pageSpeedScore } from '@/lib/pagespeed'
 import { deleteScreenshot, saveScreenshot, screenshotStorageReady } from '@/lib/screenshots'
 import { snapshotValues } from '@/lib/snapshots'
 
@@ -237,8 +239,12 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
   const { analysis } = run
 
   try {
+    // What the waiting screen reads. Fire and forget: a Redis that will not take the step must never
+    // hold up the work the step is about. See lib/run-progress.ts.
+    const onStep = (step: RunStep) => void markStep(run.id, step)
+
     // Measured and stored first, so the PageSpeed section is current before the generation starts.
-    const measurement = await measurePage(analysis.url, analysis.locale)
+    const measurement = await measurePage(analysis.url, analysis.locale, onStep)
 
     // Written before the transaction, because it is a file rather than a row: a failed write leaves
     // the report without its picture, and must not cost the reader the measurement beside it.
@@ -279,11 +285,13 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
       })
 
       if (screenshotUrl) await pruneSupersededScreenshots(analysis.id)
+      onStep('snapshot')
     }
 
     const output = await generateFromMeasurement(analysis.url, measurement, {
       locale: analysis.locale,
-      competitorUrl: analysis.competitorUrl
+      competitorUrl: analysis.competitorUrl,
+      onStep
     })
 
     // Nothing at all is the failure condition. All three generators degrade to an empty list, so a
@@ -370,7 +378,15 @@ export async function runAnalysis(id: string): Promise<RunOutcome> {
 export async function analysisProgress(embedKey: string) {
   const analysis = await db.query.analyses.findFirst({
     where: eq(analyses.embedKey, embedKey),
-    columns: { id: true, userId: true, structure: true },
+    columns: {
+      id: true,
+      userId: true,
+      structure: true,
+      url: true,
+      mobileScreenshotUrl: true,
+      pagespeed: true,
+      siteCrawl: true
+    },
     with: {
       hypotheses: { columns: { id: true }, limit: 1 },
       flowFixes: { columns: { id: true }, limit: 1 }
@@ -390,6 +406,15 @@ export async function analysisProgress(embedKey: string) {
     id: analysis.id,
     ...facts,
     failed: run?.failedAt != null,
-    state: await analysisStateFor({ ...facts, run })
+    state: await analysisStateFor({ ...facts, run }),
+    // What the waiting screen draws. **Every one of these is null until it was measured**, and a
+    // failed call stays null rather than becoming a zero. See docs/invariants.md.
+    url: analysis.url,
+    screenshotUrl: analysis.mobileScreenshotUrl,
+    // The same average the report and the trend are drawn from, so the number the reader sees while
+    // waiting is the number they meet when it opens.
+    score: pageSpeedScore(analysis.pagespeed),
+    crawledPages: analysis.siteCrawl?.pages?.length ?? null,
+    steps: run ? await readSteps(run.id) : []
   }
 }
